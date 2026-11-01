@@ -48,14 +48,18 @@ Por padrão, `member` não vê as tarefas `group` dos colegas, conforme a seçã
 
 ### 4. Atores e transições
 
-O ator é derivado a cada pedido, nunca guardado. `própria` significa `created_by = eu` e `assignee_id = eu`.
+O ator é derivado a cada pedido, nunca guardado. `própria` significa `tasks.created_by = eu` e `tasks.assignee_id = eu`.
 
 - `assignee`: `task_occurrences.assignee_id = eu`.
-- `editor`: tarefa própria, ou `visibility = 'group'` com `task.manage_group`, ou responsável com `task.edit_assigned`.
-- `deleter`: tarefa própria, ou `visibility = 'group'` com `task.manage_group`, ou responsável com `task.delete_assigned`.
+- `editor`: tarefa própria, ou `visibility = 'group'` com `task.manage_group`, ou `tasks.assignee_id = eu` com `task.edit_assigned`.
+- `deleter`: tarefa própria, ou `visibility = 'group'` com `task.manage_group`, ou `tasks.assignee_id = eu` com `task.delete_assigned`.
 - `system`: job, sem usuário.
 
+Os dois responsáveis divergem em ocorrências anteriores a uma reatribuição: quem resolveu segue `assignee` delas, e só o responsável atual edita a tarefa.
+
 Em tarefa de grupo, todos exigem ser membro atual. Quem sai perde o acesso às tarefas daquele grupo.
+
+`OccurrenceListItem.task` traz `groupId`, `createdBy` e `assigneeId`, para a UI espelhar esta regra sem outra leitura, e `difficulty`, para mostrar o XP.
 
 A tabela é `occurrenceTransitions`, em `packages/contracts`, com espelho em `public.occurrence_transitions`:
 
@@ -103,7 +107,8 @@ O banco é o único escritor de `xp_events`, no trigger da transição, de forma
 - `tasks.rrule` guarda só a regra, sem `DTSTART`. A âncora é `coalesce(start_at, due_at)`, e o fuso é `tasks.timezone`.
 - `UNTIL` fica em UTC. A expansão acontece em hora local, para 9h continuar 9h quando o fuso muda de offset.
 - `RecurrenceInput` é o que a tela edita. `packages/core` converte nos dois sentidos, e nada mais lê RRULE.
-- `monthDay` de 29 a 31 cai no último dia dos meses mais curtos. Sem isso, "todo dia 31" pularia sete meses por ano.
+- `monthDay` de 29 a 31 cai no último dia dos meses mais curtos, com `BYMONTHDAY=28,...,d;BYSETPOS=-1`. Sem isso, "todo dia 31" pularia sete meses por ano. É RFC 5545 puro, então a exportação `.ics` não precisa de tradução. Até 28, `BYMONTHDAY=d`.
+- Se a âncora não bate com a regra, a primeira ocorrência é a primeira data da regra, e a âncora não vira ocorrência. O RFC 5545 deixa esse caso indefinido, e o `rrule` age assim. O editor alinha `startAt` à regra ao salvar, para a data mostrada ser a real. O banco não confere isso.
 - **Tarefa avulsa:** um trigger cria e mantém a única ocorrência. Ele não cria quando a tarefa nasce com `parent_task_id`, porque ali a ocorrência é reaproveitada.
 - **Tarefa recorrente:** a Edge Function `materialize-occurrences` expande com o código de `packages/core`, porque o Postgres não tem expansão de RRULE. Só ela insere ocorrências recorrentes.
   - O cron diário manda o corpo vazio e cobre a janela de `materializationWindowDays`.
@@ -123,7 +128,9 @@ O banco é o único escritor de `xp_events`, no trigger da transição, de forma
 
 - Em todos os casos, resolvida é história: edições de agenda não a alteram.
 - A tarefa nova aponta para a original em `parent_task_id`.
-- `this_and_following` na primeira ocorrência equivale a `all`. `splitRecurrence` devolve `headRrule` nulo, e a RPC segue esse caminho.
+- `this_and_following` na primeira ocorrência equivale a `all`. `splitRecurrence` devolve `headRrule` nulo, e a RPC segue esse caminho. "Primeira" é a primeira da regra, não a âncora.
+- O `UNTIL` da tarefa original é o fim do dia local anterior ao pivô, em UTC. Equivale a "logo antes do pivô", porque as regras do app têm no máximo uma ocorrência por dia local, e o editor volta a mostrar uma data simples.
+- `after_count` no formulário conta a partir do início da tarefa editada, como o editor mostra o `COUNT` dela. A tarefa nova recebe esse valor menos as ocorrências antes do pivô, então manter o número não alonga a série. As ocorrências em `exdates` entram na conta, como no RFC 5545. Um valor que não passa do pivô é erro: `count_before_pivot`, em `packages/core`.
 - `all` vale para o trecho da série, não para os trechos já divididos. A exceção é excluir.
 - Em tarefa avulsa, todo escopo equivale a `all`, e mudar a agenda exige ocorrência `pending`.
 - Reagendar é editar com escopo `this`. Para reagendar uma `missed`, primeiro se reabre.

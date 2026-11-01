@@ -144,9 +144,13 @@ export type OccurrenceListItem = Occurrence & {
     Task,
     | 'title'
     | 'contextId'
+    | 'groupId'
+    | 'createdBy'
+    | 'assigneeId'
     | 'scheduleType'
     | 'timezone'
     | 'priority'
+    | 'difficulty'
     | 'visibility'
     | 'rrule'
     | 'requiresPartialReason'

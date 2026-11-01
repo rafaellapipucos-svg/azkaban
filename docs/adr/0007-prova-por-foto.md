@@ -65,7 +65,7 @@ A ordem importa, porque cada etapa é mais cara que a anterior:
 1. JWT e usuário. Falha: 401.
 2. `x-proof-meta` com Zod, `Content-Type` e `Content-Length`. Falha aqui não consome o nonce.
 3. **`claim_proof_challenge`**: um `update ... where used_at is null and expires_at > now() returning` marca o nonce, e a concorrência tem um só vencedor. `used_at` é o horário oficial. A RPC reconfere ocorrência, responsável e janela, e devolve o local do contexto.
-4. Leitura do corpo em fluxo, contando bytes. Aborta acima de `maxBytes`, mesmo com `Content-Length` falso ou ausente, e depois de `uploadTimeoutSeconds`.
+4. Leitura do corpo em fluxo, contando bytes. Aborta acima de `maxBytes`, mesmo com `Content-Length` falso ou ausente, e depois de `uploadTimeoutSeconds`, com `upload_timeout`.
 5. Checagens sobre os bytes: início `FF D8 FF`, fim `FF D9`, largura e altura lidas do marcador SOF dentro de `[minEdgePx, maxEdgePx]`, hash (seção 4), duplicata (seção 17) e raio (seção 7).
 6. Upload em `task-proofs`, caminho `<occurrence_id>/<challenge_id>.jpg`, com `upsert: false`. Nada no caminho vem do cliente.
 7. `commit_proof`. Se falhar, a função remove o objeto. Se a função morrer antes disso, a limpeza da seção 14 o remove.
@@ -308,7 +308,15 @@ No app nativo, Play Integrity e App Attest podem atestar que o binário é legí
 
 Prova nunca entra em fila. A validação do servidor é a própria prova, e um desafio vence em 5 minutos. Sem conexão, o botão de câmera fica desabilitado com explicação, e a fila de F8-5 precisa recusar `done` em tarefa com foto. `partial` e `missed` seguem pela fila normal.
 
-Depois de uma falha, o app relê a ocorrência antes de tentar de novo: a resposta pode ter se perdido com a prova já gravada. `proof_duplicate` num reenvio dos mesmos bytes também manda reler. Uma foto mantida na tela pode ir de novo com outro desafio, e `clock_mismatch` denuncia se demorar demais. Ela nunca é salva em disco.
+Depois de uma falha, o app relê a ocorrência antes de tentar de novo: a resposta pode ter se perdido com a prova já gravada. `proof_duplicate` num reenvio dos mesmos bytes também manda reler. Uma foto mantida na tela pode ir de novo com outro desafio, e `clock_mismatch` denuncia se demorar demais.
+
+**Nada em disco depois da captura.** O app nunca grava a foto: os bytes finais vivem na memória da tela. Há uma exceção, que dura segundos e só existe no nativo: `takePictureAsync`, do `expo-camera` 58, sempre grava o JPEG bruto no cache do app, mesmo com `base64` ligado (conferido nas fontes de Android e iOS). Esse arquivo não tem carimbo, e o aviso da seção 14 promete apagar a foto em 90 dias, então ele não pode ficar para trás.
+
+- `ProofCamera.native` apaga o arquivo no `finally` de `capture`, com sucesso ou falha, por `new File(uri).delete()`, de `expo-file-system`.
+- Falha ao apagar não derruba a prova. O arquivo já cumpriu o papel, e perder a foto do usuário por isso seria pior.
+- Se o app morrer entre a foto e o `finally`, o arquivo fica no cache privado até o sistema limpá-lo. É o risco aceito: nenhum outro app o lê, e não vale um varredor de cache para esse intervalo.
+- `react-native-view-shot` com `result: 'base64'` não cria arquivo. Só o padrão `tmpfile` criaria.
+- Na web não há arquivo: `canvas` e `Blob` ficam na memória.
 
 ### 17. Abuso
 
@@ -346,7 +354,23 @@ Valores da [página de preços](https://supabase.com/pricing), em 2026-11-01. O 
 
 O tamanho da foto ainda não foi medido. Com 0,5 MB, 1 GB guarda 2 mil fotos, cerca de 22 provas por dia em 90 dias. No limite de 2 MiB, são 500 fotos, cerca de 5 por dia. Quando a primeira foto real existir, `prova-foto` mede e registra.
 
+### 19. Códigos de erro
+
+**Critério:** `proofErrorCodeSchema` lista só o que a tela nomeia com mensagem própria. Qualquer outro valor em `{ error }` é a falha genérica, inclusive um código que ainda não existe, então ficar de fora é seguro.
+
+| Código                                                              | Onde                   | Decisão | Motivo                                                                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------- | ---------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `upload_timeout`                                                    | `proof-validate`, 408  | Entra   | A pessoa vê um motivo próprio, "a conexão ficou lenta", e a reação é outra: não adianta trocar a foto. `proof_too_large` não serve                                                                                                                                                                                            |
+| `unauthorized`, `invalid_request`, `method_not_allowed`, `internal` | Todas as funções       | Fora    | Valem para qualquer função, inclusive as de cron, e não têm mensagem própria. Pertencem à prova tanto quanto a um `fetch`                                                                                                                                                                                                     |
+| `invalid_storage_path`                                              | `commit_proof`         | Fora    | Só `proof-validate` chama, e ela monta o caminho. É defeito nosso, e precisa virar `internal` com log. `databaseFailure` decide isso pela lista: incluí-lo trocaria a falha por uma recusa sem status                                                                                                                         |
+| `invalid_decision`                                                  | `review_proof`         | Fora    | `proofReviewInputSchema` recusa antes da rede. Só chega quem chama o REST direto                                                                                                                                                                                                                                              |
+| `invalid_consent_version`                                           | `record_proof_consent` | Fora    | O único dos três que um cliente honesto alcança: um app antigo depois de subir `consentVersion`. A recusa é o certo, porque ele mostrou o texto velho, e a saída é atualizar o app, que nenhuma mensagem nesta tela resolve. É raro, a web corrige ao recarregar, e o nativo só existe em F8-7. Entra sem perda se isso mudar |
+
+Quem consome a lista precisa cobrir `upload_timeout`, e `Record<ProofErrorCode, ...>` falha na compilação até isso acontecer. Os outros quatro seguem sem contrato, como em `materialize-occurrences`.
+
 ## Alternativas
+
+- **`transportErrorCodeSchema` à parte, com os cinco códigos:** uma lista a mais para ler em dobro, e quatro códigos que nenhuma tela distingue. `upload_timeout` já cabe na definição da lista atual.
 
 - **Upload assinado direto ao Storage:** evita o tráfego na função, mas a URL vale 2 horas contra 5 minutos do desafio, sem registro de uso. O objeto passaria a existir antes de qualquer validação, e a função teria de baixá-lo para calcular o hash, então os bytes passariam por ela do mesmo jeito. Exigiria ainda um bucket de quarentena e uma limpeza maior. Compensa com arquivos grandes, não com 2 MiB. É a saída se o corpo hospedado não aceitar 2 MiB.
 - **Política de `INSERT` no Storage para o cliente:** a regra "o cliente nunca grava" deixaria de ser verdadeira, e a RLS do Storage não confere conteúdo.

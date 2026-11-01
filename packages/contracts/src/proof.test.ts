@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { contextLocationSchema } from './contexts';
-import { proofReviewInputSchema, proofUploadMetaSchema } from './proof';
+import { proofErrorCodeSchema, proofReviewInputSchema, proofUploadMetaSchema } from './proof';
 import { taskInputSchema } from './tasks';
 
 const id = '11111111-1111-4111-8111-111111111111';
@@ -28,6 +28,26 @@ describe('proofUploadMetaSchema', () => {
   it('refuses coordinates that do not exist', () => {
     const location = { lat: 91, lng: 0, accuracyM: 10 };
     expect(proofUploadMetaSchema.safeParse({ ...meta, location }).success).toBe(false);
+  });
+});
+
+describe('proofErrorCodeSchema', () => {
+  it('holds the slow upload, which has its own message', () => {
+    expect(proofErrorCodeSchema.safeParse('upload_timeout').success).toBe(true);
+  });
+
+  // `proof-validate` answers `internal` for a database message outside this list, so a code added here
+  // would turn a defect of ours into a refusal with no status. See ADR-0007, section 19.
+  it.each([
+    'invalid_consent_version',
+    'invalid_decision',
+    'invalid_storage_path',
+    'unauthorized',
+    'invalid_request',
+    'method_not_allowed',
+    'internal',
+  ])('leaves %s to the generic failure', (code) => {
+    expect(proofErrorCodeSchema.safeParse(code).success).toBe(false);
   });
 });
 

@@ -27,6 +27,8 @@ supabase/  migrations, seeds, Edge Functions, testes de RLS
 - algo fora de `packages/data` importa `@supabase/*`;
 - `packages/` importa `apps/`.
 
+Uma feature pode depender de `@azkaban/platform` no próprio `package.json`, como `tasks`, `groups` e `contexts`. É o caminho previsto nas camadas: o proibido é usar o recurso de plataforma fora de `packages/platform`.
+
 `pnpm lint` (ESLint) proíbe `any`, e globais de navegador (`window`, `document`, `navigator`) fora de `packages/platform`.
 
 ## Configuração e segredos
@@ -46,6 +48,14 @@ O tema usa `darkMode: 'class'`, porque o modo `media` dispara erro na web no Nat
 Um adapter visual em `packages/platform` tem três arquivos: `Nome.web.tsx`, `Nome.native.tsx` e o `Nome.tsx`, que só declara os tipos e lança erro, porque o Metro nunca o carrega.
 
 O arquivo-base é `.tsx` de propósito. Com `.ts`, o Metro o escolhe antes do `.web.tsx`, e com `.d.ts` o `pnpm boundaries` não resolve o import. `.tsx` perde para as duas versões de plataforma e continua resolvido pelo TypeScript e pelo dependency-cruiser.
+
+Um adapter sem tela tem dois arquivos: o sem sufixo é a versão nativa, e o `.web.ts` a substitui no Metro. É o caso de `keyboard`, `sha256` e `geolocation`.
+
+`packages/platform/tsconfig.json` inclui a lib `dom`, porque os adapters `.web` usam `MediaStream`, `canvas` e `navigator`. Só esse pacote vê os tipos do DOM.
+
+## i18n
+
+Variável de tradução não pode ter o nome de uma opção do `t()`. `{{lng}}` é o caso conhecido: o i18next lê `lng` como o idioma de destino, e a tela cai com `lng?.toLowerCase is not a function`. Use `latitude` e `longitude`.
 
 ## Navegação
 

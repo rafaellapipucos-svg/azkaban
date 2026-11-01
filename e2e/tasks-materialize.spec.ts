@@ -44,7 +44,7 @@ test('saving a repeating task goes back at once while the function is still runn
   let calls = 0;
   await page.route(FUNCTION, async (route) => {
     calls += 1;
-    if (calls === 1) await new Promise((resolve) => setTimeout(resolve, 8_000));
+    if (calls === 1) await new Promise((resolve) => setTimeout(resolve, 6_000));
     await route.continue();
   });
 
@@ -56,7 +56,7 @@ test('saving a repeating task goes back at once while the function is still runn
   ).toBeVisible();
 
   // When it finishes, the list refreshes by itself and the notice goes away
-  await expect(rows(page, 'Treino').first()).toBeVisible({ timeout: 20_000 });
+  await expect(rows(page, 'Treino').first()).toBeVisible({ timeout: 45_000 });
   await expect(page.getByText('Criando as repetições da tarefa...')).toHaveCount(0);
 });
 

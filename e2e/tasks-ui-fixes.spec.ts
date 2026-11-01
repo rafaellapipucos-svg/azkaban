@@ -84,3 +84,19 @@ test('the day view starts in the morning, or at the first task when it is earlie
   await expect(hour('03:00')).toBeVisible();
   await expect(hour('02:00')).toHaveCount(0);
 });
+
+test('the context form cannot be saved before its areas arrive, instead of doing nothing', async ({
+  page,
+}) => {
+  await signUpWithContext(page, 'Areas');
+  await page.route('**/rest/v1/areas*', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 3_000));
+    await route.continue();
+  });
+  await page.goto('/contexts/new');
+  await page.getByLabel('Nome', { exact: true }).fill('Oficina');
+  await expect(button(page, 'Salvar')).toBeDisabled();
+  await expect(button(page, 'Salvar')).toBeEnabled({ timeout: 10_000 });
+  await button(page, 'Salvar').click();
+  await expect(page.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
+});

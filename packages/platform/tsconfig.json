@@ -1,1 +1,6 @@
-{ "extends": "../../tsconfig.base.json", "include": ["src"] }
+{
+  "extends": "../../tsconfig.base.json",
+  // The web adapters talk to the browser, so this package, and only this one, sees the DOM types.
+  "compilerOptions": { "lib": ["es2023", "dom"] },
+  "include": ["src"]
+}

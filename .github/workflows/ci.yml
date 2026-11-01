@@ -46,5 +46,17 @@ jobs:
       - run: pnpm db:start
       - run: pnpm db:test
       - run: pnpm db:check-permissions
+      - run: cp supabase/functions/.env.example supabase/functions/.env
+      - run: nohup pnpm exec supabase functions serve > /tmp/functions.log 2>&1 &
+      - name: Wait for the function
+        run: |
+          for attempt in $(seq 1 30); do
+            status=$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS http://127.0.0.1:54421/functions/v1/materialize-occurrences)
+            [ "$status" = 200 ] && exit 0
+            sleep 2
+          done
+          cat /tmp/functions.log
+          exit 1
+      - run: pnpm functions:test
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm e2e

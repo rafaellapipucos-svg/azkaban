@@ -14,6 +14,7 @@
     "boundaries": "depcruise apps packages --config .dependency-cruiser.cjs",
     "typecheck": "turbo run typecheck",
     "db:test": "supabase test db",
+    "functions:test": "node --test supabase/functions/materialize-occurrences/materialize.integration.test.ts",
     "db:check-permissions": "node scripts/check-permission-mirror.mjs",
     "test": "turbo run test",
     "check": "pnpm lint && pnpm boundaries && pnpm typecheck && pnpm test",

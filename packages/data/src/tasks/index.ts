@@ -1,0 +1,339 @@
+import {
+  taskBatchInputSchema,
+  taskErrorCodeSchema,
+  taskInputSchema,
+  taskSchema,
+  type Occurrence,
+  type OccurrenceListItem,
+  type OccurrenceTransitionInput,
+  type StatusHistoryEntry,
+  type Task,
+  type TaskBatchInput,
+  type TaskDeleteInput,
+  type TaskEditInput,
+  type TaskErrorCode,
+  type TaskInput,
+} from '@azkaban/contracts';
+import type { Json } from '../database.types';
+import { db } from '../client';
+
+/** `code` is null for anything the correct app cannot cause: the UI shows its generic text. */
+export class TaskError extends Error {
+  constructor(
+    readonly code: TaskErrorCode | null,
+    options?: { cause?: unknown },
+  ) {
+    super(code ?? 'task_error', options);
+    this.name = 'TaskError';
+  }
+}
+
+/** The RPCs raise their code as the message (ADR-0005), so a code outside the schema is a defect. */
+export function taskErrorCode(error: unknown): TaskErrorCode | null {
+  if (error instanceof TaskError) return error.code;
+  const message =
+    typeof error === 'object' && error !== null && 'message' in error ? error.message : null;
+  const parsed = taskErrorCodeSchema.safeParse(message);
+  return parsed.success ? parsed.data : null;
+}
+
+const toTaskError = (error: unknown) => new TaskError(taskErrorCode(error), { cause: error });
+
+// Joins the task and its context's area, which is all the lists need. `!inner` drops rows the
+// filters on the joined tables remove.
+const listColumns =
+  'id, task_id, assignee_id, scheduled_start, scheduled_due, overdue_at, status, late, status_reason, status_changed_at, status_changed_by, tasks!inner(title, context_id, group_id, created_by, assignee_id, schedule_type, timezone, priority, difficulty, visibility, rrule, requires_partial_reason, archived_at, contexts!inner(area_id))';
+
+type OccurrenceRow = {
+  id: string;
+  task_id: string;
+  assignee_id: string;
+  scheduled_start: string;
+  scheduled_due: string;
+  overdue_at: string;
+  status: Occurrence['status'];
+  late: boolean;
+  status_reason: string | null;
+  status_changed_at: string | null;
+  status_changed_by: string | null;
+};
+
+const toOccurrence = (row: OccurrenceRow): Occurrence => ({
+  id: row.id,
+  taskId: row.task_id,
+  assigneeId: row.assignee_id,
+  scheduledStart: row.scheduled_start,
+  scheduledDue: row.scheduled_due,
+  overdueAt: row.overdue_at,
+  status: row.status,
+  late: row.late,
+  statusReason: row.status_reason,
+  statusChangedAt: row.status_changed_at,
+  statusChangedBy: row.status_changed_by,
+});
+
+type ListRow = OccurrenceRow & {
+  tasks: {
+    title: string;
+    context_id: string;
+    group_id: string | null;
+    created_by: string | null;
+    assignee_id: string;
+    schedule_type: OccurrenceListItem['task']['scheduleType'];
+    timezone: string;
+    priority: OccurrenceListItem['task']['priority'];
+    difficulty: OccurrenceListItem['task']['difficulty'];
+    visibility: OccurrenceListItem['task']['visibility'];
+    rrule: string | null;
+    requires_partial_reason: boolean;
+    contexts: { area_id: string };
+  };
+};
+
+const toListItem = (row: ListRow): OccurrenceListItem => ({
+  ...toOccurrence(row),
+  areaId: row.tasks.contexts.area_id,
+  task: {
+    title: row.tasks.title,
+    contextId: row.tasks.context_id,
+    groupId: row.tasks.group_id,
+    createdBy: row.tasks.created_by,
+    assigneeId: row.tasks.assignee_id,
+    scheduleType: row.tasks.schedule_type,
+    timezone: row.tasks.timezone,
+    priority: row.tasks.priority,
+    difficulty: row.tasks.difficulty,
+    visibility: row.tasks.visibility,
+    rrule: row.tasks.rrule,
+    requiresPartialReason: row.tasks.requires_partial_reason,
+  },
+});
+
+/** The form without its recurrence, which is stored as `rrule`. */
+const taskFields = (input: TaskInput) => ({
+  title: input.title,
+  notes: input.notes,
+  contextId: input.contextId,
+  assigneeId: input.assigneeId,
+  scheduleType: input.scheduleType,
+  startAt: input.startAt,
+  dueAt: input.dueAt,
+  durationMin: input.durationMin,
+  timezone: input.timezone,
+  reminders: input.reminders,
+  requiresPhotoProof: input.requiresPhotoProof,
+  requiresAdminApproval: input.requiresAdminApproval,
+  requiresPartialReason: input.requiresPartialReason,
+  difficulty: input.difficulty,
+  priority: input.priority,
+  visibility: input.visibility,
+});
+
+const toInsertRow = (input: TaskInput, rrule: string | null) => ({
+  context_id: input.contextId,
+  assignee_id: input.assigneeId,
+  title: input.title,
+  notes: input.notes,
+  schedule_type: input.scheduleType,
+  start_at: input.startAt,
+  due_at: input.dueAt,
+  duration_min: input.durationMin,
+  timezone: input.timezone,
+  rrule,
+  reminders: input.reminders,
+  requires_photo_proof: input.requiresPhotoProof,
+  requires_admin_approval: input.requiresAdminApproval,
+  requires_partial_reason: input.requiresPartialReason,
+  difficulty: input.difficulty,
+  priority: input.priority,
+  visibility: input.visibility,
+});
+
+// The generated types make the nullable RPC arguments `string`, but SQL accepts null and the
+// ADR gives it a meaning (p_rrule null: stop repeating).
+const sqlNull = (value: string | null) => value as string;
+
+async function materialize(taskIds: string[]) {
+  if (taskIds.length === 0) return;
+  // A failure does not undo the edit: the daily job fills the gap (handoff from backend-funcoes).
+  try {
+    await db().functions.invoke('materialize-occurrences', { body: { taskIds } });
+  } catch {
+    // Nothing to do here.
+  }
+}
+
+export const tasksRepository = {
+  /** Occurrences that overlap `[from, to)`, cancelled and archived ones left out. */
+  async listOccurrences({
+    from,
+    to,
+    assigneeId,
+  }: {
+    from: string;
+    to: string;
+    assigneeId?: string;
+  }): Promise<OccurrenceListItem[]> {
+    let query = db()
+      .from('task_occurrences')
+      .select(listColumns)
+      .is('tasks.archived_at', null)
+      .neq('status', 'cancelled')
+      .lt('scheduled_start', to)
+      .gte('scheduled_due', from);
+    if (assigneeId) query = query.eq('assignee_id', assigneeId);
+    const { data, error } = await query.order('scheduled_start').limit(500);
+    if (error) throw toTaskError(error);
+    return data.map(toListItem);
+  },
+
+  /** Pending ones past `overdueAt`: the job that marks them red does not exist yet. */
+  async listOverdue({
+    before,
+    assigneeId,
+  }: {
+    before: string;
+    assigneeId?: string;
+  }): Promise<OccurrenceListItem[]> {
+    let query = db()
+      .from('task_occurrences')
+      .select(listColumns)
+      .is('tasks.archived_at', null)
+      .eq('status', 'pending')
+      .lt('overdue_at', before);
+    if (assigneeId) query = query.eq('assignee_id', assigneeId);
+    const { data, error } = await query.order('scheduled_start', { ascending: false }).limit(100);
+    if (error) throw toTaskError(error);
+    return data.map(toListItem);
+  },
+
+  async getOccurrence(
+    occurrenceId: string,
+  ): Promise<{ item: OccurrenceListItem; task: Task } | null> {
+    const { data, error } = await db()
+      .from('task_occurrences')
+      .select('*, tasks!inner(*, contexts!inner(area_id))')
+      .eq('id', occurrenceId)
+      .maybeSingle();
+    if (error) throw toTaskError(error);
+    if (!data) return null;
+    const { contexts, ...row } = data.tasks;
+    const task = taskSchema.parse({
+      id: row.id,
+      groupId: row.group_id,
+      createdBy: row.created_by,
+      title: row.title,
+      notes: row.notes,
+      contextId: row.context_id,
+      assigneeId: row.assignee_id,
+      scheduleType: row.schedule_type,
+      startAt: row.start_at,
+      dueAt: row.due_at,
+      durationMin: row.duration_min,
+      timezone: row.timezone,
+      rrule: row.rrule,
+      exdates: row.exdates,
+      parentTaskId: row.parent_task_id,
+      reminders: row.reminders,
+      requiresPhotoProof: row.requires_photo_proof,
+      requiresAdminApproval: row.requires_admin_approval,
+      requiresPartialReason: row.requires_partial_reason,
+      difficulty: row.difficulty,
+      priority: row.priority,
+      visibility: row.visibility,
+      archivedAt: row.archived_at,
+      createdAt: row.created_at,
+    });
+    return {
+      item: toListItem({ ...data, tasks: { ...row, contexts } }),
+      task,
+    };
+  },
+
+  async listHistory(occurrenceId: string): Promise<StatusHistoryEntry[]> {
+    const { data, error } = await db()
+      .from('task_status_history')
+      .select('id, occurrence_id, from_status, to_status, changed_by, changed_at, reason')
+      .eq('occurrence_id', occurrenceId)
+      .order('changed_at', { ascending: false });
+    if (error) throw toTaskError(error);
+    return data.map((row) => ({
+      id: row.id,
+      occurrenceId: row.occurrence_id,
+      fromStatus: row.from_status,
+      toStatus: row.to_status,
+      changedBy: row.changed_by,
+      changedAt: row.changed_at,
+      reason: row.reason,
+    }));
+  },
+
+  /** Returns the new task's id. A repeating task gets its occurrences from the Edge Function. */
+  async create(input: TaskInput, rrule: string | null): Promise<string> {
+    const { data, error } = await db()
+      .from('tasks')
+      .insert(toInsertRow(taskInputSchema.parse(input), rrule))
+      .select('id')
+      .single();
+    if (error) throw toTaskError(error);
+    if (rrule) await materialize([data.id]);
+    return data.id;
+  },
+
+  /** One task per assignee, in a single insert, so all of them exist or none does. */
+  async createBatch(input: TaskBatchInput, rrule: string | null): Promise<string[]> {
+    const { assigneeIds, ...rest } = taskBatchInputSchema.parse(input);
+    const rows = assigneeIds.map((assigneeId) => toInsertRow({ ...rest, assigneeId }, rrule));
+    const { data, error } = await db().from('tasks').insert(rows).select('id');
+    if (error) throw toTaskError(error);
+    const ids = data.map(({ id }) => id);
+    if (rrule) await materialize(ids);
+    return ids;
+  },
+
+  async setStatus({
+    occurrenceId,
+    toStatus,
+    expectedStatus,
+    reason,
+  }: OccurrenceTransitionInput): Promise<Occurrence> {
+    const { data, error } = await db().rpc('set_occurrence_status', {
+      p_occurrence_id: occurrenceId,
+      p_to_status: toStatus,
+      p_expected_status: expectedStatus,
+      p_reason: sqlNull(reason),
+    });
+    if (error) throw toTaskError(error);
+    return toOccurrence(data);
+  },
+
+  /**
+   * `rrule` and `headRrule` come from `planEdit` in core. Materializes the tasks the RPC names.
+   * Returns the ids so the caller can refresh them.
+   */
+  async edit(
+    { occurrenceId, scope, task }: TaskEditInput,
+    { rrule, headRrule }: { rrule: string | null; headRrule: string | null },
+  ): Promise<string[]> {
+    const { data, error } = await db().rpc('edit_task', {
+      p_occurrence_id: occurrenceId,
+      p_scope: scope,
+      p_task: taskFields(taskInputSchema.parse(task)) as Json,
+      p_rrule: sqlNull(rrule),
+      p_head_rrule: sqlNull(headRrule),
+    });
+    if (error) throw toTaskError(error);
+    await materialize(data);
+    return data;
+  },
+
+  /** `headRrule` from `planDelete`. `all` archives the series and cannot be undone in Phase 2. */
+  async remove({ occurrenceId, scope }: TaskDeleteInput, headRrule: string | null) {
+    const { error } = await db().rpc('delete_task', {
+      p_occurrence_id: occurrenceId,
+      p_scope: scope,
+      p_head_rrule: sqlNull(headRrule),
+    });
+    if (error) throw toTaskError(error);
+  },
+};

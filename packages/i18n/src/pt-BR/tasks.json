@@ -1,0 +1,238 @@
+{
+  "loading": "Carregando...",
+  "days": {
+    "today": "Hoje",
+    "tomorrow": "Amanhã"
+  },
+  "weekdaysShort": {
+    "mon": "Seg",
+    "tue": "Ter",
+    "wed": "Qua",
+    "thu": "Qui",
+    "fri": "Sex",
+    "sat": "Sáb",
+    "sun": "Dom"
+  },
+  "when": {
+    "allDay": "Dia todo",
+    "dueTodayAt": "Até hoje, {{time}}",
+    "dueOn": "Prazo: {{day}}",
+    "range": "{{from}} às {{to}}"
+  },
+  "row": {
+    "overdue": "Atrasada",
+    "more": "Mais opções: {{title}}",
+    "xp": "+{{count}} XP"
+  },
+  "actions": {
+    "reasonLabel": "O que aconteceu? (uma frase curta)",
+    "reasonPlaceholder": "Ex.: faltou material",
+    "confirm": "Confirmar",
+    "back": "Voltar",
+    "cancel": "Cancelar",
+    "save": "Salvar",
+    "none": "Não há mais nada a fazer com esta tarefa.",
+    "done": "Marcar como feito",
+    "partial": "Tentei, mas não consegui",
+    "missed": "Não fiz",
+    "pending": "Voltar para pendente",
+    "cancelled": "Cancelar esta tarefa",
+    "restore": "Restaurar tarefa",
+    "lateHint": "Fora do prazo: conta como feito com atraso."
+  },
+  "errors": {
+    "generic": "Algo deu errado. Tente de novo.",
+    "load": "Não deu para carregar as tarefas. Tente de novo.",
+    "forbidden": "Você não tem permissão para fazer isso.",
+    "invalid_transition": "Essa mudança não é possível agora.",
+    "status_conflict": "Outra pessoa mudou esta tarefa antes de você. Atualizamos a lista.",
+    "reason_required": "Escreva um motivo curto.",
+    "late_window_expired": "O prazo para marcar esta tarefa como feita acabou. Peça a um administrador.",
+    "occurrence_not_pending": "Só dá para mudar uma tarefa que ainda está pendente.",
+    "assignee_not_member": "Essa pessoa não faz mais parte do grupo. Escolha outra.",
+    "context_change_not_allowed": "Não dá para mover a tarefa para esse contexto.",
+    "context_not_found": "Esse contexto não existe mais."
+  },
+  "formErrors": {
+    "recurrence_ends_before_anchor": "A repetição termina antes de a tarefa começar. Escolha uma data mais tarde.",
+    "recurrence_has_no_occurrence": "Com essas escolhas a tarefa nunca acontece. Mude os dias ou a data final.",
+    "count_before_pivot": "O número de vezes é menor do que o que já passou. Aumente o número."
+  },
+  "sections": {
+    "otherContext": "Outro contexto"
+  },
+  "today": {
+    "title": "Hoje",
+    "goal": "Meta do dia",
+    "goalValue": "{{done}} de {{total}}",
+    "goalHint": "Tarefas de hoje que você já fez.",
+    "xp": "{{count}} XP hoje",
+    "created": "Pronto! A tarefa foi criada.",
+    "noContext": "Para criar tarefas, primeiro crie um contexto: um lugar da sua vida, como Casa ou Escritório.",
+    "newContext": "Novo contexto",
+    "empty": "Nada pendente por aqui. Toque em Nova tarefa para começar.",
+    "overdue": "Atrasadas",
+    "planned": "Para hoje",
+    "soon": "Prazos chegando"
+  },
+  "area": {
+    "contextLabel": "Contexto",
+    "all": "Todos",
+    "scopeLabel": "De quem",
+    "mine": "Minhas",
+    "group": "Do grupo",
+    "noContexts": "Esta área ainda não tem contexto. Crie um para cada lugar da sua vida.",
+    "empty": "Nenhuma tarefa nos próximos dias. Toque em Nova tarefa.",
+    "manageContexts": "Gerenciar contextos"
+  },
+  "quick": {
+    "fab": "Nova tarefa",
+    "close": "Fechar",
+    "title": "Nova tarefa",
+    "titleLabel": "O que precisa ser feito?",
+    "dayLabel": "Dia",
+    "timeLabel": "Horário",
+    "create": "Criar",
+    "moreOptions": "Mais opções"
+  },
+  "form": {
+    "newTitle": "Nova tarefa",
+    "editTitle": "Editar tarefa",
+    "scope": {
+      "this": "Você está mudando só esta tarefa.",
+      "this_and_following": "Você está mudando esta tarefa e as próximas.",
+      "all": "Você está mudando todas as tarefas desta série."
+    },
+    "titleLabel": "O que precisa ser feito?",
+    "titleRequired": "Escreva o nome da tarefa.",
+    "context": "Onde",
+    "whenLabel": "Tipo de horário",
+    "type": {
+      "timed": "Horário",
+      "all_day": "Dia todo",
+      "deadline": "Prazo"
+    },
+    "date": "Dia",
+    "dueDate": "Entregar até o dia",
+    "dateRequired": "Escolha um dia.",
+    "time": "Horário",
+    "timeRequired": "Escolha um horário.",
+    "hasDuration": "Tem duração",
+    "duration": "Duração",
+    "durationValue": "{{count}} min",
+    "startDate": "Começa em (opcional)",
+    "startDateInvalid": "O início não pode ser depois do prazo.",
+    "repeat": "Repetir",
+    "reminders": "Avisar",
+    "assignees": "Para quem",
+    "me": "Eu",
+    "batchHint_one": "Uma tarefa será criada para {{count}} pessoa.",
+    "batchHint_other": "Uma tarefa será criada para cada uma das {{count}} pessoas.",
+    "private": "Só eu vejo",
+    "privateHint": "Os outros do grupo não veem esta tarefa.",
+    "moreOptions": "Mais opções",
+    "lessOptions": "Menos opções",
+    "notes": "Observações",
+    "notesInvalid": "Texto longo demais.",
+    "difficulty": "Dificuldade",
+    "priority": "Prioridade",
+    "askReason": "Pedir um motivo ao marcar \"Tentei\"",
+    "askReasonHint": "Quem não conseguir explica em uma frase.",
+    "cannotEdit": "Você não pode editar esta tarefa."
+  },
+  "difficulty": {
+    "easy": "Fácil",
+    "medium": "Média",
+    "hard": "Difícil"
+  },
+  "priority": {
+    "low": "Baixa",
+    "normal": "Normal",
+    "high": "Alta"
+  },
+  "reminder": {
+    "atTime": "Na hora",
+    "minutes": "{{count}} min antes",
+    "hours_one": "{{count}} hora antes",
+    "hours_other": "{{count}} horas antes",
+    "days_one": "{{count}} dia antes",
+    "days_other": "{{count}} dias antes"
+  },
+  "repeat": {
+    "frequencyLabel": "Com que frequência",
+    "frequency": {
+      "daily": "Todo dia",
+      "weekly": "Dias da semana",
+      "monthly": "Todo mês"
+    },
+    "every": "Repetir a cada",
+    "unit": {
+      "daily_one": "{{count}} dia",
+      "daily_other": "{{count}} dias",
+      "weekly_one": "{{count}} semana",
+      "weekly_other": "{{count}} semanas",
+      "monthly_one": "{{count}} mês",
+      "monthly_other": "{{count}} meses"
+    },
+    "daysLabel": "Em quais dias",
+    "monthDayLabel": "Dia do mês",
+    "monthDay": "Dia {{day}}",
+    "shortMonthHint": "Nos meses mais curtos, vale o último dia.",
+    "endsLabel": "Quando para",
+    "ends": {
+      "never": "Nunca",
+      "on_date": "Na data",
+      "after_count": "N vezes"
+    },
+    "endDate": "Parar no dia",
+    "endDateInvalid": "Escolha um dia depois do início.",
+    "countLabel": "Número de vezes",
+    "count_one": "{{count}} vez",
+    "count_other": "{{count}} vezes",
+    "summary": {
+      "prefix": "Vai repetir: {{text}}",
+      "daily_one": "todo dia",
+      "daily_other": "a cada {{count}} dias",
+      "weekly_one": "toda semana ({{days}})",
+      "weekly_other": "a cada {{count}} semanas ({{days}})",
+      "monthly_one": "todo mês, no dia {{day}}",
+      "monthly_other": "a cada {{count}} meses, no dia {{day}}",
+      "afterCount_one": "só 1 vez",
+      "afterCount_other": "termina depois de {{count}} vezes",
+      "onDate": "termina em {{date}}"
+    }
+  },
+  "scope": {
+    "editTitle": "Esta tarefa se repete. O que você quer editar?",
+    "deleteTitle": "Esta tarefa se repete. O que você quer excluir?",
+    "this": "Só esta",
+    "this_and_following": "Esta e as próximas",
+    "all": "Todas",
+    "allConfirm": "Sim, excluir todas (não dá para desfazer)"
+  },
+  "detail": {
+    "notFound": "Não encontramos esta tarefa.",
+    "statusTitle": "Como está esta tarefa?",
+    "doneLate": "Feita depois do prazo.",
+    "repeats": "Repete: {{text}}",
+    "customRepeat": "de um jeito personalizado",
+    "assignee": "Responsável: {{name}}",
+    "you": "você",
+    "someone": "outra pessoa",
+    "system": "o sistema",
+    "edit": "Editar",
+    "reschedule": "Reagendar",
+    "rescheduleRepeats": "Só esta vez muda de horário. As outras continuam como estão.",
+    "rescheduleSave": "Salvar novo horário",
+    "duplicate": "Duplicar",
+    "delete": "Excluir",
+    "deleteConfirm": "Confirmar exclusão (não dá para desfazer)"
+  },
+  "history": {
+    "title": "Histórico",
+    "empty": "Ainda não mudou de estado.",
+    "entry": "{{from}} → {{to}}",
+    "by": "Por {{name}}, em {{when}}",
+    "reason": "Motivo: {{reason}}"
+  }
+}

@@ -170,7 +170,7 @@ Confirmado na revisão das migrations `20261101130*`:
 
 Corrigido na mesma revisão:
 
-- **Um dia, uma ocorrência.** Depois de mudar a agenda em `all` ou `this_and_following`, os dias locais, de hoje em diante, das linhas não canceladas que ficaram entram em `exdates` da tarefa que as mantém. Às 10h, mudar de 9h para 15h deixa a ocorrência de hoje às 9h, resolvível até o fim do dia, e a nova hora vale a partir de amanhã. Sem isso, nasceria uma segunda ocorrência no mesmo dia, e a antiga viraria `missed`.
+- **Um dia, uma ocorrência.** Depois de mudar a agenda em `all` ou `this_and_following`, os dias locais, de hoje em diante, das linhas não canceladas que ficaram entram em `exdates` da tarefa que as mantém. Esses dias são lidos no fuso já editado, porque é nele que a série expande. No fuso antigo, uma linha perto da meia-noite cairia em outro dia, e a regra deixaria de garantir uma ocorrência por dia. Às 10h, mudar de 9h para 15h deixa a ocorrência de hoje às 9h, resolvível até o fim do dia, e a nova hora vale a partir de amanhã. Sem isso, nasceria uma segunda ocorrência no mesmo dia, e a antiga viraria `missed`.
 - **Reatribuir sem mudar a agenda** alcança as pendentes com `overdue_at > now()`, não só as não iniciadas. Um prazo que começou na segunda e vence na sexta precisa mudar de mãos.
 - **Deixar de repetir em `all`** trata todas as pendentes como futuras: tarefa avulsa tem no máximo uma pendente. Com duas, a edição seguinte falharia na unicidade por `(task_id, scheduled_start)`.
 

@@ -335,3 +335,21 @@
 - **Verificado:** `pnpm check`, `pnpm build:web`, `pnpm db:test` (352 asserts) e `pnpm e2e` (16 testes) passam. Uma mutação (materialização desligada) derrubou o teste de recorrência a 90 dias. Telas vistas com dados reais (mês, semana, dia, dia perfeito, filtros, limite, escolha do time, Equipe) em 375px e 1280px, claro e escuro.
 - **Não verificado:** nada rodou em aparelho ou emulador. Mês com seis linhas e células com quatro marcadores só foram vistos no desktop e em 375px do navegador. Calendário de um grupo com muitos membros (mais de 500 ocorrências por visão) só tem a paginação por leitura de código; a tela não foi vista com esse volume. Dia com mudança de horário de verão só tem teste de unidade, porque o fuso padrão não tem.
 - **Pendências / próximos passos:** arrastar para reagendar, exportação `.ics` e calendários externos ficam fora do escopo. Criar a tarefa a partir do calendário de um membro ainda começa com o responsável "eu": o formulário não recebe o responsável por rota. Os três handoffs de 11:59 (regras para o arquiteto, `children` no grupo, marcador de estado para o design-system).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 13:00 (BRT)
+
+- **Branch:** feat/tasks-adr-closeout, criada a partir de feat/phase-2-tasks
+- **Agente(s):** arquiteto
+- **Resumo:** Itens abertos da Fase 2 fechados nos ADRs: dia perfeito, taxa da Equipe, fuso das telas, lugar do `useCurrentUser` e navegação.
+- **Alterações:**
+  - ADR-0006: dia de uma ocorrência na tela, dia perfeito, taxa da Equipe com faixas provisórias, `useCurrentUser` e navegação.
+  - ADR-0004: aponta para o ADR-0006 no paliativo de navegação. ADR-0005: `exclude_kept_days` confirmado no fuso novo.
+  - `docs/arquitetura.md`: adapters de plataforma e navegação.
+  - Handoffs para `banco-de-dados` e `tarefas-calendario`.
+- **Arquivos/módulos principais:** `docs/adr/`, `docs/arquitetura.md`, `docs/agentes/handoffs/`, comentário em `packages/contracts/src/tasks.ts`
+- **Migrations:** nenhuma. A mudança em `team_overview` é uma migration de `banco-de-dados`.
+- **Decisões/ADRs:** ADR-0006. Telas contam dias no fuso do perfil de quem vê, com `deadline` no dia do limite. Isso corrige também a taxa, em que um prazo em andamento contava como vencido.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passa. O desencontro do prazo foi visto na leitura do SQL e de `teamOverview`, não em execução.
+- **Não verificado:** nada do handoff foi implementado ainda.
+- **Pendências / próximos passos:** `banco-de-dados` e `tarefas-calendario` aplicam os handoffs de 13:00, juntos. O humano valida as faixas de 80% e 50%.

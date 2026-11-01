@@ -20,7 +20,7 @@ O modelo de dados do prompt mestre é um ponto de partida. A Fase 1 o refinou, e
 - A matriz de permissões fica em migration, não em seed: `db push` não roda seeds, e as regras de acesso de produção dependem dela. `pnpm db:check-permissions` compara a matriz com o espelho em `packages/core`.
 - Mudanças sensíveis usam privilégio por coluna além de RLS: `owner_id`, papéis e `use_count` não são graváveis pelo cliente.
 
-**Navegação:** enquanto as tarefas não chegam, as áreas vivem como chips na tela Início, porque a lista vem do banco e as abas do Expo Router são estáticas. A Fase 2 revê isso junto com a tela "Hoje".
+**Navegação:** enquanto as tarefas não chegam, as áreas vivem como chips na tela Início, porque a lista vem do banco e as abas do Expo Router são estáticas. A Fase 2 revê isso junto com a tela "Hoje". Superado pelo [ADR-0006](0006-calendario-equipe-navegacao.md), seção 5.
 
 **Mascote:** Broto, um personagem original, uma semente com folhas na cabeça, porque o app é sobre coisas crescendo dia a dia. Em SVG com quatro humores; Lottie fica para a Fase 6.
 

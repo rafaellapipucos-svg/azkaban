@@ -41,9 +41,23 @@ supabase/  migrations, seeds, Edge Functions, testes de RLS
 
 O tema usa `darkMode: 'class'`, porque o modo `media` dispara erro na web no NativeWind 4.2. `useSystemColorScheme`, em `packages/ui`, mantém a classe igual ao tema do sistema.
 
+## Adapters de plataforma
+
+Um adapter visual em `packages/platform` tem três arquivos: `Nome.web.tsx`, `Nome.native.tsx` e o `Nome.tsx`, que só declara os tipos e lança erro, porque o Metro nunca o carrega.
+
+O arquivo-base é `.tsx` de propósito. Com `.ts`, o Metro o escolhe antes do `.web.tsx`, e com `.d.ts` o `pnpm boundaries` não resolve o import. `.tsx` perde para as duas versões de plataforma e continua resolvido pelo TypeScript e pelo dependency-cruiser.
+
+## Navegação
+
+As abas são Hoje, uma por área vinda do banco, Calendário e Perfil. As áreas dividem a rota `area/[areaKey]`, e `apps/app/src/AppTabBar.tsx` desenha uma aba para cada linha de `areas`. Grupos fica em Perfil, e Equipe, na página do grupo.
+
+Features não se importam, então a rota compõe a entrada de uma feature na tela de outra, por `children`. Decisão no [ADR-0006](adr/0006-calendario-equipe-navegacao.md).
+
 ## Tarefas
 
 Regras completas no [ADR-0005](adr/0005-tarefas-ocorrencias-recorrencia.md).
+
+- Telas contam dias no fuso do perfil de quem vê, e a agenda fica no fuso da tarefa ([ADR-0006](adr/0006-calendario-equipe-navegacao.md)).
 
 - `tasks` é a definição, e `task_occurrences` guarda o estado de cada instância.
 - O cliente lê por RLS, cria tarefa por `insert` e faz o resto pelas RPCs `set_occurrence_status`, `edit_task` e `delete_task`. Triggers gravam histórico e XP em qualquer caminho.

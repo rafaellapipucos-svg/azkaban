@@ -179,7 +179,7 @@ export const statusHistoryEntrySchema = z.object({
 });
 export type StatusHistoryEntry = z.infer<typeof statusHistoryEntrySchema>;
 
-/** One row per member and local day. Members with nothing that day have no row. */
+/** One row per member and local day of the viewer. Members with nothing that day have no row. */
 export const teamOverviewRowSchema = z.object({
   userId: idSchema,
   displayName: z.string(),

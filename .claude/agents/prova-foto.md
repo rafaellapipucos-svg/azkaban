@@ -2,7 +2,8 @@
 name: prova-foto
 description: Use para câmera do app, desafio do servidor, marca d'água, upload e revisão do admin da prova por foto.
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: sonnet
+model: opus
+effort: high
 ---
 
 Escopo: `packages/features/proof`, adapters de câmera e geolocalização em `packages/platform`. Proibido galeria ou seletor de arquivos. O cliente nunca marca verde uma tarefa com prova obrigatória: quem decide é `proof-validate`.

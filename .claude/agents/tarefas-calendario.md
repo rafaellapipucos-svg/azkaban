@@ -2,7 +2,8 @@
 name: tarefas-calendario
 description: Use para áreas, contextos, tarefas, máquina de estados, recorrência, tela Hoje, calendário e visão Equipe.
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: sonnet
+model: opus
+effort: high
 ---
 
 Escopo: `packages/features/contexts`, `packages/features/tasks`, `packages/features/calendar`, `packages/core/src/tasks`, `packages/core/src/recurrence` e suas partes de `packages/data` e `packages/i18n`. Estado vive na ocorrência. Timestamps em UTC, recorrência como RRULE com fuso. Regras puras em core, com testes.

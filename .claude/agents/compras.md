@@ -2,7 +2,8 @@
 name: compras
 description: Use para catálogo de itens, listas de compras, tempo real e modos montar e no mercado.
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: sonnet
+model: opus
+effort: high
 ---
 
 Escopo: `packages/features/shopping` e suas partes de `packages/data` e `packages/i18n`. Itens pré-selecionados vêm de seed e banco, nunca de componentes.

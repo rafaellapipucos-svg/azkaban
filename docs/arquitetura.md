@@ -52,4 +52,4 @@ Regras completas no [ADR-0005](adr/0005-tarefas-ocorrencias-recorrencia.md).
 
 ## Banco
 
-Desenvolvimento em Supabase local (`pnpm db:start`, exige Docker): `apps/app/.env.development.local` aponta o `pnpm dev` para ele. O projeto hospedado recebe migrations por `supabase db push --db-url "$SUPABASE_DB_URL"`, e só após revisão.
+Desenvolvimento em Supabase local (`pnpm db:start`, exige Docker), nas portas 544xx para conviver com outros projetos locais: `apps/app/.env.development.local` aponta o `pnpm dev` para ele. O projeto hospedado recebe migrations por `supabase db push --db-url "$SUPABASE_DB_URL"`, e só após revisão.

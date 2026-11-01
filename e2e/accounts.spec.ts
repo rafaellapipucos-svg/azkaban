@@ -124,7 +124,7 @@ test('magic link signs the user in', async ({ page, request }) => {
   await button(page, 'Receber link por e-mail').click();
   await expect(page.getByText('Enviamos um link para o seu e-mail.')).toBeVisible();
 
-  const mail = 'http://127.0.0.1:54324/api/v1';
+  const mail = 'http://127.0.0.1:54424/api/v1';
   await expect
     .poll(async () => {
       const search = await request.get(`${mail}/search?query=to:${user.email}`);

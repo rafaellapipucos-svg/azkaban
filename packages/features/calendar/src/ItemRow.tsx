@@ -1,10 +1,9 @@
 import type { OccurrenceListItem } from '@azkaban/contracts';
 import type { CalendarStatus } from '@azkaban/core';
 import { useTranslation } from '@azkaban/i18n';
-import { Muted, tokens } from '@azkaban/ui';
+import { Muted, StatusMark, tokens } from '@azkaban/ui';
 import { Pressable, Text, View } from 'react-native';
 import { whenText } from './format';
-import { StatusMark } from './StatusMark';
 
 type Props = {
   item: OccurrenceListItem;

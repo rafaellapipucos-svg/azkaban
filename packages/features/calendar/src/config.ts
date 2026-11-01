@@ -5,6 +5,8 @@ export const calendarConfig = {
   /** Sunday, as on the printed calendars the family and the employer know. 1 would be Monday. */
   weekStartsOn: 0 as WeekStart,
   defaultView: 'month' as CalendarView,
+  /** The day view starts here, or at the first task when that is earlier: no scrolling past the night. */
+  dayStartHour: 6,
 } as const;
 
 /** What the route can hand the screen, such as the team view opening a member's week. */

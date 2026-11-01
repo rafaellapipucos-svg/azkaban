@@ -27,8 +27,8 @@ test('edit this and the following, then reschedule one', async ({ page }) => {
   await button(page, 'Esta e as próximas').click();
   await page.getByLabel('O que precisa ser feito?').fill('Ginástica nova');
   await button(page, 'Salvar').click();
-  await expect(page.getByRole('heading', { name: 'Ginástica nova' })).toBeVisible();
-  await page.goBack();
+  // It lands on the list, because the occurrence that was open may no longer exist
+  await expect(page.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
   await page.getByRole('tab', { name: 'Doméstico' }).click();
   await expect(page.getByText('Ginástica', { exact: true })).toHaveCount(0);
   // The new series reaches the following days: the area tab lists two weeks

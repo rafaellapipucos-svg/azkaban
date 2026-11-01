@@ -1,5 +1,5 @@
 import { can, localDateOf, planArea } from '@azkaban/core';
-import { contextsRepository } from '@azkaban/data';
+import { contextsRepository, useCurrentUser } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import {
   Button,
@@ -20,13 +20,7 @@ import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { tasksConfig } from './config';
 import { dayLabel, errorKey } from './format';
-import {
-  useCurrentUser,
-  useLastContext,
-  useNotice,
-  useOccurrenceLists,
-  useStatusChange,
-} from './hooks';
+import { useLastContext, useNotice, useOccurrenceLists, useStatusChange } from './hooks';
 import { OccurrenceRow } from './OccurrenceRow';
 import { QuickCreate } from './QuickCreate';
 import { Section } from './Sections';
@@ -50,7 +44,7 @@ export function AreaScreen({ areaKey }: { areaKey: string }) {
   const areaContexts = (contexts.data ?? []).filter(({ areaId }) => areaId === area?.id);
   // Only people who can see the group's tasks have anything more to look at.
   const seesGroup = groups.some(({ id }) => can(user, 'task.view_group', { id }));
-  const { items, now, timezone, loading, failed } = useOccurrenceLists({
+  const { items, now, timezone, loading, failed, refetch } = useOccurrenceLists({
     days: tasksConfig.areaWindowDays,
     mineOnly: scope === 'mine',
   });
@@ -134,7 +128,12 @@ export function AreaScreen({ areaKey }: { areaKey: string }) {
 
         {created ? <Body role="status">{t('today.created')}</Body> : null}
         {status.error ? <ErrorText>{t(errorKey(status.error))}</ErrorText> : null}
-        {failed ? <ErrorText>{t('errors.load')}</ErrorText> : null}
+        {failed ? (
+          <View style={{ gap: tokens.spacing[2] }}>
+            <ErrorText>{t('errors.load')}</ErrorText>
+            <Button variant="secondary" label={t('errors.retry')} onPress={refetch} />
+          </View>
+        ) : null}
 
         {contexts.isSuccess && areaContexts.length === 0 ? (
           <EmptyState text={t('area.noContexts')}>
@@ -145,7 +144,7 @@ export function AreaScreen({ areaKey }: { areaKey: string }) {
           </EmptyState>
         ) : loading ? (
           <Muted>{t('loading')}</Muted>
-        ) : empty ? (
+        ) : empty && !failed ? (
           <EmptyState mood="happy" text={t('area.empty')} />
         ) : null}
 

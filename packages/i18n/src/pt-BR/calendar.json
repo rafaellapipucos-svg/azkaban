@@ -2,7 +2,8 @@
   "title": "Calendário",
   "loading": "Carregando o calendário…",
   "errors": {
-    "load": "Não deu para carregar o calendário. Tente de novo."
+    "load": "Não deu para carregar o calendário.",
+    "retry": "Tentar de novo"
   },
   "views": {
     "label": "Visão do calendário",

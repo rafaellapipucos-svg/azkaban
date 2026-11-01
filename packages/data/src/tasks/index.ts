@@ -45,10 +45,10 @@ const toTaskError = (error: unknown) => new TaskError(taskErrorCode(error), { ca
 const calendarPageSize = 500;
 const calendarMaxPages = 100;
 
-// Joins the task and its context's area, which is all the lists need. `!inner` drops rows the
-// filters on the joined tables remove.
+// Joins the task and its context's area, which is all the lists need. `created_at` is selected only
+// so the lists can order by it. `!inner` drops rows the filters on the joined tables remove.
 const listColumns =
-  'id, task_id, assignee_id, scheduled_start, scheduled_due, overdue_at, status, late, status_reason, status_changed_at, status_changed_by, tasks!inner(title, context_id, group_id, created_by, assignee_id, schedule_type, timezone, priority, difficulty, visibility, rrule, requires_partial_reason, archived_at, contexts!inner(area_id))';
+  'id, task_id, assignee_id, scheduled_start, scheduled_due, overdue_at, status, late, status_reason, status_changed_at, status_changed_by, tasks!inner(created_at, title, context_id, group_id, created_by, assignee_id, schedule_type, timezone, priority, difficulty, visibility, rrule, requires_partial_reason, archived_at, contexts!inner(area_id))';
 
 type OccurrenceRow = {
   id: string;
@@ -159,16 +159,6 @@ const toInsertRow = (input: TaskInput, rrule: string | null) => ({
 // ADR gives it a meaning (p_rrule null: stop repeating).
 const sqlNull = (value: string | null) => value as string;
 
-async function materialize(taskIds: string[]) {
-  if (taskIds.length === 0) return;
-  // A failure does not undo the edit: the daily job fills the gap (handoff from backend-funcoes).
-  try {
-    await db().functions.invoke('materialize-occurrences', { body: { taskIds } });
-  } catch {
-    // Nothing to do here.
-  }
-}
-
 export const tasksRepository = {
   /** Occurrences that overlap `[from, to)`, cancelled and archived ones left out. */
   async listOccurrences({
@@ -188,7 +178,14 @@ export const tasksRepository = {
       .lt('scheduled_start', to)
       .gte('scheduled_due', from);
     if (assigneeId) query = query.eq('assignee_id', assigneeId);
-    const { data, error } = await query.order('scheduled_start').limit(500);
+    // Ties on the start keep one order, however the status changes: the order the tasks were
+    // created in, then the id. Postgres returns ties in physical order, which an update moves, and
+    // the row a finger just touched jumped to another place in the list.
+    const { data, error } = await query
+      .order('scheduled_start')
+      .order('tasks(created_at)')
+      .order('id')
+      .limit(500);
     if (error) throw toTaskError(error);
     return data.map(toListItem);
   },
@@ -229,6 +226,7 @@ export const tasksRepository = {
       if (groupOnly) query = query.eq('tasks.visibility', 'group');
       const { data, error } = await query
         .order('scheduled_start')
+        .order('tasks(created_at)')
         .order('id')
         .range(page * calendarPageSize, (page + 1) * calendarPageSize - 1);
       if (error) throw toTaskError(error);
@@ -251,19 +249,32 @@ export const tasksRepository = {
   },
 
   /**
+   * Asks the Edge Function to create the occurrences of these repeating tasks. Throws when it fails,
+   * so the screen can say so and offer a retry: until the daily job runs, the tasks have no
+   * occurrence to show. Safe to repeat.
+   */
+  async materializeTasks(taskIds: string[]): Promise<void> {
+    if (taskIds.length === 0) return;
+    const { error } = await db().functions.invoke('materialize-occurrences', {
+      body: { taskIds },
+    });
+    if (error) throw new TaskError(null, { cause: error });
+  },
+
+  /**
    * Per member and local day in the viewer's zone, for a group the user can view (`task.view_group`).
-   * The zone defaults to the device's, until the team screen passes the profile's.
+   * `timezone` is the profile's, not the device's (ADR-0006 section 1).
    */
   async teamOverview({
     groupId,
     from,
     to,
-    timezone = Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timezone,
   }: {
     groupId: string;
     from: string;
     to: string;
-    timezone?: string;
+    timezone: string;
   }): Promise<TeamOverviewRow[]> {
     const { data, error } = await db().rpc('team_overview', {
       p_group_id: groupId,
@@ -299,7 +310,11 @@ export const tasksRepository = {
       .eq('status', 'pending')
       .lt('overdue_at', before);
     if (assigneeId) query = query.eq('assignee_id', assigneeId);
-    const { data, error } = await query.order('scheduled_start', { ascending: false }).limit(100);
+    const { data, error } = await query
+      .order('scheduled_start', { ascending: false })
+      .order('tasks(created_at)')
+      .order('id')
+      .limit(100);
     if (error) throw toTaskError(error);
     return data.map(toListItem);
   },
@@ -365,7 +380,11 @@ export const tasksRepository = {
     }));
   },
 
-  /** Returns the new task's id. A repeating task gets its occurrences from the Edge Function. */
+  /**
+   * Returns the new task's id. A repeating task gets its occurrences from the Edge Function, which
+   * the caller starts with `materializeTasks`: saving does not wait for it, because a cold start
+   * takes several seconds.
+   */
   async create(input: TaskInput, rrule: string | null): Promise<string> {
     const { data, error } = await db()
       .from('tasks')
@@ -373,7 +392,6 @@ export const tasksRepository = {
       .select('id')
       .single();
     if (error) throw toTaskError(error);
-    if (rrule) await materialize([data.id]);
     return data.id;
   },
 
@@ -383,9 +401,7 @@ export const tasksRepository = {
     const rows = assigneeIds.map((assigneeId) => toInsertRow({ ...rest, assigneeId }, rrule));
     const { data, error } = await db().from('tasks').insert(rows).select('id');
     if (error) throw toTaskError(error);
-    const ids = data.map(({ id }) => id);
-    if (rrule) await materialize(ids);
-    return ids;
+    return data.map(({ id }) => id);
   },
 
   async setStatus({
@@ -405,8 +421,8 @@ export const tasksRepository = {
   },
 
   /**
-   * `rrule` and `headRrule` come from `planEdit` in core. Materializes the tasks the RPC names.
-   * Returns the ids so the caller can refresh them.
+   * `rrule` and `headRrule` come from `planEdit` in core. Returns the ids of the tasks the RPC
+   * created or changed, which a repeating edit passes to `materializeTasks`.
    */
   async edit(
     { occurrenceId, scope, task }: TaskEditInput,
@@ -420,7 +436,6 @@ export const tasksRepository = {
       p_head_rrule: sqlNull(headRrule),
     });
     if (error) throw toTaskError(error);
-    await materialize(data);
     return data;
   },
 

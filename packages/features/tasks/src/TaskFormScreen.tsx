@@ -16,6 +16,7 @@ import {
   groupsRepository,
   taskErrorCode,
   tasksRepository,
+  useCurrentUser,
 } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import {
@@ -46,7 +47,7 @@ import { AssigneePicker } from './AssigneePicker';
 import { tasksConfig } from './config';
 import { errorKey, formErrorKey, reminderLabel } from './format';
 import { defaultFormValues } from './formDefaults';
-import { useCurrentUser, useLastContext, useRefreshTasks, useTransitions } from './hooks';
+import { useLastContext, useMaterializeTasks, useRefreshTasks, useTransitions } from './hooks';
 import { RecurrenceEditor } from './RecurrenceEditor';
 import { taskFormSchema } from './taskFormSchema';
 import { taskDefaults } from '@azkaban/config';
@@ -224,6 +225,7 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
   );
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
+  const materialize = useMaterializeTasks();
   const save = useMutation({
     mutationFn: async (values: TaskFormValues) => {
       const input = buildTaskInput(values, {
@@ -232,6 +234,8 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
         creatorId,
         personalContext: context?.groupId === null,
       });
+      // The tasks whose occurrences the Edge Function must create; saving does not wait for it.
+      let repeating: string[];
       if (editing && existing && occurrenceId) {
         const plan = planEdit({
           scope,
@@ -239,17 +243,30 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
           pivotStart: existing.item.scheduledStart,
           input,
         });
-        await tasksRepository.edit({ occurrenceId, scope, task: input }, plan);
+        const ids = await tasksRepository.edit({ occurrenceId, scope, task: input }, plan);
+        repeating = plan.rrule ? ids : [];
       } else if (values.assigneeIds.length > 1) {
-        await tasksRepository.createBatch(toBatchInput(input, values.assigneeIds), rruleOf(input));
+        const rrule = rruleOf(input);
+        const ids = await tasksRepository.createBatch(
+          toBatchInput(input, values.assigneeIds),
+          rrule,
+        );
+        repeating = rrule ? ids : [];
       } else {
-        await tasksRepository.create(input, rruleOf(input));
+        const rrule = rruleOf(input);
+        const id = await tasksRepository.create(input, rrule);
+        repeating = rrule ? [id] : [];
       }
       remember(values.contextId);
+      return repeating;
     },
-    onSuccess: async () => {
+    onSuccess: async (repeating) => {
+      if (repeating.length > 0) materialize.mutate(repeating);
       await refresh();
-      goBack();
+      // "This and the following" deletes the pending occurrences from here on, the open one
+      // included (ADR-0005 section 8): going back would land on a task that no longer exists.
+      if (editing && scope === 'this_and_following') router.dismissTo('/');
+      else goBack();
     },
   });
 
@@ -311,7 +328,7 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
         name="title"
         label={t('form.titleLabel')}
         errorText={t('form.titleRequired')}
-        maxLength={120}
+        maxLength={tasksConfig.titleMaxLength}
       />
 
       {selectable.length > 1 ? (
@@ -438,7 +455,7 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
             label={t('form.notes')}
             errorText={t('form.notesInvalid')}
             multiline
-            maxLength={2000}
+            maxLength={tasksConfig.notesMaxLength}
             style={{ minHeight: tokens.sizes.field * 2, textAlignVertical: 'top' }}
           />
           <Choice

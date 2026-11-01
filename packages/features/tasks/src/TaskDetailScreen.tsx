@@ -1,7 +1,9 @@
+import { taskRules } from '@azkaban/config';
 import type { TaskEditScope } from '@azkaban/contracts';
 import {
   buildTaskInput,
   fromRRule,
+  isLateWindowOpen,
   planDelete,
   taskFormValues,
   type TaskFormValues,
@@ -11,6 +13,7 @@ import {
   groupsRepository,
   taskErrorCode,
   tasksRepository,
+  useCurrentUser,
 } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import {
@@ -38,7 +41,6 @@ import { View } from 'react-native';
 import { z } from 'zod';
 import { capitalize, describeRecurrence, errorKey, whenText } from './format';
 import {
-  useCurrentUser,
   useNow,
   useRefreshTasks,
   useStatusChange,
@@ -255,6 +257,11 @@ export function TaskDetailScreen({ occurrenceId }: { occurrenceId: string }) {
     setPanel(null);
     router.push(`/tasks/${occurrenceId}/edit?scope=${scope}`);
   };
+  // Pending, past the late window and without a way to "feito": say why, instead of only "Não fiz".
+  const windowClosed =
+    item.status === 'pending' &&
+    !isLateWindowOpen(item.overdueAt, taskRules.lateCompletionWindowHours, now) &&
+    !available.some(({ to }) => to === 'done');
   const failed =
     status.error ?? (remove.isError ? (taskErrorCode(remove.error) ?? 'generic') : null);
 
@@ -281,8 +288,22 @@ export function TaskDetailScreen({ occurrenceId }: { occurrenceId: string }) {
         {task.notes ? <Body>{task.notes}</Body> : null}
       </Card>
 
-      {failed ? <ErrorText>{t(errorKey(failed))}</ErrorText> : null}
+      {failed ? (
+        <ErrorText>
+          {t(errorKey(failed))}
+          {/* A personal task has no administrator to ask. */}
+          {failed === 'late_window_expired' && task.groupId !== null
+            ? ` ${t('errors.late_window_expired_group')}`
+            : ''}
+        </ErrorText>
+      ) : null}
       <Subtitle>{t('detail.statusTitle')}</Subtitle>
+      {windowClosed ? (
+        <Muted>
+          {t('detail.windowClosed', { hours: taskRules.lateCompletionWindowHours })}
+          {task.groupId !== null ? ` ${t('detail.windowClosedGroup')}` : ''}
+        </Muted>
+      ) : null}
       <StatusActions
         item={item}
         available={available}

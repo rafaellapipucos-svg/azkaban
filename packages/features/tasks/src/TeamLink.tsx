@@ -2,7 +2,7 @@ import { can } from '@azkaban/core';
 import { useTranslation } from '@azkaban/i18n';
 import { Button } from '@azkaban/ui';
 import { useRouter } from 'expo-router';
-import { useCurrentUser } from './hooks';
+import { useCurrentUser } from '@azkaban/data';
 
 /** The way into the team view, shown on a group's page only to people who can open it. */
 export function TeamLink({ groupId }: { groupId: string }) {

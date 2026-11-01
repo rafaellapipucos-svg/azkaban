@@ -1,8 +1,8 @@
-import { defaults, taskDefaults } from '@azkaban/config';
+import { taskDefaults } from '@azkaban/config';
 import { dayRange, materializationNeed } from '@azkaban/core';
-import { groupsRepository, profilesRepository, tasksRepository } from '@azkaban/data';
+import { tasksRepository } from '@azkaban/data';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const MINUTE_MS = 60_000;
 
@@ -14,25 +14,6 @@ export function useNow(intervalMs = MINUTE_MS) {
     return () => clearInterval(id);
   }, [intervalMs]);
   return now;
-}
-
-/** Who is using the screen, in the shape `can()` takes, and the zone their days are counted in. */
-export function useCurrentUser() {
-  const profile = useQuery({ queryKey: ['profile'], queryFn: profilesRepository.getMine });
-  const groups = useQuery({ queryKey: ['groups'], queryFn: groupsRepository.listMine });
-  const user = useMemo(
-    () => ({
-      id: profile.data?.id ?? '',
-      memberships: (groups.data ?? []).map(({ id, role }) => ({ groupId: id, role })),
-    }),
-    [profile.data, groups.data],
-  );
-  return {
-    user,
-    groups: groups.data ?? [],
-    timezone: profile.data?.timezone ?? defaults.timezone,
-    ready: profile.isSuccess && groups.isSuccess,
-  };
 }
 
 /** Whose occurrences a view shows. The database decides what of it is visible (RLS). */

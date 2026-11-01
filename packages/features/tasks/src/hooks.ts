@@ -1,4 +1,4 @@
-import { defaults, taskRules } from '@azkaban/config';
+import { taskRules } from '@azkaban/config';
 import type {
   OccurrenceListItem,
   OccurrenceTransitionInput,
@@ -12,12 +12,7 @@ import {
   isLate,
   localDayRange,
 } from '@azkaban/core';
-import {
-  groupsRepository,
-  profilesRepository,
-  taskErrorCode,
-  tasksRepository,
-} from '@azkaban/data';
+import { taskErrorCode, tasksRepository, useCurrentUser } from '@azkaban/data';
 import { storage } from '@azkaban/platform';
 import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -36,25 +31,6 @@ export function useNow(intervalMs = MINUTE_MS) {
     return () => clearInterval(id);
   }, [intervalMs]);
   return now;
-}
-
-/** Who is using the screen, in the shape `can()` and `deriveActors` take. */
-export function useCurrentUser() {
-  const profile = useQuery({ queryKey: ['profile'], queryFn: profilesRepository.getMine });
-  const groups = useQuery({ queryKey: ['groups'], queryFn: groupsRepository.listMine });
-  const user = useMemo(
-    () => ({
-      id: profile.data?.id ?? '',
-      memberships: (groups.data ?? []).map(({ id, role }) => ({ groupId: id, role })),
-    }),
-    [profile.data, groups.data],
-  );
-  return {
-    user,
-    groups: groups.data ?? [],
-    timezone: profile.data?.timezone ?? defaults.timezone,
-    ready: profile.isSuccess && groups.isSuccess,
-  };
 }
 
 /**
@@ -88,6 +64,7 @@ export function useOccurrenceLists({ days, mineOnly }: { days: number; mineOnly:
     timezone,
     loading: !ready || window.isPending || overdue.isPending,
     failed: window.isError || overdue.isError,
+    refetch: () => Promise.all([window.refetch(), overdue.refetch()]),
   };
 }
 
@@ -219,6 +196,51 @@ export function useRefreshTasks() {
       ]),
     [queryClient],
   );
+}
+
+export const materializeKey = ['materialize-tasks'];
+
+async function updatePending(change: (ids: string[]) => string[]) {
+  try {
+    const stored = await storage.getItem(tasksConfig.pendingMaterializeKey);
+    const ids = change(stored ? (JSON.parse(stored) as string[]) : []);
+    await storage.setItem(tasksConfig.pendingMaterializeKey, JSON.stringify(ids));
+  } catch {
+    // Remembering is a safeguard; without it the daily job still fills the gap.
+  }
+}
+
+/** Tasks whose request never finished, such as when the page was closed while it ran. */
+export async function readPendingMaterialization(): Promise<string[]> {
+  try {
+    const stored = await storage.getItem(tasksConfig.pendingMaterializeKey);
+    return stored ? (JSON.parse(stored) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Creates the occurrences of repeating tasks in the background, then refreshes the lists. The screen
+ * that saved has already gone back by then: the request lives in the mutation cache, so
+ * `MaterializeStatus` can show it running, or failed with a retry, from any tab.
+ */
+export function useMaterializeTasks() {
+  const refresh = useRefreshTasks();
+  return useMutation({
+    mutationKey: materializeKey,
+    // The function is safe to repeat, and a worker killed under load (status 546) answers the
+    // next call: try again before telling the person.
+    retry: 2,
+    retryDelay: 1500,
+    mutationFn: async (taskIds: string[]) => {
+      // Written first and cleared only on success: a reload in the middle must not lose the work.
+      await updatePending((ids) => [...new Set([...ids, ...taskIds])]);
+      await tasksRepository.materializeTasks(taskIds);
+      await updatePending((ids) => ids.filter((id) => !taskIds.includes(id)));
+    },
+    onSettled: refresh,
+  });
 }
 
 /** A short confirmation, such as "Tarefa criada", that disappears by itself. */

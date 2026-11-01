@@ -42,6 +42,8 @@ async function signUp(page: Page, user: User) {
 async function newContext(page: Page, name: string, group?: string) {
   await page.goto('/contexts/new');
   await page.getByLabel('Nome', { exact: true }).fill(name);
+  // The area is chosen when the list of areas arrives; Salvar before that does nothing
+  await expect(page.getByRole('radio', { name: /Trabalho/ })).toBeChecked();
   if (group) await page.getByRole('radio', { name: group }).click();
   await button(page, 'Salvar').click();
   await expect(page.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
@@ -185,6 +187,9 @@ test('creating from a day or an hour prefills the date and the time', async ({ p
   await expect(page.locator('input[type="time"]')).toHaveValue('14:00');
   await page.getByLabel('O que precisa ser feito?').fill('Reunião');
   await button(page, 'Salvar').click();
+  // Leaving before the save ends aborts it (and the navigation, with ERR_ABORTED): it goes back
+  // to the calendar it came from
+  await expect(page.getByRole('heading', { name: 'Calendário', exact: true })).toBeVisible();
 
   // It shows on that hour of that day
   await openCalendar(page, `date=${day}&view=day`);

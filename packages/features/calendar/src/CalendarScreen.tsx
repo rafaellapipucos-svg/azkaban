@@ -10,7 +10,7 @@ import {
   type CalendarFilter,
   type CalendarView,
 } from '@azkaban/core';
-import { contextsRepository, groupsRepository } from '@azkaban/data';
+import { contextsRepository, groupsRepository, useCurrentUser } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import {
   Body,
@@ -33,13 +33,7 @@ import { ItemList, PerfectBanner, type DayActions } from './DayParts';
 import { DayView } from './DayView';
 import { Filters } from './Filters';
 import { capitalize, dayMonth, dayMonthYear, longDay, monthTitle } from './format';
-import {
-  useCalendarOccurrences,
-  useCurrentUser,
-  useMaterializeAhead,
-  useNow,
-  type Scope,
-} from './hooks';
+import { useCalendarOccurrences, useMaterializeAhead, useNow, type Scope } from './hooks';
 import { MonthView } from './MonthView';
 import { ScopePicker, type ScopeKind } from './ScopePicker';
 import { WeekView } from './WeekView';
@@ -203,7 +197,16 @@ export function CalendarScreen({ initial = {} }: { initial?: CalendarInitial }) 
         onChange={setFilter}
       />
 
-      {occurrences.isError ? <ErrorText>{t('errors.load')}</ErrorText> : null}
+      {occurrences.isError ? (
+        <View style={{ gap: tokens.spacing[2] }}>
+          <ErrorText>{t('errors.load')}</ErrorText>
+          <Button
+            variant="secondary"
+            label={t('errors.retry')}
+            onPress={() => occurrences.refetch()}
+          />
+        </View>
+      ) : null}
       {reach.capped ? <Muted role="status">{t('limit', { date: limitDate })}</Muted> : null}
       {occurrences.isPending && ready ? <Muted>{t('loading')}</Muted> : null}
 
@@ -219,7 +222,7 @@ export function CalendarScreen({ initial = {} }: { initial?: CalendarInitial }) 
           <View style={{ gap: tokens.spacing[3] }}>
             <Subtitle>{capitalize(longDay(date, i18n.language))}</Subtitle>
             <PerfectBanner info={info} />
-            {info.items.length === 0 ? (
+            {info.items.length === 0 && !occurrences.isError ? (
               <Body>{t('day.empty')}</Body>
             ) : (
               <ItemList items={info.items} actions={actions} />

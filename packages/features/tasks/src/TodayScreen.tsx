@@ -1,6 +1,6 @@
 import { taskRules } from '@azkaban/config';
 import { earnedXp, planToday } from '@azkaban/core';
-import { contextsRepository } from '@azkaban/data';
+import { contextsRepository, useCurrentUser } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import {
   Body,
@@ -19,7 +19,7 @@ import { useMemo } from 'react';
 import { Text, View } from 'react-native';
 import { tasksConfig } from './config';
 import { capitalize, errorKey } from './format';
-import { useCurrentUser, useNotice, useOccurrenceLists, useStatusChange } from './hooks';
+import { useNotice, useOccurrenceLists, useStatusChange } from './hooks';
 import { QuickCreate } from './QuickCreate';
 import { ContextGroups, Section } from './Sections';
 
@@ -28,7 +28,7 @@ export function TodayScreen() {
   const { t, i18n } = useTranslation('tasks');
   const router = useRouter();
   const { user } = useCurrentUser();
-  const { items, now, timezone, loading, failed } = useOccurrenceLists({
+  const { items, now, timezone, loading, failed, refetch } = useOccurrenceLists({
     days: 1 + tasksConfig.dueSoonDays,
     mineOnly: true,
   });
@@ -84,7 +84,12 @@ export function TodayScreen() {
 
         {created ? <Body role="status">{t('today.created')}</Body> : null}
         {status.error ? <ErrorText>{t(errorKey(status.error))}</ErrorText> : null}
-        {failed ? <ErrorText>{t('errors.load')}</ErrorText> : null}
+        {failed ? (
+          <View style={{ gap: tokens.spacing[2] }}>
+            <ErrorText>{t('errors.load')}</ErrorText>
+            <Button variant="secondary" label={t('errors.retry')} onPress={refetch} />
+          </View>
+        ) : null}
 
         {contexts.isSuccess && list.length === 0 ? (
           <EmptyState text={t('today.noContext')}>
@@ -92,7 +97,7 @@ export function TodayScreen() {
           </EmptyState>
         ) : loading ? (
           <Muted>{t('loading')}</Muted>
-        ) : empty ? (
+        ) : empty && !failed ? (
           <EmptyState mood="happy" text={t('today.empty')} />
         ) : null}
 

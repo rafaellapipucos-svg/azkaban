@@ -31,7 +31,11 @@ function ContextHeader({ context }: { context: Context | undefined }) {
     <View style={{ gap: tokens.spacing[2] }} className="flex-row items-center">
       <View
         aria-hidden
-        style={{ backgroundColor: color ?? tokens.colors.muted, width: 12, height: 12 }}
+        style={{
+          backgroundColor: color ?? tokens.colors.muted,
+          width: tokens.spacing[3],
+          height: tokens.spacing[3],
+        }}
         className="rounded-full"
       />
       <Text aria-hidden className="text-md">

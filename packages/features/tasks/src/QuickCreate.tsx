@@ -1,5 +1,5 @@
 import { buildTaskInput, addDays, localDayRange, nextHourTime } from '@azkaban/core';
-import { contextsRepository, tasksRepository, taskErrorCode } from '@azkaban/data';
+import { contextsRepository, taskErrorCode, tasksRepository, useCurrentUser } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import {
   Body,
@@ -22,9 +22,10 @@ import { useState } from 'react';
 import { useController, useForm } from 'react-hook-form';
 import { View } from 'react-native';
 import { z } from 'zod';
+import { tasksConfig } from './config';
 import { errorKey } from './format';
 import { defaultFormValues } from './formDefaults';
-import { useCurrentUser, useLastContext, useNow, useRefreshTasks } from './hooks';
+import { useLastContext, useNow, useRefreshTasks } from './hooks';
 
 const quickSchema = z.object({
   title: z.string().trim().min(1).max(120),
@@ -143,7 +144,7 @@ export function QuickCreate({ contextId, onCreated }: Props) {
           label={t('quick.titleLabel')}
           errorText={t('form.titleRequired')}
           autoFocus
-          maxLength={120}
+          maxLength={tasksConfig.titleMaxLength}
           returnKeyType="done"
           onSubmitEditing={() => void submit()}
         />

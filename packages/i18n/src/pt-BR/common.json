@@ -27,6 +27,11 @@
   "errors": {
     "generic": "Algo deu errado. Tente de novo."
   },
+  "notFound": {
+    "title": "Página não encontrada",
+    "text": "Não achamos essa página. O endereço pode estar errado ou a página não existe mais.",
+    "home": "Ir para Hoje"
+  },
   "roles": {
     "owner": "Dono",
     "admin": "Administrador",

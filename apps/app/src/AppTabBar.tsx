@@ -1,4 +1,5 @@
 import { contextsRepository } from '@azkaban/data';
+import { MaterializeStatus } from '@azkaban/feature-tasks';
 import { useTranslation } from '@azkaban/i18n';
 import { tokens } from '@azkaban/ui';
 import { useQuery } from '@tanstack/react-query';
@@ -57,41 +58,45 @@ export function AppTabBar({ state }: Props) {
   ];
 
   return (
-    <View
-      role="tablist"
-      style={{
-        paddingBottom: insets.bottom,
-        minHeight: tokens.layout.tabBarHeight + insets.bottom,
-      }}
-      className="flex-row border-t-2 border-border bg-surface dark:border-border-dark dark:bg-surface-dark"
-    >
-      {tabs.map((tab) => (
-        <Pressable
-          key={tab.id}
-          role="tab"
-          aria-selected={tab.selected}
-          aria-label={tab.label}
-          onPress={() => router.navigate(tab.href)}
-          style={{ minHeight: tokens.layout.tabBarHeight, gap: tokens.spacing[1] }}
-          className={`flex-1 items-center justify-center border-t-4 ${
-            tab.selected ? 'border-primary dark:border-primary-light' : 'border-transparent'
-          }`}
-        >
-          <Text aria-hidden className="text-lg">
-            {tab.icon}
-          </Text>
-          <Text
-            numberOfLines={1}
-            className={`font-heavy text-sm ${
-              tab.selected
-                ? 'text-primary dark:text-primary-light'
-                : 'text-muted dark:text-muted-dark'
+    <View>
+      {/* On every tab: a repeating task saved a moment ago may still be creating its days. */}
+      <MaterializeStatus />
+      <View
+        role="tablist"
+        style={{
+          paddingBottom: insets.bottom,
+          minHeight: tokens.layout.tabBarHeight + insets.bottom,
+        }}
+        className="flex-row border-t-2 border-border bg-surface dark:border-border-dark dark:bg-surface-dark"
+      >
+        {tabs.map((tab) => (
+          <Pressable
+            key={tab.id}
+            role="tab"
+            aria-selected={tab.selected}
+            aria-label={tab.label}
+            onPress={() => router.navigate(tab.href)}
+            style={{ minHeight: tokens.layout.tabBarHeight, gap: tokens.spacing[1] }}
+            className={`flex-1 items-center justify-center border-t-4 ${
+              tab.selected ? 'border-primary dark:border-primary-light' : 'border-transparent'
             }`}
           >
-            {tab.label}
-          </Text>
-        </Pressable>
-      ))}
+            <Text aria-hidden className="text-lg">
+              {tab.icon}
+            </Text>
+            <Text
+              numberOfLines={1}
+              className={`font-heavy text-sm ${
+                tab.selected
+                  ? 'text-primary dark:text-primary-light'
+                  : 'text-muted dark:text-muted-dark'
+              }`}
+            >
+              {tab.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
     </View>
   );
 }

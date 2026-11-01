@@ -392,6 +392,18 @@ deno_version = 2
 [functions.materialize-occurrences]
 verify_jwt = false
 
+# Photo proofs (ADR-0007). The two user-facing functions keep the gateway's JWT check and then ask
+# Auth for the user themselves, so an anon or service key (a JWT with no user) is refused too. The
+# retention job is the cron's, with `x-cron-secret` only.
+[functions.proof-validate]
+verify_jwt = true
+
+[functions.proof-url]
+verify_jwt = true
+
+[functions.proof-retention]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54427

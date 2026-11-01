@@ -258,3 +258,21 @@
 - **Verificado:** `pnpm db:test` (56 + 296 asserts) e `pnpm db:check-permissions` passam; os 9 testes de integração de `materialize-occurrences` passam contra o `edit_task` novo.
 - **Não verificado:** o script `pnpm functions:test` não existe nesta branch, então rodei o teste de integração direto com `node --test`. Nada foi aplicado no projeto hospedado.
 - **Pendências / próximos passos:** nenhuma de banco.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 10:51 (BRT)
+
+- **Branch:** feat/ui-phase-2, criada a partir de feat/phase-2-tasks
+- **Agente(s):** design-system
+- **Resumo:** Componentes de UI que a Fase 2 precisa: anel de progresso, campos de data e hora, interruptor, controle segmentado, contador, botão de ícone, marcador de tarefa e botão de ação flutuante, todos na `/design-system`.
+- **Alterações:**
+  - `packages/ui`: `ProgressRing`, `DateField` e `TimeField` (react-hook-form, valores `yyyy-MM-dd` e `HH:mm`), `SwitchRow`, `SegmentedControl`, `Stepper`, `IconButton`, `TaskCheck` (com `late`), `Fab`; ganchos `useReducedMotion` e `useThemeColors`. Tokens novos: `sizes`, `motion` e as bordas `doneEdge`, `partialEdge`, `cancelledEdge`. Textos em `packages/i18n/src/pt-BR/ui.json`.
+  - `packages/platform`: adapter `DateTimeInput` com `.web.tsx` (`<input type="date|time">`) e `.native.tsx` (`@react-native-community/datetimepicker` 9.2.1, a versão que `expo install` escolheu para o SDK 58). `DateTimeInput.tsx` só declara os tipos e lança erro: o Metro nunca o carrega. Teste de unidade para a conversão de texto da versão nativa.
+  - `apps/app/package.json` e `pnpm-lock.yaml`: a dependência nativa.
+  - Animações: anel e check usam `Animated` do React Native (nenhuma biblioteca nova) e pulam tudo com "reduzir movimento".
+- **Arquivos/módulos principais:** `packages/ui/src/`, `packages/platform/src/DateTimeInput*.tsx`, `packages/platform/src/dateTimeText.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** o arquivo-base do adapter é `.tsx` de propósito. Com `.d.ts` o `pnpm boundaries` não resolve o import; com `.ts` o Metro escolhe o `.ts` antes do `.web.tsx` (verificado: a página quebrou com o erro do fallback). O `.tsx` perde para `.web.tsx` e `.native.tsx`, e o TypeScript e o dependency-cruiser o resolvem. Vale para os próximos adapters.
+- **Como testar:** `pnpm install`, `pnpm check`, `pnpm build:web`; `pnpm dev` e abrir `/design-system` em 375px, claro e escuro.
+- **Verificado:** `pnpm check` e `pnpm build:web` passam. No Chromium (Playwright, 375px, claro e escuro): `fill` e digitação em `input[type=date]` e `input[type=time]` chegam ao formulário como `2026-11-15`, `2026-12-01` e `09:30`; interruptor, segmentado, contador (mínimo 1 desabilita o menos), marcador de tarefa, botão flutuante e anel funcionam; sem erro no console e sem rolagem horizontal; alvos medidos com 44px ou mais. Com `reducedMotion: reduce` o anel salta direto; sem a preferência ele anima. `expo export --platform android` compila e o pacote traz o seletor nativo, sem o fallback.
+- **Não verificado:** nada rodou em aparelho ou emulador. O seletor nativo de data e hora (Android e iOS), o `Fab` com safe area real e as animações no nativo não foram vistos. O plugin de configuração do `@react-native-community/datetimepicker` não foi adicionado ao `app.config.ts` (fora do escopo; é opcional e só estiliza o Android).
+- **Pendências / próximos passos:** `tarefas-calendario` usa os componentes (handoff em `docs/agentes/handoffs/`). Testar em aparelho antes de a Fase 2 fechar.

@@ -3,6 +3,9 @@ import { setStringAsync } from 'expo-clipboard';
 import { createURL } from 'expo-linking';
 import { Platform } from 'react-native';
 
+export { DateTimeInput } from './DateTimeInput';
+export type { DateTimeInputAppearance, DateTimeInputProps } from './DateTimeInput';
+
 export const storage = AsyncStorage;
 
 export const isWeb = Platform.OS === 'web';

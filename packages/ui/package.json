@@ -11,6 +11,7 @@
   "dependencies": {
     "@azkaban/contracts": "workspace:*",
     "@azkaban/i18n": "workspace:*",
+    "@azkaban/platform": "workspace:*",
     "nativewind": "^4.2.7",
     "react": "catalog:",
     "react-hook-form": "^7.91.0",

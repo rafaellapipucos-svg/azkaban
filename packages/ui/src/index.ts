@@ -1,9 +1,18 @@
 export * as tokens from './tokens';
 export { Button, ConfirmButton } from './Button';
+export { DateField, TimeField } from './DateTimeFields';
 export { DesignSystemScreen } from './DesignSystemScreen';
+export { Fab } from './Fab';
 export { FormTextField } from './FormTextField';
+export { IconButton } from './IconButton';
 export { Card, Chip, ChipRow, EmptyState, Screen } from './Layout';
 export { Mascot, type MascotMood } from './Mascot';
+export { ProgressRing } from './ProgressRing';
+export { SegmentedControl, type SegmentOption } from './SegmentedControl';
+export { Stepper } from './Stepper';
 export { StatusBadge } from './StatusBadge';
+export { SwitchRow } from './SwitchRow';
+export { TaskCheck } from './TaskCheck';
 export { Body, ErrorText, Muted, Subtitle, Title } from './Text';
+export { useReducedMotion } from './useReducedMotion';
 export { useSystemColorScheme } from './useSystemColorScheme';

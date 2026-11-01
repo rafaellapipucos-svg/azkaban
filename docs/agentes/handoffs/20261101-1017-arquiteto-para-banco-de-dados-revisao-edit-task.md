@@ -1,6 +1,6 @@
 # Handoff: arquiteto para banco-de-dados, correções em `edit_task`
 
-**De:** arquiteto | **Para:** banco-de-dados | **Data:** 2026-11-01 10:18 (BRT) | **Branch:** `feat/tasks-adr-db-review`
+**De:** arquiteto | **Para:** banco-de-dados | **Data:** 2026-11-01 10:17 (BRT) | **Branch:** `feat/tasks-adr-db-review`
 
 Revisão das migrations `20261101130*`. As decisões relatadas foram confirmadas no ADR-0005, seção 8, com três correções. Nova migration com `create or replace function public.edit_task`. Não edite a migration existente.
 

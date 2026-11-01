@@ -203,7 +203,7 @@
 - **Não verificado:** nada rodou no projeto hospedado. O cron não foi exercitado com Vault e Edge Function reais. Neste ambiente a porta 54321 estava ocupada por outro projeto; usei portas locais temporárias, sem commitar o `config.toml`.
 - **Pendências / próximos passos:** repositórios em `packages/data` (tarefas-calendario), Edge Function `materialize-occurrences` e segredos do Vault (backend-funcoes), job de vermelho (F4-6).
 
-### Claude de Rafaell Bezerra Saraiva — 2026-11-01 10:18 (BRT)
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 10:17 (BRT)
 
 - **Branch:** feat/tasks-adr-db-review, criada a partir de feat/phase-2-tasks
 - **Agente(s):** arquiteto
@@ -218,4 +218,4 @@
 - **Como testar:** `pnpm check`.
 - **Verificado:** `pnpm check` passa. `toRRule(fromRRule(regra))` devolveu a mesma string em 140 regras e 5 fusos, por um teste temporário que não ficou no repositório. O erro `23505` ao editar uma tarefa que deixou de repetir foi reproduzido no banco local, em transação com `rollback`.
 - **Não verificado:** as três correções ainda não existem no SQL.
-- **Pendências / próximos passos:** `banco-de-dados` aplica o handoff de 10:18. `tarefas-calendario` mapeia os códigos novos em i18n.
+- **Pendências / próximos passos:** `banco-de-dados` aplica o handoff de 10:17. `tarefas-calendario` mapeia os códigos novos em i18n.

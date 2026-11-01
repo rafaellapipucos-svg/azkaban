@@ -496,3 +496,21 @@
 - **Verificado:** `pnpm functions:test` 12 de 12 e `pnpm check`. Sem o orçamento o teste de orçamento falha (o worker morre no meio e a resposta vem vazia); com o piso desligado o teste da âncora de 2000 falha.
 - **Não verificado:** a CPU real no projeto hospedado (não houve deploy); o tempo de I/O dos 400 pedidos por execução em produção. `MAX_TASKS = 200` e `EXPAND_BUDGET_MS = 600` são conservadores, sem medição de CPU total (só da expansão).
 - **Pendências / próximos passos:** resposta com `failed` e `deferred` e padrão `materializationPastDays` (arquiteto); cron mais frequente (banco-de-dados).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 16:09 (BRT)
+
+- **Branch:** feat/tasks-adr-final, criada a partir de feat/phase-2-tasks
+- **Agente(s):** arquiteto
+- **Resumo:** ADR-0005 alinhado ao que foi construído na materialização, com riscos para o humano, condições de deploy e pendências da Fase 4. Só documentação.
+- **Alterações:**
+  - Seção 7: piso de 30 dias, cursor por tarefa, orçamento de 600 ms ou 200 tarefas, cron a cada 15 minutos.
+  - Seção 11: reagendar zera `late` e XP em massa, sem decisão.
+  - Seção 12: schema `net` e deploy da função pelo CLI.
+  - Seção 13: `failed`, `deferred` e `materializationPastDays` ficam para a Fase 4.
+- **Arquivos/módulos principais:** `docs/adr/0005-tarefas-ocorrencias-recorrencia.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0005. O ADR-0006 não mudou: a frase de que não faltava teto com a gramática só existia na entrada de 14:17 deste LOG, já corrigida pela entrada do `backend-funcoes`.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passa. Os valores da seção 7 conferem com as constantes de `index.ts` da função.
+- **Não verificado:** em `f4294bb` ainda não há o cron de 15 minutos nem a trava de CI do schema `net`. O ADR os indica como trabalho de `banco-de-dados`. Nada foi conferido no projeto hospedado.
+- **Pendências / próximos passos:** `banco-de-dados` entrega o cron e a trava. O humano decide os riscos da seção 11.

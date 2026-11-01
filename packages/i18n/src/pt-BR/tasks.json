@@ -51,7 +51,8 @@
     "occurrence_not_pending": "Só dá para mudar uma tarefa que ainda está pendente.",
     "assignee_not_member": "Essa pessoa não faz mais parte do grupo. Escolha outra.",
     "context_change_not_allowed": "Não dá para mover a tarefa para esse contexto.",
-    "context_not_found": "Esse contexto não existe mais."
+    "context_not_found": "Esse contexto não existe mais.",
+    "context_archived": "Esse contexto foi arquivado. Escolha outro para a tarefa."
   },
   "materialize": {
     "running": "Criando as repetições da tarefa...",

@@ -225,6 +225,7 @@ export const taskErrorCodeSchema = z.enum([
   'assignee_not_member',
   'context_change_not_allowed',
   'context_not_found',
+  'context_archived',
 ]);
 export type TaskErrorCode = z.infer<typeof taskErrorCodeSchema>;
 

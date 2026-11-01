@@ -1,0 +1,13 @@
+{
+  "imports": {
+    "@azkaban/core": "../../../packages/core/src/recurrence/expand.ts",
+    "@azkaban/contracts": "../../../packages/contracts/src/tasks.ts",
+    "@azkaban/config": "../../../packages/config/src/tasks.ts",
+    "../../../packages/core/src/recurrence/zone": "../../../packages/core/src/recurrence/zone.ts",
+    "../../../packages/contracts/src/common": "../../../packages/contracts/src/common.ts",
+    "../../../packages/contracts/src/recurrence": "../../../packages/contracts/src/recurrence.ts",
+    "rrule": "./rrule-shim.ts",
+    "zod": "npm:zod@4.6.7",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.118.0"
+  }
+}

@@ -219,3 +219,24 @@
 - **Verificado:** `pnpm check` passa. `toRRule(fromRRule(regra))` devolveu a mesma string em 140 regras e 5 fusos, por um teste temporário que não ficou no repositório. O erro `23505` ao editar uma tarefa que deixou de repetir foi reproduzido no banco local, em transação com `rollback`.
 - **Não verificado:** as três correções ainda não existem no SQL.
 - **Pendências / próximos passos:** `banco-de-dados` aplica o handoff de 10:17. `tarefas-calendario` mapeia os códigos novos em i18n.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 10:26 (BRT)
+
+- **Branch:** feat/tasks-materialize, criada a partir de feat/phase-2-tasks (com e131f2d)
+- **Agente(s):** backend-funcoes
+- **Resumo:** Edge Function `materialize-occurrences` (F2-5): cria as ocorrências das tarefas recorrentes, para o cron diário e para o cliente, com a expansão de `packages/core` rodando de verdade no Deno.
+- **Alterações:**
+  - `supabase/functions/materialize-occurrences/index.ts`: autenticação do cron por `x-cron-secret` (comparação em tempo constante, sobre o SHA-256 dos dois lados) e do usuário por JWT; entrada validada com `materializeRequestSchema`; `until` cortado em `onDemandMaxDays`; lista de tarefas pela RLS do usuário (service role só para inserir, mover o cursor e ler a participação em grupos); tarefas arquivadas e de quem saiu do grupo ficam de fora; `on conflict (task_id, scheduled_start) do nothing`; `materialized_until` só depois do insert e só para frente; logs só com contagens.
+  - `deno.json` da função: import map para `@azkaban/core`, `@azkaban/contracts` e `@azkaban/config`. O Deno não resolve imports relativos sem extensão, então o mapa aponta cada pacote para o arquivo de entrada de que a função precisa (`recurrence/expand.ts`, `contracts/src/tasks.ts`, `config/src/tasks.ts`) e acrescenta uma entrada por import sem extensão no caminho (`zone`, `common`, `recurrence`). Nenhum arquivo de `packages/` foi alterado, e a recorrência continua numa só fonte.
+  - `rrule-shim.ts`: o Deno carrega o `rrule` 2.8.1 pelo `main` (UMD/CommonJS), e `import { RRule } from 'rrule'` falha com "does not provide an export named 'RRule'". O mapa aponta `rrule` para esse arquivo, que reexporta `RRule` do mesmo pacote.
+  - `supabase/config.toml`: só `[functions.materialize-occurrences] verify_jwt = false`, porque o cron não manda JWT; a função autentica sozinha.
+  - `supabase/functions/.env.example` (`CRON_SECRET` de demonstração local).
+  - `materialize.integration.test.ts`: 9 testes contra a função real e o banco local.
+  - Handoff para `tarefas-calendario` com o contrato de chamada.
+- **Arquivos/módulos principais:** `supabase/functions/materialize-occurrences/`, `supabase/functions/.env.example`, `supabase/config.toml`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** segue o ADR-0005, seção 7. Escolhas dentro dele: (1) tarefa de ex-membro não anda o cursor, para quem for reatribuído receber a série de onde parou, sem rajada de passado nem buraco no futuro; (2) `until` acima do limite é cortado, não rejeitado, como o handoff do arquiteto diz; (3) uma tarefa cuja regra não expande é contada e pulada, sem derrubar a varredura do cron.
+- **Como testar:** `pnpm db:start`; `cp supabase/functions/.env.example supabase/functions/.env`; `pnpm exec supabase functions serve`; em outro terminal `node --test supabase/functions/materialize-occurrences/materialize.integration.test.ts`. Cobre: semanal na janela e segunda rodada com zero; dia em `exdates`; tarefa excluída com `all`; ex-membro (e volta ao reentrar); tarefa que o cliente não vê; `until` cortado e `until` abaixo do limite; 401, 400 e segredo errado do cron, cada um com o par positivo; `this_and_following` seguido de materialização; 9h local em Nova York na virada do horário de verão.
+- **Verificado:** os 9 testes passam. Mutações mostraram que eles falham: sem o filtro de arquivadas, sem a checagem de ex-membro e sem o corte de `until`. O job `materialize-occurrences-daily` foi exercitado de ponta a ponta no banco local (`call_materialize_occurrences()` com os segredos no Vault, resposta 200 `{"inserted":0}`; segredos removidos em seguida). O empacotador do `supabase functions deploy` (imagem `edge-runtime`, comando `bundle`) gerou o pacote com os arquivos de `packages/` (15 MB).
+- **Não verificado:** deploy no projeto hospedado (não feito). O limite de tamanho de uma função hospedada é 20 MB, e o pacote tem 15 MB. Segredos de produção (`CRON_SECRET` em `supabase secrets set` e Vault `materialize_url`, `cron_secret`) continuam por conta do deploy.
+- **Pendências / próximos passos:** o Deno só resolve a função enquanto os imports sem extensão de `core/src/recurrence` e `contracts/src/tasks.ts` estiverem no mapa; se o `arquiteto` preferir, trocar para imports com `.ts` em `packages/` elimina o mapa extra, mas muda arquivos de outros donos. Um script `pnpm functions:test` na raiz dependeria do orquestrador.

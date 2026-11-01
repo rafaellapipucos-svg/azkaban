@@ -52,7 +52,7 @@ jobs:
         run: |
           for attempt in $(seq 1 30); do
             status=$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS http://127.0.0.1:54421/functions/v1/materialize-occurrences)
-            [ "$status" = 200 ] && exit 0
+            case "$status" in 2*) exit 0 ;; esac
             sleep 2
           done
           cat /tmp/functions.log

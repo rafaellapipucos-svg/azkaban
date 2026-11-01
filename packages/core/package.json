@@ -10,7 +10,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@azkaban/contracts": "workspace:*"
+    "@azkaban/contracts": "workspace:*",
+    "rrule": "catalog:"
   },
   "devDependencies": {
     "vitest": "catalog:"

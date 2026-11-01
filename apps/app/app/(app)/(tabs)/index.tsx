@@ -1,1 +1,1 @@
-export { AreasScreen as default } from '@azkaban/feature-contexts';
+export { TodayScreen as default } from '@azkaban/feature-tasks';

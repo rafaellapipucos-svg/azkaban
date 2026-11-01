@@ -14,6 +14,7 @@
     "@azkaban/feature-auth": "workspace:*",
     "@azkaban/feature-contexts": "workspace:*",
     "@azkaban/feature-groups": "workspace:*",
+    "@azkaban/feature-tasks": "workspace:*",
     "@azkaban/i18n": "workspace:*",
     "@azkaban/ui": "workspace:*",
     "@expo-google-fonts/nunito": "^0.4.2",

@@ -1,8 +1,8 @@
 import type { Area, Context } from '@azkaban/contracts';
 import { calendarStatuses, noFilter, type CalendarFilter } from '@azkaban/core';
 import { useTranslation } from '@azkaban/i18n';
-import { Button, Chip, ChipRow, tokens } from '@azkaban/ui';
-import { useState } from 'react';
+import { Button, Chip, ChipRow, Muted, tokens } from '@azkaban/ui';
+import { useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 
 type Props = {
@@ -11,6 +11,18 @@ type Props = {
   contexts: readonly Context[];
   onChange: (filter: CalendarFilter) => void;
 };
+
+/** A row of choices with a visible caption; the row itself carries the same name for readers. */
+function Choices({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <View style={{ gap: tokens.spacing[1] }}>
+      <Muted aria-hidden className="text-sm">
+        {label}
+      </Muted>
+      <ChipRow label={label}>{children}</ChipRow>
+    </View>
+  );
+}
 
 /** Area, context and status, behind one button so they do not push the calendar off the screen. */
 export function Filters({ filter, areas, contexts, onChange }: Props) {
@@ -30,7 +42,7 @@ export function Filters({ filter, areas, contexts, onChange }: Props) {
       />
       {open ? (
         <View style={{ gap: tokens.spacing[3] }}>
-          <ChipRow label={t('filters.area')}>
+          <Choices label={t('filters.area')}>
             <Chip
               label={t('filters.allAreas')}
               selected={filter.areaId === null}
@@ -44,8 +56,8 @@ export function Filters({ filter, areas, contexts, onChange }: Props) {
                 onPress={() => onChange({ ...filter, areaId: area.id, contextId: null })}
               />
             ))}
-          </ChipRow>
-          <ChipRow label={t('filters.context')}>
+          </Choices>
+          <Choices label={t('filters.context')}>
             <Chip
               label={t('filters.allContexts')}
               selected={filter.contextId === null}
@@ -60,8 +72,8 @@ export function Filters({ filter, areas, contexts, onChange }: Props) {
                 onPress={() => onChange({ ...filter, contextId: context.id })}
               />
             ))}
-          </ChipRow>
-          <ChipRow label={t('filters.status')}>
+          </Choices>
+          <Choices label={t('filters.status')}>
             <Chip
               label={t('filters.allStatuses')}
               selected={filter.status === null}
@@ -75,7 +87,7 @@ export function Filters({ filter, areas, contexts, onChange }: Props) {
                 onPress={() => onChange({ ...filter, status })}
               />
             ))}
-          </ChipRow>
+          </Choices>
           {active > 0 ? (
             <Button
               variant="secondary"

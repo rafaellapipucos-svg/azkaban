@@ -32,7 +32,7 @@ import { calendarConfig, type CalendarInitial } from './config';
 import { ItemList, PerfectBanner, type DayActions } from './DayParts';
 import { DayView } from './DayView';
 import { Filters } from './Filters';
-import { capitalize, dayMonth, longDay, monthTitle } from './format';
+import { capitalize, dayMonth, dayMonthYear, longDay, monthTitle } from './format';
 import {
   useCalendarOccurrences,
   useCurrentUser,
@@ -132,7 +132,7 @@ export function CalendarScreen({ initial = {} }: { initial?: CalendarInitial }) 
       : view === 'week'
         ? t('nav.range', {
             from: dayMonth(range.first, i18n.language),
-            to: dayMonth(range.last, i18n.language),
+            to: dayMonthYear(range.last, i18n.language),
           })
         : capitalize(longDay(date, i18n.language));
   const limitDate = new Intl.DateTimeFormat(i18n.language, {

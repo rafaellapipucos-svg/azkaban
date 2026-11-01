@@ -28,6 +28,10 @@ export const monthTitle = (date: string, language: string) =>
 export const dayMonth = (date: string, language: string) =>
   format(date, language, { day: 'numeric', month: 'short' });
 
+/** "4 nov. de 2026" */
+export const dayMonthYear = (date: string, language: string) =>
+  format(date, language, { day: 'numeric', month: 'short', year: 'numeric' });
+
 /** "qua." for the head of a month column. */
 export const weekdayShort = (date: string, language: string) =>
   format(date, language, { weekday: 'short' });

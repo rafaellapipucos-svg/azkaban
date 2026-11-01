@@ -67,4 +67,40 @@ if (!rules || canonical(JSON.parse(rules)) !== canonical(taskRules)) {
   console.log('Task rules in sync.');
 }
 
+// Time zones: the database takes a name only if Intl reads it too, or taskSchema.parse would fail on a
+// task the database accepted ('Factory' is in the tz database and not in Intl).
+const zones = query('select name from pg_timezone_names where public.is_valid_timezone(name)');
+const unreadable = zones.filter((zone) => {
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: zone });
+    return false;
+  } catch {
+    return true;
+  }
+});
+if (zones.length === 0 || unreadable.length > 0) {
+  console.error('Time zones accepted by the database but rejected by Intl.', { unreadable });
+  failed = true;
+} else {
+  console.log(`Time zones readable by Intl (${zones.length} names).`);
+}
+
+// pg_net lets any role that can run SQL make HTTP calls, and its grants belong to supabase_admin, so a
+// migration cannot revoke them. What keeps clients away is that PostgREST does not expose the schema.
+const config = readFileSync('supabase/config.toml', 'utf8');
+const api = config.match(/^\[api\]\s*$([\s\S]*?)(?=^\[)/m)?.[1] ?? '';
+const exposed = [
+  ...(api.match(/^schemas\s*=\s*\[([^\]]*)\]/m)?.[1] ?? '').matchAll(/"([^"]+)"/g),
+].map(([, schema]) => schema);
+const forbidden = exposed.filter((schema) => ['net', 'cron', 'vault'].includes(schema));
+if (exposed.length === 0 || forbidden.length > 0) {
+  console.error('api.schemas in supabase/config.toml must be set and must not expose these.', {
+    exposed,
+    forbidden,
+  });
+  failed = true;
+} else {
+  console.log(`API exposes only ${exposed.join(', ')}.`);
+}
+
 if (failed) process.exit(1);

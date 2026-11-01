@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(356);
+select plan(369);
 
 -- Alice owns Casa A, Bea owns Casa B, Caio is admin of A, Duda is a member of A and B,
 -- Fred is a member of A, Eva is outside.
@@ -867,7 +867,10 @@ select lives_ok($$select public.set_occurrence_status(pg_temp.occ('PV'), 'done',
 select lives_ok($$select public.edit_task(pg_temp.occ('PV'), 'all', pg_temp.form(now() + interval '3 days', '{"title": "PV", "assigneeId": "00000000-0000-0000-0000-00000000000d"}'), null, null)$$, 'private: then gives it back');
 select is((select count(*) from public.tasks where title = 'PV'), 1::bigint, 'private: while it is a group task the admin sees it');
 select pg_temp.login('00000000-0000-0000-0000-00000000000d');
-select lives_ok($$select public.edit_task(pg_temp.occ('PV'), 'all', pg_temp.form(now() + interval '3 days', '{"title": "PV private", "notes": "sigilo", "visibility": "private"}'), null, null)$$, 'private: the member makes it private');
+select throws_ok($$select public.edit_task(pg_temp.occ('PV'), 'all', pg_temp.form(now() + interval '3 days', '{"title": "PV private", "notes": "sigilo", "visibility": "private"}'), null, null)$$, '23514', 'private_with_other_assignee', 'private: edit_task refuses it while the admin''s resolved row would go along');
+select pg_temp.pg();
+update public.tasks set title = 'PV private', notes = 'sigilo', visibility = 'private' where title = 'PV';
+select pg_temp.login('00000000-0000-0000-0000-00000000000d');
 select is((select count(*) from public.tasks where title = 'PV private'), 1::bigint, 'private: the member still sees it');
 select pg_temp.login('00000000-0000-0000-0000-00000000000c');
 select is((select count(*) from public.tasks where title = 'PV private'), 0::bigint, 'private: the admin who once resolved an occurrence no longer sees the task');
@@ -939,6 +942,37 @@ select pg_temp.pg();
 update public.contexts set archived_at = null where id = '20000000-0000-0000-0000-0000000000a2';
 select pg_temp.login('00000000-0000-0000-0000-00000000000c');
 select lives_ok($$select pg_temp.ins('20000000-0000-0000-0000-0000000000a2', auth.uid())$$, 'archived: and it works again once unarchived');
+
+-- Closeout: a private split cannot swallow another person's rows, and Intl must read every zone
+select pg_temp.pg();
+select pg_temp.mk('N2', '20000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000d', 'group', now() - interval '3 days', 'easy', true, 'FREQ=DAILY');
+select pg_temp.mk_occ('N2', now() - interval '3 days');
+select pg_temp.mk_occ('N2', now() - interval '2 days');
+select pg_temp.mk_occ('N2', now() - interval '1 day');
+select pg_temp.mk_occ('N2', now() + interval '1 day');
+update public.task_occurrences set status = 'partial', status_reason = 'consulta medica' where id = pg_temp.occ('N2', 3);
+select pg_temp.mk('N2own', '20000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000c', 'group', now() - interval '3 days', 'easy', true, 'FREQ=DAILY');
+select pg_temp.mk_occ('N2own', now() - interval '3 days');
+select pg_temp.mk_occ('N2own', now() - interval '2 days');
+select pg_temp.login('00000000-0000-0000-0000-00000000000c');
+select throws_ok($$select public.edit_task(pg_temp.occ('N2', 2), 'this_and_following', pg_temp.form(now() - interval '2 days', '{"title": "N2 mine", "assigneeId": "00000000-0000-0000-0000-00000000000c", "visibility": "private"}'), 'FREQ=DAILY', 'FREQ=DAILY;UNTIL=20261231T000000Z')$$, '23514', 'private_with_other_assignee', 'private split: this_and_following refuses to take another person''s resolved rows');
+select throws_ok($$select public.edit_task(pg_temp.occ('N2', 2), 'all', pg_temp.form(now() - interval '3 days', '{"title": "N2 mine", "assigneeId": "00000000-0000-0000-0000-00000000000c", "visibility": "private"}'), 'FREQ=DAILY', null)$$, '23514', 'private_with_other_assignee', 'private split: and so does all');
+select pg_temp.pg();
+select is((select count(*) from public.tasks where title = 'N2 mine'), 0::bigint, 'private split: nothing was created');
+select is((select assignee_id from public.task_occurrences where id = pg_temp.occ('N2', 3)), '00000000-0000-0000-0000-00000000000d'::uuid, 'private split: the member''s resolved row stays hers');
+select pg_temp.login('00000000-0000-0000-0000-00000000000c');
+select lives_ok($$select public.edit_task(pg_temp.occ('N2', 2), 'this_and_following', pg_temp.form(now() - interval '2 days', '{"title": "N2 group"}'), 'FREQ=DAILY', 'FREQ=DAILY;UNTIL=20261231T000000Z')$$, 'private split: the same split as a group task works');
+select lives_ok($$select public.edit_task(pg_temp.occ('N2own', 1), 'all', pg_temp.form(now() - interval '3 days', '{"title": "N2own private", "assigneeId": "00000000-0000-0000-0000-00000000000c", "visibility": "private"}'), 'FREQ=DAILY', null)$$, 'private split: and one whose rows are all the admin''s can become private');
+select pg_temp.pg();
+select is((select count(*) from public.task_occurrences where id = pg_temp.occ('N2 group', 1) and status = 'partial' and status_reason = 'consulta medica'), 1::bigint, 'private split: with the member''s reason, now visible to her through the group task');
+select pg_temp.login('00000000-0000-0000-0000-00000000000d');
+select is((select count(*) from public.task_occurrences where id = pg_temp.occ('N2 group', 1)), 1::bigint, 'private split: the member still sees it');
+select pg_temp.pg();
+select throws_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000c', 'group', 'timed', now(), null, 'Factory')$$, '22023', 'invalid_timezone', 'zone: Factory, which Intl rejects, is refused');
+select is((select count(*) from pg_timezone_names where public.is_valid_timezone(name)), (select count(*) from pg_timezone_names where name <> 'Factory'), 'zone: Factory is the only name of the tz database left out');
+select is(public.is_valid_timezone('America/Sao_Paulo'), true, 'zone: a real one is accepted');
+select is(public.is_valid_timezone('abc+3'), false, 'zone: a POSIX string is not');
+select is((select count(*) from cron.job where jobname = 'materialize-occurrences-daily'), 0::bigint, 'cron: the daily job is gone');
 
 -- Team view
 select pg_temp.pg();
@@ -1014,7 +1048,7 @@ select is(has_function_privilege('authenticated', 'public.edit_task(uuid, public
 select is(has_function_privilege('authenticated', 'public.occurrences_after_status()', 'execute'), false, 'authenticated cannot call the XP trigger function');
 select is(has_function_privilege('authenticated', 'public.call_materialize_occurrences()', 'execute'), false, 'authenticated cannot trigger the cron call');
 select is(has_function_privilege('authenticated', 'public.occurrence_window(public.schedule_type, timestamptz, timestamptz, int, text)', 'execute'), false, 'nor the window helper');
-select is((select count(*) from cron.job where jobname = 'materialize-occurrences-daily' and schedule = '0 6 * * *'), 1::bigint, 'the daily materialization is scheduled at 06:00 UTC');
+select is((select count(*) from cron.job where jobname = 'materialize-occurrences' and schedule = '*/15 * * * *'), 1::bigint, 'the materialization runs every 15 minutes');
 select lives_ok($$select public.call_materialize_occurrences()$$, 'the cron call does nothing without Vault secrets');
 select is((select count(*) from pg_tables where schemaname = 'public' and not rowsecurity), 0::bigint, 'every public table has RLS');
 

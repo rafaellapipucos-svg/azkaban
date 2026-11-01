@@ -514,3 +514,21 @@
 - **Verificado:** `pnpm check` passa. Os valores da seção 7 conferem com as constantes de `index.ts` da função.
 - **Não verificado:** em `f4294bb` ainda não há o cron de 15 minutos nem a trava de CI do schema `net`. O ADR os indica como trabalho de `banco-de-dados`. Nada foi conferido no projeto hospedado.
 - **Pendências / próximos passos:** `banco-de-dados` entrega o cron e a trava. O humano decide os riscos da seção 11.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 16:15 (BRT)
+
+- **Branch:** feat/tasks-db-closeout, criada a partir de feat/phase-2-tasks
+- **Agente(s):** banco-de-dados
+- **Resumo:** Última rodada do banco da Fase 2: divisão privada, fuso lido pelo `Intl`, frequência do cron e trava de CI para o schema `net`. Os testes foram escritos antes e falharam.
+- **Alterações:**
+  - N2: `edit_task` recusa `private` em `this_and_following` e em `all` quando linhas de outro responsável iriam junto (`private_with_other_assignee`, 23514). Pendentes sem histórico não contam, porque a edição as troca ou reatribui. Antes, o admin que dividia a série como privada levava as linhas resolvidas de Duda, e ela, o dono do grupo e `team_overview` deixavam de vê-las, com o motivo dela.
+  - N3: `public.is_valid_timezone` (nome em `pg_timezone_names` e fora de `Factory`) passou a valer no trigger de `tasks`. De 598 nomes, só `Factory` é rejeitado pelo `Intl`. `pnpm db:check-permissions` agora confere que o `Intl` lê todos os nomes que o banco aceita.
+  - Cron: o job `materialize-occurrences-daily` foi trocado por `materialize-occurrences`, `*/15 * * * *`, porque a função processa 200 tarefas por execução (handoff de `backend-funcoes`).
+  - `pnpm db:check-permissions` falha se `net`, `cron` ou `vault` entrarem em `api.schemas` de `supabase/config.toml`. Não há teste de banco para isso, porque as concessões de `net` são de `supabase_admin`.
+- **Arquivos/módulos principais:** `supabase/migrations/20261101150000`, `150100`, `150200`, `supabase/tests/rls_tasks.test.sql`, `scripts/check-permission-mirror.mjs`
+- **Migrations:** 20261101150000_private_split_other_assignee, 20261101150100_valid_timezone_list, 20261101150200_materialize_cron_frequency. Só no banco local.
+- **Decisões/ADRs:** o teste "private" da Fase 2 (tarefa que vira privada com uma ocorrência antiga de outro admin) agora muda a visibilidade como `postgres`, porque `edit_task` passou a recusar esse caso; a regra de `can_view_task` fica como segunda barreira.
+- **Como testar:** `pnpm db:start`, `pnpm db:reset`, `pnpm db:test`, `pnpm db:check-permissions`, `pnpm check` e, com `pnpm exec supabase functions serve`, `pnpm functions:test`.
+- **Verificado:** `pnpm db:test` (56 + 369 asserts), `pnpm db:check-permissions`, `pnpm check` e os 12 testes de `pnpm functions:test` passam. A trava do `net` falhou quando `net` foi posto em `api.schemas` de propósito.
+- **Não verificado:** nada foi aplicado no projeto hospedado; a lista de fusos do Postgres hospedado pode diferir da local.
+- **Pendências / próximos passos:** o código `private_with_other_assignee` não está em `taskErrorCodeSchema`; o `arquiteto` decide se a tela o traduz. `this` com `private` não recebeu a mesma checagem.

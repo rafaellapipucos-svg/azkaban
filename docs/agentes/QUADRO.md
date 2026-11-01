@@ -43,15 +43,17 @@ Status: a fazer, em andamento, bloqueado, em revisão, feito. Handoffs em [hando
 
 ## Fase 3: Prova por foto
 
-| ID   | Título                                                                                                                     | Agente          | Status       | Depende de | Branch               | Handoff |
-| ---- | -------------------------------------------------------------------------------------------------------------------------- | --------------- | ------------ | ---------- | -------------------- | ------- |
-| F3-1 | ADR de prova por foto e limitações                                                                                         | arquiteto       | em andamento | F2         | feat/proof-contracts | —       |
-| F3-2 | Migrations de proof_challenges e task_proofs, bucket privado imutável, trigger que bloqueia verde sem prova, testes de RLS | banco-de-dados  | a fazer      | F3-1       | —                    | —       |
-| F3-3 | Edge Function `proof-validate` e emissão de desafio                                                                        | backend-funcoes | a fazer      | F3-2       | —                    | —       |
-| F3-4 | Adapter de câmera web e nativo, geolocalização opcional                                                                    | prova-foto      | a fazer      | F3-1       | —                    | —       |
-| F3-5 | Fluxo de captura, marca d'água, hash, compressão e upload                                                                  | prova-foto      | a fazer      | F3-3, F3-4 | —                    | —       |
-| F3-6 | Revisão do admin e sub-estado em análise                                                                                   | prova-foto      | a fazer      | F3-5       | —                    | —       |
-| F3-7 | Retenção das fotos                                                                                                         | backend-funcoes | a fazer      | F3-2       | —                    | —       |
+| ID   | Título                                                                                                                     | Agente             | Status       | Depende de | Branch               | Handoff                                                           |
+| ---- | -------------------------------------------------------------------------------------------------------------------------- | ------------------ | ------------ | ---------- | -------------------- | ----------------------------------------------------------------- |
+| F3-1 | ADR de prova por foto e limitações                                                                                         | arquiteto          | em revisão   | F2         | feat/proof-contracts | —                                                                 |
+| F3-2 | Migrations de proof_challenges e task_proofs, bucket privado imutável, trigger que bloqueia verde sem prova, testes de RLS | banco-de-dados     | em andamento | F3-1       | feat/proof-db        | 20261101-1708-arquiteto-para-banco-de-dados-prova-por-foto.md     |
+| F3-3 | Edge Functions `proof-validate` e `proof-url`; o desafio vem da RPC de F3-2                                                | backend-funcoes    | a fazer      | F3-2       | —                    | —                                                                 |
+| F3-4 | Adapter de câmera web e nativo, geolocalização opcional                                                                    | prova-foto         | em andamento | F3-1       | feat/proof-camera    | 20261101-1708-arquiteto-para-prova-foto-prova-por-foto.md         |
+| F3-5 | Fluxo de captura, marca d'água, hash, compressão e upload                                                                  | prova-foto         | a fazer      | F3-3, F3-4 | —                    | —                                                                 |
+| F3-6 | Revisão do admin e sub-estado em análise                                                                                   | prova-foto         | a fazer      | F3-5       | —                    | —                                                                 |
+| F3-7 | Retenção das fotos                                                                                                         | backend-funcoes    | a fazer      | F3-2       | —                    | —                                                                 |
+| F3-8 | Dados e telas: prova e atraso nas listas, tarefas e calendário                                                             | tarefas-calendario | a fazer      | F3-2       | —                    | 20261101-1708-arquiteto-para-tarefas-calendario-prova-e-atraso.md |
+| F3-9 | Selo "em análise" nos componentes                                                                                          | design-system      | em andamento | F3-1       | feat/proof-ui        | 20261101-1708-arquiteto-para-design-system-em-analise.md          |
 
 ## Fase 4: Notificações
 
@@ -105,7 +107,7 @@ Status: a fazer, em andamento, bloqueado, em revisão, feito. Handoffs em [hando
 | F8-1 | Revisão de acessibilidade e reduzir movimento                        | qa-testes             | a fazer | F7                 | —      | —       |
 | F8-2 | E2E: login, tarefa, foto e resumo com mock                           | qa-testes             | a fazer | F5                 | —      | —       |
 | F8-3 | LGPD: exportar dados, excluir conta, transparência para funcionários | auth-grupos           | a fazer | F5                 | —      | —       |
-| F8-4 | Rate limiting em OTP, desafios e convites                            | backend-funcoes       | a fazer | F5                 | —      | —       |
+| F8-4 | Rate limiting em OTP e convites; desafios ficam em F3-2              | backend-funcoes       | a fazer | F5                 | —      | —       |
 | F8-5 | Fila offline simples                                                 | tarefas-calendario    | a fazer | F2                 | —      | —       |
 | F8-6 | Performance e animações                                              | design-system         | a fazer | F7                 | —      | —       |
 | F8-7 | EAS, ícones, splash, deep links e push nativo                        | notificacoes-whatsapp | a fazer | F7                 | —      | —       |

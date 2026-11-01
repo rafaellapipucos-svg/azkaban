@@ -21,7 +21,7 @@ const base = {
 };
 
 const statuses = occurrenceStatusSchema.options;
-const allActors: OccurrenceActor[] = ['assignee', 'editor', 'deleter', 'system'];
+const allActors: OccurrenceActor[] = ['assignee', 'editor', 'deleter', 'system', 'reviewer'];
 const inTable = (from: OccurrenceStatus, to: OccurrenceStatus) => findTransition(from, to);
 
 describe('canTransition: every row of occurrenceTransitions', () => {
@@ -68,7 +68,7 @@ describe('canTransition: pairs outside the table', () => {
   const pairs = statuses.flatMap((from) => statuses.map((to) => ({ from, to })));
   const outside = pairs.filter(({ from, to }) => !inTable(from, to));
 
-  it('covers the 14 pairs the table leaves out, including staying in place', () => {
+  it('covers the pairs the table leaves out, including staying in place', () => {
     expect(pairs).toHaveLength(25);
     expect(outside).toHaveLength(25 - occurrenceTransitions.length);
   });
@@ -82,8 +82,8 @@ describe('canTransition: pairs outside the table', () => {
   it.each([
     ['done', 'partial'],
     ['partial', 'done'],
-  ] as const)('%s and %s do not pass straight into each other (reopen first)', (from, to) => {
-    expect(inTable(from, to)).toBeUndefined();
+  ] as const)('%s to %s is only a review: anyone else reopens first', (from, to) => {
+    expect(inTable(from, to)?.actors).toEqual(['reviewer']);
   });
 
   it('does not let the assignee reopen a missed occurrence', () => {

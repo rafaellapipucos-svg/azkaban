@@ -64,6 +64,17 @@ Regras completas no [ADR-0005](adr/0005-tarefas-ocorrencias-recorrencia.md).
 - Ocorrências recorrentes só nascem na Edge Function `materialize-occurrences`, que usa a recorrência de `packages/core`. A de tarefa avulsa vem de um trigger.
 - `taskRules` (`packages/config`) e `occurrenceTransitions` (`packages/contracts`) têm espelho no banco, como a matriz de permissões. Os dois arquivos não têm importação em tempo de execução, para o Node carregá-los direto em `pnpm db:check-permissions`.
 
+## Prova por foto
+
+Regras completas no [ADR-0007](adr/0007-prova-por-foto.md).
+
+- O cliente nunca fala com o Storage. A RPC `issue_proof_challenge` entrega um nonce, `proof-validate` recebe os bytes e grava com service role, e `commit_proof` cria a prova e leva a ocorrência a `done` em uma transação.
+- `claim_proof_challenge` e `commit_proof` só aceitam `service_role`. O bucket `task-proofs` não tem política para `anon` nem `authenticated`.
+- O trigger de status recusa `done` em tarefa com foto sem uma prova corrente, em qualquer caminho.
+- "Em análise" é `done` com `proof_review_status = 'in_review'`, não um status.
+- Fotos só saem por URL assinada curta, de `proof-url`. Quem vê segue `can_view_proof`, mais restrita que `can_view_task`.
+- `proofRules` (`packages/config`) tem espelho em `app_settings`, chave `proof_rules`.
+
 ## Banco
 
 Desenvolvimento em Supabase local (`pnpm db:start`, exige Docker), nas portas 544xx para conviver com outros projetos locais: `apps/app/.env.development.local` aponta o `pnpm dev` para ele. O projeto hospedado recebe migrations por `supabase db push --db-url "$SUPABASE_DB_URL"`, e só após revisão.

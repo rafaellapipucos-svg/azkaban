@@ -1,6 +1,6 @@
 # ADR-0005: Tarefas, ocorrências, recorrência e "concluído atrasado"
 
-**Status:** aceito pelo arquiteto para a Fase 2. Fica sujeito à validação do humano na aprovação da fase.
+**Status:** aceito. O humano aprovou a Fase 2, com as decisões da seção 11.
 
 ## Contexto
 
@@ -44,7 +44,7 @@ Sim, uma ocorrência pode ser resolvida depois do horário, inclusive a partir d
 
 `task.manage_group` é uma chave a mais do que o pedido inicial. Sem ela, liberar `task.edit_assigned` para `member` daria a ele poder sobre as tarefas de todos, e o objetivo da seção 7.1 é uma chave que trate só das tarefas atribuídas a ele.
 
-Por padrão, `member` não vê as tarefas `group` dos colegas, conforme a seção 7.1. Uma família que queira isso muda uma linha da matriz.
+`member` não vê as tarefas `group` dos colegas, conforme a seção 7.1. O humano confirmou isso ao aprovar a Fase 2. Uma família que queira outra coisa muda uma linha da matriz.
 
 ### 4. Atores e transições
 
@@ -88,7 +88,7 @@ Duas camadas, ambas no Postgres:
 1. **RPC `set_occurrence_status`**, `security definer`, é o único caminho do cliente. Trava a linha, compara `expectedStatus`, resolve o ator e confere ator, motivo e janela.
 2. **Triggers em `task_occurrences`** valem para qualquer caminho, inclusive service role. O `before update of status` recusa um par fora de `occurrence_transitions` e preenche `late` e os campos `status_changed_*`. O `after update of status` grava o histórico e o XP.
 
-Assim, o job da Fase 4 e o `proof-validate` da Fase 3 fazem um `update` simples e herdam histórico e XP. A Fase 3 acrescenta a regra da prova no mesmo trigger.
+Assim, o job da Fase 4 faz um `update` simples e herda histórico e XP. A Fase 3 acrescenta a regra da prova no mesmo trigger, e a escrita passa por `commit_proof` ([ADR-0007](0007-prova-por-foto.md), seção 8).
 
 As regras usadas por triggers ficam em `public.app_settings`, chave `task_rules`, com o mesmo conteúdo de `taskRules` em `packages/config`. É o padrão da matriz de permissões: migration, espelho e `pnpm db:check-permissions`.
 
@@ -187,15 +187,47 @@ Nada é apagado. A RLS corta o acesso, a materialização e o job de vermelho ig
 
 - **Checklist de subitens:** o campo é opcional na seção 7.3, e nenhuma tela da Fase 2 depende dele.
 - **Comentários:** a própria seção 7.3 permite adiar.
-- **Prova:** as flags são gravadas, mas a Fase 2 não as usa nem as mostra na tela.
-- **XP de prova e de dia perfeito:** Fases 3 e 6.
+- **Prova:** as flags são gravadas, mas a Fase 2 não as usa nem as mostra na tela. A Fase 3 está no [ADR-0007](0007-prova-por-foto.md).
+- **XP de prova e de dia perfeito:** Fase 6.
 
-### 11. Riscos para decisão do humano
+### 11. Decisões do humano na aprovação da Fase 2
 
-Registrados para a aprovação da fase. Nenhum foi decidido aqui.
+**XP em massa.** Fica para a Fase 6, antes do ranking. `set_occurrence_status` continua sem olhar a data da ocorrência, e não há teto de XP. Quem cria tarefas futuras pode concluí-las na hora.
 
-- **Reagendar zera o atraso.** `edit_task` com `this` recalcula `overdue_at` de uma ocorrência pendente vencida. Quem edita a própria tarefa pode reagendá-la para hoje e concluí-la: `late` fica falso, e o XP é integral. Isso também contorna `late_window_expired`.
-- **XP em massa.** `set_occurrence_status` não olha a data da ocorrência, e não há teto de XP. Quem cria tarefas futuras pode concluí-las na hora. A tratar na Fase 6, antes do ranking.
+**Faixas da Equipe, janela e `date-fns-tz`.** Aceitos. Ver o ADR-0006, seção 3, e o ADR-0001.
+
+**Reagendar preserva o atraso.** Antes, `edit_task` com `this` recalculava `overdue_at` de uma pendente vencida. Quem editava a própria tarefa a reagendava para hoje e a concluía: `late` ficava falso, o XP era integral, e `late_window_expired` não se aplicava.
+
+A regra: **quem responde pela ocorrência não perdoa o próprio atraso.**
+
+- `overdue_at` é o instante em que a ocorrência deixou de estar no prazo. Depois de passado, reagendar não o move para frente.
+- `task_occurrences` ganha `auto_miss_at`, com o valor que `overdue_at` teria pela agenda atual. Ele acompanha sempre a agenda, e só o job de vermelho de F4-6 o lê: sem ele, o job marcaria `missed` uma ocorrência recém-movida para amanhã. Nasce igual a `overdue_at`, inclusive no preenchimento das linhas existentes.
+- Reagendar continua permitido. A ocorrência aparece no novo dia, mas segue atrasada, e `late`, XP e janela seguem vindo de `overdue_at`, sem mudar nenhuma dessas contas.
+
+Em `occurrences_before_schedule`, com `computed` sendo o cálculo de hoje:
+
+```
+new.auto_miss_at := computed
+se UPDATE e old.overdue_at < now() e computed > old.overdue_at e não perdoa:
+  new.overdue_at := old.overdue_at
+senão:
+  new.overdue_at := computed
+```
+
+`perdoa` é verdadeiro só quando `auth.uid()` não é nulo, é diferente do `assignee_id` antigo e do novo, tem `task.manage_group` no grupo e a tarefa é `group`. Quem tem autoridade concede prazo novo a outra pessoa; isso é legítimo e recalcula `overdue_at`. Sem usuário, como em job ou service role, não há perdão. Admin em tarefa própria não se perdoa. `task.edit_assigned` não perdoa.
+
+Mover uma ocorrência para mais cedo segue o cálculo normal, porque só antecipa o atraso. Um segundo reagendamento mantém o primeiro `overdue_at`, que é o que está na linha. Reabrir não mexe em `overdue_at`, então `missed → pending` seguido de reagendar cai na mesma regra.
+
+Depois da janela, a ocorrência reagendada só aceita `missed`, por quem não tem `task.manage_group`. A tela avisa ao reagendar uma vencida.
+
+**O trigger não alcança os caminhos de `edit_task` que apagam e recriam.** `this_and_following` e `all` ao deixar de repetir apagam ou cancelam pendentes e criam linhas novas, com `overdue_at` novo. Por isso:
+
+- `edit_task` responde `overdue_occurrence_blocks_edit` quando a agenda muda, quem edita não perdoa, e alguma pendente com `overdue_at < now()` seria apagada ou cancelada: `scheduled_start >= pivô` em `this_and_following`; `p_rrule is null or scheduled_start >= now()` em `all`. O segundo predicado também alcança uma linha reagendada para o futuro, que acrescentar repetição apagaria.
+- Mudar só título ou notas pelos mesmos escopos passa, porque a linha recriada tem o mesmo início.
+- O usuário resolve a pendente, ou usa "só esta". É um toque, e nada se perde.
+- A reatribuição sem mudança de agenda passa a filtrar `auto_miss_at > now()`, em vez de `overdue_at`, para uma ocorrência reagendada mudar de mãos.
+
+Fora da regra, de propósito: cancelar e criar outra tarefa, ou duplicar. Cancelar não dá XP, e a tarefa nova é o caso do XP em massa, decidido para a Fase 6.
 
 ### 12. Antes do deploy
 

@@ -546,3 +546,24 @@
 - **Verificado no estado final:** banco limpo com 425 asserts, espelhos em dia, tipos, 421 testes de core, lint, fronteiras, build web, 12 testes da função e 34 E2E em duas rodadas seguidas.
 - **Não verificado:** CI desta fase, projeto hospedado, deploy da função, iOS, Android e leitor de tela real. A falha de `supabase start` na primeira tentativa desta verificação foi passageira, e a causa não foi investigada.
 - **Pendências / próximos passos:** validação do humano, as duas decisões da seção 11 do ADR-0005, as faixas provisórias da Equipe e a saída de `date-fns-tz`. Antes do deploy, conferir "Exposed schemas" e `pg_graphql` no projeto hospedado.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 17:10 (BRT)
+
+- **Branch:** feat/proof-contracts, criada a partir de feat/phase-3-proof
+- **Agente(s):** arquiteto
+- **Resumo:** Abre a Fase 3 (F3-1): ADR-0007 de prova por foto, contratos, config e handoffs. Registra as decisões do humano na aprovação da Fase 2, com a regra de reagendamento no ADR-0005.
+- **Alterações:**
+  - ADR-0007: a função recebe os bytes e é a única escritora do bucket, com um corpo lido por nonce; desafio por RPC; `commit_proof` atômico, só para service role; barreiras no trigger para qualquer caminho, inclusive `insert`, `edit_task` e service role; "em análise" como `done` com `proof_review_status`; XP retido até aprovar e compensado ao contestar; sem bônus nesta fase, sem bloquear a Fase 6; retenção de 90 dias, com aceite registrado; coordenadas descartadas, guardando só a distância.
+  - ADR-0005, seção 11: reagendar preserva o atraso. `overdue_at` fica depois de passado, `auto_miss_at` acompanha a agenda para o job de F4-6, e só quem tem `task.manage_group` e não responde pela ocorrência concede prazo novo. `edit_task` recusa apagar e recriar uma pendente vencida.
+  - Decisões registradas: XP em massa na Fase 6, faixas de 80% e 50% e janela de 72 h aceitas (ADR-0006), `date-fns-tz` fora (ADR-0001), membro não vê tarefas `group` de colegas (ADR-0005).
+  - Contratos: `packages/contracts/src/proof.ts` (novo), ator `reviewer`, `proofReviewStatusSchema`, quatro pares de `reviewer` em `occurrenceTransitions`, `contextLocationSchema`, `checkApproval` e quatro códigos em `taskErrorCodeSchema`.
+  - Config: `packages/config/src/proof.ts` (novo), com `proofRules` e `proofDefaults`.
+  - Permissão `proof.review` em `matrix.ts`, por pedido do orquestrador. `transitions.test.ts` ajustado aos pares novos. Os dois estão em `packages/core`, fora do escopo do arquiteto.
+  - Campos novos em tipos lidos por `packages/data` nasceram opcionais, para não quebrar o que existe. `tarefas-calendario` os torna obrigatórios ao mapeá-los.
+- **Arquivos/módulos principais:** `docs/adr/0007-prova-por-foto.md`, `docs/adr/0005-tarefas-ocorrencias-recorrencia.md`, `docs/adr/0006-calendario-equipe-navegacao.md`, `docs/adr/0001-stack.md`, `docs/arquitetura.md`, `packages/contracts/src/{proof,tasks,contexts,occurrence-transitions}.ts`, `packages/config/src/proof.ts`, `packages/core/src/permissions/matrix.ts`, handoffs `20261101-1708-*`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0007 (novo) e ADR-0005, seção 11.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check`. Documentação da Supabase lida em 2026-11-01: limites de Edge Functions, códigos de status, limites de arquivo, criação de bucket, URL assinada de upload, controle de acesso do Storage e preços. SHA-256 de 2 MiB em 1,1 ms, no Node desta máquina.
+- **Não verificado:** o limite de corpo de uma Edge Function hospedada, que a documentação não traz, e a CPU real de `proof-validate`. O tamanho das fotos é estimado. `pnpm db:check-permissions` não rodou e vai falhar até F3-2 entregar a matriz e as transições no banco.
+- **Pendências / próximos passos:** F3-2 a F3-7 nos handoffs. O orquestrador acrescenta ao QUADRO as tarefas de `tarefas-calendario` e `proof-url`, e ajusta F8-4, porque o limite de desafios entra em F3-2.

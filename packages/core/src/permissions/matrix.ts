@@ -13,6 +13,7 @@ export const rolePermissions = {
     'task.manage_group',
     'task.edit_assigned',
     'task.delete_assigned',
+    'proof.review',
   ],
   admin: [
     'group.update',
@@ -24,6 +25,7 @@ export const rolePermissions = {
     'task.manage_group',
     'task.edit_assigned',
     'task.delete_assigned',
+    'proof.review',
   ],
   member: [],
 } as const;

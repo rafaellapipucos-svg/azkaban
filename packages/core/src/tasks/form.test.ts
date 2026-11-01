@@ -162,11 +162,9 @@ describe('buildTaskInput', () => {
   });
 
   it('turns a task into a batch of assignees, always for the group', () => {
-    const batch = toBatchInput(buildTaskInput(values({ visibility: 'private' }), context), [
-      'a',
-      'b',
-    ]);
-    expect(batch).toMatchObject({ assigneeIds: ['a', 'b'], visibility: 'group' });
+    const ids = [ME, '00000000-0000-4000-8000-000000000003'];
+    const batch = toBatchInput(buildTaskInput(values({ visibility: 'private' }), context), ids);
+    expect(batch).toMatchObject({ assigneeIds: ids, visibility: 'group' });
     expect('assigneeId' in batch).toBe(false);
   });
 });

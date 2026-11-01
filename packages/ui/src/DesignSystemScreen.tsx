@@ -26,6 +26,7 @@ type CalendarView = 'month' | 'week' | 'day';
 export function DesignSystemScreen() {
   const { t } = useTranslation('ui');
   const [selected, setSelected] = useState<string>('violet');
+  const [days, setDays] = useState<string[]>(['mon', 'wed']);
   const [done, setDone] = useState(3);
   const [notify, setNotify] = useState(true);
   const [view, setView] = useState<CalendarView>('week');
@@ -50,6 +51,7 @@ export function DesignSystemScreen() {
         <Body>Body</Body>
         <Muted>Muted</Muted>
         <ErrorText>ErrorText</ErrorText>
+        <Subtitle tone="danger">Subtitle danger</Subtitle>
 
         <Subtitle>{t('designSystem.buttons')}</Subtitle>
         <Button label="Primary" />
@@ -163,6 +165,21 @@ export function DesignSystemScreen() {
               colorToken={token}
               selected={selected === token}
               onPress={() => setSelected(token)}
+            />
+          ))}
+        </ChipRow>
+
+        <Subtitle>{t('designSystem.multiChips')}</Subtitle>
+        <ChipRow label={t('designSystem.multiChips')} multiple>
+          {['mon', 'tue', 'wed', 'thu', 'fri'].map((day) => (
+            <Chip
+              key={day}
+              multiple
+              label={day}
+              selected={days.includes(day)}
+              onPress={() =>
+                setDays(days.includes(day) ? days.filter((d) => d !== day) : [...days, day])
+              }
             />
           ))}
         </ChipRow>

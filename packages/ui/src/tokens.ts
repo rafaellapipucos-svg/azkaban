@@ -5,6 +5,8 @@ export const colors = {
   onPrimary: '#FFFFFF',
   danger: '#C8283D',
   dangerEdge: '#8F1626',
+  // Red text and borders on the dark theme: `danger` is only 2.9:1 on surface-dark.
+  'danger-light': '#F2677A',
   background: '#FBF8FF',
   'background-dark': '#16121F',
   surface: '#FFFFFF',

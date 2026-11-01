@@ -379,12 +379,13 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
       {scheduleType === 'all_day' ? null : (
         <View className="gap-2">
           <Body>{t('form.reminders')}</Body>
-          <ChipRow label={t('form.reminders')}>
+          <ChipRow label={t('form.reminders')} multiple>
             {reminderOptions.map((minutes) => (
               <Chip
                 key={minutes}
                 label={reminderLabel(minutes, t)}
                 selected={reminders.includes(minutes)}
+                multiple
                 onPress={() => toggleReminder(minutes)}
               />
             ))}

@@ -296,3 +296,21 @@
 - **Verificado:** `pnpm check`, `pnpm build:web`, `pnpm db:test` (352 asserts) e `pnpm e2e` (10 testes) passam. Telas vistas em 375px, claro e escuro, com dados reais (Hoje, aba de área, criação rápida, formulário com repetição, detalhe, prompt de escopo).
 - **Não verificado:** nada rodou em aparelho ou emulador (seletor nativo, `Modal` e safe area no nativo); `late_window_expired` só tem a lógica coberta em `core`, sem E2E, porque exige uma ocorrência com mais de 72 horas de atraso; o fluxo "esta e as próximas" com contagem (`COUNT`) só tem teste de unidade.
 - **Pendências / próximos passos:** calendário e Equipe (F2-9, F2-10); ver os três handoffs de 11:28 (tipos das RPCs, chips de escolha múltipla e contraste do vermelho no escuro, `ProfileScreen`); fila offline é F8-5.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 11:38 (BRT)
+
+- **Branch:** feat/ui-phase-2-fixes, criada a partir de feat/phase-2-tasks
+- **Agente(s):** design-system
+- **Resumo:** Resposta ao handoff das telas de tarefas: contraste do vermelho no escuro, chip de escolha múltipla e o vazio no topo das telas de pilha.
+- **Alterações:**
+  - Token `danger-light` (`#F2677A`, 5,35:1 sobre `surface-dark` e 6,14:1 sobre `background-dark`) aplicado em `ErrorText`, na borda inválida de `FormTextField` e `DateField`/`TimeField`, na linha "Atrasada" (`OccurrenceRow`) e no título "Atrasadas" (`Section`). Medi todos os pares texto e fundo de `packages/ui` e `packages/features/tasks` nos dois temas, e o único outro abaixo de AA era o placeholder (`muted` sobre `surface-dark`, 2,34:1); agora ele usa `muted-dark` (7,75:1).
+  - `Subtitle` ganhou `tone="danger"`. O título "Atrasadas" nunca ficava vermelho, nem no tema claro, porque `text-text` vencia `text-danger`; `Section` passou a usar a prop.
+  - `Chip` e `ChipRow` ganharam `multiple`: papel `checkbox` e `group` em vez de `radio` e `radiogroup`. Aplicado em `RecurrenceEditor` (dias da semana), `TaskFormScreen` (avisos) e `AssigneePicker` (pessoas, só quando `multiple`). Escolhas únicas seguem como estavam.
+  - `Screen` usa `SafeAreaView` (bordas topo e base) em vez de somar `useSafeAreaInsets` ao padding: o nativo só acolchoa a parte da área segura que a tela de fato cobre, então sob o cabeçalho da pilha sobra 0 e nas abas e na boas-vindas o inset inteiro. O respiro de 24px continua.
+- **Arquivos/módulos principais:** `packages/ui/src/{tokens,Text,Layout,FormTextField,DateTimeFields,useThemeColors,DesignSystemScreen}`, `packages/features/tasks/src/{OccurrenceRow,Sections,RecurrenceEditor,TaskFormScreen,AssigneePicker}.tsx` (só cor e a prop `multiple`)
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** `Screen` não detecta o cabeçalho pelo contexto do React Navigation porque o expo-router não exporta esse contexto; o `SafeAreaView` nativo resolve sem depender de rota.
+- **Como testar:** `pnpm check`, `pnpm build:web`; `/design-system` em 375px nos dois temas (linhas "ErrorText" e "Subtitle danger", chips de escolha múltipla).
+- **Verificado:** `pnpm check` e `pnpm build:web` passam. No Chromium, a 375px: cores computadas de `ErrorText` e do título perigo são `rgb(200,40,61)` no claro e `rgb(242,103,122)` no escuro; os chips múltiplos têm `role=checkbox` dentro de `group` e os de escolha única continuam `radio`; sem erro no console.
+- **Não verificado:** o `Screen` em pilha com cabeçalho nativo, em iOS e Android, não foi visto (a web tem inset 0 e não mostra a diferença). As telas de tarefas com dados não foram abertas, porque a pilha está em uso por outro agente.
+- **Pendências / próximos passos:** conferir em aparelho o topo das telas de detalhe e formulário.

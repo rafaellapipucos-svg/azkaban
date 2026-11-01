@@ -23,12 +23,13 @@ export function AssigneePicker({ members, userId, value, onChange, multiple }: P
   return (
     <View className="gap-2">
       <Body>{t('form.assignees')}</Body>
-      <ChipRow label={t('form.assignees')}>
+      <ChipRow label={t('form.assignees')} multiple={multiple}>
         {members.map((member) => (
           <Chip
             key={member.userId}
             label={member.userId === userId ? t('form.me') : member.displayName}
             selected={value.includes(member.userId)}
+            multiple={multiple}
             onPress={() => toggle(member.userId)}
           />
         ))}

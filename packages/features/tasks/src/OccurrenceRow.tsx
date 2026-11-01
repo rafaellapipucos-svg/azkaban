@@ -76,7 +76,7 @@ export function OccurrenceRow({ item, timezone, now, actions, contextLabel }: Pr
             {resolved && xp > 0 ? ` · ${t('row.xp', { count: xp })}` : ''}
           </Muted>
           {overdue ? (
-            <Text className="font-heavy text-sm text-danger">
+            <Text className="font-heavy text-sm text-danger dark:text-danger-light">
               <Text aria-hidden>⚠ </Text>
               {t('row.overdue')}
             </Text>

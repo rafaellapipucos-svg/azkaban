@@ -41,6 +41,15 @@ supabase/  migrations, seeds, Edge Functions, testes de RLS
 
 O tema usa `darkMode: 'class'`, porque o modo `media` dispara erro na web no NativeWind 4.2. `useSystemColorScheme`, em `packages/ui`, mantém a classe igual ao tema do sistema.
 
+## Tarefas
+
+Regras completas no [ADR-0005](adr/0005-tarefas-ocorrencias-recorrencia.md).
+
+- `tasks` é a definição, e `task_occurrences` guarda o estado de cada instância.
+- O cliente lê por RLS, cria tarefa por `insert` e faz o resto pelas RPCs `set_occurrence_status`, `edit_task` e `delete_task`. Triggers gravam histórico e XP em qualquer caminho.
+- Ocorrências recorrentes só nascem na Edge Function `materialize-occurrences`, que usa a recorrência de `packages/core`. A de tarefa avulsa vem de um trigger.
+- `taskRules` (`packages/config`) e `occurrenceTransitions` (`packages/contracts`) têm espelho no banco, como a matriz de permissões. Os dois arquivos não têm importação em tempo de execução, para o Node carregá-los direto em `pnpm db:check-permissions`.
+
 ## Banco
 
 Desenvolvimento em Supabase local (`pnpm db:start`, exige Docker): `apps/app/.env.development.local` aponta o `pnpm dev` para ele. O projeto hospedado recebe migrations por `supabase db push --db-url "$SUPABASE_DB_URL"`, e só após revisão.

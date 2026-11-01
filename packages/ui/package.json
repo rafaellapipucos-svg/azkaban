@@ -6,7 +6,8 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@azkaban/contracts": "workspace:*",
@@ -18,5 +19,8 @@
     "react-native": "catalog:",
     "react-native-safe-area-context": "^5.11.0",
     "react-native-svg": "^15.16.0"
+  },
+  "devDependencies": {
+    "vitest": "catalog:"
   }
 }

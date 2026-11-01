@@ -33,6 +33,14 @@ export const colors = {
   doneEdge: '#075B3C',
   partialEdge: '#B58500',
   cancelledEdge: '#4F4A5E',
+  // "Em análise": done, waiting for an admin (ADR-0007). Light green, so it is not mistaken for
+  // `done`. The edge is what separates it from a light card; tokens.test.ts measures the contrast.
+  review: '#C4EED7',
+  'review-dark': '#A6E6C4',
+  onReview: '#0A3A28',
+  'onReview-dark': '#0A3A28',
+  reviewEdge: '#2F8A62',
+  'reviewEdge-dark': '#6FCB9A',
 } as const;
 
 // Stored by name in areas.color_token and contexts.color_token. All pass AA with white text.

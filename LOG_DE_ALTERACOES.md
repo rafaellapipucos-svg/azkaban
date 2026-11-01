@@ -371,3 +371,20 @@
 - **Verificado:** `pnpm check` passa (410 testes em `core`, 6 em `contracts`, 3 em `config`, 4 em `platform`; 202 módulos sem violação de fronteira). `pnpm build:web` e `pnpm functions:test` (9 de 9) passam. `pnpm e2e` na integração como veio: 13 de 16 (as 3 falhas eram o seletor acima). Depois da correção, em 7 rodadas completas com o limite de 5 s: 2 limpas e 5 com 1 a 3 falhas de tempo, sempre depois de "Salvar"; com o limite de 15 s, 3 rodadas seguidas com 21 de 21 (um é o `test.fail` esperado). axe-core 4.10.2 em 22 telas nos dois temas: zero violações de contraste no escuro e uma no claro (texto de exemplo, 2,53:1). Alvos de toque: tudo com 44px ou mais, menos a seta de voltar do cabeçalho (30px).
 - **Não verificado:** nada rodou em aparelho ou emulador (câmera, safe area, seletor nativo de data, leitor de tela real); `pnpm db:test` não foi rodado, porque o banco local estava em uso pelo `revisor-seguranca`; o `late_window_expired` com um segundo usuário administrador e o efeito do vermelho automático (F4-6) não existem ainda.
 - **Pendências / próximos passos:** os quatro handoffs. Quando o bug de "Não encontramos esta tarefa." for corrigido, tirar o `test.fail` do último teste de `e2e/tasks-late-and-count.spec.ts`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 13:53 (BRT)
+
+- **Branch:** feat/groups-permissions, criada a partir de feat/phase-2-tasks
+- **Agente(s):** auth-grupos
+- **Resumo:** `GroupDetailScreen` deixou de comparar papéis na tela. O que o espectador pode fazer continua em `can(user, permission, group)`; as regras que dependem do papel do alvo (dono não sai nem é removido, admin só sai com `member.change_role`) viraram funções puras em `packages/core/src/permissions`, espelho da política `group_members_delete`. Comportamento igual.
+- **Alterações:**
+  - `packages/core/src/permissions/members.ts`: `canRemoveMember` (espelha `group_members_delete`, vale também para sair do grupo) e `memberActions` (botões de trocar papel, transferir e remover no cartão de outro membro). 10 testes em `members.test.ts`: dono nunca sai nem é removido, admin remove membro mas não admin, dono remove admin, membro comum não remove, quem não está no grupo.
+  - `packages/features/groups/src/GroupDetailScreen.tsx`: sem nenhum `role ===`; "Sair do grupo" usa `canRemoveMember` com o próprio papel. Os `children` do grupo foram revisados e mantidos.
+  - `ProfileScreen` (`children` acima de "Sair"): revisado e mantido, sem mudança.
+- **Arquivos/módulos principais:** `packages/core/src/permissions/members.ts`, `packages/core/src/index.ts`, `packages/features/groups/src/GroupDetailScreen.tsx`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** a regra do alvo não entrou na matriz porque a matriz espelha `role_permissions` do banco (`db:check-permissions`); fica numa função à parte que usa `can()`.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passa (420 testes em `core`, 204 módulos sem violação de fronteira). `grep "role ===" GroupDetailScreen.tsx` não acha mais nada.
+- **Não verificado:** a tela não foi aberta no navegador nem o E2E rodou (o banco local está com outro agente); a equivalência com a versão anterior vem da leitura e dos testes de unidade.
+- **Pendências / próximos passos:** o nome do grupo ainda aparece só dentro do campo de texto para quem pode renomear (apontado pelo qa-testes), sem título.

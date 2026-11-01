@@ -1,6 +1,12 @@
 export { safeInternalPath } from './navigation/safeInternalPath';
 export { can, type Permission, type PermissionUser } from './permissions/can';
 export {
+  canRemoveMember,
+  memberActions,
+  type MemberActions,
+  type MemberTarget,
+} from './permissions/members';
+export {
   canManageGroupTask,
   deriveActors,
   type ActorSubject,

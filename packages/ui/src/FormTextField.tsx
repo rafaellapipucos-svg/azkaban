@@ -1,7 +1,7 @@
 import { TextInput, View, type TextInputProps } from 'react-native';
 import { useController, type Control, type FieldPath, type FieldValues } from 'react-hook-form';
 import { Body, ErrorText } from './Text';
-import { colors } from './tokens';
+import { useThemeColors } from './useThemeColors';
 
 type Props<T extends FieldValues> = {
   control: Control<T>;
@@ -17,6 +17,7 @@ export function FormTextField<T extends FieldValues>({
   errorText,
   ...input
 }: Props<T>) {
+  const { muted } = useThemeColors();
   const { field, fieldState } = useController({ control, name });
   return (
     <View className="gap-1">
@@ -27,9 +28,11 @@ export function FormTextField<T extends FieldValues>({
         value={field.value ?? ''}
         onChangeText={field.onChange}
         onBlur={field.onBlur}
-        placeholderTextColor={colors.muted}
+        placeholderTextColor={muted}
         className={`min-h-12 rounded-md border-2 bg-surface px-4 font-body text-md text-text dark:bg-surface-dark dark:text-text-dark ${
-          fieldState.invalid ? 'border-danger' : 'border-border dark:border-border-dark'
+          fieldState.invalid
+            ? 'border-danger dark:border-danger-light'
+            : 'border-border dark:border-border-dark'
         }`}
         {...input}
       />

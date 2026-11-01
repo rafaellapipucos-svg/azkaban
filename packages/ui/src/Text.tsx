@@ -13,14 +13,11 @@ export function Title({ className = '', ...props }: Props) {
   );
 }
 
-export function Subtitle({ className = '', ...props }: Props) {
-  return (
-    <Text
-      role="heading"
-      className={`font-heavy text-lg text-text dark:text-text-dark ${className}`}
-      {...props}
-    />
-  );
+/** `tone="danger"` swaps the color; className cannot, because the default text color would win. */
+export function Subtitle({ className = '', tone, ...props }: Props & { tone?: 'danger' }) {
+  const color =
+    tone === 'danger' ? 'text-danger dark:text-danger-light' : 'text-text dark:text-text-dark';
+  return <Text role="heading" className={`font-heavy text-lg ${color} ${className}`} {...props} />;
 }
 
 export function Body({ className = '', ...props }: Props) {
@@ -36,5 +33,11 @@ export function Muted({ className = '', ...props }: Props) {
 }
 
 export function ErrorText({ className = '', ...props }: Props) {
-  return <Text role="alert" className={`font-body text-sm text-danger ${className}`} {...props} />;
+  return (
+    <Text
+      role="alert"
+      className={`font-body text-sm text-danger dark:text-danger-light ${className}`}
+      {...props}
+    />
+  );
 }

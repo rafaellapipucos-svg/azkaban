@@ -18,7 +18,7 @@ export function Section({
 }) {
   return (
     <View style={{ gap: tokens.spacing[3] }}>
-      <Subtitle className={danger ? 'text-danger dark:text-danger' : ''}>{title}</Subtitle>
+      <Subtitle tone={danger ? 'danger' : undefined}>{title}</Subtitle>
       {children}
     </View>
   );

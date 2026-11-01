@@ -3,7 +3,7 @@ import { DateTimeInput } from '@azkaban/platform';
 import { View } from 'react-native';
 import { useController, type Control, type FieldPath, type FieldValues } from 'react-hook-form';
 import { Body, ErrorText } from './Text';
-import { colors, fontFamily, fontSize, radii, sizes, spacing } from './tokens';
+import { fontFamily, fontSize, radii, sizes, spacing } from './tokens';
 import { useThemeColors } from './useThemeColors';
 
 type Props<T extends FieldValues> = {
@@ -43,10 +43,10 @@ function DateTimeField<T extends FieldValues>({
         appearance={{
           dark: theme.dark,
           color: theme.text,
-          placeholderColor: colors.muted,
+          placeholderColor: theme.muted,
           accentColor: theme.primary,
           backgroundColor: theme.surface,
-          borderColor: fieldState.invalid ? colors.danger : theme.border,
+          borderColor: fieldState.invalid ? theme.danger : theme.border,
           borderWidth: 2,
           borderRadius: radii.md,
           minHeight: sizes.field,

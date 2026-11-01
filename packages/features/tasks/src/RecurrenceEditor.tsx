@@ -92,12 +92,13 @@ export function RecurrenceEditor({
       {frequency === 'weekly' ? (
         <>
           <Body>{t('repeat.daysLabel')}</Body>
-          <ChipRow label={t('repeat.daysLabel')}>
+          <ChipRow label={t('repeat.daysLabel')} multiple>
             {WEEKDAYS.map(({ value, key }) => (
               <Chip
                 key={value}
                 label={t(`weekdaysShort.${key}`)}
                 selected={weekdays.includes(value)}
+                multiple
                 onPress={() => toggleDay(value)}
               />
             ))}

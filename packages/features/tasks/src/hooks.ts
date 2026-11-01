@@ -8,8 +8,11 @@ import type {
 import {
   availableTransitions,
   canManageGroupTask,
+  canReviewProof,
+  canSendProof,
   deriveActors,
   isLate,
+  isLateWindowOpen,
   localDayRange,
 } from '@azkaban/core';
 import { taskErrorCode, tasksRepository, useCurrentUser } from '@azkaban/data';
@@ -68,13 +71,25 @@ export function useOccurrenceLists({ days, mineOnly }: { days: number; mineOnly:
   };
 }
 
-/** What the current user may do with an occurrence. Only decides which controls to show. */
+/**
+ * What the current user may do with an occurrence. Only decides which controls to show.
+ * `canSendProof`: the photo can be sent now. `canReview`: the user can undo a dispute.
+ * `windowOpen`: the late window has not closed on them.
+ */
 export function useTransitions(item: OccurrenceListItem | undefined) {
   const { user } = useCurrentUser();
   const now = useNow();
   return useMemo(() => {
     if (!item) {
-      return { actors: [], available: [] as Transition[], canEdit: false, canDelete: false };
+      return {
+        actors: [],
+        available: [] as Transition[],
+        canEdit: false,
+        canDelete: false,
+        canSendProof: false,
+        canReview: false,
+        windowOpen: true,
+      };
     }
     const actors = deriveActors(user, {
       groupId: item.task.groupId,
@@ -83,17 +98,29 @@ export function useTransitions(item: OccurrenceListItem | undefined) {
       taskAssigneeId: item.task.assigneeId,
       visibility: item.task.visibility,
     });
-    const available = availableTransitions({
+    const canReview = canReviewProof(user, {
+      groupId: item.task.groupId,
+      visibility: item.task.visibility,
+      authorId: item.assigneeId,
+    });
+    const request = {
       occurrence: item,
       actors,
       requiresPartialReason: item.task.requiresPartialReason,
+      requiresPhotoProof: item.task.requiresPhotoProof,
+      canReviewProof: canReview,
       lateCompletionWindowHours: taskRules.lateCompletionWindowHours,
       canManageGroup: canManageGroupTask(user, item.task.groupId),
       now,
-    });
+    };
     return {
       actors,
-      available,
+      available: availableTransitions(request),
+      canSendProof: canSendProof(request),
+      canReview,
+      windowOpen:
+        request.canManageGroup ||
+        isLateWindowOpen(item.overdueAt, request.lateCompletionWindowHours, now),
       canEdit: actors.includes('editor'),
       canDelete: actors.includes('deleter'),
     };
@@ -112,6 +139,8 @@ export function withOptimisticStatus(
     status: toStatus,
     late: resolves && isLate(item.overdueAt, now),
     statusReason: toStatus === 'pending' ? null : reason,
+    // Reopening drops the proof and its review (ADR-0007 section 9); any other change keeps them.
+    proofReviewStatus: toStatus === 'pending' ? null : item.proofReviewStatus,
   };
 }
 

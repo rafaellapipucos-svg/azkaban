@@ -20,11 +20,12 @@ import { Text, View } from 'react-native';
 import { tasksConfig } from './config';
 import { capitalize, errorKey } from './format';
 import { useNotice, useOccurrenceLists, useStatusChange } from './hooks';
+import type { ProofEntry } from './OccurrenceRow';
 import { QuickCreate } from './QuickCreate';
 import { ContextGroups, Section } from './Sections';
 
 /** The start screen: everything of the day across areas, grouped by context. */
-export function TodayScreen() {
+export function TodayScreen({ onProof }: { onProof?: ProofEntry }) {
   const { t, i18n } = useTranslation('tasks');
   const router = useRouter();
   const { user } = useCurrentUser();
@@ -44,6 +45,7 @@ export function TodayScreen() {
   const actions = {
     change: status.change,
     open: (item: { id: string }) => router.push(`/tasks/${item.id}`),
+    proof: onProof && ((item: { id: string }) => onProof(item.id)),
   };
   const list = contexts.data ?? [];
   const common = { contexts: list, timezone, now, actions };

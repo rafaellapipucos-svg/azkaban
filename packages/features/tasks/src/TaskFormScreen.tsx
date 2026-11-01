@@ -4,7 +4,9 @@ import {
   can,
   localDayRange,
   nextHourTime,
+  offersAdminApproval,
   planEdit,
+  proofFlagsLocked,
   resolvePrefill,
   rruleOf,
   taskFormValues,
@@ -201,6 +203,8 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
   const assigneeIds = useWatch({ control, name: 'assigneeIds' });
   const reminders = useWatch({ control, name: 'reminders' });
   const visibility = useWatch({ control, name: 'visibility' });
+  const requiresPhotoProof = useWatch({ control, name: 'requiresPhotoProof' });
+  const requiresAdminApproval = useWatch({ control, name: 'requiresAdminApproval' });
 
   const context = list.find(({ id }) => id === contextId);
   const group = groups.find(({ id }) => id === context?.groupId);
@@ -216,6 +220,21 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
     assigneeIds.length === 1 &&
     assigneeIds[0] === user.id &&
     creatorId === user.id;
+  // Someone with only `task.edit_assigned` sees the photo and approval switches and cannot move
+  // them: the database refuses with `proof_flags_locked` (ADR-0007 section 8).
+  const proofLocked =
+    editing && existing !== null
+      ? proofFlagsLocked(user, {
+          groupId: existing.task.groupId,
+          createdBy: existing.task.createdBy,
+          assigneeId: existing.task.assigneeId,
+          visibility: existing.task.visibility,
+        })
+      : false;
+  const approvalOffered = offersAdminApproval(
+    { requiresPhotoProof, visibility, assigneeIds },
+    { personalContext: context?.groupId === null, editorId: user.id },
+  );
   // A task can only move to another context of the same owner (ADR-0005 section 2).
   const currentOwner = existing ? list.find(({ id }) => id === existing.task.contextId) : undefined;
   const selectable =
@@ -428,6 +447,10 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
           onChange={(ids) => {
             setValue('assigneeIds', ids, { shouldDirty: true });
             if (ids.length !== 1 || ids[0] !== user.id) setValue('visibility', 'group');
+            // Nobody approves their own photo: the switch goes away with the assignee, and its value too.
+            if (!proofLocked && ids.includes(user.id)) {
+              setValue('requiresAdminApproval', false, { shouldDirty: true });
+            }
           }}
         />
       ) : null}
@@ -436,9 +459,10 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
           label={t('form.private')}
           description={t('form.privateHint')}
           value={visibility === 'private'}
-          onValueChange={(value) =>
-            setValue('visibility', value ? 'private' : 'group', { shouldDirty: true })
-          }
+          onValueChange={(value) => {
+            setValue('visibility', value ? 'private' : 'group', { shouldDirty: true });
+            if (value) setValue('requiresAdminApproval', false, { shouldDirty: true });
+          }}
         />
       ) : null}
 
@@ -484,6 +508,28 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
             label={t('form.askReason')}
             description={t('form.askReasonHint')}
           />
+          <SwitchRow
+            label={t('form.photoProof')}
+            description={proofLocked ? t('form.proofLocked') : t('form.photoProofHint')}
+            value={requiresPhotoProof}
+            disabled={proofLocked}
+            onValueChange={(value) => {
+              setValue('requiresPhotoProof', value, { shouldDirty: true });
+              // Approval is for a photo to look at.
+              if (!value) setValue('requiresAdminApproval', false, { shouldDirty: true });
+            }}
+          />
+          {approvalOffered || proofLocked ? (
+            <SwitchRow
+              label={t('form.adminApproval')}
+              description={proofLocked ? t('form.proofLocked') : t('form.adminApprovalHint')}
+              value={requiresAdminApproval}
+              disabled={proofLocked || !requiresPhotoProof}
+              onValueChange={(value) =>
+                setValue('requiresAdminApproval', value, { shouldDirty: true })
+              }
+            />
+          ) : null}
         </View>
       ) : null}
 

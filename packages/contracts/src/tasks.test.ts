@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { contextInputSchema } from './contexts';
 import { occurrenceTransitions } from './occurrence-transitions';
 import { recurrenceInputSchema } from './recurrence';
 import {
+  occurrenceSchema,
   occurrenceStatusSchema,
+  statusHistoryEntrySchema,
   taskBatchInputSchema,
   taskErrorCodeSchema,
   taskInputSchema,
@@ -73,6 +76,67 @@ describe('taskErrorCodeSchema', () => {
     // The app never writes these, so they stay out and get the generic text.
     expect(taskErrorCodeSchema.safeParse('invalid_rrule').success).toBe(false);
     expect(taskErrorCodeSchema.safeParse('invalid_timezone').success).toBe(false);
+  });
+});
+
+// The fields of the proof are required from Phase 3 (ADR-0007): a repository that forgets to select
+// them must fail here, not show a proof in review as plain green.
+describe('the proof fields of an occurrence', () => {
+  const occurrence = {
+    id,
+    taskId: id,
+    assigneeId: id,
+    scheduledStart: '2026-11-02T12:00:00Z',
+    scheduledDue: '2026-11-02T12:00:00Z',
+    overdueAt: '2026-11-03T03:00:00Z',
+    status: 'done',
+    late: false,
+    statusReason: null,
+    statusChangedAt: null,
+    statusChangedBy: null,
+    proofReviewStatus: 'in_review',
+  };
+  const entry = {
+    id,
+    occurrenceId: id,
+    fromStatus: 'pending',
+    toStatus: 'done',
+    changedBy: id,
+    changedAt: '2026-11-02T12:00:00Z',
+    reason: null,
+    proofReviewStatus: null,
+  };
+
+  it('requires the review status, null or not', () => {
+    expect(occurrenceSchema.safeParse(occurrence).success).toBe(true);
+    expect(occurrenceSchema.safeParse({ ...occurrence, proofReviewStatus: null }).success).toBe(
+      true,
+    );
+    expect(
+      occurrenceSchema.safeParse({ ...occurrence, proofReviewStatus: undefined }).success,
+    ).toBe(false);
+    expect(occurrenceSchema.safeParse({ ...occurrence, proofReviewStatus: 'maybe' }).success).toBe(
+      false,
+    );
+  });
+
+  it('requires it in the history too', () => {
+    expect(statusHistoryEntrySchema.safeParse(entry).success).toBe(true);
+    expect(
+      statusHistoryEntrySchema.safeParse({ ...entry, proofReviewStatus: undefined }).success,
+    ).toBe(false);
+  });
+
+  it('requires the place of a context to be said, even when there is none', () => {
+    const context = { areaId: 'a', groupId: null, name: 'Casa', colorToken: 'x', icon: '🏠' };
+    expect(contextInputSchema.safeParse({ ...context, location: null }).success).toBe(true);
+    expect(contextInputSchema.safeParse(context).success).toBe(false);
+    expect(
+      contextInputSchema.safeParse({
+        ...context,
+        location: { address: 'Rua A', lat: -23.5, lng: -46.6, radiusM: 200 },
+      }).success,
+    ).toBe(true);
   });
 });
 

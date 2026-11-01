@@ -12,9 +12,11 @@ const overdueAt = '2026-11-02T03:00:00.000Z';
 const at = (offsetMs: number) => new Date(Date.parse(overdueAt) + offsetMs);
 
 const base = {
-  occurrence: { status: 'pending' as OccurrenceStatus, overdueAt },
+  occurrence: { status: 'pending' as OccurrenceStatus, overdueAt, proofReviewStatus: null },
   reason: null,
   requiresPartialReason: false,
+  requiresPhotoProof: false,
+  canReviewProof: false,
   lateCompletionWindowHours: 72,
   canManageGroup: false,
   now: at(-HOUR),
@@ -37,7 +39,7 @@ describe('canTransition: every row of occurrenceTransitions', () => {
   it.each(cases)('$from -> $to by $actor: allowed=$allowed', ({ from, to, actor, allowed }) => {
     const result = canTransition({
       ...base,
-      occurrence: { status: from, overdueAt },
+      occurrence: { status: from, overdueAt, proofReviewStatus: null },
       to,
       actors: [actor],
       // partial needs a reason only when the task asks for one
@@ -75,7 +77,12 @@ describe('canTransition: pairs outside the table', () => {
 
   it.each(outside)('$from -> $to is invalid for every actor', ({ from, to }) => {
     expect(
-      canTransition({ ...base, occurrence: { status: from, overdueAt }, to, actors: allActors }),
+      canTransition({
+        ...base,
+        occurrence: { status: from, overdueAt, proofReviewStatus: null },
+        to,
+        actors: allActors,
+      }),
     ).toEqual({ ok: false, error: 'invalid_transition' });
   });
 
@@ -90,7 +97,7 @@ describe('canTransition: pairs outside the table', () => {
     expect(
       canTransition({
         ...base,
-        occurrence: { status: 'missed', overdueAt },
+        occurrence: { status: 'missed', overdueAt, proofReviewStatus: null },
         to: 'pending',
         actors: ['assignee'],
       }),
@@ -157,7 +164,10 @@ describe('canTransition: late window', () => {
   });
 
   it('lets a missed occurrence be resolved inside the window, counted from overdueAt', () => {
-    const missed = { ...done, occurrence: { status: 'missed' as const, overdueAt } };
+    const missed = {
+      ...done,
+      occurrence: { status: 'missed' as const, overdueAt, proofReviewStatus: null },
+    };
     expect(canTransition({ ...missed, now: at(windowEnd) })).toEqual({ ok: true, late: true });
     expect(canTransition({ ...missed, now: at(windowEnd + 1) })).toEqual({
       ok: false,
@@ -179,7 +189,7 @@ describe('canTransition: late window', () => {
     expect(
       canTransition({
         ...base,
-        occurrence: { status: 'done', overdueAt },
+        occurrence: { status: 'done', overdueAt, proofReviewStatus: null },
         to: 'pending',
         actors: ['assignee'],
         now,
@@ -199,8 +209,10 @@ describe('canTransition: late window', () => {
 
 describe('availableTransitions', () => {
   const rules = {
-    occurrence: { status: 'pending' as OccurrenceStatus, overdueAt },
+    occurrence: { status: 'pending' as OccurrenceStatus, overdueAt, proofReviewStatus: null },
     requiresPartialReason: true,
+    requiresPhotoProof: false,
+    canReviewProof: false,
     lateCompletionWindowHours: 72,
     canManageGroup: false,
     now: at(-HOUR),
@@ -246,7 +258,7 @@ describe('availableTransitions', () => {
     expect(
       availableTransitions({
         ...rules,
-        occurrence: { status: 'done', overdueAt },
+        occurrence: { status: 'done', overdueAt, proofReviewStatus: null },
         actors: ['assignee'],
       }),
     ).toEqual([{ to: 'pending', requiresReason: false, late: false }]);

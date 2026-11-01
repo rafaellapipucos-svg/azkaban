@@ -46,6 +46,80 @@ export function deriveActors(
   return actors;
 }
 
+/**
+ * `can_review_proof` in the database, for the UI only: `proof.review` in a task shared with the
+ * group, and never the person who sent the photo. `authorId` is the occurrence's assignee, the only
+ * one who sends a proof; the database compares with the proof's own author.
+ */
+export function canReviewProof(
+  user: ActorUser,
+  {
+    groupId,
+    visibility,
+    authorId,
+  }: { groupId: string | null; visibility: TaskVisibility; authorId: string },
+): boolean {
+  return (
+    groupId !== null &&
+    visibility === 'group' &&
+    user.id !== authorId &&
+    can(user, 'proof.review', { id: groupId })
+  );
+}
+
+/**
+ * `occurrence_forgives_overdue` in the database (ADR-0005 section 11): someone who manages the
+ * group's tasks and is neither the old nor the new assignee gives an overdue occurrence a fresh
+ * deadline by moving it. Everyone else keeps the delay. Decides the "continua atrasada" warning.
+ */
+export function forgivesOverdue(
+  user: ActorUser,
+  {
+    groupId,
+    visibility,
+    occurrenceAssigneeId,
+    newAssigneeId,
+  }: {
+    groupId: string | null;
+    visibility: TaskVisibility;
+    occurrenceAssigneeId: string;
+    newAssigneeId: string;
+  },
+): boolean {
+  return (
+    groupId !== null &&
+    visibility === 'group' &&
+    user.id !== occurrenceAssigneeId &&
+    user.id !== newAssigneeId &&
+    can(user, 'task.manage_group', { id: groupId })
+  );
+}
+
+/**
+ * `proof_flags_locked` in `edit_task` (ADR-0007 section 8): the photo and the approval switches
+ * are for who owns the task (creator and assignee) or has `task.manage_group` on a group task.
+ * Someone with only `task.edit_assigned` sees them and cannot change them.
+ */
+export function proofFlagsLocked(
+  user: ActorUser,
+  {
+    groupId,
+    createdBy,
+    assigneeId,
+    visibility,
+  }: {
+    groupId: string | null;
+    createdBy: string | null;
+    assigneeId: string;
+    visibility: TaskVisibility;
+  },
+): boolean {
+  const own = createdBy === user.id && assigneeId === user.id;
+  const manages =
+    groupId !== null && visibility === 'group' && can(user, 'task.manage_group', { id: groupId });
+  return !(own || manages);
+}
+
 /** Whether the user skips the late window: `task.manage_group` in the task's group. */
 export function canManageGroupTask(user: ActorUser, groupId: string | null): boolean {
   return groupId !== null && can(user, 'task.manage_group', { id: groupId });

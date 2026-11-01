@@ -8,6 +8,7 @@ import {
   defaultRecurrence,
   localTimeOf,
   nextHourTime,
+  offersAdminApproval,
   resolvePrefill,
   taskFormValues,
   toBatchInput,
@@ -57,6 +58,45 @@ describe('time helpers', () => {
   it('picks the next full hour and stops at the end of the day', () => {
     expect(nextHourTime(SP, new Date('2026-11-04T13:20:00.000Z'))).toBe('11:00');
     expect(nextHourTime(SP, new Date('2026-11-05T02:30:00.000Z'))).toBe('23:59');
+  });
+
+  it('keeps the photo and approval switches as the form has them when they make sense', () => {
+    expect(
+      buildTaskInput(values({ requiresPhotoProof: true, requiresAdminApproval: true }), context),
+    ).toMatchObject({ requiresPhotoProof: true, requiresAdminApproval: true });
+  });
+
+  it('drops an approval that has no photo, or no group, because the contract refuses it', () => {
+    const noPhoto = buildTaskInput(values({ requiresAdminApproval: true }), context);
+    expect(noPhoto.requiresAdminApproval).toBe(false);
+    expect(taskInputSchema.safeParse(noPhoto).success).toBe(true);
+
+    const personal = buildTaskInput(
+      values({ requiresPhotoProof: true, requiresAdminApproval: true }),
+      { ...context, personalContext: true },
+    );
+    expect(personal).toMatchObject({ requiresPhotoProof: true, requiresAdminApproval: false });
+    expect(taskInputSchema.safeParse(personal).success).toBe(true);
+
+    const privateTask = buildTaskInput(
+      values({ requiresPhotoProof: true, requiresAdminApproval: true, visibility: 'private' }),
+      context,
+    );
+    expect(privateTask).toMatchObject({ visibility: 'private', requiresAdminApproval: false });
+    expect(taskInputSchema.safeParse(privateTask).success).toBe(true);
+  });
+
+  it('offers the approval switch only with a photo, in a group, to a task someone else does', () => {
+    const other = '00000000-0000-4000-8000-000000000003';
+    const ok = { requiresPhotoProof: true, visibility: 'group' as const, assigneeIds: [other] };
+    const group = { personalContext: false, editorId: ME };
+    expect(offersAdminApproval(ok, group)).toBe(true);
+    expect(offersAdminApproval({ ...ok, requiresPhotoProof: false }, group)).toBe(false);
+    expect(offersAdminApproval({ ...ok, visibility: 'private' }, group)).toBe(false);
+    expect(offersAdminApproval(ok, { ...group, personalContext: true })).toBe(false);
+    // Nobody approves their own photo: the person editing is among the assignees.
+    expect(offersAdminApproval({ ...ok, assigneeIds: [ME] }, group)).toBe(false);
+    expect(offersAdminApproval({ ...ok, assigneeIds: [other, ME] }, group)).toBe(false);
   });
 
   it('resolves the day and time a link asks the form to start with', () => {
@@ -237,6 +277,18 @@ describe('taskFormValues', () => {
 
   it('keeps the proof flags the screen does not show', () => {
     expect(taskFormValues(task, occurrence, 'all').requiresPhotoProof).toBe(true);
+  });
+
+  it('gives back the same flags it was given, so a reschedule never moves them', () => {
+    const approved = { ...task, requiresAdminApproval: true };
+    const form = taskFormValues(approved, occurrence, 'this');
+    const input = buildTaskInput(form, {
+      timezone: SP,
+      assigneeId: ME,
+      creatorId: ME,
+      personalContext: false,
+    });
+    expect(input).toMatchObject({ requiresPhotoProof: true, requiresAdminApproval: true });
   });
 
   it('goes back to the same task: build(form(task)) keeps the schedule', () => {

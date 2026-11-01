@@ -173,11 +173,8 @@ export const occurrenceSchema = z.object({
   statusReason: z.string().nullable(),
   statusChangedAt: instantSchema.nullable(),
   statusChangedBy: idSchema.nullable(),
-  /**
-   * Null with no current proof. Optional until packages/data selects it (handoff to
-   * tarefas-calendario), and then required.
-   */
-  proofReviewStatus: proofReviewStatusSchema.nullable().optional(),
+  /** Null with no current proof. `in_review` is shown as "em análise" (ADR-0007). */
+  proofReviewStatus: proofReviewStatusSchema.nullable(),
 });
 export type Occurrence = z.infer<typeof occurrenceSchema>;
 
@@ -198,9 +195,9 @@ export type OccurrenceListItem = Occurrence & {
     | 'visibility'
     | 'rrule'
     | 'requiresPartialReason'
-  > &
-    // Optional until packages/data selects them (handoff to tarefas-calendario), and then required.
-    Partial<Pick<Task, 'requiresPhotoProof' | 'requiresAdminApproval'>>;
+    | 'requiresPhotoProof'
+    | 'requiresAdminApproval'
+  >;
 };
 
 export const occurrenceTransitionInputSchema = z.object({
@@ -223,9 +220,9 @@ export const statusHistoryEntrySchema = z.object({
   reason: z.string().nullable(),
   /**
    * The review at this point. An approval has no status change, so its entry has `fromStatus` equal
-   * to `toStatus`. Optional until packages/data selects it, and then required and nullable.
+   * to `toStatus`.
    */
-  proofReviewStatus: proofReviewStatusSchema.nullable().optional(),
+  proofReviewStatus: proofReviewStatusSchema.nullable(),
 });
 export type StatusHistoryEntry = z.infer<typeof statusHistoryEntrySchema>;
 

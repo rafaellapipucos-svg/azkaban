@@ -18,7 +18,9 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { useController, useForm } from 'react-hook-form';
+import { draftToLocation, PlaceField, placeToDraft, type PlaceDraft } from './PlaceField';
 
 export function ContextFormScreen({ contextId, areaId }: { contextId?: string; areaId?: string }) {
   const { t } = useTranslation('contexts');
@@ -45,9 +47,14 @@ export function ContextFormScreen({ contextId, areaId }: { contextId?: string; a
       name: '',
       colorToken: defaults.contextColorToken,
       icon: defaults.contextIcon,
+      location: null,
     },
     resetOptions: { keepDirtyValues: true },
   });
+  // `undefined`: not touched, so the saved place shows; `null`: removed.
+  const [place, setPlace] = useState<PlaceDraft | null | undefined>(undefined);
+  const [missing, setMissing] = useState<'address' | 'point' | null>(null);
+  const shownPlace = place === undefined ? placeToDraft(existing?.location ?? null) : place;
   const { field: area } = useController({ control, name: 'areaId' });
   const { field: group } = useController({ control, name: 'groupId' });
   const { field: color } = useController({ control, name: 'colorToken' });
@@ -128,6 +135,20 @@ export function ContextFormScreen({ contextId, areaId }: { contextId?: string; a
           />
         ))}
       </ChipRow>
+      {readOnly ? (
+        existing?.location ? (
+          <Muted>{existing.location.address}</Muted>
+        ) : null
+      ) : (
+        <PlaceField
+          value={shownPlace}
+          missing={missing}
+          onChange={(next) => {
+            setPlace(next);
+            setMissing(null);
+          }}
+        />
+      )}
       {save.isError || archive.isError ? <ErrorText>{t('errors.generic')}</ErrorText> : null}
       {readOnly ? null : (
         <Button
@@ -135,7 +156,11 @@ export function ContextFormScreen({ contextId, areaId }: { contextId?: string; a
           loading={save.isPending}
           // Before the areas arrive the form has no area, and saving would do nothing, silently.
           disabled={!areas.isSuccess}
-          onPress={handleSubmit((values) => save.mutate(values))}
+          onPress={handleSubmit((values) => {
+            const result = draftToLocation(shownPlace);
+            if (!result.ok) setMissing(result.missing);
+            else save.mutate({ ...values, location: result.location });
+          })}
         />
       )}
       {contextId && !readOnly ? (

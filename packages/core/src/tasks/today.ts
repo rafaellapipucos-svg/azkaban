@@ -133,7 +133,12 @@ export function earnedXp(
       (sum, item) =>
         sum +
         occurrenceXp(
-          { status: item.status, late: item.late, difficulty: item.task.difficulty },
+          {
+            status: item.status,
+            late: item.late,
+            difficulty: item.task.difficulty,
+            proofReviewStatus: item.proofReviewStatus,
+          },
           rules,
         ),
       0,

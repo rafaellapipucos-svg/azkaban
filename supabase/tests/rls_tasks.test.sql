@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(277);
+select plan(296);
 
 -- Alice owns Casa A, Bea owns Casa B, Caio is admin of A, Duda is a member of A and B,
 -- Fred is a member of A, Eva is outside.
@@ -696,6 +696,99 @@ select pg_temp.login('00000000-0000-0000-0000-00000000000c');
 select lives_ok($$select public.edit_task(pg_temp.occ('F2', 2), 'this_and_following', pg_temp.form('2027-06-14 10:00-03', '{"title": "F2 tail"}'), 'FREQ=DAILY;INTERVAL=2', 'FREQ=DAILY;UNTIL=20270613T000000Z')$$, 'exdates: splitting a series that has excluded days');
 select pg_temp.pg();
 select is((select exdates::text from public.tasks where title = 'F2 tail'), '{2027-06-20}', 'exdates 7: the new task inherits only the days from the pivot on');
+
+-- edit_task review fixes (ADR-0005 section 8)
+-- 1. A series that stops repeating leaves one pending occurrence, so a second edit works
+select pg_temp.pg();
+select pg_temp.mk('Q1', '20000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000d', 'group', now() - interval '3 days', 'easy', true, 'FREQ=DAILY');
+select pg_temp.mk_occ('Q1', now() - interval '3 days');
+select pg_temp.mk_occ('Q1', now() - interval '2 days');
+select pg_temp.mk_occ('Q1', now() + interval '1 day');
+select set_config('t.q1', pg_temp.tid('Q1')::text, true);
+select set_config('t.q1_occ', pg_temp.occ('Q1', 1)::text, true);
+select pg_temp.login('00000000-0000-0000-0000-00000000000c');
+select is(
+  public.edit_task(current_setting('t.q1_occ')::uuid, 'all', pg_temp.form(now() + interval '5 days', '{"title": "Q1 once"}'), null, null),
+  '{}'::uuid[], 'stop repeating: nothing to materialize');
+select pg_temp.pg();
+select is((select count(*) from public.task_occurrences where task_id = current_setting('t.q1')::uuid and status = 'pending'), 1::bigint, 'stop repeating: past and future pending occurrences collapse into one');
+select is((select scheduled_start from public.task_occurrences where task_id = current_setting('t.q1')::uuid and status = 'pending'), now() + interval '5 days', 'stop repeating: at the new schedule');
+select pg_temp.login('00000000-0000-0000-0000-00000000000c');
+select lives_ok($$select public.edit_task(pg_temp.occ('Q1 once'), 'all', pg_temp.form(now() + interval '6 days', '{"title": "Q1 twice", "assigneeId": "00000000-0000-0000-0000-00000000000f"}'), null, null)$$, 'stop repeating: a second edit of schedule and assignee works');
+select pg_temp.pg();
+select is((select assignee_id from public.task_occurrences where task_id = current_setting('t.q1')::uuid and status = 'pending'), '00000000-0000-0000-0000-00000000000f'::uuid, 'stop repeating: and the single occurrence follows');
+
+-- 2. One day, one occurrence: a started occurrence keeps today, the new time starts tomorrow
+select pg_temp.mk('Q2', '20000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000d', 'group', now() - interval '1 minute', 'easy', true, 'FREQ=DAILY');
+select pg_temp.mk_occ('Q2', now() - interval '1 minute');
+select pg_temp.mk_occ('Q2', now() + interval '1 day');
+select set_config('t.q2', pg_temp.tid('Q2')::text, true);
+select set_config('t.q2_today', pg_temp.occ('Q2', 1)::text, true);
+select pg_temp.login('00000000-0000-0000-0000-00000000000c');
+select is(
+  public.edit_task(current_setting('t.q2_today')::uuid, 'all', pg_temp.form(now() + interval '3 hours', '{"title": "Q2 later"}'), 'FREQ=DAILY', null),
+  array[current_setting('t.q2')::uuid], 'one day: changing the hour asks for materialization');
+select pg_temp.pg();
+select is((select status::text from public.task_occurrences where id = current_setting('t.q2_today')::uuid), 'pending', 'one day: the started occurrence of today stays');
+select is((select count(*) from public.task_occurrences where task_id = current_setting('t.q2')::uuid), 1::bigint, 'one day: and the future one is gone');
+select is((select exdates::text from public.tasks where id = current_setting('t.q2')::uuid), '{' || (now() at time zone 'America/Sao_Paulo')::date::text || '}', 'one day: only today is excluded, so the new hour starts tomorrow');
+
+-- the same with a resolved occurrence today and one resolved on a future day
+select pg_temp.mk('Q3', '20000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000d', 'group', now() - interval '1 minute', 'easy', true, 'FREQ=DAILY');
+select pg_temp.mk_occ('Q3', now() - interval '1 minute');
+select pg_temp.mk_occ('Q3', now() + interval '2 days');
+select pg_temp.mk_occ('Q3', now() + interval '3 days');
+update public.task_occurrences set status = 'done' where id in (pg_temp.occ('Q3', 1), pg_temp.occ('Q3', 2));
+select set_config('t.q3', pg_temp.tid('Q3')::text, true);
+select set_config('t.q3_today', pg_temp.occ('Q3', 1)::text, true);
+select pg_temp.login('00000000-0000-0000-0000-00000000000c');
+select lives_ok($$select public.edit_task(current_setting('t.q3_today')::uuid, 'all', pg_temp.form(now() + interval '3 hours', '{"title": "Q3 later"}'), 'FREQ=DAILY', null)$$, 'one day: editing with resolved occurrences today and later');
+select pg_temp.pg();
+select is((select string_agg(status::text, ',' order by scheduled_start) from public.task_occurrences where task_id = current_setting('t.q3')::uuid), 'done,done', 'one day: both resolved rows stay and the pending one is gone');
+select is((select exdates::text from public.tasks where id = current_setting('t.q3')::uuid), '{' || (now() at time zone 'America/Sao_Paulo')::date::text || ',' || ((now() + interval '2 days') at time zone 'America/Sao_Paulo')::date::text || '}', 'one day: the days of both resolved rows are excluded');
+
+-- a row cancelled by the system today records nothing
+select pg_temp.mk('Q4', '20000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000d', 'group', now() - interval '1 minute', 'easy', true, 'FREQ=DAILY');
+select pg_temp.mk_occ('Q4', now() - interval '1 minute');
+select pg_temp.mk_occ('Q4', now() + interval '1 day');
+update public.task_occurrences set status = 'cancelled' where id = pg_temp.occ('Q4', 1);
+select set_config('t.q4', pg_temp.tid('Q4')::text, true);
+select set_config('t.q4_today', pg_temp.occ('Q4', 1)::text, true);
+select pg_temp.login('00000000-0000-0000-0000-00000000000c');
+select lives_ok($$select public.edit_task(current_setting('t.q4_today')::uuid, 'all', pg_temp.form(now() + interval '3 hours', '{"title": "Q4 later"}'), 'FREQ=DAILY', null)$$, 'one day: editing a series whose today row is cancelled');
+select pg_temp.pg();
+select is((select exdates::text from public.tasks where id = current_setting('t.q4')::uuid), '{}', 'one day: a cancelled row excludes nothing, the new hour can use the day');
+
+-- this_and_following with a resolved pivot
+select pg_temp.mk('Q5', '20000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000d', 'group', now() - interval '2 days', 'easy', true, 'FREQ=DAILY');
+select pg_temp.mk_occ('Q5', now() - interval '2 days');
+select pg_temp.mk_occ('Q5', now() - interval '1 minute');
+select pg_temp.mk_occ('Q5', now() + interval '1 day');
+update public.task_occurrences set status = 'done' where id = pg_temp.occ('Q5', 2);
+select set_config('t.q5', pg_temp.tid('Q5')::text, true);
+select set_config('t.q5_pivot', pg_temp.occ('Q5', 2)::text, true);
+select pg_temp.login('00000000-0000-0000-0000-00000000000c');
+select lives_ok($$select public.edit_task(current_setting('t.q5_pivot')::uuid, 'this_and_following', pg_temp.form(now() + interval '3 hours', '{"title": "Q5 tail"}'), 'FREQ=DAILY', 'FREQ=DAILY;UNTIL=20261231T000000Z')$$, 'one day: splitting at a resolved pivot with a new hour');
+select pg_temp.pg();
+select is((select task_id from public.task_occurrences where id = current_setting('t.q5_pivot')::uuid), pg_temp.tid('Q5 tail'), 'one day: the resolved pivot moved to the new task');
+select is((select exdates::text from public.tasks where title = 'Q5 tail'), '{' || (now() at time zone 'America/Sao_Paulo')::date::text || '}', 'one day: and its day is excluded there');
+
+-- 3. Reassigning without a schedule change reaches every occurrence still on time
+select pg_temp.mk('Q6', '20000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000d', 'group', now() + interval '1 day', 'easy', true, 'FREQ=DAILY');
+select pg_temp.mk_occ('Q6', now() - interval '3 days');
+select pg_temp.mk_occ('Q6', now() - interval '1 day');
+select pg_temp.mk_occ('Q6', now() + interval '1 day');
+update public.task_occurrences set overdue_at = now() - interval '1 hour' where id = pg_temp.occ('Q6', 1);
+update public.task_occurrences set overdue_at = now() + interval '1 day' where id = pg_temp.occ('Q6', 2);
+select set_config('t.q6', pg_temp.tid('Q6')::text, true);
+select set_config('t.q6_o2', pg_temp.occ('Q6', 2)::text, true);
+select pg_temp.login('00000000-0000-0000-0000-00000000000c');
+select is(
+  public.edit_task(current_setting('t.q6_o2')::uuid, 'all', pg_temp.form(now() + interval '1 day', '{"title": "Q6 new", "assigneeId": "00000000-0000-0000-0000-00000000000f"}'), 'FREQ=DAILY', null),
+  '{}'::uuid[], 'reassign: same schedule, nothing to materialize');
+select pg_temp.pg();
+select is((select string_agg(assignee_id::text, ',' order by scheduled_start) from public.task_occurrences where task_id = current_setting('t.q6')::uuid),
+  '00000000-0000-0000-0000-00000000000d,00000000-0000-0000-0000-00000000000f,00000000-0000-0000-0000-00000000000f', 'reassign: a started occurrence still on time follows the new assignee, an overdue one stays');
 
 -- Team view
 select pg_temp.pg();

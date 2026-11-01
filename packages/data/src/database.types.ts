@@ -412,6 +412,9 @@ isOneToOne: false
 "edit_task":
 { Args: { "p_head_rrule": string,"p_occurrence_id": string,"p_rrule": string,"p_scope": Database["public"]['Enums']["task_edit_scope"],"p_task": Json }; Returns: (string)[]
                            },
+"exclude_kept_days":
+{ Args: { "p_task_id": string }; Returns: undefined
+                           },
 "generate_invite_code":
 { Args: Record<PropertyKey, never>; Returns: string
                            },

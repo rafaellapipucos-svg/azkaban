@@ -434,6 +434,9 @@ isOneToOne: false
 "is_group_member":
 { Args: { "target_group_id": string }; Returns: boolean
                            },
+"is_valid_rrule":
+{ Args: { "p_rrule": string }; Returns: boolean
+                           },
 "occurrence_window":
 { Args: { "p_due_at": string,"p_duration_min": number,"p_schedule_type": Database["public"]['Enums']["schedule_type"],"p_start_at": string,"p_timezone": string }; Returns: {
               "scheduled_due": string,"scheduled_start": string
@@ -466,7 +469,7 @@ isOneToOne: false
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
 "team_overview":
-{ Args: { "p_from": string,"p_group_id": string,"p_to": string }; Returns: {
+{ Args: { "p_from": string,"p_group_id": string,"p_timezone": string,"p_to": string }; Returns: {
               "date": string,"display_name": string,"done": number,"late": number,"missed": number,"partial": number,"pending": number,"user_id": string
             }[]
                            },

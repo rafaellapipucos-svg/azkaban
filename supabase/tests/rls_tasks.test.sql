@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(296);
+select plan(356);
 
 -- Alice owns Casa A, Bea owns Casa B, Caio is admin of A, Duda is a member of A and B,
 -- Fred is a member of A, Eva is outside.
@@ -63,15 +63,16 @@ create function pg_temp.ins(
   p_due timestamptz default null,
   p_tz text default 'America/Sao_Paulo',
   p_reminders jsonb default '[]',
-  p_title text default 'Inserted'
+  p_title text default 'Inserted',
+  p_rrule text default null
 ) returns uuid language plpgsql as $$
 declare new_id uuid;
 begin
   insert into public.tasks (
-    context_id, assignee_id, title, schedule_type, start_at, due_at, duration_min, timezone, reminders,
+    context_id, assignee_id, title, schedule_type, start_at, due_at, duration_min, timezone, reminders, rrule,
     requires_photo_proof, requires_admin_approval, requires_partial_reason, difficulty, priority, visibility
   ) values (
-    p_ctx, p_assignee, p_title, p_type, p_start, p_due, null, p_tz, p_reminders,
+    p_ctx, p_assignee, p_title, p_type, p_start, p_due, null, p_tz, p_reminders, p_rrule,
     false, false, true, 'easy', 'normal', p_vis
   ) returning id into new_id;
   return new_id;
@@ -224,7 +225,7 @@ select lives_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000a', aut
 select is((select group_id from public.tasks where title = 'Inserted' and context_id = '20000000-0000-0000-0000-00000000000a'), '10000000-0000-0000-0000-00000000000a'::uuid, 'group_id comes from the context');
 select throws_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000f')$$, '42501', 'forbidden', 'member cannot create a task for someone else');
 select throws_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000d', auth.uid(), 'group')$$, '23514', 'personal_context_requires_private_self', 'a personal context takes only private tasks');
-select throws_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000b', auth.uid(), 'private', 'timed', now(), null, 'Mars/Base')$$, '22023', 'time zone "Mars/Base" not recognized', 'an unknown time zone is rejected');
+select throws_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000b', auth.uid(), 'private', 'timed', now(), null, 'Mars/Base')$$, '22023', 'invalid_timezone', 'an unknown time zone is rejected');
 select throws_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000a', auth.uid(), 'group', 'deadline', null, null)$$, '23514', 'new row for relation "tasks" violates check constraint "tasks_schedule_check"', 'a deadline needs a due date');
 select throws_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000a', auth.uid(), 'group', 'timed', now(), null, 'UTC', '[1, -5]')$$, '23514', 'new row for relation "tasks" violates check constraint "tasks_reminders_check"', 'reminders must be non-negative');
 select lives_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000a', auth.uid(), 'group', 'timed', now(), null, 'UTC', '[30, 0]')$$, 'valid reminders are accepted');
@@ -790,6 +791,155 @@ select pg_temp.pg();
 select is((select string_agg(assignee_id::text, ',' order by scheduled_start) from public.task_occurrences where task_id = current_setting('t.q6')::uuid),
   '00000000-0000-0000-0000-00000000000d,00000000-0000-0000-0000-00000000000f,00000000-0000-0000-0000-00000000000f', 'reassign: a started occurrence still on time follows the new assignee, an overdue one stays');
 
+-- Security review of phase 2: rules, cross-group moves, private tasks, dates, XP, net, archived contexts
+select pg_temp.pg();
+insert into public.group_members (group_id, user_id, role) values
+  ('10000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-00000000000c', 'member');
+select pg_temp.mk('S1', '20000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000d', 'group', now() + interval '1 day', 'easy', true, 'FREQ=DAILY');
+select pg_temp.mk_occ('S1', now() + interval '1 day');
+select pg_temp.mk_occ('S1', now() + interval '2 days');
+select pg_temp.mk_occ('S1', now() + interval '3 days');
+select pg_temp.mk_occ('S1', now() + interval '4 days');
+
+-- RRULE grammar: only what toRRule and splitRecurrence write
+select pg_temp.login('00000000-0000-0000-0000-00000000000c');
+select throws_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000a', auth.uid(), 'group', 'timed', now(), null, 'UTC', '[]', 'x', 'FREQ=SECONDLY;INTERVAL=1')$$, '23514', 'new row for relation "tasks" violates check constraint "tasks_rrule_grammar_check"', 'rrule: a one-second frequency is rejected');
+select throws_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000a', auth.uid(), 'group', 'deadline', null, now() + interval '2 hours', 'UTC', '[]', 'x', 'FREQ=DAILY;BYHOUR=10')$$, '23514', 'new row for relation "tasks" violates check constraint "tasks_rrule_grammar_check"', 'rrule: BYHOUR, which can put the end before the start, is rejected');
+select throws_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000a', auth.uid(), 'group', 'timed', now(), null, 'UTC', '[]', 'x', 'FREQ=DAILY;INTERVAL=1')$$, '23514', 'new row for relation "tasks" violates check constraint "tasks_rrule_grammar_check"', 'rrule: even a harmless rule outside the grammar is rejected');
+select lives_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000a', auth.uid(), 'group', 'timed', now(), null, 'UTC', '[]', 'x', 'FREQ=WEEKLY;BYDAY=MO,WE')$$, 'rrule: a rule the app writes is accepted for a real client');
+select throws_ok($$select public.edit_task(pg_temp.occ('S1', 2), 'all', pg_temp.form(now() + interval '1 day'), 'FREQ=SECONDLY', null)$$, '22023', 'invalid_rrule', 'rrule: edit_task refuses a bad rule');
+select throws_ok($$select public.edit_task(pg_temp.occ('S1', 2), 'this_and_following', pg_temp.form(now() + interval '2 days'), 'FREQ=DAILY', 'FREQ=DAILY;BYHOUR=3')$$, '22023', 'invalid_rrule', 'rrule: and a bad head rule');
+select throws_ok($$select public.delete_task(pg_temp.occ('S1', 2), 'this_and_following', 'FREQ=HOURLY')$$, '22023', 'invalid_rrule', 'rrule: delete_task refuses a bad head rule');
+select pg_temp.pg();
+select is((select count(*) from regexp_split_to_table($rules$FREQ=DAILY
+FREQ=WEEKLY;BYDAY=MO
+FREQ=WEEKLY;BYDAY=WE,FR
+FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR,SA,SU
+FREQ=MONTHLY;BYMONTHDAY=1
+FREQ=MONTHLY;BYMONTHDAY=15
+FREQ=MONTHLY;BYMONTHDAY=28
+FREQ=MONTHLY;BYMONTHDAY=28,29;BYSETPOS=-1
+FREQ=MONTHLY;BYMONTHDAY=28,29,30;BYSETPOS=-1
+FREQ=MONTHLY;BYMONTHDAY=28,29,30,31;BYSETPOS=-1
+FREQ=DAILY;INTERVAL=2
+FREQ=WEEKLY;INTERVAL=2;BYDAY=WE,FR
+FREQ=MONTHLY;INTERVAL=2;BYMONTHDAY=28,29,30,31;BYSETPOS=-1
+FREQ=DAILY;INTERVAL=99
+FREQ=WEEKLY;INTERVAL=99;BYDAY=MO,TU,WE,TH,FR,SA,SU
+FREQ=DAILY;COUNT=1
+FREQ=WEEKLY;BYDAY=WE,FR;COUNT=1
+FREQ=MONTHLY;BYMONTHDAY=28,29,30,31;BYSETPOS=-1;COUNT=1
+FREQ=MONTHLY;INTERVAL=13;BYMONTHDAY=9;COUNT=1
+FREQ=DAILY;COUNT=730
+FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,TU,WE,TH,FR,SA,SU;COUNT=730
+FREQ=MONTHLY;INTERVAL=99;BYMONTHDAY=28,29,30,31;BYSETPOS=-1;COUNT=730
+FREQ=DAILY;UNTIL=20310101T025959Z
+FREQ=WEEKLY;BYDAY=MO;UNTIL=20301231T145959Z
+FREQ=MONTHLY;BYMONTHDAY=28,29,30,31;BYSETPOS=-1;UNTIL=20310101T045959Z
+FREQ=MONTHLY;INTERVAL=99;BYMONTHDAY=15;UNTIL=20310101T045959Z
+FREQ=WEEKLY;BYDAY=MO,WE;COUNT=9
+FREQ=WEEKLY;BYDAY=MO,WE;UNTIL=20261209T025959Z
+FREQ=MONTHLY;BYMONTHDAY=28,29,30,31;BYSETPOS=-1;UNTIL=20270331T025959Z$rules$, E'\n') r where not public.is_valid_rrule(r)), 0::bigint, 'rrule: every rule generated by toRRule and splitRecurrence is accepted (sample of 178 real ones)');
+select is((select count(*) from unnest(array[
+  'FREQ=SECONDLY', 'FREQ=MINUTELY;INTERVAL=2', 'FREQ=YEARLY', 'FREQ=DAILY;BYHOUR=10', 'FREQ=DAILY;INTERVAL=1',
+  'FREQ=DAILY;INTERVAL=100', 'FREQ=DAILY;COUNT=0', 'FREQ=DAILY;COUNT=731', 'FREQ=WEEKLY', 'FREQ=WEEKLY;BYDAY=XX',
+  'FREQ=WEEKLY;BYDAY=MO,MO,MO,MO,MO,MO,MO,MO', 'FREQ=MONTHLY', 'FREQ=MONTHLY;BYMONTHDAY=29', 'FREQ=MONTHLY;BYMONTHDAY=0',
+  'FREQ=DAILY;COUNT=3;UNTIL=20300101T000000Z', 'FREQ=DAILY;UNTIL=20301301T000000Z', 'FREQ=DAILY;UNTIL=20300101', 'freq=daily',
+  'FREQ=DAILY;', 'FREQ=DAILY;X=1', E'FREQ=DAILY\nFREQ=DAILY', 'FREQ=DAILY;BYDAY=MO', ''
+]) r where public.is_valid_rrule(r)), 0::bigint, 'rrule: everything else is rejected');
+
+-- A move across groups or owners is refused, for the new task of this and this_and_following
+select pg_temp.login('00000000-0000-0000-0000-00000000000c');
+select throws_ok($$select public.edit_task(pg_temp.occ('S1', 2), 'this_and_following', pg_temp.form(now() + interval '2 days', '{"contextId": "20000000-0000-0000-0000-00000000000b"}'), 'FREQ=DAILY', 'FREQ=DAILY;UNTIL=20261231T000000Z')$$, '23514', 'context_change_not_allowed', 'move: this_and_following cannot carry the series into another group');
+select throws_ok($$select public.edit_task(pg_temp.occ('S1', 2), 'this', pg_temp.form(now() + interval '2 days', '{"contextId": "20000000-0000-0000-0000-00000000000b"}'), null, null)$$, '23514', 'context_change_not_allowed', 'move: nor can this');
+select throws_ok($$select public.edit_task(pg_temp.occ('S1', 2), 'this', pg_temp.form(now() + interval '2 days', '{"contextId": "20000000-0000-0000-0000-00000000000d"}'), null, null)$$, '23514', 'context_change_not_allowed', 'move: nor into a personal context');
+select throws_ok($$select public.edit_task(pg_temp.occ('S1', 2), 'all', pg_temp.form(now() + interval '2 days', '{"contextId": "20000000-0000-0000-0000-00000000000b"}'), 'FREQ=DAILY', null)$$, '23514', 'context_change_not_allowed', 'move: and all keeps refusing');
+select lives_ok($$select public.edit_task(pg_temp.occ('S1', 3), 'this', pg_temp.form(now() + interval '3 days', '{"contextId": "20000000-0000-0000-0000-0000000000a2", "title": "S1 moved"}'), null, null)$$, 'move: a context of the same group is fine');
+select pg_temp.pg();
+select is((select group_id from public.tasks where title = 'S1 moved'), '10000000-0000-0000-0000-00000000000a'::uuid, 'move: and the new task stays in the group');
+select is((select count(*) from public.tasks where parent_task_id = pg_temp.tid('S1') and group_id is distinct from '10000000-0000-0000-0000-00000000000a'::uuid), 0::bigint, 'move: no child of the series lives in another group');
+
+-- A private task is invisible to a former assignee, whatever occurrence rows say
+select pg_temp.mk('PV', '20000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000d', '00000000-0000-0000-0000-00000000000d', 'group', now() + interval '3 days');
+select pg_temp.login('00000000-0000-0000-0000-00000000000c');
+select lives_ok($$select public.edit_task(pg_temp.occ('PV'), 'all', pg_temp.form(now() + interval '3 days', '{"title": "PV", "assigneeId": "00000000-0000-0000-0000-00000000000c"}'), null, null)$$, 'private: the admin takes the task');
+select lives_ok($$select public.set_occurrence_status(pg_temp.occ('PV'), 'done', 'pending', null)$$, 'private: and completes it as the assignee');
+select lives_ok($$select public.edit_task(pg_temp.occ('PV'), 'all', pg_temp.form(now() + interval '3 days', '{"title": "PV", "assigneeId": "00000000-0000-0000-0000-00000000000d"}'), null, null)$$, 'private: then gives it back');
+select is((select count(*) from public.tasks where title = 'PV'), 1::bigint, 'private: while it is a group task the admin sees it');
+select pg_temp.login('00000000-0000-0000-0000-00000000000d');
+select lives_ok($$select public.edit_task(pg_temp.occ('PV'), 'all', pg_temp.form(now() + interval '3 days', '{"title": "PV private", "notes": "sigilo", "visibility": "private"}'), null, null)$$, 'private: the member makes it private');
+select is((select count(*) from public.tasks where title = 'PV private'), 1::bigint, 'private: the member still sees it');
+select pg_temp.login('00000000-0000-0000-0000-00000000000c');
+select is((select count(*) from public.tasks where title = 'PV private'), 0::bigint, 'private: the admin who once resolved an occurrence no longer sees the task');
+select is((select count(*) from public.task_occurrences where id = pg_temp.occ('PV private')), 0::bigint, 'private: nor its occurrence');
+select is((select count(*) from public.task_status_history where occurrence_id = pg_temp.occ('PV private')), 0::bigint, 'private: nor its history');
+select throws_ok($$select public.set_occurrence_status(pg_temp.occ('PV private'), 'pending', 'done', null)$$, '42501', 'forbidden', 'private: nor change its status');
+select throws_ok($$select public.edit_task(pg_temp.occ('PV private'), 'all', pg_temp.form(now() + interval '3 days'), null, null)$$, '42501', 'forbidden', 'private: nor edit it');
+select pg_temp.login('00000000-0000-0000-0000-00000000000d');
+select is((select status::text from public.set_occurrence_status(pg_temp.occ('PV private'), 'pending', 'done', null)), 'pending', 'private: the owner reopens it');
+
+-- Deleting a series reaches only what the caller may delete
+select pg_temp.pg();
+select pg_temp.mk('DT', '20000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000d', '00000000-0000-0000-0000-00000000000d', 'group', now() + interval '1 day', 'easy', true, 'FREQ=DAILY');
+select pg_temp.mk_occ('DT', now() + interval '1 day');
+select pg_temp.mk('DT group child', '20000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000d', '00000000-0000-0000-0000-00000000000d', 'group', now() + interval '9 days', 'easy', true, null, pg_temp.tid('DT'));
+select pg_temp.mk('DT private child', '20000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000d', '00000000-0000-0000-0000-00000000000d', 'private', now() + interval '9 days', 'easy', true, null, pg_temp.tid('DT'));
+alter table public.tasks disable trigger tasks_before_insert;
+select pg_temp.mk('DT other group child', '20000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-00000000000d', 'group', now() + interval '9 days', 'easy', true, null, pg_temp.tid('DT'));
+alter table public.tasks enable trigger tasks_before_insert;
+update public.tasks set visibility = visibility where title = 'DT other group child';
+select pg_temp.mk_occ('DT group child', now() + interval '9 days');
+select pg_temp.mk_occ('DT private child', now() + interval '9 days');
+select pg_temp.mk_occ('DT other group child', now() + interval '9 days');
+select pg_temp.login('00000000-0000-0000-0000-00000000000c');
+select lives_ok($$select public.delete_task(pg_temp.occ('DT'), 'all', null)$$, 'delete tree: the admin deletes the series');
+select pg_temp.pg();
+select is((select string_agg(title, ',' order by title) from public.tasks where archived_at is not null and title like 'DT%'), 'DT,DT group child', 'delete tree: the series and the child the admin may delete are archived');
+select is((select string_agg(status::text, ',' order by title) from public.task_occurrences o join public.tasks t on t.id = o.task_id where t.title in ('DT private child', 'DT other group child')), 'pending,pending', 'delete tree: a private child and a child of another group are untouched');
+
+-- Dates and zones
+select pg_temp.login('00000000-0000-0000-0000-00000000000c');
+select throws_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000a', auth.uid(), 'group', 'timed', '-infinity')$$, '23514', 'new row for relation "tasks" violates check constraint "tasks_dates_check"', 'dates: -infinity is rejected');
+select throws_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000a', auth.uid(), 'group', 'deadline', null, 'infinity')$$, '23514', 'new row for relation "tasks" violates check constraint "tasks_dates_check"', 'dates: and so is an infinite deadline');
+select throws_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000a', auth.uid(), 'group', 'timed', '1900-01-01')$$, '23514', 'new row for relation "tasks" violates check constraint "tasks_dates_check"', 'dates: and 1900');
+select throws_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000a', auth.uid(), 'group', 'timed', '2200-01-01')$$, '23514', 'new row for relation "tasks" violates check constraint "tasks_dates_check"', 'dates: and 2200');
+select throws_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000a', auth.uid(), 'group', 'timed', now(), null, 'abc+3')$$, '22023', 'invalid_timezone', 'zone: a POSIX string that Postgres would accept is rejected');
+select throws_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000a', auth.uid(), 'group', 'timed', now(), null, 'Mars/Base')$$, '22023', 'invalid_timezone', 'zone: and so is an unknown one');
+select lives_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000a', auth.uid(), 'group', 'timed', '2027-06-01 10:00+09', null, 'Asia/Tokyo')$$, 'dates and zone: a real zone and a date in range work');
+select pg_temp.pg();
+select throws_ok($$insert into public.task_occurrences (task_id, assignee_id, scheduled_start, scheduled_due) values (pg_temp.tid('S1'), '00000000-0000-0000-0000-00000000000d', '1900-01-01', '1900-01-01 01:00')$$, '23514', 'new row for relation "task_occurrences" violates check constraint "task_occurrences_dates_check"', 'dates: an occurrence outside the range is rejected too');
+
+-- XP: flipping visibility between completing and reopening cannot inflate a group
+select pg_temp.mk('XF', '20000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000d', '00000000-0000-0000-0000-00000000000d', 'group', now() + interval '3 days', 'hard');
+select pg_temp.login('00000000-0000-0000-0000-00000000000d');
+select lives_ok($$select public.set_occurrence_status(pg_temp.occ('XF'), 'done', 'pending', null)$$, 'xp flip: complete as a group task');
+select lives_ok($$select public.edit_task(pg_temp.occ('XF'), 'all', pg_temp.form(now() + interval '3 days', '{"title": "XF", "visibility": "private", "difficulty": "hard"}'), null, null)$$, 'xp flip: make it private');
+select lives_ok($$select public.set_occurrence_status(pg_temp.occ('XF'), 'pending', 'done', null)$$, 'xp flip: reopen');
+select lives_ok($$select public.edit_task(pg_temp.occ('XF'), 'all', pg_temp.form(now() + interval '3 days', '{"title": "XF", "difficulty": "hard"}'), null, null)$$, 'xp flip: make it a group task again');
+select pg_temp.pg();
+select is((select coalesce(sum(amount), 0) from public.xp_events where occurrence_id = pg_temp.occ('XF') and group_id = '10000000-0000-0000-0000-00000000000a'), 0::bigint, 'xp flip: the group balance of the occurrence is zero');
+select is((select coalesce(sum(amount), 0) from public.xp_events where occurrence_id = pg_temp.occ('XF')), 0::bigint, 'xp flip: and so is the total');
+select is((select count(*) from public.xp_events where occurrence_id = pg_temp.occ('XF') and group_id is null), 0::bigint, 'xp flip: the compensation went to the group of the original event');
+
+-- pg_net: the grants belong to supabase_admin, so a migration cannot revoke them (see the handoff); the cron call must keep working
+select is(has_schema_privilege('authenticated', 'cron', 'usage'), false, 'cron: authenticated has no schema usage either');
+select pg_temp.pg();
+select vault.create_secret('http://example.invalid/functions/v1/materialize-occurrences', 'materialize_url');
+select vault.create_secret('local-secret', 'cron_secret');
+select is((select count(*) from net.http_request_queue), 0::bigint, 'net: the queue starts empty');
+select lives_ok($$select public.call_materialize_occurrences()$$, 'net: the cron call still runs for its owner');
+select is((select count(*) from net.http_request_queue), 1::bigint, 'net: and queued one request');
+
+-- Archived contexts take no new tasks
+update public.contexts set archived_at = now() where id = '20000000-0000-0000-0000-0000000000a2';
+select pg_temp.login('00000000-0000-0000-0000-00000000000c');
+select throws_ok($$select pg_temp.ins('20000000-0000-0000-0000-0000000000a2', auth.uid())$$, '23514', 'context_archived', 'archived: a new task in an archived context is refused');
+select lives_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000a', auth.uid())$$, 'archived: the active context still works');
+select pg_temp.pg();
+update public.contexts set archived_at = null where id = '20000000-0000-0000-0000-0000000000a2';
+select pg_temp.login('00000000-0000-0000-0000-00000000000c');
+select lives_ok($$select pg_temp.ins('20000000-0000-0000-0000-0000000000a2', auth.uid())$$, 'archived: and it works again once unarchived');
+
 -- Team view
 select pg_temp.pg();
 select pg_temp.mk('T9a', '20000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000d', 'group', '2027-03-10 13:00Z');
@@ -808,15 +958,29 @@ update public.task_occurrences set status = 'cancelled' where id = pg_temp.occ('
 update public.task_occurrences set status = 'missed' where id = pg_temp.occ('T9f');
 
 select pg_temp.login('00000000-0000-0000-0000-00000000000c');
-select is((select (pending, done, partial, missed, late)::text from public.team_overview('10000000-0000-0000-0000-00000000000a', '2027-03-10', '2027-03-10') where user_id = '00000000-0000-0000-0000-00000000000d'), '(2,1,1,0,1)', 'team: counts by status for the local day, cancelled and private ignored');
-select is((select (pending, done, partial, missed, late)::text from public.team_overview('10000000-0000-0000-0000-00000000000a', '2027-03-10', '2027-03-10') where user_id = '00000000-0000-0000-0000-00000000000f'), '(0,0,0,1,0)', 'team: every member of the group has a row');
-select is((select count(*) from public.team_overview('10000000-0000-0000-0000-00000000000a', '2027-03-09', '2027-03-10')), 3::bigint, 'team: the day is local, so 23:00 on the 9th is its own day');
-select is((select display_name from public.team_overview('10000000-0000-0000-0000-00000000000a', '2027-03-10', '2027-03-10') where user_id = '00000000-0000-0000-0000-00000000000d'), 'Duda', 'team: with the display name');
-select throws_ok($$select * from public.team_overview('10000000-0000-0000-0000-00000000000b', '2027-03-10', '2027-03-10')$$, '42501', 'forbidden', 'team: the admin of A gets nothing of B');
-select throws_ok($$select * from public.team_overview('10000000-0000-0000-0000-00000000000a', '2027-03-10', '2026-03-10')$$, '22023', 'invalid_range', 'team: an inverted range is rejected');
-select throws_ok($$select * from public.team_overview('10000000-0000-0000-0000-00000000000a', '2020-01-01', '2027-03-10')$$, '22023', 'invalid_range', 'team: and so is one over a year');
+select is((select (pending, done, partial, missed, late)::text from public.team_overview('10000000-0000-0000-0000-00000000000a', '2027-03-10', '2027-03-10', 'America/Sao_Paulo') where user_id = '00000000-0000-0000-0000-00000000000d'), '(2,1,1,0,1)', 'team: counts by status for the local day, cancelled and private ignored');
+select is((select (pending, done, partial, missed, late)::text from public.team_overview('10000000-0000-0000-0000-00000000000a', '2027-03-10', '2027-03-10', 'America/Sao_Paulo') where user_id = '00000000-0000-0000-0000-00000000000f'), '(0,0,0,1,0)', 'team: every member of the group has a row');
+select is((select count(*) from public.team_overview('10000000-0000-0000-0000-00000000000a', '2027-03-09', '2027-03-10', 'America/Sao_Paulo')), 3::bigint, 'team: the day is local, so 23:00 on the 9th is its own day');
+select is((select display_name from public.team_overview('10000000-0000-0000-0000-00000000000a', '2027-03-10', '2027-03-10', 'America/Sao_Paulo') where user_id = '00000000-0000-0000-0000-00000000000d'), 'Duda', 'team: with the display name');
+select throws_ok($$select * from public.team_overview('10000000-0000-0000-0000-00000000000b', '2027-03-10', '2027-03-10', 'America/Sao_Paulo')$$, '42501', 'forbidden', 'team: the admin of A gets nothing of B');
+select throws_ok($$select * from public.team_overview('10000000-0000-0000-0000-00000000000a', '2027-03-10', '2026-03-10', 'America/Sao_Paulo')$$, '22023', 'invalid_range', 'team: an inverted range is rejected');
+select throws_ok($$select * from public.team_overview('10000000-0000-0000-0000-00000000000a', '2020-01-01', '2027-03-10', 'America/Sao_Paulo')$$, '22023', 'invalid_range', 'team: and so is one over a year');
 select pg_temp.login('00000000-0000-0000-0000-00000000000d');
-select throws_ok($$select * from public.team_overview('10000000-0000-0000-0000-00000000000a', '2027-03-10', '2027-03-10')$$, '42501', 'forbidden', 'team: a member without task.view_group cannot call it');
+select throws_ok($$select * from public.team_overview('10000000-0000-0000-0000-00000000000a', '2027-03-10', '2027-03-10', 'America/Sao_Paulo')$$, '42501', 'forbidden', 'team: a member without task.view_group cannot call it');
+
+-- Team view in the viewer's zone, and a deadline on its due day
+select pg_temp.pg();
+select pg_temp.mk('T9j', '20000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000d', 'group', '2027-04-11 02:30Z');
+insert into public.tasks (context_id, created_by, assignee_id, title, schedule_type, start_at, due_at, timezone, reminders, requires_photo_proof, requires_admin_approval, requires_partial_reason, difficulty, priority, visibility) values
+  ('20000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000d', 'T9k', 'deadline', '2027-05-03 12:00Z', '2027-05-07 15:00Z', 'America/Sao_Paulo', '[]', false, false, true, 'easy', 'normal', 'group');
+select pg_temp.login('00000000-0000-0000-0000-00000000000c');
+select is((select count(*) from public.team_overview('10000000-0000-0000-0000-00000000000a', '2027-04-10', '2027-04-10', 'America/Sao_Paulo') where user_id = '00000000-0000-0000-0000-00000000000d'), 1::bigint, 'team zone: 23:30 in Sao Paulo counts on that day for a viewer in Sao Paulo');
+select is((select count(*) from public.team_overview('10000000-0000-0000-0000-00000000000a', '2027-04-10', '2027-04-10', 'Asia/Tokyo') where user_id = '00000000-0000-0000-0000-00000000000d'), 0::bigint, 'team zone: and not on that day for a viewer in Tokyo');
+select is((select pending from public.team_overview('10000000-0000-0000-0000-00000000000a', '2027-04-11', '2027-04-11', 'Asia/Tokyo') where user_id = '00000000-0000-0000-0000-00000000000d'), 1, 'team zone: it counts on the next day there');
+select is((select pending from public.team_overview('10000000-0000-0000-0000-00000000000a', '2027-05-07', '2027-05-07', 'America/Sao_Paulo') where user_id = '00000000-0000-0000-0000-00000000000d'), 1, 'team deadline: counts on the due day');
+select is((select count(*) from public.team_overview('10000000-0000-0000-0000-00000000000a', '2027-05-03', '2027-05-06', 'America/Sao_Paulo') where user_id = '00000000-0000-0000-0000-00000000000d'), 0::bigint, 'team deadline: and not on the days it was open');
+select throws_ok($$select * from public.team_overview('10000000-0000-0000-0000-00000000000a', '2027-03-10', '2027-03-10', null)$$, '22023', 'invalid_range', 'team zone: a missing zone is invalid_range');
+select throws_ok($$select * from public.team_overview('10000000-0000-0000-0000-00000000000a', '2027-03-10', '2027-03-10', 'Mars/Base')$$, '22023', 'time zone "Mars/Base" not recognized', 'team zone: and an unknown one fails in Postgres');
 
 -- A former member loses access
 select pg_temp.pg();
@@ -828,7 +992,7 @@ select throws_ok($$select public.set_occurrence_status(pg_temp.occ('A3'), 'pendi
 select throws_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000a', auth.uid())$$, '42501', 'forbidden', 'former member: cannot create tasks there');
 select cmp_ok((select count(*) from public.xp_events), '>', 0::bigint, 'former member: keeps the XP they earned');
 select pg_temp.login('00000000-0000-0000-0000-00000000000c');
-select is((select count(*) from public.team_overview('10000000-0000-0000-0000-00000000000a', '2027-03-10', '2027-03-10') where user_id = '00000000-0000-0000-0000-00000000000f'), 0::bigint, 'former member: leaves the team view');
+select is((select count(*) from public.team_overview('10000000-0000-0000-0000-00000000000a', '2027-03-10', '2027-03-10', 'America/Sao_Paulo') where user_id = '00000000-0000-0000-0000-00000000000f'), 0::bigint, 'former member: leaves the team view');
 
 select pg_temp.pg();
 delete from public.group_members where group_id = '10000000-0000-0000-0000-00000000000a' and user_id = '00000000-0000-0000-0000-00000000000d';
@@ -844,7 +1008,7 @@ select pg_temp.pg();
 select is(has_function_privilege('anon', 'public.set_occurrence_status(uuid, public.occurrence_status, public.occurrence_status, text)', 'execute'), false, 'anon cannot call set_occurrence_status');
 select is(has_function_privilege('anon', 'public.edit_task(uuid, public.task_edit_scope, jsonb, text, text)', 'execute'), false, 'anon cannot call edit_task');
 select is(has_function_privilege('anon', 'public.delete_task(uuid, public.task_edit_scope, text)', 'execute'), false, 'anon cannot call delete_task');
-select is(has_function_privilege('anon', 'public.team_overview(uuid, date, date)', 'execute'), false, 'anon cannot call team_overview');
+select is(has_function_privilege('anon', 'public.team_overview(uuid, date, date, text)', 'execute'), false, 'anon cannot call team_overview');
 select is(has_function_privilege('anon', 'public.can_view_task(uuid)', 'execute'), false, 'anon cannot call can_view_task');
 select is(has_function_privilege('authenticated', 'public.edit_task(uuid, public.task_edit_scope, jsonb, text, text)', 'execute'), true, 'authenticated can call edit_task');
 select is(has_function_privilege('authenticated', 'public.occurrences_after_status()', 'execute'), false, 'authenticated cannot call the XP trigger function');

@@ -433,3 +433,20 @@
 - **Verificado:** `pnpm db:test` (56 + 356 asserts), `pnpm db:check-permissions` e `pnpm check` passam. O teste de integração de `materialize-occurrences` passa nos 9 casos com o padrão de regra trocado para `FREQ=WEEKLY;BYDAY=...` (cópia fora da pasta da função); sem a troca, 7 falham no CHECK novo, porque `FREQ=WEEKLY` sem `BYDAY` não é uma regra que o app escreve.
 - **Não verificado:** nada foi aplicado no projeto hospedado; as concessões do `net` não foram vistas lá.
 - **Pendências / próximos passos:** `backend-funcoes` troca o padrão da linha 104 do teste de integração; `tarefas-calendario` passa o fuso do perfil a `teamOverview`; decidir o que fazer com o `net` no projeto hospedado.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 14:17 (BRT)
+
+- **Branch:** feat/tasks-materialize-hardening, criada a partir de feat/phase-2-tasks
+- **Agente(s):** backend-funcoes
+- **Resumo:** `materialize-occurrences` agora isola a falha de uma tarefa (insert ou cursor recusado pelo banco) sem derrubar a varredura, e o teste de integração segue a gramática nova de `tasks.rrule`.
+- **Alterações:**
+  - Teste: a regra padrão passou de `FREQ=WEEKLY` para `FREQ=WEEKLY;BYDAY=<dia da âncora>`, a única forma que o CHECK `tasks_rrule_grammar_check` aceita. Os 9 testes antigos voltaram a passar.
+  - Teste novo, escrito antes da correção e visto falhar com 500: duas tarefas legadas (o CHECK é removido e recolocado `NOT VALID` numa transação, via `docker exec ... psql`; o teste restaura e valida no `finally`). Uma tem ocorrências que quebram o CHECK de `task_occurrences` (`BYMINUTE` leva o início a 09:30, depois do prazo 09:10). A outra insere bem, mas o `update` do cursor reavalia a gramática e falha. A boa, no mesmo pedido, recebe as 9 ocorrências e o cursor; as duas ruins ficam contadas em `failed`, sem cursor, e a nova chamada e a varredura do cron seguem em 200.
+  - `index.ts`: o insert da página continua em um comando quando cabe em 500 linhas (tudo ou nada); se o banco recusar, ou se não couber, cada tarefa é inserida sozinha. O cursor também cai para uma tarefa por vez quando o comando em lote falha. Só recusa dos dados conta como falha da tarefa (SQLSTATE 22, 23 e P0001); qualquer outro erro (conexão, por exemplo) continua derrubando a chamada com 500, para uma queda do banco não parecer sucesso. Logs: evento, estágio e código, nunca linhas.
+- **Arquivos/módulos principais:** `supabase/functions/materialize-occurrences/index.ts`, `supabase/functions/materialize-occurrences/materialize.integration.test.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. Teto de iterações em `expandOccurrences`: não falta, com a gramática. Ela limita a no máximo uma ocorrência por dia (DAILY, WEEKLY com 7 dias e MONTHLY com `BYSETPOS=-1`; `INTERVAL` só aumenta o passo), sem frequências menores que dia e sem `BYHOUR`, `BYMINUTE` ou `BYSECOND`; `start_at` é no mínimo 2000-01-01 e a janela termina em no máximo hoje + 366 dias. O `rrule` itera da âncora até o fim da janela, então o pior caso é cerca de 10 mil passos hoje (36 mil em 2100). Medido no Deno local com a regra mais densa e âncora em 2000-01-01: 94 ms por chamada, inserção de 366 linhas incluída. `packages/core` não foi alterado.
+- **Como testar:** `pnpm db:start`; `pnpm exec supabase functions serve` (sem editar a pasta `supabase/functions` enquanto roda: reinicia o runtime e a primeira chamada dá 502); `pnpm functions:test`.
+- **Verificado:** `pnpm functions:test` 10 de 10; `pnpm check`.
+- **Não verificado:** um erro de banco que não seja de dados (conexão, timeout) continua em 500 sem teste próprio. Um `rrule` legado fora da gramática (SECONDLY, por exemplo) não existe mais no banco depois da migration, então o teto não foi exercitado com ele.
+- **Pendências / próximos passos:** nenhuma.

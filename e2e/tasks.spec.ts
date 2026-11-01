@@ -184,8 +184,8 @@ test('admin assigns to a member, who cannot edit; a personal task stays private'
   // The owner creates a task for Duda only
   await ownerPage.goto('/tasks/new');
   await ownerPage.getByLabel('O que precisa ser feito?').fill('Relatório');
-  await ownerPage.getByRole('radio', { name: 'Duda' }).click();
-  await ownerPage.getByRole('radio', { name: 'Eu' }).click();
+  await ownerPage.getByRole('checkbox', { name: 'Duda' }).click();
+  await ownerPage.getByRole('checkbox', { name: 'Eu' }).click();
   await button(ownerPage, 'Salvar').click();
   await expect(ownerPage.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
 
@@ -204,7 +204,7 @@ test('admin assigns to a member, who cannot edit; a personal task stays private'
   // One task for each of two people, in a single step
   await ownerPage.goto('/tasks/new');
   await ownerPage.getByLabel('O que precisa ser feito?').fill('Limpeza');
-  await ownerPage.getByRole('radio', { name: 'Duda' }).click();
+  await ownerPage.getByRole('checkbox', { name: 'Duda' }).click();
   await expect(
     ownerPage.getByText('Uma tarefa será criada para cada uma das 2 pessoas.'),
   ).toBeVisible();

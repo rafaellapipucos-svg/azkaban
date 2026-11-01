@@ -353,3 +353,21 @@
 - **Verificado:** `pnpm check` passa. O desencontro do prazo foi visto na leitura do SQL e de `teamOverview`, não em execução.
 - **Não verificado:** nada do handoff foi implementado ainda.
 - **Pendências / próximos passos:** `banco-de-dados` e `tarefas-calendario` aplicam os handoffs de 13:00, juntos. O humano valida as faixas de 80% e 50%.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 13:46 (BRT)
+
+- **Branch:** feat/qa-phase-2, criada a partir de feat/phase-2-tasks (com 17043fc)
+- **Agente(s):** qa-testes
+- **Resumo:** Auditoria da Fase 2 como entregue: números reais de `pnpm check`, `build:web`, `functions:test` e `e2e`, a definição de pronto item a item, uso do app em 375px e 1280px nos dois temas, axe-core e teclado. Quatro handoffs com os bugs.
+- **Alterações:**
+  - `e2e/calendar.spec.ts` e `e2e/tasks.spec.ts`: o seletor da pessoa responsável passou de `radio` para `checkbox`. Depois da correção do `Chip` de escolha múltipla (`feat/ui-phase-2-fixes`), três testes (atribuir a membro, calendário do membro e isolamento entre casas) falhavam por timeout, e a integração final não rodou o E2E.
+  - `e2e/tasks-late-and-count.spec.ts` (novo, 5 testes): atrasada dentro e fora da janela de 72 h (só "Não fiz" depois dela); `late_window_expired` de verdade, com o relógio do navegador recuado por `page.clock.setFixedTime` e o banco no relógio real; "Esta e as próximas" mantém o total de uma série "N vezes"; `count_before_pivot` na tela; e um `test.fail` para o bug de a tela cair em "Não encontramos esta tarefa." depois de "Esta e as próximas".
+  - `playwright.config.ts`: `expect.timeout` de 5 s para 15 s. Salvar uma tarefa que repete espera a Edge Function (4,3 s medidos em partida a frio com quatro workers), e o limite de 5 s derrubava de 1 a 3 testes por rodada.
+  - Handoffs: `qa-testes-para-tarefas-calendario-bugs-da-fase-2`, `qa-testes-para-arquiteto-casca-do-app`, `qa-testes-para-design-system-chips-teclado-e-contraste` e `qa-testes-para-auth-grupos-papeis-na-tela-do-grupo`.
+- **Arquivos/módulos principais:** `e2e/`, `playwright.config.ts`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. Nenhum código de feature foi alterado.
+- **Como testar:** `pnpm db:start`, `pnpm exec supabase functions serve`, `pnpm check`, `pnpm build:web`, `pnpm functions:test`, `pnpm e2e`.
+- **Verificado:** `pnpm check` passa (410 testes em `core`, 6 em `contracts`, 3 em `config`, 4 em `platform`; 202 módulos sem violação de fronteira). `pnpm build:web` e `pnpm functions:test` (9 de 9) passam. `pnpm e2e` na integração como veio: 13 de 16 (as 3 falhas eram o seletor acima). Depois da correção, em 7 rodadas completas com o limite de 5 s: 2 limpas e 5 com 1 a 3 falhas de tempo, sempre depois de "Salvar"; com o limite de 15 s, 3 rodadas seguidas com 21 de 21 (um é o `test.fail` esperado). axe-core 4.10.2 em 22 telas nos dois temas: zero violações de contraste no escuro e uma no claro (texto de exemplo, 2,53:1). Alvos de toque: tudo com 44px ou mais, menos a seta de voltar do cabeçalho (30px).
+- **Não verificado:** nada rodou em aparelho ou emulador (câmera, safe area, seletor nativo de data, leitor de tela real); `pnpm db:test` não foi rodado, porque o banco local estava em uso pelo `revisor-seguranca`; o `late_window_expired` com um segundo usuário administrador e o efeito do vermelho automático (F4-6) não existem ainda.
+- **Pendências / próximos passos:** os quatro handoffs. Quando o bug de "Não encontramos esta tarefa." for corrigido, tirar o `test.fail` do último teste de `e2e/tasks-late-and-count.spec.ts`.

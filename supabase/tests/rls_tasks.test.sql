@@ -163,7 +163,7 @@ select pg_temp.mk('B2', '20000000-0000-0000-0000-00000000000b', '00000000-0000-0
 select pg_temp.mk('P1', '20000000-0000-0000-0000-00000000000d', '00000000-0000-0000-0000-00000000000d', '00000000-0000-0000-0000-00000000000d', 'private', now() + interval '2 days');
 
 -- Seeded rules and the one-off trigger
-select is((select count(*) from public.occurrence_transitions), 19::bigint, 'all 19 transitions are seeded');
+select is((select count(*) from public.occurrence_transitions), 23::bigint, 'all 23 transitions are seeded');
 select is((select (value -> 'xp' -> 'status' ->> 'done')::int from public.app_settings where key = 'task_rules'), 10, 'task_rules are seeded');
 select is((select group_id from public.tasks where title = 'B1'), '10000000-0000-0000-0000-00000000000b'::uuid, 'the trigger copies group_id from the context');
 select is((select group_id from public.tasks where title = 'P1'), null, 'a personal task has no group');
@@ -216,7 +216,7 @@ select throws_ok($$delete from public.tasks where title = 'A2'$$, '42501', 'perm
 select throws_ok($$insert into public.tasks (context_id, assignee_id, group_id, title, schedule_type, start_at, timezone, reminders, requires_photo_proof, requires_admin_approval, requires_partial_reason, difficulty, priority, visibility) values ('20000000-0000-0000-0000-00000000000d', auth.uid(), '10000000-0000-0000-0000-00000000000b', 'x', 'timed', now(), 'UTC', '[]', false, false, false, 'easy', 'normal', 'private')$$, '42501', 'permission denied for table tasks', 'client cannot set group_id');
 select throws_ok($$update public.app_settings set value = '{}'$$, '42501', 'permission denied for table app_settings', 'client cannot change the rules');
 select throws_ok($$insert into public.occurrence_transitions values ('done', 'partial', 'assignee')$$, '42501', 'permission denied for table occurrence_transitions', 'client cannot change the transitions');
-select is((select count(*) from public.occurrence_transitions), 19::bigint, 'but every user can read the transitions');
+select is((select count(*) from public.occurrence_transitions), 23::bigint, 'but every user can read the transitions');
 
 -- Creating tasks as a client (each rejection is paired with the allowed path)
 select lives_ok($$select pg_temp.ins('20000000-0000-0000-0000-00000000000d', auth.uid(), 'private')$$, 'member creates a personal task, RETURNING included');
@@ -294,7 +294,7 @@ select is((select count(*) from public.task_status_history where occurrence_id =
 select is((select amount from public.xp_events where occurrence_id = pg_temp.occ('X1')), 10, 'done gives 10 XP at easy');
 select is((select group_id from public.xp_events where occurrence_id = pg_temp.occ('X1')), '10000000-0000-0000-0000-00000000000a'::uuid, 'a group task writes its group in xp_events');
 select throws_ok($$select public.set_occurrence_status(pg_temp.occ('X1'), 'pending', 'pending', null)$$, 'P0001', 'status_conflict', 'a stale expectedStatus is rejected');
-select throws_ok($$select public.set_occurrence_status(pg_temp.occ('X1'), 'partial', 'done', 'x')$$, '23514', 'invalid_transition', 'done cannot go straight to partial');
+select throws_ok($$select public.set_occurrence_status(pg_temp.occ('X1'), 'partial', 'done', 'x')$$, '42501', 'forbidden', 'done cannot go straight to partial: that pair is the reviewer''s, and the reviewer is not an actor here');
 select is((select status::text from public.set_occurrence_status(pg_temp.occ('X1'), 'pending', 'done', null)), 'pending', 'the assignee can reopen');
 select is((select pg_temp.xp(pg_temp.occ('X1'))), 0::bigint, 'reopening compensates the XP');
 select is((select reason from public.xp_events where occurrence_id = pg_temp.occ('X1') and amount < 0), 'occurrence_reverted', 'with a reverted event');
@@ -779,8 +779,8 @@ select pg_temp.mk('Q6', '20000000-0000-0000-0000-00000000000a', '00000000-0000-0
 select pg_temp.mk_occ('Q6', now() - interval '3 days');
 select pg_temp.mk_occ('Q6', now() - interval '1 day');
 select pg_temp.mk_occ('Q6', now() + interval '1 day');
-update public.task_occurrences set overdue_at = now() - interval '1 hour' where id = pg_temp.occ('Q6', 1);
-update public.task_occurrences set overdue_at = now() + interval '1 day' where id = pg_temp.occ('Q6', 2);
+update public.task_occurrences set overdue_at = now() - interval '1 hour', auto_miss_at = now() - interval '1 hour' where id = pg_temp.occ('Q6', 1);
+update public.task_occurrences set overdue_at = now() + interval '1 day', auto_miss_at = now() + interval '1 day' where id = pg_temp.occ('Q6', 2);
 select set_config('t.q6', pg_temp.tid('Q6')::text, true);
 select set_config('t.q6_o2', pg_temp.occ('Q6', 2)::text, true);
 select pg_temp.login('00000000-0000-0000-0000-00000000000c');

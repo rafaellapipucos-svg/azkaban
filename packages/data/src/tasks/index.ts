@@ -45,10 +45,10 @@ const toTaskError = (error: unknown) => new TaskError(taskErrorCode(error), { ca
 const calendarPageSize = 500;
 const calendarMaxPages = 100;
 
-// Joins the task and its context's area, which is all the lists need. `!inner` drops rows the
-// filters on the joined tables remove.
+// Joins the task and its context's area, which is all the lists need. `created_at` is selected only
+// so the lists can order by it. `!inner` drops rows the filters on the joined tables remove.
 const listColumns =
-  'id, task_id, assignee_id, scheduled_start, scheduled_due, overdue_at, status, late, status_reason, status_changed_at, status_changed_by, tasks!inner(title, context_id, group_id, created_by, assignee_id, schedule_type, timezone, priority, difficulty, visibility, rrule, requires_partial_reason, archived_at, contexts!inner(area_id))';
+  'id, task_id, assignee_id, scheduled_start, scheduled_due, overdue_at, status, late, status_reason, status_changed_at, status_changed_by, tasks!inner(created_at, title, context_id, group_id, created_by, assignee_id, schedule_type, timezone, priority, difficulty, visibility, rrule, requires_partial_reason, archived_at, contexts!inner(area_id))';
 
 type OccurrenceRow = {
   id: string;
@@ -178,7 +178,14 @@ export const tasksRepository = {
       .lt('scheduled_start', to)
       .gte('scheduled_due', from);
     if (assigneeId) query = query.eq('assignee_id', assigneeId);
-    const { data, error } = await query.order('scheduled_start').limit(500);
+    // Ties on the start keep one order, however the status changes: the order the tasks were
+    // created in, then the id. Postgres returns ties in physical order, which an update moves, and
+    // the row a finger just touched jumped to another place in the list.
+    const { data, error } = await query
+      .order('scheduled_start')
+      .order('tasks(created_at)')
+      .order('id')
+      .limit(500);
     if (error) throw toTaskError(error);
     return data.map(toListItem);
   },
@@ -219,6 +226,7 @@ export const tasksRepository = {
       if (groupOnly) query = query.eq('tasks.visibility', 'group');
       const { data, error } = await query
         .order('scheduled_start')
+        .order('tasks(created_at)')
         .order('id')
         .range(page * calendarPageSize, (page + 1) * calendarPageSize - 1);
       if (error) throw toTaskError(error);
@@ -302,7 +310,11 @@ export const tasksRepository = {
       .eq('status', 'pending')
       .lt('overdue_at', before);
     if (assigneeId) query = query.eq('assignee_id', assigneeId);
-    const { data, error } = await query.order('scheduled_start', { ascending: false }).limit(100);
+    const { data, error } = await query
+      .order('scheduled_start', { ascending: false })
+      .order('tasks(created_at)')
+      .order('id')
+      .limit(100);
     if (error) throw toTaskError(error);
     return data.map(toListItem);
   },

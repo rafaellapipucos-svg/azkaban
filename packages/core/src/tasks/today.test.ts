@@ -75,6 +75,16 @@ describe('planToday', () => {
     expect(result.goal).toEqual({ done: 1, total: 2 });
   });
 
+  it('keeps the order it was given for items that start together, whatever their status', () => {
+    // The database orders ties by task creation and id; changing a status must not move a row.
+    const order = (statusOfA: OccurrenceListItem['status']) =>
+      plan([item('c'), item('a', { status: statusOfA }), item('d'), item('b')]).today.map(
+        ({ id }) => id,
+      );
+    expect(order('pending')).toEqual(['c', 'a', 'd', 'b']);
+    expect(order('done')).toEqual(['c', 'a', 'd', 'b']);
+  });
+
   it('separates pending items past their overdueAt', () => {
     const result = plan([
       item('old', {

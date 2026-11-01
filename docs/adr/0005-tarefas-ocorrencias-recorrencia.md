@@ -111,9 +111,12 @@ O banco é o único escritor de `xp_events`, no trigger da transição, de forma
 - Se a âncora não bate com a regra, a primeira ocorrência é a primeira data da regra, e a âncora não vira ocorrência. O RFC 5545 deixa esse caso indefinido, e o `rrule` age assim. O editor alinha `startAt` à regra ao salvar, para a data mostrada ser a real. O banco não confere isso.
 - **Tarefa avulsa:** um trigger cria e mantém a única ocorrência. Ele não cria quando a tarefa nasce com `parent_task_id`, porque ali a ocorrência é reaproveitada.
 - **Tarefa recorrente:** a Edge Function `materialize-occurrences` expande com o código de `packages/core`, porque o Postgres não tem expansão de RRULE. Só ela insere ocorrências recorrentes.
-  - O cron diário manda o corpo vazio e cobre a janela de `materializationWindowDays`.
+  - O cron roda a cada 15 minutos, com o corpo vazio, e renova a janela de `materializationWindowDays`. Ignora a tarefa cujo cursor está a menos de 12 horas do limite, então uma execução sem trabalho custa só a leitura da lista. A migration do intervalo está com `banco-de-dados`, e até ela entrar o cron é diário.
   - O cliente chama com `taskIds` depois de criar ou editar, e com `until` ao navegar além da janela, limitado a `onDemandMaxDays`. A lista de tarefas vem da RLS do próprio usuário.
-  - Cada tarefa expande de `coalesce(materialized_until, âncora)` até o limite, e `on conflict do nothing` a torna idempotente. Um job fora do ar se recupera sozinho na próxima execução.
+  - Cada tarefa expande de `coalesce(materialized_until, âncora)` até o limite, com piso de 30 dias no passado, e `on conflict do nothing` a torna idempotente. Um job fora do ar se recupera sozinho, dentro desse piso. O piso basta porque, passada a janela de atraso de 72 horas, dias antigos são só histórico.
+  - O cursor anda por tarefa, logo depois do insert dela. Uma execução interrompida não perde o que já fez.
+  - Cada execução tem orçamento: para em 600 ms de expansão ou 200 tarefas, o que vier primeiro. O resto vai para a próxima, com os cursores mais antigos primeiro. A cada 15 minutos, são cerca de 19 mil tarefas por dia.
+  - O orçamento existe porque uma Edge Function hospedada tem 2 s de CPU por requisição, e o `rrule` itera desde a âncora. A gramática de `tasks.rrule` limita a uma ocorrência por dia, mas não limita esse custo.
   - Tarefas arquivadas ficam de fora.
 
 ### 8. Escopos de edição
@@ -187,6 +190,25 @@ Nada é apagado. A RLS corta o acesso, a materialização e o job de vermelho ig
 - **Prova:** as flags são gravadas, mas a Fase 2 não as usa nem as mostra na tela.
 - **XP de prova e de dia perfeito:** Fases 3 e 6.
 
+### 11. Riscos para decisão do humano
+
+Registrados para a aprovação da fase. Nenhum foi decidido aqui.
+
+- **Reagendar zera o atraso.** `edit_task` com `this` recalcula `overdue_at` de uma ocorrência pendente vencida. Quem edita a própria tarefa pode reagendá-la para hoje e concluí-la: `late` fica falso, e o XP é integral. Isso também contorna `late_window_expired`.
+- **XP em massa.** `set_occurrence_status` não olha a data da ocorrência, e não há teto de XP. Quem cria tarefas futuras pode concluí-las na hora. A tratar na Fase 6, antes do ranking.
+
+### 12. Antes do deploy
+
+- **Schema `net`.** As concessões do `pg_net` a `PUBLIC` pertencem a `supabase_admin`, então uma migration não consegue revogá-las. A defesa é o PostgREST não expor o schema, o que no ambiente local responde `PGRST106`, com uma trava de CI. Essa trava é de `banco-de-dados`. No projeto hospedado, ainda é preciso conferir "Exposed schemas" e `pg_graphql`.
+- **Função.** `materialize-occurrences` tem que ir pelo CLI, com Docker. O pacote tem 15 MB, e o limite empacotado no servidor é 5 MB: o Dashboard, a Management API e `--use-api` falham. Pelo CLI, o limite é 20 MB.
+
+### 13. Pendências para a Fase 4
+
+Decisão do orquestrador: o contrato e a config ficam como estão até lá.
+
+- `materializeResponseSchema` ganha `failed` e `deferred`. Até lá, a função devolve só `inserted`, com status 200 mesmo se uma tarefa falhou, então a tela não sabe da falha nem do que ficou para a próxima execução.
+- `taskDefaults.materializationPastDays` substitui a constante local `PAST_DAYS` da função.
+
 ## Alternativas
 
 - **Tornar o vermelho definitivo:** simples, mas pune a honestidade e obriga o admin a resolver casos comuns.
@@ -208,7 +230,7 @@ Nada é apagado. A RLS corta o acesso, a materialização e o job de vermelho ig
 - Mudar `taskRules` ou `occurrenceTransitions` exige também uma migration, e `pnpm db:check-permissions` acusa a diferença.
 - Mudanças em `toleranceMinutes` valem para ocorrências novas, porque `overdue_at` é gravado. A janela vale de imediato, inclusive para as antigas.
 - `all` depois de uma divisão não alcança trechos anteriores.
-- Depois de uma edição com mudança de agenda, a série fica sem as ocorrências futuras até a materialização responder. Se a chamada falhar, o cron diário repõe.
+- Depois de uma edição com mudança de agenda, a série fica sem as ocorrências futuras até a materialização responder. Se a chamada falhar ou o orçamento acabar, o cron repõe.
 - Antes de F4-6, nenhuma ocorrência fica `missed` sozinha, e depois da janela o responsável só consegue marcar `missed`.
 - Sequências de "só esta" criam uma linha em `tasks` por exceção, o mesmo custo de um arquivo iCalendar. A exportação `.ics` da seção 7.9 sai quase direta desse modelo: cada `EXDATE` é o dia em `exdates` com a hora da âncora.
 - Se um dia as regras permitirem duas ocorrências no mesmo dia local, `exdates` terá de voltar a guardar instantes.

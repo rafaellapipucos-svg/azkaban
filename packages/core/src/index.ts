@@ -25,3 +25,21 @@ export {
 } from './recurrence/expand';
 export { fromRRule, toRRule } from './recurrence/rrule';
 export { splitRecurrence, type SplitResult } from './recurrence/split';
+export { alignToRule } from './recurrence/align';
+export { planDelete, planEdit, type RulePlan } from './tasks/edit';
+export {
+  DEADLINE_TIME,
+  addDays,
+  buildTaskInput,
+  defaultRecurrence,
+  localTimeOf,
+  nextHourTime,
+  taskFormValues,
+  toBatchInput,
+  weekdayOf,
+  withFrequency,
+  zonedInstant,
+  type FormTask,
+  type TaskFormValues,
+} from './tasks/form';
+export { earnedXp, groupByContext, localDayRange, planToday, type TodayPlan } from './tasks/today';

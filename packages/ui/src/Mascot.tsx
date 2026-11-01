@@ -1,6 +1,6 @@
 import { useTranslation } from '@azkaban/i18n';
 import Svg, { Circle, Ellipse, G, Path } from 'react-native-svg';
-import { mascotColors as c } from './tokens';
+import { mascotColors as c, sizes } from './tokens';
 
 export type MascotMood = 'happy' | 'celebrating' | 'worried' | 'sleeping';
 
@@ -12,7 +12,13 @@ const mouths: Record<MascotMood, string> = {
 };
 
 // Broto: an original sprout-headed seedling, because the app is about things growing day by day.
-export function Mascot({ mood = 'happy', size = 120 }: { mood?: MascotMood; size?: number }) {
+export function Mascot({
+  mood = 'happy',
+  size = sizes.mascot,
+}: {
+  mood?: MascotMood;
+  size?: number;
+}) {
   const { t } = useTranslation();
   const closedEyes = mood === 'sleeping';
   return (

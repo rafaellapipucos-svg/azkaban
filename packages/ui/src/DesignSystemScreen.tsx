@@ -11,17 +11,21 @@ import { Card, Chip, ChipRow, EmptyState, Screen } from './Layout';
 import { Mascot, type MascotMood } from './Mascot';
 import { ProgressRing } from './ProgressRing';
 import { SegmentedControl } from './SegmentedControl';
+import { FormTextField } from './FormTextField';
+import { Sheet } from './Sheet';
+import { StatusMark } from './StatusMark';
 import { StatusBadge } from './StatusBadge';
 import { Stepper } from './Stepper';
 import { SwitchRow } from './SwitchRow';
 import { TaskCheck } from './TaskCheck';
 import { Body, ErrorText, Muted, Subtitle, Title } from './Text';
-import { colors, contextColors } from './tokens';
+import { colors, contextColors, sizes } from './tokens';
 
 const moods: MascotMood[] = ['happy', 'celebrating', 'worried', 'sleeping'];
 const statuses: OccurrenceStatus[] = ['pending', 'done', 'partial', 'missed', 'cancelled'];
 const goal = 5;
 type CalendarView = 'month' | 'week' | 'day';
+type LongView = 'mine' | 'member' | 'team';
 
 export function DesignSystemScreen() {
   const { t } = useTranslation('ui');
@@ -33,7 +37,11 @@ export function DesignSystemScreen() {
   const [every, setEvery] = useState(2);
   const [status, setStatus] = useState<OccurrenceStatus>('pending');
   const [fabPressed, setFabPressed] = useState(false);
-  const form = useForm({ defaultValues: { date: '', time: '' } });
+  const [longChip, setLongChip] = useState(true);
+  const [longMulti, setLongMulti] = useState(false);
+  const [longView, setLongView] = useState<LongView>('mine');
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const form = useForm({ defaultValues: { date: '', time: '', note: '', sheetNote: '' } });
   const [date, time] = form.watch(['date', 'time']);
   // Shows the invalid look until a time is picked.
   useEffect(() => form.setError('time', { type: 'required' }), [form]);
@@ -52,6 +60,14 @@ export function DesignSystemScreen() {
         <Muted>Muted</Muted>
         <ErrorText>ErrorText</ErrorText>
         <Subtitle tone="danger">Subtitle danger</Subtitle>
+        <Subtitle level={3}>{t('designSystem.level3')}</Subtitle>
+        <FormTextField
+          control={form.control}
+          name="note"
+          label={t('designSystem.noteLabel')}
+          errorText={t('designSystem.noteLabel')}
+          placeholder={t('designSystem.notePlaceholder')}
+        />
 
         <Subtitle>{t('designSystem.buttons')}</Subtitle>
         <Button label="Primary" />
@@ -68,6 +84,16 @@ export function DesignSystemScreen() {
           <StatusBadge status="partial" />
           <StatusBadge status="missed" />
           <StatusBadge status="cancelled" />
+        </View>
+
+        <Subtitle>{t('designSystem.statusMarks')}</Subtitle>
+        <View className="flex-row flex-wrap items-center gap-2">
+          {statuses.map((value) => (
+            <StatusMark key={`dot-${value}`} status={value} size="dot" />
+          ))}
+          {statuses.map((value) => (
+            <StatusMark key={`row-${value}`} status={value} size="row" />
+          ))}
         </View>
 
         <Subtitle>{t('designSystem.progress')}</Subtitle>
@@ -124,6 +150,17 @@ export function DesignSystemScreen() {
             { value: 'day', label: t('designSystem.viewDay') },
           ]}
         />
+        <SegmentedControl
+          label={t('designSystem.longViewLabel')}
+          value={longView}
+          onChange={setLongView}
+          options={[
+            { value: 'mine', label: t('designSystem.longMine') },
+            { value: 'member', label: t('designSystem.longMember') },
+            { value: 'team', label: t('designSystem.longTeam') },
+          ]}
+        />
+        <Muted>{t('designSystem.keyboardHint')}</Muted>
         <View className="flex-row items-center justify-between gap-4">
           <Body>{t('designSystem.everyLabel')}</Body>
           <Stepper
@@ -184,10 +221,36 @@ export function DesignSystemScreen() {
           ))}
         </ChipRow>
 
+        <Subtitle>{t('designSystem.longChips')}</Subtitle>
+        <ChipRow label={t('designSystem.longChips')}>
+          <Chip
+            label={t('designSystem.longName')}
+            colorToken="violet"
+            selected={longChip}
+            onPress={() => setLongChip(!longChip)}
+          />
+          <Chip label={t('designSystem.longName')} selected={false} onPress={() => undefined} />
+        </ChipRow>
+        <ChipRow label={t('designSystem.longChips')} multiple>
+          <Chip
+            multiple
+            label={t('designSystem.longName')}
+            selected={longMulti}
+            onPress={() => setLongMulti(!longMulti)}
+          />
+        </ChipRow>
+
+        <Subtitle>{t('designSystem.sheet')}</Subtitle>
+        <Button
+          label={t('designSystem.sheetOpen')}
+          variant="secondary"
+          onPress={() => setSheetOpen(true)}
+        />
+
         <Subtitle>{t('designSystem.mascot')}</Subtitle>
         <View className="flex-row flex-wrap justify-center gap-2">
           {moods.map((mood) => (
-            <Mascot key={mood} mood={mood} size={80} />
+            <Mascot key={mood} mood={mood} size={sizes.mascotSmall} />
           ))}
         </View>
         <EmptyState text="EmptyState" />
@@ -204,6 +267,23 @@ export function DesignSystemScreen() {
           </Card>
         ))}
       </Screen>
+      <Sheet
+        visible={sheetOpen}
+        label={t('designSystem.sheetTitle')}
+        onClose={() => setSheetOpen(false)}
+      >
+        <Subtitle>{t('designSystem.sheetTitle')}</Subtitle>
+        <Body>{t('designSystem.sheetText')}</Body>
+        <FormTextField
+          control={form.control}
+          name="sheetNote"
+          label={t('designSystem.noteLabel')}
+          errorText={t('designSystem.noteLabel')}
+          placeholder={t('designSystem.notePlaceholder')}
+          autoFocus
+        />
+        <Button label={t('designSystem.sheetClose')} onPress={() => setSheetOpen(false)} />
+      </Sheet>
       <Fab
         label={t('designSystem.newTask')}
         extended

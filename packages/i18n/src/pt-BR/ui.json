@@ -38,10 +38,30 @@
     "taskPressHint": "Toque no marcador para ver o estado mudar.",
     "fab": "Ação rápida",
     "newTask": "Nova tarefa",
-    "fabPressed": "Você tocou em Nova tarefa."
+    "fabPressed": "Você tocou em Nova tarefa.",
+    "level3": "Subtítulo de nível 3",
+    "noteLabel": "Observação",
+    "notePlaceholder": "Ex.: faltou material",
+    "statusMarks": "Marcadores de estado",
+    "longViewLabel": "Calendário de quem",
+    "longMine": "Meu calendário",
+    "longMember": "De um membro",
+    "longTeam": "Time inteiro",
+    "keyboardHint": "Teclado: Tab chega ao controle, Espaço ou Enter aciona.",
+    "longChips": "Nomes longos",
+    "longName": "Associação dos moradores do condomínio Residencial Jardim das Acácias Fase 2",
+    "sheet": "Folha de baixo",
+    "sheetOpen": "Abrir folha",
+    "sheetTitle": "Nova tarefa rápida",
+    "sheetText": "Esc, o botão Fechar ou o fundo escuro fecham. O foco volta para Abrir folha.",
+    "sheetClose": "Fechar"
   },
-  "dateField": { "placeholder": "Escolher data" },
-  "timeField": { "placeholder": "Escolher hora" },
+  "dateField": {
+    "placeholder": "Escolher data"
+  },
+  "timeField": {
+    "placeholder": "Escolher hora"
+  },
   "stepper": {
     "decrease": "Diminuir: {{label}}",
     "increase": "Aumentar: {{label}}"

@@ -1,3 +1,4 @@
+import { activateOnSpace } from '@azkaban/platform';
 import { Pressable, Text, View } from 'react-native';
 import { Body, Muted } from './Text';
 import { sizes, spacing } from './tokens';
@@ -21,6 +22,7 @@ export function SwitchRow({ label, value, onValueChange, description, disabled }
       aria-disabled={disabled}
       disabled={disabled}
       onPress={() => onValueChange(!value)}
+      {...activateOnSpace(disabled ? undefined : () => onValueChange(!value))}
       style={{ minHeight: sizes.touch, gap: spacing[4] }}
       className={`flex-row items-center py-2 ${disabled ? 'opacity-60' : ''}`}
     >

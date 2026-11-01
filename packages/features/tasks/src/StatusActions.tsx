@@ -1,8 +1,8 @@
 import type { OccurrenceListItem, OccurrenceStatus } from '@azkaban/contracts';
 import { useTranslation } from '@azkaban/i18n';
-import { Body, Button, Muted, tokens } from '@azkaban/ui';
+import { Body, Button, Input, Muted, tokens } from '@azkaban/ui';
 import { useState } from 'react';
-import { TextInput, View } from 'react-native';
+import { View } from 'react-native';
 import type { Transition } from './hooks';
 
 // Same order the buttons appear in: the common outcome first, the undo last.
@@ -32,15 +32,13 @@ export function StatusActions({ item, available, onChange, showCancel = true }: 
     return (
       <View style={{ gap: tokens.spacing[3] }}>
         <Body>{t('actions.reasonLabel')}</Body>
-        <TextInput
+        <Input
           aria-label={t('actions.reasonLabel')}
           value={reason}
           onChangeText={setReason}
           maxLength={500}
           autoFocus
           placeholder={t('actions.reasonPlaceholder')}
-          placeholderTextColor={tokens.colors.muted}
-          className="min-h-12 rounded-md border-2 border-border bg-surface px-4 font-body text-md text-text dark:border-border-dark dark:bg-surface-dark dark:text-text-dark"
         />
         <Button
           label={t('actions.confirm')}

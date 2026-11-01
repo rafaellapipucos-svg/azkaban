@@ -79,7 +79,19 @@ export const sizes = {
   switchWidth: 52,
   switchHeight: 32,
   switchThumb: 24,
+  stepperValue: 64,
+  /** The "late" corner mark on TaskCheck. */
+  lateBadge: 20,
+  /** StatusMark: `dot` fits a month cell, `row` a list line. */
+  statusDot: 16,
+  statusRow: 24,
+  border: 2,
+  mascot: 120,
+  mascotSmall: 80,
 } as const;
 
 /** Animation durations in ms. Components skip them entirely when the user asks for reduced motion. */
 export const motion = { fast: 150, base: 450 } as const;
+
+/** Opacities for layers drawn over content. */
+export const opacity = { scrim: 0.4 } as const;

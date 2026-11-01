@@ -1,6 +1,6 @@
 import type { OccurrenceStatus } from '@azkaban/contracts';
 import { Text, View } from 'react-native';
-import { statusSymbol } from './statusSymbol';
+import { reviewSymbol, statusSymbol } from './statusSymbol';
 import { fontSize, sizes, spacing } from './tokens';
 
 // Same colors as TaskCheck. The symbol tells them apart for people who do not see the colors.
@@ -15,12 +15,25 @@ const boxes: Record<OccurrenceStatus, { box: string; symbol: string }> = {
   cancelled: { box: 'border-cancelled bg-cancelled', symbol: 'text-onCancelled' },
 };
 
+const reviewBox = {
+  box: 'border-reviewEdge bg-review dark:border-reviewEdge-dark dark:bg-review-dark',
+  symbol: 'text-onReview dark:text-onReview-dark',
+};
+
+type Props = {
+  status: OccurrenceStatus;
+  size: 'dot' | 'row';
+  /** `done` waiting for an admin (`proofReviewStatus === 'in_review'`). Ignored for other statuses. */
+  reviewing?: boolean;
+};
+
 /**
  * A round status marker that is not a control. Decorative: the row or cell that holds it names
  * the status in words. `dot` is small enough for a month cell, `row` for a list line.
  */
-export function StatusMark({ status, size }: { status: OccurrenceStatus; size: 'dot' | 'row' }) {
-  const { box, symbol } = boxes[status];
+export function StatusMark({ status, size, reviewing }: Props) {
+  const inReview = status === 'done' && reviewing === true;
+  const { box, symbol } = inReview ? reviewBox : boxes[status];
   const dot = size === 'dot';
   const side = dot ? sizes.statusDot : sizes.statusRow;
   return (
@@ -33,7 +46,7 @@ export function StatusMark({ status, size }: { status: OccurrenceStatus; size: '
         style={{ lineHeight: dot ? fontSize.sm : side - spacing[1] }}
         className={`font-heavy ${dot ? 'text-sm' : 'text-md'} ${symbol}`}
       >
-        {statusSymbol[status]}
+        {inReview ? reviewSymbol : statusSymbol[status]}
       </Text>
     </View>
   );

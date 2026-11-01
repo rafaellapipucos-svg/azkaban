@@ -68,6 +68,11 @@
   },
   "taskCheck": {
     "label": "{{title}}: {{status}}",
-    "doneLate": "Feito com atraso"
+    "doneLate": "Feito com atraso",
+    "inReview": "Feito, em análise",
+    "doneLateInReview": "Feito com atraso, em análise"
+  },
+  "proofReview": {
+    "inReview": "Em análise"
   }
 }

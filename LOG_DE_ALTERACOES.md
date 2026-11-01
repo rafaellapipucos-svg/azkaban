@@ -567,3 +567,21 @@
 - **Verificado:** `pnpm check`. Documentação da Supabase lida em 2026-11-01: limites de Edge Functions, códigos de status, limites de arquivo, criação de bucket, URL assinada de upload, controle de acesso do Storage e preços. SHA-256 de 2 MiB em 1,1 ms, no Node desta máquina.
 - **Não verificado:** o limite de corpo de uma Edge Function hospedada, que a documentação não traz, e a CPU real de `proof-validate`. O tamanho das fotos é estimado. `pnpm db:check-permissions` não rodou e vai falhar até F3-2 entregar a matriz e as transições no banco.
 - **Pendências / próximos passos:** F3-2 a F3-7 nos handoffs. O orquestrador acrescenta ao QUADRO as tarefas de `tarefas-calendario` e `proof-url`, e ajusta F8-4, porque o limite de desafios entra em F3-2.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 17:19 (BRT)
+
+- **Branch:** feat/proof-ui, criada a partir de feat/phase-3-proof
+- **Agente(s):** design-system
+- **Resumo:** F3-9: visual do sub-estado "em análise" (`done` com `proofReviewStatus = 'in_review'`) em `TaskCheck`, `StatusBadge` e `StatusMark`, mostrado em `/design-system`.
+- **Alterações:**
+  - Tokens `review`, `onReview` e `reviewEdge`, cada um em par claro e escuro. Verde-claro, com borda mais escura porque o preenchimento sozinho tem 1,3:1 contra o cartão claro.
+  - Propriedade opcional `reviewing` nos três componentes, só vale com `status="done"`. Símbolo `◔` (o `done` é `✓`) e rótulo "Em análise"; o rótulo falado de `TaskCheck` é "Feito, em análise", com variante para atraso.
+  - `packages/ui/src/tokens.test.ts` mede o contraste (WCAG): texto sobre o preenchimento 10,0:1 no claro e 8,9:1 no escuro; borda contra cartão e fundo 4,3:1 no claro (3:1 exigido); borda escura e preenchimento escuro contra o cartão escuro passam 3:1. Primeiro teste de `packages/ui`: `vitest` entrou como devDependency.
+  - Os novos estados aparecem em Estados, Marcadores de estado e Marcador de tarefa, em `/design-system`.
+- **Arquivos/módulos principais:** `packages/ui/src` (`tokens.ts`, `statusSymbol.ts`, `TaskCheck.tsx`, `StatusBadge.tsx`, `StatusMark.tsx`, `DesignSystemScreen.tsx`, `tokens.test.ts`), `packages/i18n/src/pt-BR/ui.json`, `pnpm-lock.yaml`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0007, seção 10. Nenhuma decisão nova.
+- **Como testar:** `pnpm check`, `pnpm build:web` e `/design-system` em 375px, claro e escuro.
+- **Verificado:** `pnpm check` e `pnpm build:web` passam. `/design-system` conferido no Chromium (Playwright) a 375px, claro e escuro, sem erro nem aviso no console e sem rolagem horizontal; rótulos falados dos marcadores lidos do DOM.
+- **Não verificado:** leitor de tela real, simulação de daltonismo e renderização do `◔` em iOS e Android (a fonte é a do sistema, como `✓` e `✗`). O contraste é calculado, não medido em captura de tela.
+- **Pendências / próximos passos:** `tarefas-calendario` e `prova-foto` passam `reviewing` onde mostram o estado (handoff `20261101-1719`). Não há variante para prova contestada: ela vira `partial` ou `missed`, que já existem.

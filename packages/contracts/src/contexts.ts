@@ -25,8 +25,8 @@ export const contextInputSchema = z.object({
   name: nameSchema,
   colorToken: z.string().min(1),
   icon: z.string().trim().min(1).max(8),
-  /** Optional until the context form and repository handle it (handoff to tarefas-calendario). */
-  location: contextLocationSchema.nullable().optional(),
+  /** Null: no place, so the distance of its proofs is not checked. */
+  location: contextLocationSchema.nullable(),
 });
 export type ContextInput = z.infer<typeof contextInputSchema>;
 

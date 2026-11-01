@@ -1,6 +1,13 @@
 import type { GroupRole } from '@azkaban/contracts';
 import { describe, expect, it } from 'vitest';
-import { canManageGroupTask, deriveActors, type ActorSubject } from './actors';
+import {
+  canManageGroupTask,
+  canReviewProof,
+  deriveActors,
+  forgivesOverdue,
+  proofFlagsLocked,
+  type ActorSubject,
+} from './actors';
 
 const me = 'me';
 const other = 'other';
@@ -121,6 +128,76 @@ describe('deriveActors in a personal context', () => {
         taskAssigneeId: other,
       }),
     ).toEqual([]);
+  });
+});
+
+// ADR-0007 section 10: `can_review_proof`, as far as the UI can tell. Never the person who sent it.
+describe('canReviewProof', () => {
+  const task = { groupId: G, visibility: 'group' as const, authorId: other };
+
+  it.each([
+    ['owner', true],
+    ['admin', true],
+    ['member', false],
+    [null, false],
+  ] as const)('%s reviewing someone else -> %s', (role, want) => {
+    expect(canReviewProof(user(role), task)).toBe(want);
+  });
+
+  it('is never for the author, whatever the role', () => {
+    expect(canReviewProof(user('owner'), { ...task, authorId: me })).toBe(false);
+  });
+
+  it('is not for a private task, nor outside a group', () => {
+    expect(canReviewProof(user('owner'), { ...task, visibility: 'private' })).toBe(false);
+    expect(canReviewProof(user('owner'), { ...task, groupId: null })).toBe(false);
+  });
+});
+
+// ADR-0005 section 11: who gets a new deadline by moving an overdue occurrence.
+describe('forgivesOverdue', () => {
+  const moved = {
+    groupId: G,
+    visibility: 'group' as const,
+    occurrenceAssigneeId: other,
+    newAssigneeId: other,
+  };
+
+  it('is for who manages the group and answers for neither assignee', () => {
+    expect(forgivesOverdue(user('admin'), moved)).toBe(true);
+    expect(forgivesOverdue(user('owner'), moved)).toBe(true);
+    expect(forgivesOverdue(user('member'), moved)).toBe(false);
+  });
+
+  it('is not for the old or the new assignee, even an admin', () => {
+    expect(forgivesOverdue(user('admin'), { ...moved, occurrenceAssigneeId: me })).toBe(false);
+    expect(forgivesOverdue(user('admin'), { ...moved, newAssigneeId: me })).toBe(false);
+  });
+
+  it('is not for a private task, nor outside a group', () => {
+    expect(forgivesOverdue(user('admin'), { ...moved, visibility: 'private' })).toBe(false);
+    expect(forgivesOverdue(user('admin'), { ...moved, groupId: null })).toBe(false);
+  });
+});
+
+// ADR-0007 section 8: `proof_flags_locked`. Who owns the task, or manages a group task, moves them.
+describe('proofFlagsLocked', () => {
+  const task = { groupId: G, createdBy: other, assigneeId: me, visibility: 'group' as const };
+
+  it.each([
+    // Assigned to me by someone else: only task.edit_assigned reaches it.
+    ['member', task, true],
+    ['admin', task, false],
+    ['owner', task, false],
+    // My own task, in a group or alone.
+    ['member', { ...task, createdBy: me }, false],
+    [null, { ...task, groupId: null, createdBy: me, visibility: 'private' as const }, false],
+    // I created it for someone else: not mine to switch.
+    ['member', { ...task, createdBy: me, assigneeId: other }, true],
+    // manage_group does not reach a private task of another person.
+    ['admin', { ...task, assigneeId: other, visibility: 'private' as const }, true],
+  ] as const)('%s on %j -> locked=%s', (role, subjectOfTask, want) => {
+    expect(proofFlagsLocked(user(role), subjectOfTask)).toBe(want);
   });
 });
 

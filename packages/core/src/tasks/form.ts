@@ -158,6 +158,10 @@ export function buildTaskInput(
     : {};
   const keepPrivate =
     personalContext || (values.visibility === 'private' && assigneeId === creatorId);
+  // Approval needs a photo to look at and a group to see it (the contract and the database refuse
+  // the rest), so a switch left on by an earlier choice cannot make the form fail.
+  const requiresAdminApproval =
+    values.requiresAdminApproval && values.requiresPhotoProof && !keepPrivate;
 
   return {
     title: values.title.trim(),
@@ -171,13 +175,30 @@ export function buildTaskInput(
     reminders:
       scheduleType === 'all_day' ? [] : [...new Set(values.reminders)].sort((a, b) => b - a),
     requiresPhotoProof: values.requiresPhotoProof,
-    requiresAdminApproval: values.requiresAdminApproval,
+    requiresAdminApproval,
     requiresPartialReason: values.requiresPartialReason,
     difficulty: values.difficulty,
     priority: values.priority,
     visibility: keepPrivate ? 'private' : 'group',
     recurrence,
   };
+}
+
+/**
+ * Whether the form offers the approval switch (ADR-0007 section 10): only with a photo, in a task
+ * shared with a group, and only when nobody who would send the photo is the person editing, because
+ * nobody approves their own photo and a group with one administrator would wait for ever.
+ */
+export function offersAdminApproval(
+  values: Pick<TaskFormValues, 'requiresPhotoProof' | 'visibility' | 'assigneeIds'>,
+  { personalContext, editorId }: { personalContext: boolean; editorId: string },
+): boolean {
+  return (
+    values.requiresPhotoProof &&
+    !personalContext &&
+    values.visibility === 'group' &&
+    values.assigneeIds.every((id) => id !== editorId)
+  );
 }
 
 /** One task per assignee, always visible to the group (the contract forbids a private batch). */

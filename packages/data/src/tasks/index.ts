@@ -48,7 +48,7 @@ const calendarMaxPages = 100;
 // Joins the task and its context's area, which is all the lists need. `created_at` is selected only
 // so the lists can order by it. `!inner` drops rows the filters on the joined tables remove.
 const listColumns =
-  'id, task_id, assignee_id, scheduled_start, scheduled_due, overdue_at, status, late, status_reason, status_changed_at, status_changed_by, tasks!inner(created_at, title, context_id, group_id, created_by, assignee_id, schedule_type, timezone, priority, difficulty, visibility, rrule, requires_partial_reason, archived_at, contexts!inner(area_id))';
+  'id, task_id, assignee_id, scheduled_start, scheduled_due, overdue_at, status, late, status_reason, status_changed_at, status_changed_by, proof_review_status, tasks!inner(created_at, title, context_id, group_id, created_by, assignee_id, schedule_type, timezone, priority, difficulty, visibility, rrule, requires_partial_reason, requires_photo_proof, requires_admin_approval, archived_at, contexts!inner(area_id))';
 
 type OccurrenceRow = {
   id: string;
@@ -62,6 +62,7 @@ type OccurrenceRow = {
   status_reason: string | null;
   status_changed_at: string | null;
   status_changed_by: string | null;
+  proof_review_status: Occurrence['proofReviewStatus'];
 };
 
 const toOccurrence = (row: OccurrenceRow): Occurrence => ({
@@ -76,6 +77,7 @@ const toOccurrence = (row: OccurrenceRow): Occurrence => ({
   statusReason: row.status_reason,
   statusChangedAt: row.status_changed_at,
   statusChangedBy: row.status_changed_by,
+  proofReviewStatus: row.proof_review_status,
 });
 
 type ListRow = OccurrenceRow & {
@@ -92,6 +94,8 @@ type ListRow = OccurrenceRow & {
     visibility: OccurrenceListItem['task']['visibility'];
     rrule: string | null;
     requires_partial_reason: boolean;
+    requires_photo_proof: boolean;
+    requires_admin_approval: boolean;
     contexts: { area_id: string };
   };
 };
@@ -112,6 +116,8 @@ const toListItem = (row: ListRow): OccurrenceListItem => ({
     visibility: row.tasks.visibility,
     rrule: row.tasks.rrule,
     requiresPartialReason: row.tasks.requires_partial_reason,
+    requiresPhotoProof: row.tasks.requires_photo_proof,
+    requiresAdminApproval: row.tasks.requires_admin_approval,
   },
 });
 
@@ -365,7 +371,9 @@ export const tasksRepository = {
   async listHistory(occurrenceId: string): Promise<StatusHistoryEntry[]> {
     const { data, error } = await db()
       .from('task_status_history')
-      .select('id, occurrence_id, from_status, to_status, changed_by, changed_at, reason')
+      .select(
+        'id, occurrence_id, from_status, to_status, changed_by, changed_at, reason, proof_review_status',
+      )
       .eq('occurrence_id', occurrenceId)
       .order('changed_at', { ascending: false });
     if (error) throw toTaskError(error);
@@ -377,6 +385,7 @@ export const tasksRepository = {
       changedBy: row.changed_by,
       changedAt: row.changed_at,
       reason: row.reason,
+      proofReviewStatus: row.proof_review_status,
     }));
   },
 

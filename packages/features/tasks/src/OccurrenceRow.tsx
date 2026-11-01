@@ -9,9 +9,20 @@ import { whenText } from './format';
 import { useTransitions } from './hooks';
 import { StatusActions } from './StatusActions';
 
+/**
+ * Where a task that asks for a photo goes to get it: the route composes it with the camera flow of
+ * `prova-foto`, because features do not import each other. It gets the occurrence's id.
+ */
+export type ProofEntry = (occurrenceId: string) => void;
+
 export type RowActions = {
   change: (item: OccurrenceListItem, to: OccurrenceStatus, reason?: string) => void;
   open: (item: OccurrenceListItem) => void;
+  /**
+   * Starts the photo flow of a task that asks for one (the camera of `prova-foto`). Without it the
+   * check of such a task stays off, and its detail screen explains why.
+   */
+  proof?: (item: OccurrenceListItem) => void;
 };
 
 type Props = {
@@ -32,13 +43,24 @@ function quickTarget(status: OccurrenceStatus): OccurrenceStatus | null {
 
 export function OccurrenceRow({ item, timezone, now, actions, contextLabel }: Props) {
   const { t, i18n } = useTranslation('tasks');
-  const { available } = useTransitions(item);
+  const { available, canSendProof } = useTransitions(item);
   const [open, setOpen] = useState(false);
   const target = quickTarget(item.status);
-  const allowed = target !== null && available.some(({ to }) => to === target);
+  // A task that asks for a photo has no "feito" in `available`: its check goes to the camera.
+  const toProof = canSendProof && actions.proof !== undefined;
+  const allowed = toProof || (target !== null && available.some(({ to }) => to === target));
+  const reviewing = item.proofReviewStatus === 'in_review';
+  const disputed = item.proofReviewStatus === 'disputed';
+  const needsPhoto =
+    item.task.requiresPhotoProof && (item.status === 'pending' || item.status === 'missed');
   const overdue = isOverdue(item, now);
   const xp = occurrenceXp(
-    { status: item.status, late: item.late, difficulty: item.task.difficulty },
+    {
+      status: item.status,
+      late: item.late,
+      difficulty: item.task.difficulty,
+      proofReviewStatus: item.proofReviewStatus,
+    },
     taskRules.xp,
   );
   const when = whenText(item, { t, timezone, now, language: i18n.language });
@@ -53,9 +75,13 @@ export function OccurrenceRow({ item, timezone, now, actions, contextLabel }: Pr
         <TaskCheck
           status={item.status}
           late={item.late}
+          reviewing={reviewing}
           title={item.task.title}
           disabled={!allowed}
-          onPress={() => target && actions.change(item, target)}
+          onPress={() => {
+            if (toProof) actions.proof?.(item);
+            else if (target) actions.change(item, target);
+          }}
           onLongPress={() => setOpen((value) => !value)}
         />
         <Pressable
@@ -76,6 +102,26 @@ export function OccurrenceRow({ item, timezone, now, actions, contextLabel }: Pr
             {contextLabel ? `${when} · ${contextLabel}` : when}
             {resolved && xp > 0 ? ` · ${t('row.xp', { count: xp })}` : ''}
           </Muted>
+          {reviewing ? (
+            <Text className="font-heavy text-sm text-text dark:text-text-dark">
+              {t('row.inReview')}
+              <Text className="font-body text-muted dark:text-muted-dark">
+                {` · ${t('row.inReviewHint')}`}
+              </Text>
+            </Text>
+          ) : null}
+          {disputed ? (
+            <Text className="font-heavy text-sm text-danger dark:text-danger-light">
+              <Text aria-hidden>⚠ </Text>
+              {t('row.disputed')}
+            </Text>
+          ) : null}
+          {needsPhoto ? (
+            <Text className="text-sm text-muted dark:text-muted-dark">
+              <Text aria-hidden>📷 </Text>
+              {t('row.proofHint')}
+            </Text>
+          ) : null}
           {overdue ? (
             <Text className="font-heavy text-sm text-danger dark:text-danger-light">
               <Text aria-hidden>⚠ </Text>

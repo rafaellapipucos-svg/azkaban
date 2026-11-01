@@ -8,13 +8,17 @@ export {
 } from './permissions/members';
 export {
   canManageGroupTask,
+  canReviewProof,
   deriveActors,
+  forgivesOverdue,
+  proofFlagsLocked,
   type ActorSubject,
   type ActorUser,
 } from './tasks/actors';
 export { isLate, isLateWindowOpen, isOverdue, lateWindowEnd } from './tasks/late';
 export {
   availableTransitions,
+  canSendProof,
   canTransition,
   findTransition,
   requiresReason,
@@ -41,6 +45,7 @@ export {
   defaultRecurrence,
   localTimeOf,
   nextHourTime,
+  offersAdminApproval,
   resolvePrefill,
   taskFormValues,
   toBatchInput,

@@ -500,6 +500,9 @@ importers:
       '@azkaban/i18n':
         specifier: workspace:*
         version: link:../../i18n
+      '@azkaban/platform':
+        specifier: workspace:*
+        version: link:../../platform
       '@azkaban/ui':
         specifier: workspace:*
         version: link:../../ui

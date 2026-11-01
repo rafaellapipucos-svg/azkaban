@@ -15,7 +15,11 @@ export type CalendarFilter = {
 
 export const noFilter: CalendarFilter = { areaId: null, contextId: null, status: null };
 
-export type DaySummary = Record<CalendarStatus, number> & { total: number };
+export type DaySummary = Record<CalendarStatus, number> & {
+  total: number;
+  /** How many of the `done` are still `in_review` (ADR-0007). They count as done everywhere else. */
+  reviewing: number;
+};
 
 export type DayInfo = {
   date: string;
@@ -37,11 +41,19 @@ export function occurrenceDay(item: OccurrenceListItem, timezone: string): strin
 }
 
 export function summarizeDay(items: readonly OccurrenceListItem[]): DaySummary {
-  const summary: DaySummary = { total: 0, pending: 0, done: 0, partial: 0, missed: 0 };
-  for (const { status } of items) {
+  const summary: DaySummary = {
+    total: 0,
+    reviewing: 0,
+    pending: 0,
+    done: 0,
+    partial: 0,
+    missed: 0,
+  };
+  for (const { status, proofReviewStatus } of items) {
     if (status === 'cancelled') continue;
     summary[status] += 1;
     summary.total += 1;
+    if (status === 'done' && proofReviewStatus === 'in_review') summary.reviewing += 1;
   }
   return summary;
 }

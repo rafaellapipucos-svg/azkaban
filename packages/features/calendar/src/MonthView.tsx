@@ -1,7 +1,8 @@
-import { calendarStatuses, monthGrid, monthOf, type DayInfo, type WeekStart } from '@azkaban/core';
+import { monthGrid, monthOf, type DayInfo, type WeekStart } from '@azkaban/core';
 import { useTranslation } from '@azkaban/i18n';
-import { StatusMark, tokens } from '@azkaban/ui';
+import { tokens } from '@azkaban/ui';
 import { Pressable, Text, View } from 'react-native';
+import { DayMarks } from './DayMarks';
 import { daySummaryLabel, weekdayShort } from './format';
 
 type Props = {
@@ -83,11 +84,7 @@ export function MonthView({ date, today, days, weekStartsOn, onSelect }: Props) 
                   ) : null}
                 </View>
                 <View className="flex-row flex-wrap items-center">
-                  {calendarStatuses
-                    .filter((status) => (info?.summary[status] ?? 0) > 0)
-                    .map((status) => (
-                      <StatusMark key={status} status={status} size="dot" />
-                    ))}
+                  <DayMarks summary={info?.summary} />
                   {info?.perfect ? (
                     <Text aria-hidden className="text-sm">
                       ⭐

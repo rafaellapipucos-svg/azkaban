@@ -28,14 +28,14 @@ describe('occurrenceXp (ADR-0005 section 6)', () => {
     ['pending', false, 'hard', 0],
     ['cancelled', false, 'hard', 0],
   ] as const)('%s late=%s %s -> %i', (status, late, difficulty, want) => {
-    expect(occurrenceXp({ status, late, difficulty }, rules)).toBe(want);
+    expect(occurrenceXp({ status, late, difficulty, proofReviewStatus: null }, rules)).toBe(want);
   });
 
   it('is never negative and never -0', () => {
     for (const status of occurrenceStatusSchema.options) {
       for (const difficulty of taskDifficultySchema.options) {
         for (const late of [true, false]) {
-          const xp = occurrenceXp({ status, late, difficulty }, rules);
+          const xp = occurrenceXp({ status, late, difficulty, proofReviewStatus: null }, rules);
           expect(xp).toBeGreaterThanOrEqual(0);
           expect(Object.is(xp, -0)).toBe(false);
         }
@@ -48,8 +48,18 @@ describe('occurrenceXp (ADR-0005 section 6)', () => {
       status: { done: 20, done_late: 10, partial: 6, missed: 1 },
       difficultyWeight: { easy: 1, medium: 2, hard: 3 },
     };
-    expect(occurrenceXp({ status: 'done', late: false, difficulty: 'easy' }, doubled)).toBe(20);
-    expect(occurrenceXp({ status: 'missed', late: false, difficulty: 'hard' }, doubled)).toBe(3);
+    expect(
+      occurrenceXp(
+        { status: 'done', late: false, difficulty: 'easy', proofReviewStatus: null },
+        doubled,
+      ),
+    ).toBe(20);
+    expect(
+      occurrenceXp(
+        { status: 'missed', late: false, difficulty: 'hard', proofReviewStatus: null },
+        doubled,
+      ),
+    ).toBe(3);
   });
 
   it('gives zero for every status when the rules say zero', () => {
@@ -58,7 +68,31 @@ describe('occurrenceXp (ADR-0005 section 6)', () => {
       difficultyWeight: { easy: 1, medium: 2, hard: 3 },
     };
     for (const status of occurrenceStatusSchema.options) {
-      expect(occurrenceXp({ status, late: false, difficulty: 'hard' }, none)).toBe(0);
+      expect(
+        occurrenceXp({ status, late: false, difficulty: 'hard', proofReviewStatus: null }, none),
+      ).toBe(0);
     }
+  });
+});
+
+describe('occurrenceXp: a proof waiting for an admin (ADR-0007 section 11)', () => {
+  const done = { status: 'done', late: false, difficulty: 'medium' } as const;
+
+  it('is worth nothing until it is approved', () => {
+    expect(occurrenceXp({ ...done, proofReviewStatus: 'in_review' }, rules)).toBe(0);
+    expect(occurrenceXp({ ...done, late: true, proofReviewStatus: 'in_review' }, rules)).toBe(0);
+  });
+
+  it.each(['unreviewed', 'approved', null] as const)('pays in full when it is %s', (review) => {
+    expect(occurrenceXp({ ...done, proofReviewStatus: review }, rules)).toBe(20);
+  });
+
+  it('does not touch the yellow, whose review is a dispute', () => {
+    expect(
+      occurrenceXp(
+        { status: 'partial', late: false, difficulty: 'medium', proofReviewStatus: 'disputed' },
+        rules,
+      ),
+    ).toBe(6);
   });
 });

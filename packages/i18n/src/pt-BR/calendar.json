@@ -64,7 +64,9 @@
       "partial_one": "{{count}} tentada",
       "partial_other": "{{count}} tentadas",
       "missed_one": "{{count}} não feita",
-      "missed_other": "{{count}} não feitas"
+      "missed_other": "{{count}} não feitas",
+      "reviewing_one": "{{count}} em análise",
+      "reviewing_other": "{{count}} em análise"
     },
     "perfect": "Dia perfeito! Tudo feito neste dia.",
     "empty": "Nada marcado para este dia.",
@@ -81,7 +83,9 @@
   },
   "item": {
     "label": "{{title}}, {{when}}, {{status}}",
-    "dueAt": "até {{time}}"
+    "dueAt": "até {{time}}",
+    "inReview": "Feito, em análise",
+    "inReviewText": "Em análise"
   },
   "limit": "Tarefas que se repetem aparecem até {{date}}. Depois dessa data, o calendário mostra só o que já foi criado."
 }

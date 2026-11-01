@@ -1,5 +1,6 @@
 import type { OccurrenceListItem } from '@azkaban/contracts';
 import { describe, expect, it } from 'vitest';
+import { buildDays } from './calendarDay';
 import { earnedXp, groupByContext, localDayRange, planArea, planToday } from './today';
 import type { XpRules } from './xp';
 
@@ -23,6 +24,7 @@ const item = (
   statusReason: null,
   statusChangedAt: null,
   statusChangedBy: null,
+  proofReviewStatus: null,
   areaId: 'area',
   task: {
     title: id,
@@ -37,6 +39,8 @@ const item = (
     visibility: 'private',
     rrule: null,
     requiresPartialReason: true,
+    requiresPhotoProof: false,
+    requiresAdminApproval: false,
     ...task,
   },
   ...overrides,
@@ -235,5 +239,53 @@ describe('earnedXp', () => {
       item('e', { status: 'done', assigneeId: 'other' }),
     ];
     expect(earnedXp(items, 'me', rules)).toBe(20 + 5 + 3);
+  });
+
+  it('holds back a done that waits for an admin, and counts it once approved', () => {
+    const waiting = item('w', { status: 'done', proofReviewStatus: 'in_review' });
+    expect(earnedXp([waiting], 'me', rules)).toBe(0);
+    expect(earnedXp([{ ...waiting, proofReviewStatus: 'approved' }], 'me', rules)).toBe(10);
+  });
+});
+
+describe('a done that waits for an admin (ADR-0007)', () => {
+  it('counts as done in the goal of the day', () => {
+    const result = plan([item('a', { status: 'done', proofReviewStatus: 'in_review' }), item('b')]);
+    expect(result.goal).toEqual({ done: 1, total: 2 });
+  });
+});
+
+describe('an overdue occurrence that was moved to another day (ADR-0005 section 11)', () => {
+  // Rescheduled to tomorrow, still overdue: the database keeps overdueAt, and both queries of the
+  // lists return it (the window by the new day, the overdue one by overdueAt).
+  const moved = item('moved', {
+    scheduledStart: '2026-11-05T15:00:00.000Z',
+    scheduledDue: '2026-11-05T15:00:00.000Z',
+    overdueAt: '2026-11-03T03:00:00.000Z',
+  });
+  // Rescheduled to later today.
+  const movedToday = item('moved-today', {
+    scheduledStart: '2026-11-04T20:00:00.000Z',
+    scheduledDue: '2026-11-04T20:00:00.000Z',
+    overdueAt: '2026-11-03T03:00:00.000Z',
+  });
+
+  it('shows once in Hoje, among the overdue, even when both queries return it', () => {
+    const result = plan([moved, movedToday, moved, movedToday]);
+    expect(result.overdue.map(({ id }) => id)).toEqual(['moved-today', 'moved']);
+    expect(result.today).toEqual([]);
+    expect(result.soon).toEqual([]);
+  });
+
+  it('shows once in the area tab, among the overdue and not again on its new day', () => {
+    const result = planArea([moved, movedToday, moved, movedToday], { now, timezone: SP });
+    expect(result.overdue.map(({ id }) => id)).toEqual(['moved-today', 'moved']);
+    expect(result.days).toEqual([]);
+  });
+
+  it('shows on its new day in the calendar', () => {
+    const days = buildDays([moved, moved], { timezone: SP });
+    expect(days.get('2026-11-05')?.items.map(({ id }) => id)).toEqual(['moved']);
+    expect(days.size).toBe(1);
   });
 });

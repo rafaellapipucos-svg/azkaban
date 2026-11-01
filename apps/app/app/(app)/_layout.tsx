@@ -4,7 +4,7 @@ import { BackHeader } from '../../src/BackHeader';
 
 // A screen opened by address (reload, shared link, notification) starts with only itself in the
 // stack. With the tabs underneath, it always has a screen to go back to.
-export const unstable_settings = { initialRouteName: '(tabs)' };
+export const unstable_settings = { anchor: '(tabs)' };
 
 export default function AppLayout() {
   const { session, loading } = useSession();

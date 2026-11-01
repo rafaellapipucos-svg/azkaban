@@ -31,7 +31,10 @@ test('a load error does not also say there is nothing to do, and offers to try a
   await page.route('**/rest/v1/task_occurrences*', (route) => route.fulfill({ status: 500 }));
   await page.reload();
 
-  await expect(page.getByText('Não deu para carregar as tarefas.')).toBeVisible();
+  // React Query retries a failed read three times (1, 2 and 4 s) before the screen gives up
+  await expect(page.getByText('Não deu para carregar as tarefas.')).toBeVisible({
+    timeout: 15_000,
+  });
   await expect(page.getByText('Nada pendente por aqui.', { exact: false })).toHaveCount(0);
 
   await page.unroute('**/rest/v1/task_occurrences*');

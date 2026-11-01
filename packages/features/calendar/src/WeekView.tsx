@@ -1,10 +1,9 @@
 import { calendarStatuses, weekDays, type DayInfo, type WeekStart } from '@azkaban/core';
 import { useTranslation } from '@azkaban/i18n';
-import { IconButton, Muted, tokens } from '@azkaban/ui';
+import { IconButton, Muted, StatusMark, tokens } from '@azkaban/ui';
 import { Pressable, Text, View } from 'react-native';
 import { ItemList, type DayActions } from './DayParts';
 import { daySummaryLabel, shortDay } from './format';
-import { StatusMark } from './StatusMark';
 
 type Props = {
   date: string;

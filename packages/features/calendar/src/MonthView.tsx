@@ -1,9 +1,8 @@
 import { calendarStatuses, monthGrid, monthOf, type DayInfo, type WeekStart } from '@azkaban/core';
 import { useTranslation } from '@azkaban/i18n';
-import { tokens } from '@azkaban/ui';
+import { StatusMark, tokens } from '@azkaban/ui';
 import { Pressable, Text, View } from 'react-native';
 import { daySummaryLabel, weekdayShort } from './format';
-import { StatusMark } from './StatusMark';
 
 type Props = {
   /** The selected day. Its month is the one drawn. */

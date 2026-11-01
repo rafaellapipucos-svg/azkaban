@@ -35,6 +35,7 @@ export {
   defaultRecurrence,
   localTimeOf,
   nextHourTime,
+  resolvePrefill,
   taskFormValues,
   toBatchInput,
   weekdayOf,

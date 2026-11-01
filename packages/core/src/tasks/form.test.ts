@@ -8,6 +8,7 @@ import {
   defaultRecurrence,
   localTimeOf,
   nextHourTime,
+  resolvePrefill,
   taskFormValues,
   toBatchInput,
   weekdayOf,
@@ -56,6 +57,24 @@ describe('time helpers', () => {
   it('picks the next full hour and stops at the end of the day', () => {
     expect(nextHourTime(SP, new Date('2026-11-04T13:20:00.000Z'))).toBe('11:00');
     expect(nextHourTime(SP, new Date('2026-11-05T02:30:00.000Z'))).toBe('23:59');
+  });
+
+  it('resolves the day and time a link asks the form to start with', () => {
+    expect(resolvePrefill({}, '2026-11-04')).toEqual({ date: '2026-11-04', time: null });
+    expect(resolvePrefill({ day: 'tomorrow' }, '2026-11-04').date).toBe('2026-11-05');
+    expect(resolvePrefill({ day: '2026-12-25', time: '14:30' }, '2026-11-04')).toEqual({
+      date: '2026-12-25',
+      time: '14:30',
+    });
+    // A hand-edited link falls back instead of putting garbage in the form
+    expect(resolvePrefill({ day: '2026-13-45', time: '25:00' }, '2026-11-04')).toEqual({
+      date: '2026-11-04',
+      time: null,
+    });
+    expect(resolvePrefill({ day: 'soon', time: '9:00' }, '2026-11-04')).toEqual({
+      date: '2026-11-04',
+      time: null,
+    });
   });
 
   it('adds days and finds the weekday', () => {

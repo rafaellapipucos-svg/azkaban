@@ -88,8 +88,8 @@ async function createTask(
   await page.goto(`/tasks/new?${params}`);
   await page.getByLabel('O que precisa ser feito?').fill(title);
   if (assignee) {
-    await page.getByRole('radio', { name: assignee }).click();
-    await page.getByRole('radio', { name: 'Eu' }).click();
+    await page.getByRole('checkbox', { name: assignee }).click();
+    await page.getByRole('checkbox', { name: 'Eu' }).click();
   }
   await button(page, 'Salvar').click();
   await expect(page.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();

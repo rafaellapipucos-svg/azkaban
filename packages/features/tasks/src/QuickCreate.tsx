@@ -2,6 +2,7 @@ import { buildTaskInput, addDays, localDayRange, nextHourTime } from '@azkaban/c
 import { contextsRepository, tasksRepository, taskErrorCode } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import {
+  Body,
   Button,
   Chip,
   ChipRow,
@@ -190,6 +191,7 @@ export function QuickCreate({ contextId, onCreated }: Props) {
               label={t('quick.timeLabel')}
               errorText={t('form.timeRequired')}
             />
+            {list.length > 1 ? <Body>{t('form.context')}</Body> : null}
             {list.length > 1 ? (
               <ChipRow label={t('form.context')}>
                 {list.map((item) => (

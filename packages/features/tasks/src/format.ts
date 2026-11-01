@@ -15,6 +15,8 @@ export function dayLabel(date: string, today: string, t: Translate, language: st
   }).format(new Date(`${date}T12:00:00Z`));
 }
 
+export const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
+
 /** The "when" line of a row: a time, "dia todo" or the deadline. */
 export function whenText(
   item: OccurrenceListItem,
@@ -22,9 +24,12 @@ export function whenText(
 ): string {
   const today = localDateOf(timezone, now.getTime());
   const time = (instant: string) => localTimeOf(timezone, instant);
+  // Anything not today says which day first: an overdue row would otherwise show only "12:00".
+  const startDay = localDateOf(timezone, Date.parse(item.scheduledStart));
+  const prefix = startDay === today ? '' : `${dayLabel(startDay, today, t, language)}, `;
   switch (item.task.scheduleType) {
     case 'all_day':
-      return t('when.allDay');
+      return `${prefix}${t('when.allDay')}`;
     case 'deadline': {
       const due = localDateOf(timezone, Date.parse(item.scheduledDue));
       return due === today
@@ -32,9 +37,11 @@ export function whenText(
         : t('when.dueOn', { day: dayLabel(due, today, t, language) });
     }
     default:
-      return item.scheduledDue !== item.scheduledStart
-        ? t('when.range', { from: time(item.scheduledStart), to: time(item.scheduledDue) })
-        : time(item.scheduledStart);
+      return `${prefix}${
+        item.scheduledDue !== item.scheduledStart
+          ? t('when.range', { from: time(item.scheduledStart), to: time(item.scheduledDue) })
+          : time(item.scheduledStart)
+      }`;
   }
 }
 

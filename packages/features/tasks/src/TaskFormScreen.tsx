@@ -1,4 +1,4 @@
-import type { GroupMember, TaskEditScope } from '@azkaban/contracts';
+import { taskEditScopeSchema, type GroupMember } from '@azkaban/contracts';
 import {
   addDays,
   buildTaskInput,
@@ -54,7 +54,8 @@ import { taskDefaults } from '@azkaban/config';
 type Props = {
   /** Editing: the occurrence, and the scope chosen in the prompt before this screen. */
   occurrenceId?: string;
-  scope?: TaskEditScope;
+  /** Comes from the route, so it is checked here. */
+  scope?: string;
   /** Creating a copy of another occurrence's task. */
   duplicateOf?: string;
   /** From quick create's "Mais opções". */
@@ -113,7 +114,8 @@ function Choice<T extends string>({
 }
 
 /** Creates and edits tasks: every field of section 7.3 that Phase 2 keeps. */
-export function TaskFormScreen({ occurrenceId, scope = 'all', duplicateOf, prefill }: Props) {
+export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, prefill }: Props) {
+  const scope = taskEditScopeSchema.catch('all').parse(scopeParam);
   const { t } = useTranslation('tasks');
   const router = useRouter();
   const refresh = useRefreshTasks();

@@ -36,7 +36,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { View } from 'react-native';
 import { z } from 'zod';
-import { describeRecurrence, errorKey, whenText } from './format';
+import { capitalize, describeRecurrence, errorKey, whenText } from './format';
 import {
   useCurrentUser,
   useNow,
@@ -274,7 +274,7 @@ export function TaskDetailScreen({ occurrenceId }: { occurrenceId: string }) {
           </Body>
         ) : null}
         <Body>
-          {moment.charAt(0).toUpperCase() + moment.slice(1)} · {clock}
+          {capitalize(moment)} · {clock}
         </Body>
         {recurrenceText ? <Muted>{t('detail.repeats', { text: recurrenceText })}</Muted> : null}
         <Muted>{t('detail.assignee', { name: nameOf(item.assigneeId) })}</Muted>

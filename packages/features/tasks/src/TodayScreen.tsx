@@ -18,7 +18,7 @@ import { useRouter } from 'expo-router';
 import { useMemo } from 'react';
 import { Text, View } from 'react-native';
 import { tasksConfig } from './config';
-import { errorKey } from './format';
+import { capitalize, errorKey } from './format';
 import { useCurrentUser, useNotice, useOccurrenceLists, useStatusChange } from './hooks';
 import { QuickCreate } from './QuickCreate';
 import { ContextGroups, Section } from './Sections';
@@ -60,7 +60,7 @@ export function TodayScreen() {
       <Screen>
         <View>
           <Title>{t('today.title')}</Title>
-          <Muted className="capitalize">{dateText}</Muted>
+          <Muted>{capitalize(dateText)}</Muted>
         </View>
 
         <View

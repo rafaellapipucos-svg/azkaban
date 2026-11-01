@@ -108,7 +108,7 @@
     "context": "Onde",
     "whenLabel": "Tipo de horário",
     "type": {
-      "timed": "Com horário",
+      "timed": "Horário",
       "all_day": "Dia todo",
       "deadline": "Prazo"
     },
@@ -181,8 +181,8 @@
     "endsLabel": "Quando para",
     "ends": {
       "never": "Nunca",
-      "on_date": "Em uma data",
-      "after_count": "Depois de N vezes"
+      "on_date": "Na data",
+      "after_count": "N vezes"
     },
     "endDate": "Parar no dia",
     "endDateInvalid": "Escolha um dia depois do início.",

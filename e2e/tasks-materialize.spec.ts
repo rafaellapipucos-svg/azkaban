@@ -39,9 +39,12 @@ test('saving a repeating task goes back at once while the function is still runn
   page,
 }) => {
   await signUpWithContext(page, 'Rapido');
-  // A slow function: a cold start measured 4 to 14 seconds.
+  // A slow function: a cold start measured 4 to 14 seconds. Only the first call is slow, so a
+  // retry after a failure does not stack another delay on top.
+  let calls = 0;
   await page.route(FUNCTION, async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 8_000));
+    calls += 1;
+    if (calls === 1) await new Promise((resolve) => setTimeout(resolve, 8_000));
     await route.continue();
   });
 

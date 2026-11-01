@@ -42,6 +42,8 @@ async function signUp(page: Page, user: User) {
 async function newContext(page: Page, name: string, group?: string) {
   await page.goto('/contexts/new');
   await page.getByLabel('Nome', { exact: true }).fill(name);
+  // The area is chosen when the list of areas arrives; Salvar before that does nothing
+  await expect(page.getByRole('radio', { name: /Trabalho/ })).toBeChecked();
   if (group) await page.getByRole('radio', { name: group }).click();
   await button(page, 'Salvar').click();
   await expect(page.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();

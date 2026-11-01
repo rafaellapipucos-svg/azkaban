@@ -197,7 +197,16 @@ export function CalendarScreen({ initial = {} }: { initial?: CalendarInitial }) 
         onChange={setFilter}
       />
 
-      {occurrences.isError ? <ErrorText>{t('errors.load')}</ErrorText> : null}
+      {occurrences.isError ? (
+        <View style={{ gap: tokens.spacing[2] }}>
+          <ErrorText>{t('errors.load')}</ErrorText>
+          <Button
+            variant="secondary"
+            label={t('errors.retry')}
+            onPress={() => occurrences.refetch()}
+          />
+        </View>
+      ) : null}
       {reach.capped ? <Muted role="status">{t('limit', { date: limitDate })}</Muted> : null}
       {occurrences.isPending && ready ? <Muted>{t('loading')}</Muted> : null}
 
@@ -213,7 +222,7 @@ export function CalendarScreen({ initial = {} }: { initial?: CalendarInitial }) 
           <View style={{ gap: tokens.spacing[3] }}>
             <Subtitle>{capitalize(longDay(date, i18n.language))}</Subtitle>
             <PerfectBanner info={info} />
-            {info.items.length === 0 ? (
+            {info.items.length === 0 && !occurrences.isError ? (
               <Body>{t('day.empty')}</Body>
             ) : (
               <ItemList items={info.items} actions={actions} />

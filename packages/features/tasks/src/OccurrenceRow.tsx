@@ -66,7 +66,8 @@ export function OccurrenceRow({ item, timezone, now, actions, contextLabel }: Pr
         >
           <Text
             className={`font-heavy text-md text-text dark:text-text-dark ${
-              resolved ? 'line-through opacity-70' : ''
+              // Only green is crossed out: a line through "Tentei" would read as finished.
+              item.status === 'done' ? 'line-through opacity-70' : resolved ? 'opacity-70' : ''
             }`}
           >
             {item.task.title}

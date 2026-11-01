@@ -328,7 +328,7 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
         name="title"
         label={t('form.titleLabel')}
         errorText={t('form.titleRequired')}
-        maxLength={120}
+        maxLength={tasksConfig.titleMaxLength}
       />
 
       {selectable.length > 1 ? (
@@ -455,7 +455,7 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
             label={t('form.notes')}
             errorText={t('form.notesInvalid')}
             multiline
-            maxLength={2000}
+            maxLength={tasksConfig.notesMaxLength}
             style={{ minHeight: tokens.sizes.field * 2, textAlignVertical: 'top' }}
           />
           <Choice

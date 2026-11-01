@@ -2,7 +2,8 @@ import { useTranslation } from '@azkaban/i18n';
 import { Body, Button, tokens } from '@azkaban/ui';
 import { useMutationState, useQueryClient } from '@tanstack/react-query';
 import { View } from 'react-native';
-import { materializeKey, useMaterializeTasks } from './hooks';
+import { useEffect } from 'react';
+import { materializeKey, readPendingMaterialization, useMaterializeTasks } from './hooks';
 
 /**
  * Saving a repeating task returns at once, and its occurrences are created in the background. This
@@ -13,6 +14,13 @@ export function MaterializeStatus() {
   const { t } = useTranslation('tasks');
   const queryClient = useQueryClient();
   const retry = useMaterializeTasks();
+  const { mutate } = retry;
+  // The page may have been reloaded while a request was running: pick the work up again.
+  useEffect(() => {
+    readPendingMaterialization().then((ids) => {
+      if (ids.length > 0) mutate(ids);
+    });
+  }, [mutate]);
   const runs = useMutationState({
     filters: { mutationKey: materializeKey },
     select: (mutation) => ({

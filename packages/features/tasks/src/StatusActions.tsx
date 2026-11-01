@@ -3,6 +3,7 @@ import { useTranslation } from '@azkaban/i18n';
 import { Body, Button, Input, Muted, tokens } from '@azkaban/ui';
 import { useState } from 'react';
 import { View } from 'react-native';
+import { tasksConfig } from './config';
 import type { Transition } from './hooks';
 
 // Same order the buttons appear in: the common outcome first, the undo last.
@@ -36,7 +37,7 @@ export function StatusActions({ item, available, onChange, showCancel = true }: 
           aria-label={t('actions.reasonLabel')}
           value={reason}
           onChangeText={setReason}
-          maxLength={500}
+          maxLength={tasksConfig.reasonMaxLength}
           autoFocus
           placeholder={t('actions.reasonPlaceholder')}
         />

@@ -74,3 +74,19 @@ test('when the function fails the person is told, and "Tentar de novo" creates t
   await expect(rows(page, 'Leitura').first()).toBeVisible();
   await expect(alert).toHaveCount(0);
 });
+
+test('reloading while the function runs does not lose the days of the task', async ({ page }) => {
+  await signUpWithContext(page, 'Recarrega');
+  // The first request never answers, like a tab closed in the middle; the next ones go through
+  let calls = 0;
+  await page.route(FUNCTION, async (route) => {
+    calls += 1;
+    if (calls === 1) return;
+    await route.continue();
+  });
+
+  await saveDailyTask(page, 'Caminhada');
+  await expect(hoje(page)).toBeVisible({ timeout: 4_000 });
+  await page.reload();
+  await expect(rows(page, 'Caminhada').first()).toBeVisible();
+});

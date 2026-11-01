@@ -68,6 +68,11 @@ test('a task overdue inside the late window counts as done late, and past it onl
   await expect(page.getByRole('heading', { name: 'Há cinco dias' })).toBeVisible();
   await expect(button(page, 'Não fiz')).toBeVisible();
   await expect(button(page, 'Marcar como feito')).toHaveCount(0);
+  // It says why, and a personal task does not send the person to an administrator
+  await expect(
+    page.getByText('Já passaram 72 horas do prazo, então não dá mais para marcar como feita.'),
+  ).toBeVisible();
+  await expect(page.getByText('administrador')).toHaveCount(0);
   await page.goBack();
 
   // Yesterday is inside the window: it says so, and the result is done late
@@ -95,7 +100,7 @@ test('a screen that still thinks the window is open gets the late_window_expired
   await page.goto(detail);
   await button(page, 'Marcar como feito').click();
   await expect(
-    page.getByText('O prazo para marcar esta tarefa como feita acabou. Peça a um administrador.'),
+    page.getByText('O prazo para marcar esta tarefa como feita acabou.', { exact: true }),
   ).toBeVisible();
   await expect(page.getByText('Pendente → Feito')).toHaveCount(0);
 });

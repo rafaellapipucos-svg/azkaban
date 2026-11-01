@@ -84,7 +84,7 @@ export function RecurrenceEditor({
         label={t('repeat.every')}
         value={interval}
         min={1}
-        max={99}
+        max={tasksConfig.maxInterval}
         onChange={(value) => field.onChange({ ...recurrence, interval: value })}
         format={(value) => t(`repeat.unit.${frequency}`, { count: value })}
       />
@@ -113,7 +113,7 @@ export function RecurrenceEditor({
             label={t('repeat.monthDayLabel')}
             value={monthDay ?? 1}
             min={1}
-            max={31}
+            max={tasksConfig.maxMonthDay}
             onChange={(value) => field.onChange({ ...recurrence, monthDay: value })}
             format={(value) => t('repeat.monthDay', { day: value })}
           />

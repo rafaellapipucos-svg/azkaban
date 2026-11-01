@@ -22,6 +22,7 @@ import { useState } from 'react';
 import { useController, useForm } from 'react-hook-form';
 import { View } from 'react-native';
 import { z } from 'zod';
+import { tasksConfig } from './config';
 import { errorKey } from './format';
 import { defaultFormValues } from './formDefaults';
 import { useLastContext, useNow, useRefreshTasks } from './hooks';
@@ -143,7 +144,7 @@ export function QuickCreate({ contextId, onCreated }: Props) {
           label={t('quick.titleLabel')}
           errorText={t('form.titleRequired')}
           autoFocus
-          maxLength={120}
+          maxLength={tasksConfig.titleMaxLength}
           returnKeyType="done"
           onSubmitEditing={() => void submit()}
         />

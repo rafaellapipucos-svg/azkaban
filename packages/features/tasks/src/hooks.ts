@@ -64,6 +64,7 @@ export function useOccurrenceLists({ days, mineOnly }: { days: number; mineOnly:
     timezone,
     loading: !ready || window.isPending || overdue.isPending,
     failed: window.isError || overdue.isError,
+    refetch: () => Promise.all([window.refetch(), overdue.refetch()]),
   };
 }
 
@@ -199,6 +200,26 @@ export function useRefreshTasks() {
 
 export const materializeKey = ['materialize-tasks'];
 
+async function updatePending(change: (ids: string[]) => string[]) {
+  try {
+    const stored = await storage.getItem(tasksConfig.pendingMaterializeKey);
+    const ids = change(stored ? (JSON.parse(stored) as string[]) : []);
+    await storage.setItem(tasksConfig.pendingMaterializeKey, JSON.stringify(ids));
+  } catch {
+    // Remembering is a safeguard; without it the daily job still fills the gap.
+  }
+}
+
+/** Tasks whose request never finished, such as when the page was closed while it ran. */
+export async function readPendingMaterialization(): Promise<string[]> {
+  try {
+    const stored = await storage.getItem(tasksConfig.pendingMaterializeKey);
+    return stored ? (JSON.parse(stored) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 /**
  * Creates the occurrences of repeating tasks in the background, then refreshes the lists. The screen
  * that saved has already gone back by then: the request lives in the mutation cache, so
@@ -208,7 +229,12 @@ export function useMaterializeTasks() {
   const refresh = useRefreshTasks();
   return useMutation({
     mutationKey: materializeKey,
-    mutationFn: tasksRepository.materializeTasks,
+    mutationFn: async (taskIds: string[]) => {
+      // Written first and cleared only on success: a reload in the middle must not lose the work.
+      await updatePending((ids) => [...new Set([...ids, ...taskIds])]);
+      await tasksRepository.materializeTasks(taskIds);
+      await updatePending((ids) => ids.filter((id) => !taskIds.includes(id)));
+    },
     onSettled: refresh,
   });
 }

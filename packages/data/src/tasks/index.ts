@@ -159,16 +159,6 @@ const toInsertRow = (input: TaskInput, rrule: string | null) => ({
 // ADR gives it a meaning (p_rrule null: stop repeating).
 const sqlNull = (value: string | null) => value as string;
 
-async function materialize(taskIds: string[]) {
-  if (taskIds.length === 0) return;
-  // A failure does not undo the edit: the daily job fills the gap (handoff from backend-funcoes).
-  try {
-    await db().functions.invoke('materialize-occurrences', { body: { taskIds } });
-  } catch {
-    // Nothing to do here.
-  }
-}
-
 export const tasksRepository = {
   /** Occurrences that overlap `[from, to)`, cancelled and archived ones left out. */
   async listOccurrences({
@@ -248,6 +238,19 @@ export const tasksRepository = {
     });
     if (error) throw new TaskError(null, { cause: error });
     return materializeResponseSchema.parse(data).inserted;
+  },
+
+  /**
+   * Asks the Edge Function to create the occurrences of these repeating tasks. Throws when it fails,
+   * so the screen can say so and offer a retry: until the daily job runs, the tasks have no
+   * occurrence to show. Safe to repeat.
+   */
+  async materializeTasks(taskIds: string[]): Promise<void> {
+    if (taskIds.length === 0) return;
+    const { error } = await db().functions.invoke('materialize-occurrences', {
+      body: { taskIds },
+    });
+    if (error) throw new TaskError(null, { cause: error });
   },
 
   /**
@@ -365,7 +368,11 @@ export const tasksRepository = {
     }));
   },
 
-  /** Returns the new task's id. A repeating task gets its occurrences from the Edge Function. */
+  /**
+   * Returns the new task's id. A repeating task gets its occurrences from the Edge Function, which
+   * the caller starts with `materializeTasks`: saving does not wait for it, because a cold start
+   * takes several seconds.
+   */
   async create(input: TaskInput, rrule: string | null): Promise<string> {
     const { data, error } = await db()
       .from('tasks')
@@ -373,7 +380,6 @@ export const tasksRepository = {
       .select('id')
       .single();
     if (error) throw toTaskError(error);
-    if (rrule) await materialize([data.id]);
     return data.id;
   },
 
@@ -383,9 +389,7 @@ export const tasksRepository = {
     const rows = assigneeIds.map((assigneeId) => toInsertRow({ ...rest, assigneeId }, rrule));
     const { data, error } = await db().from('tasks').insert(rows).select('id');
     if (error) throw toTaskError(error);
-    const ids = data.map(({ id }) => id);
-    if (rrule) await materialize(ids);
-    return ids;
+    return data.map(({ id }) => id);
   },
 
   async setStatus({
@@ -405,8 +409,8 @@ export const tasksRepository = {
   },
 
   /**
-   * `rrule` and `headRrule` come from `planEdit` in core. Materializes the tasks the RPC names.
-   * Returns the ids so the caller can refresh them.
+   * `rrule` and `headRrule` come from `planEdit` in core. Returns the ids of the tasks the RPC
+   * created or changed, which a repeating edit passes to `materializeTasks`.
    */
   async edit(
     { occurrenceId, scope, task }: TaskEditInput,
@@ -420,7 +424,6 @@ export const tasksRepository = {
       p_head_rrule: sqlNull(headRrule),
     });
     if (error) throw toTaskError(error);
-    await materialize(data);
     return data;
   },
 

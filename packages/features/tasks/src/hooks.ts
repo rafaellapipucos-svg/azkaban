@@ -197,6 +197,22 @@ export function useRefreshTasks() {
   );
 }
 
+export const materializeKey = ['materialize-tasks'];
+
+/**
+ * Creates the occurrences of repeating tasks in the background, then refreshes the lists. The screen
+ * that saved has already gone back by then: the request lives in the mutation cache, so
+ * `MaterializeStatus` can show it running, or failed with a retry, from any tab.
+ */
+export function useMaterializeTasks() {
+  const refresh = useRefreshTasks();
+  return useMutation({
+    mutationKey: materializeKey,
+    mutationFn: tasksRepository.materializeTasks,
+    onSettled: refresh,
+  });
+}
+
 /** A short confirmation, such as "Tarefa criada", that disappears by itself. */
 export function useNotice() {
   const [shown, setShown] = useState(false);

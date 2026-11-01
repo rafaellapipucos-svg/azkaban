@@ -143,23 +143,23 @@ test('this and the following refuses a count that does not pass the days already
   await expect(page.getByRole('heading', { name: 'Editar tarefa' })).toBeVisible();
 });
 
-// BUG (qa-phase-2, handoff to tarefas-calendario): saving "this and the following" from a day
-// after the first deletes the occurrence that was open, and the form goes back to its detail screen,
-// which now says it cannot find the task. Remove `test.fail` when the screen lands somewhere that exists.
-test.fail(
-  'after this and the following the user does not land on a "task not found" screen',
-  async ({ page }) => {
-    await signUpWithContext(page, 'Perdida');
-    await createCountedSeries(page, 'Oficina', 5);
-    await page.goto('/area/work');
-    await expect(rows(page, 'Oficina')).toHaveCount(5);
+// Saving "this and the following" from a day after the first deletes the occurrence that was open
+// (ADR-0005 section 8). The form used to go back to its detail screen, which then said it could not
+// find the task; now it lands on the list.
+test('after this and the following the user does not land on a "task not found" screen', async ({
+  page,
+}) => {
+  await signUpWithContext(page, 'Perdida');
+  await createCountedSeries(page, 'Oficina', 5);
+  await page.goto('/area/work');
+  await expect(rows(page, 'Oficina')).toHaveCount(5);
 
-    await page.getByText('Oficina', { exact: true }).nth(2).click();
-    await button(page, 'Editar').click();
-    await button(page, 'Esta e as próximas').click();
-    await page.getByLabel('O que precisa ser feito?').fill('Oficina nova');
-    await button(page, 'Salvar').click();
-    await expect(page.getByRole('heading', { name: 'Editar tarefa' })).toHaveCount(0);
-    await expect(page.getByText('Não encontramos esta tarefa.')).toHaveCount(0);
-  },
-);
+  await page.getByText('Oficina', { exact: true }).nth(2).click();
+  await button(page, 'Editar').click();
+  await button(page, 'Esta e as próximas').click();
+  await page.getByLabel('O que precisa ser feito?').fill('Oficina nova');
+  await button(page, 'Salvar').click();
+  await expect(page.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
+  await expect(page.getByText('Não encontramos esta tarefa.')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: 'Editar tarefa' })).toHaveCount(0);
+});

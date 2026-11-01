@@ -5,5 +5,29 @@
     "partial": "Tentei",
     "missed": "Não feito",
     "cancelled": "Cancelado"
+  },
+  "mascot": {
+    "happy": "Broto, o mascote, feliz",
+    "celebrating": "Broto, o mascote, comemorando",
+    "worried": "Broto, o mascote, preocupado",
+    "sleeping": "Broto, o mascote, dormindo"
+  },
+  "tabs": {
+    "areas": "Início",
+    "groups": "Grupos",
+    "profile": "Perfil"
+  },
+  "actions": {
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "back": "Voltar"
+  },
+  "errors": {
+    "generic": "Algo deu errado. Tente de novo."
+  },
+  "roles": {
+    "owner": "Dono",
+    "admin": "Administrador",
+    "member": "Membro"
   }
 }

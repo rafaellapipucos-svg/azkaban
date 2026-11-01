@@ -4,25 +4,25 @@ Status: a fazer, em andamento, bloqueado, em revisão, feito. Handoffs em [hando
 
 ## Fase 0: Fundação
 
-| ID   | Título                                                    | Agente       | Status     | Depende de | Branch                   | Handoff |
-| ---- | --------------------------------------------------------- | ------------ | ---------- | ---------- | ------------------------ | ------- |
-| F0-1 | Documentação base, agentes, ADRs e quadro                 | orquestrador | em revisão | —          | chore/phase-0-foundation | —       |
-| F0-2 | Scaffold do monorepo, config, i18n, tokens e tela inicial | orquestrador | em revisão | F0-1       | chore/phase-0-foundation | —       |
-| F0-3 | Lint, fronteiras, hooks, CI e Supabase local              | orquestrador | em revisão | F0-2       | chore/phase-0-foundation | —       |
+| ID   | Título                                                    | Agente       | Status | Depende de | Branch                   | Handoff |
+| ---- | --------------------------------------------------------- | ------------ | ------ | ---------- | ------------------------ | ------- |
+| F0-1 | Documentação base, agentes, ADRs e quadro                 | orquestrador | feito  | —          | chore/phase-0-foundation | —       |
+| F0-2 | Scaffold do monorepo, config, i18n, tokens e tela inicial | orquestrador | feito  | F0-1       | chore/phase-0-foundation | —       |
+| F0-3 | Lint, fronteiras, hooks, CI e Supabase local              | orquestrador | feito  | F0-2       | chore/phase-0-foundation | —       |
 
 ## Fase 1: Contas e grupos
 
-| ID   | Título                                                                                  | Agente             | Status  | Depende de | Branch | Handoff |
-| ---- | --------------------------------------------------------------------------------------- | ------------------ | ------- | ---------- | ------ | ------- |
-| F1-1 | Contratos de perfil, grupo, papel e contexto                                            | arquiteto          | a fazer | F0         | —      | —       |
-| F1-2 | Migrations de profiles, groups, members, invites, permissões, areas e contexts, com RLS | banco-de-dados     | a fazer | F1-1       | —      | —       |
-| F1-3 | Testes de RLS de grupos e seeds de áreas e permissões                                   | banco-de-dados     | a fazer | F1-2       | —      | —       |
-| F1-4 | Tema claro e escuro, componentes base, conceito de mascote, /design-system              | design-system      | a fazer | F1-1       | —      | —       |
-| F1-5 | Login por e-mail, senha e link mágico; perfil                                           | auth-grupos        | a fazer | F1-2, F1-4 | —      | —       |
-| F1-6 | Grupos, convites por link, código e QR, papéis, posse                                   | auth-grupos        | a fazer | F1-5       | —      | —       |
-| F1-7 | `can()` em core e teste de espelho com o banco                                          | auth-grupos        | a fazer | F1-2       | —      | —       |
-| F1-8 | Áreas e contextos: abas, sub-abas e cadastro                                            | tarefas-calendario | a fazer | F1-6       | —      | —       |
-| F1-9 | Onboarding com boas-vindas e login                                                      | auth-grupos        | a fazer | F1-5       | —      | —       |
+| ID   | Título                                                                                  | Agente             | Status     | Depende de | Branch                | Handoff |
+| ---- | --------------------------------------------------------------------------------------- | ------------------ | ---------- | ---------- | --------------------- | ------- |
+| F1-1 | Contratos de perfil, grupo, papel e contexto                                            | arquiteto          | em revisão | F0         | feat/phase-1-accounts | —       |
+| F1-2 | Migrations de profiles, groups, members, invites, permissões, areas e contexts, com RLS | banco-de-dados     | em revisão | F1-1       | feat/phase-1-accounts | —       |
+| F1-3 | Testes de RLS de grupos e seeds de áreas e permissões                                   | banco-de-dados     | em revisão | F1-2       | feat/phase-1-accounts | —       |
+| F1-4 | Tema claro e escuro, componentes base, conceito de mascote, /design-system              | design-system      | em revisão | F1-1       | feat/phase-1-accounts | —       |
+| F1-5 | Login por e-mail, senha e link mágico; perfil                                           | auth-grupos        | em revisão | F1-2, F1-4 | feat/phase-1-accounts | —       |
+| F1-6 | Grupos, convites por link, código e QR, papéis, posse                                   | auth-grupos        | em revisão | F1-5       | feat/phase-1-accounts | —       |
+| F1-7 | `can()` em core e teste de espelho com o banco                                          | auth-grupos        | em revisão | F1-2       | feat/phase-1-accounts | —       |
+| F1-8 | Áreas e contextos: abas, sub-abas e cadastro                                            | tarefas-calendario | em revisão | F1-6       | feat/phase-1-accounts | —       |
+| F1-9 | Onboarding com boas-vindas e login                                                      | auth-grupos        | em revisão | F1-5       | feat/phase-1-accounts | —       |
 
 ## Fase 2: Tarefas e calendário
 

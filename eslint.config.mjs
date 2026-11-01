@@ -21,9 +21,23 @@ export default tseslint.config(
   { files: ['packages/platform/**'], rules: { 'no-restricted-globals': 'off' } },
   {
     // Config files run in Node and legitimately use CommonJS.
-    files: ['**/*.cjs', '**/metro.config.js', '**/babel.config.js', '**/tailwind.config.ts'],
+    files: [
+      '**/*.cjs',
+      '**/metro.config.js',
+      '**/babel.config.js',
+      '**/tailwind.config.ts',
+      'scripts/**',
+      'e2e/**',
+      'playwright.config.ts',
+    ],
     languageOptions: {
-      globals: { module: 'writable', require: 'readonly', __dirname: 'readonly' },
+      globals: {
+        module: 'writable',
+        require: 'readonly',
+        __dirname: 'readonly',
+        console: 'readonly',
+        process: 'readonly',
+      },
     },
     rules: { '@typescript-eslint/no-require-imports': 'off' },
   },

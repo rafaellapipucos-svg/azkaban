@@ -6,7 +6,13 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@azkaban/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "catalog:"
+  }
 }

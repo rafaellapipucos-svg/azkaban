@@ -6,3 +6,6 @@ pnpm-lock.yaml
 supabase/.temp
 docs/PROMPT_MESTRE.md
 apps/app/tsconfig.json
+packages/data/src/database.types.ts
+playwright-report
+test-results

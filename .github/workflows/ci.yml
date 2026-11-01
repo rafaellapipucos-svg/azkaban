@@ -21,9 +21,20 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: pnpm build:web
+        env:
+          EXPO_PUBLIC_APP_NAME: CI
+          EXPO_PUBLIC_APP_SCHEME: azkaban
+          EXPO_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci
 
-  migrations:
+  database-and-e2e:
     runs-on: ubuntu-latest
+    env:
+      # The demo values every local Supabase prints; not secrets.
+      EXPO_PUBLIC_APP_NAME: CI
+      EXPO_PUBLIC_APP_SCHEME: azkaban
+      EXPO_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -32,5 +43,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec supabase db start
-      - run: pnpm db:reset
+      - run: pnpm db:start
+      - run: pnpm db:test
+      - run: pnpm db:check-permissions
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm e2e

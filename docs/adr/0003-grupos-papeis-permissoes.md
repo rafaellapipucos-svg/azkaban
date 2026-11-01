@@ -1,6 +1,6 @@
 # ADR-0003: Grupos, papéis e permissões
 
-**Status:** proposto, aguardando validação do humano na Fase 0. A implementação é da Fase 1.
+**Status:** aceito na aprovação da Fase 0. A implementação é da Fase 1.
 
 ## Contexto
 

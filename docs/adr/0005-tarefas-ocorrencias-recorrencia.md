@@ -133,13 +133,13 @@ O banco é o único escritor de `xp_events`, no trigger da transição, de forma
 - `after_count` no formulário conta a partir do início da tarefa editada, como o editor mostra o `COUNT` dela. A tarefa nova recebe esse valor menos as ocorrências antes do pivô, então manter o número não alonga a série. As ocorrências em `exdates` entram na conta, como no RFC 5545. Um valor que não passa do pivô é erro: `count_before_pivot`, em `packages/core`.
 - `all` vale para o trecho da série, não para os trechos já divididos. A exceção é excluir.
 - Mudar `timezone` em `all` é mudança de agenda.
-- Em tarefa avulsa, todo escopo equivale a `all`, e mudar a agenda exige ocorrência `pending`.
+- Ao editar uma tarefa avulsa, todo escopo equivale a `all`, e mudar a agenda exige ocorrência `pending`.
 - Reagendar é editar com escopo `this`. Para reagendar uma `missed`, primeiro se reabre.
 - Duplicar é ler a tarefa e criar outra. Não precisa de RPC.
 
 Dias excluídos: um dia excluído ou destacado nunca volta por edição da série.
 
-- `exdates` guarda o dia local da instância, no fuso da tarefa. Mudar hora ou fuso em `all` não toca na lista, porque o dia continua o mesmo. Isso funciona porque as regras do app têm no máximo uma ocorrência por dia local.
+- `exdates` guarda o dia local da instância, no fuso da tarefa. Mudar hora ou fuso em `all` não altera os dias já na lista, porque o dia continua o mesmo. Isso funciona porque as regras do app têm no máximo uma ocorrência por dia local.
 - `expandOccurrences`, em `packages/core`, pula a instância cujo dia local está na lista.
 - `edit_task` grava o dia original em `this`. `set_occurrence_status` grava o dia ao levar para `cancelled` uma ocorrência de tarefa recorrente, e `delete_task` com `this` passa por ela.
 - As `cancelled` internas de `edit_task`, por mudança de agenda, não gravam nada: ali o dia continua na série, e a materialização o recria no novo horário.
@@ -156,6 +156,25 @@ Excluir:
 | `this`               | Transição para `cancelled`, e o dia local entra em `exdates`. A linha fica como registro        |
 | `this_and_following` | `UNTIL` como acima, e as pendentes do pivô em diante viram `cancelled`                          |
 | `all`                | `archived_at` na tarefa e nas descendentes por `parent_task_id`; as pendentes viram `cancelled` |
+
+Confirmado na revisão das migrations `20261101130*`:
+
+- "Pendentes futuras" são as com `scheduled_start >= now()`. Uma ocorrência já iniciada fica.
+- Tarefa arquivada recusa mudança de status com `forbidden`, então `delete all` não tem desfazer na Fase 2, e a tela pede confirmação. Os dados ficam, para uma restauração futura.
+- `delete this` em tarefa avulsa só cancela, e `cancelled → pending` desfaz. Arquivar é `all`.
+- `p_rrule` nulo em `edit_task` significa deixar de repetir.
+- O banco compara a string de `p_rrule`, e `toRRule` é estável: `toRRule(fromRRule(regra))` devolve a mesma string, inclusive nas regras de `splitRecurrence`, e a ordem dos dias da semana não importa. Verificado em 140 regras, em 5 fusos. Uma string diferente causaria só uma rematerialização a mais.
+- `status_reason` é por transição, e reabrir o apaga. O histórico guarda todos.
+- Em `this_and_following`, os `cancelled` internos ficam na tarefa original, e os do usuário acompanham as resolvidas para a nova. Os dias dos dois lados continuam em `exdates`.
+- Trocar o responsável para ex-membro falha com `assignee_not_member`. `this` e `this_and_following` criam tarefa, então editar a série de um ex-membro por esses escopos exige escolher outro responsável.
+
+Corrigido na mesma revisão:
+
+- **Um dia, uma ocorrência.** Depois de mudar a agenda em `all` ou `this_and_following`, os dias locais, de hoje em diante, das linhas não canceladas que ficaram entram em `exdates` da tarefa que as mantém. Às 10h, mudar de 9h para 15h deixa a ocorrência de hoje às 9h, resolvível até o fim do dia, e a nova hora vale a partir de amanhã. Sem isso, nasceria uma segunda ocorrência no mesmo dia, e a antiga viraria `missed`.
+- **Reatribuir sem mudar a agenda** alcança as pendentes com `overdue_at > now()`, não só as não iniciadas. Um prazo que começou na segunda e vence na sexta precisa mudar de mãos.
+- **Deixar de repetir em `all`** trata todas as pendentes como futuras: tarefa avulsa tem no máximo uma pendente. Com duas, a edição seguinte falharia na unicidade por `(task_id, scheduled_start)`.
+
+Códigos de erro: entra em `taskErrorCodeSchema` o que um usuário alcança com o app correto e consegue resolver. Por isso entram `assignee_not_member`, `context_change_not_allowed` e `context_not_found`. Ficam fora `invalid_task`, `invalid_range` e `personal_context_requires_private_self`, que só acontecem por defeito do cliente e caem na mensagem genérica.
 
 ### 9. Quando alguém sai do grupo
 

@@ -211,7 +211,10 @@ export const xpEventSchema = z.object({
 });
 export type XpEvent = z.infer<typeof xpEventSchema>;
 
-/** Messages raised by the task RPCs, which the UI maps to i18n keys. */
+/**
+ * Messages raised by the task RPCs, which the UI maps to i18n keys. Only what the correct app can
+ * reach and the user can act on; any other message is a client defect and gets the generic text.
+ */
 export const taskErrorCodeSchema = z.enum([
   'forbidden',
   'invalid_transition',
@@ -219,6 +222,9 @@ export const taskErrorCodeSchema = z.enum([
   'reason_required',
   'late_window_expired',
   'occurrence_not_pending',
+  'assignee_not_member',
+  'context_change_not_allowed',
+  'context_not_found',
 ]);
 export type TaskErrorCode = z.infer<typeof taskErrorCodeSchema>;
 

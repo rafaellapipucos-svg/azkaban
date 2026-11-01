@@ -55,15 +55,17 @@ Status: a fazer, em andamento, bloqueado, em revisão, feito. Handoffs em [hando
 
 ## Fase 4: Notificações
 
-| ID   | Título                                                       | Agente                | Status  | Depende de | Branch | Handoff |
-| ---- | ------------------------------------------------------------ | --------------------- | ------- | ---------- | ------ | ------- |
-| F4-1 | Migrations de preferências, push_subscriptions e outbox      | banco-de-dados        | a fazer | F2         | —      | —       |
-| F4-2 | `dispatch-notifications` com pg_cron, idempotência e backoff | backend-funcoes       | a fazer | F4-1       | —      | —       |
-| F4-3 | Canal in-app com Realtime e sino                             | notificacoes-whatsapp | a fazer | F4-1       | —      | —       |
-| F4-4 | Web Push, PWA e service worker, com explicação para iPhone   | notificacoes-whatsapp | a fazer | F4-2       | —      | —       |
-| F4-5 | Tela de preferências e horário de silêncio                   | notificacoes-whatsapp | a fazer | F4-1       | —      | —       |
-| F4-6 | Job de vermelho automático                                   | backend-funcoes       | a fazer | F2-3       | —      | —       |
-| F4-7 | Avisos ao admin                                              | notificacoes-whatsapp | a fazer | F4-2       | —      | —       |
+| ID   | Título                                                                                                     | Agente                | Status  | Depende de | Branch | Handoff                                                                         |
+| ---- | ---------------------------------------------------------------------------------------------------------- | --------------------- | ------- | ---------- | ------ | ------------------------------------------------------------------------------- |
+| F4-1 | Migrations de preferências, push_subscriptions e outbox                                                    | banco-de-dados        | a fazer | F2         | —      | —                                                                               |
+| F4-2 | `dispatch-notifications` com pg_cron, idempotência e backoff                                               | backend-funcoes       | a fazer | F4-1       | —      | —                                                                               |
+| F4-3 | Canal in-app com Realtime e sino                                                                           | notificacoes-whatsapp | a fazer | F4-1       | —      | —                                                                               |
+| F4-4 | Web Push, PWA e service worker, com explicação para iPhone                                                 | notificacoes-whatsapp | a fazer | F4-2       | —      | —                                                                               |
+| F4-5 | Tela de preferências e horário de silêncio                                                                 | notificacoes-whatsapp | a fazer | F4-1       | —      | —                                                                               |
+| F4-6 | Job de vermelho automático                                                                                 | backend-funcoes       | a fazer | F2-3       | —      | —                                                                               |
+| F4-7 | Avisos ao admin                                                                                            | notificacoes-whatsapp | a fazer | F4-2       | —      | —                                                                               |
+| F4-8 | Devolver `failed` e `deferred` da materialização ao cliente e criar `taskDefaults.materializationPastDays` | backend-funcoes       | a fazer | F2         | —      | 20261101-1604-backend-funcoes-para-arquiteto-limite-de-cpu-da-materializacao.md |
+| F4-9 | PWA, manifest, `theme-color` e título por tela, com marcos de página                                       | notificacoes-whatsapp | a fazer | F4-4       | —      | 20261101-1509-tarefas-calendario-para-arquiteto-casca-do-app-resolvida.md       |
 
 ## Fase 5: WhatsApp
 

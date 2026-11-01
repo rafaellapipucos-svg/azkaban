@@ -532,3 +532,17 @@
 - **Verificado:** `pnpm db:test` (56 + 369 asserts), `pnpm db:check-permissions`, `pnpm check` e os 12 testes de `pnpm functions:test` passam. A trava do `net` falhou quando `net` foi posto em `api.schemas` de propósito.
 - **Não verificado:** nada foi aplicado no projeto hospedado; a lista de fusos do Postgres hospedado pode diferir da local.
 - **Pendências / próximos passos:** o código `private_with_other_assignee` não está em `taskErrorCodeSchema`; o `arquiteto` decide se a tela o traduz. `this` com `private` não recebeu a mesma checagem.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 16:26 (BRT)
+
+- **Branch:** feat/phase-2-tasks, sobre feat/phase-1-accounts
+- **Agente(s):** orquestrador, integrando arquiteto, banco-de-dados, backend-funcoes, design-system, tarefas-calendario, auth-grupos, qa-testes e revisor-seguranca
+- **Resumo:** Fase 2 integrada e verificada no checkout principal: tarefas, ocorrências, recorrência, Hoje, abas por área, calendário e Equipe. Aguarda validação do humano.
+- **Alterações:** ver as entradas de cada agente. O orquestrador moveu as portas locais do Supabase para 544xx, criou `pnpm functions:test`, levou o teste da função ao CI e ampliou o QUADRO com F4-8 e F4-9.
+- **Arquivos/módulos principais:** `docs/agentes/QUADRO.md`, `.github/workflows/ci.yml`, `supabase/config.toml`
+- **Migrations:** 23 novas nesta fase, aplicadas só no banco local.
+- **Decisões/ADRs:** ADR-0005 e ADR-0006. Navegação: Hoje, uma aba por área, Calendário e Perfil. `date-fns-tz` fora da stack, com defeito de fuso reproduzido pelo orquestrador.
+- **Como testar:** `pnpm db:start`, `pnpm exec supabase functions serve`, `pnpm dev`; depois `pnpm db:test`, `pnpm db:check-permissions`, `pnpm check`, `pnpm functions:test` e `pnpm e2e`.
+- **Verificado no estado final:** banco limpo com 425 asserts, espelhos em dia, tipos, 421 testes de core, lint, fronteiras, build web, 12 testes da função e 34 E2E em duas rodadas seguidas.
+- **Não verificado:** CI desta fase, projeto hospedado, deploy da função, iOS, Android e leitor de tela real. A falha de `supabase start` na primeira tentativa desta verificação foi passageira, e a causa não foi investigada.
+- **Pendências / próximos passos:** validação do humano, as duas decisões da seção 11 do ADR-0005, as faixas provisórias da Equipe e a saída de `date-fns-tz`. Antes do deploy, conferir "Exposed schemas" e `pg_graphql` no projeto hospedado.

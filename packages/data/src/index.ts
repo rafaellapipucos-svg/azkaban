@@ -1,0 +1,1 @@
+export { createDataClient } from './client';

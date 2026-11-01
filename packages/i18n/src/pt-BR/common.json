@@ -1,0 +1,9 @@
+{
+  "status": {
+    "pending": "Pendente",
+    "done": "Feito",
+    "partial": "Tentei",
+    "missed": "Não feito",
+    "cancelled": "Cancelado"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@azkaban/feature-auth",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@azkaban/i18n": "workspace:*",
+    "@azkaban/ui": "workspace:*",
+    "react": "catalog:",
+    "react-native": "catalog:"
+  }
+}

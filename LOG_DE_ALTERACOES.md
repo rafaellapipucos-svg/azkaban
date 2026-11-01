@@ -410,3 +410,26 @@
 - **Verificado:** `pnpm check` e `pnpm build:web` passam. No Chromium (Playwright) a 375px, nos dois temas: três chips longos com 343px de largura, sem rolagem lateral; Espaço alterna `switch`, `TaskCheck`, `Chip` de várias escolhas, `Chip` de escolha única e `SegmentedControl`, sem rolar a página; Enter e clique seguem alternando; títulos saem `h1`, `h2` e `h3`; o diálogo tem nome e, depois de Esc, o foco volta para "Abrir folha" mesmo com o campo da folha em foco automático. axe-core 4.10.2 (de fora do repositório) em `/design-system`: zero violações de contraste, `aria-allowed-attr`, `aria-dialog-name` e `aria-prohibited-attr`; sobram `region` (a página não tem landmarks) e uma barra de progresso sem nome que é a do indicador de carregamento do Expo, não do app.
 - **Não verificado:** nada rodou em iOS, Android nem leitor de tela real; o nativo só passou no typecheck (o `Sheet` não foi visto no nativo). `QuickCreate` e `StatusActions` com dados não foram abertos (sem Supabase), só o equivalente em `/design-system`. `pnpm e2e` não rodou. A barra de abas apertada (item 6 do QA) não foi tocada.
 - **Pendências / próximos passos:** `tarefas-calendario` troca o `StatusMark` do calendário (handoff de 14:09) e pode usar `Subtitle level={3}` em nomes de item. O Metro da web não pegou edições feitas depois da primeira compilação neste worktree; foi preciso reiniciar o servidor a cada rodada.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 14:09 (BRT)
+
+- **Branch:** feat/tasks-db-security, criada a partir de feat/phase-2-tasks
+- **Agente(s):** banco-de-dados
+- **Resumo:** Achados da revisão de segurança da Fase 2 no banco, mais `team_overview` no fuso de quem vê. Os testes foram escritos antes e falharam.
+- **Alterações:**
+  - `tasks.rrule` só aceita a gramática de `toRRule` e `splitRecurrence` (`is_valid_rrule` e CHECK `tasks_rrule_grammar_check`); `edit_task` e `delete_task` validam `p_rrule` e `p_head_rrule` com `invalid_rrule`. Conferido com 178 regras geradas por `packages/core`.
+  - A tarefa nova de `this` e `this_and_following` fica no mesmo grupo e dono do contexto da original (trigger, `context_change_not_allowed`).
+  - `can_view_task`: tarefa privada não aparece mais por causa de uma ocorrência antiga; isso fecha também `set_occurrence_status`, `edit_task` e as políticas de ocorrência e histórico.
+  - `delete_task` com `all` só arquiva descendentes que quem exclui pode excluir.
+  - CHECKs de datas (2000 a 2100) em `tasks` e `task_occurrences`; fuso só de `pg_timezone_names` (`invalid_timezone`).
+  - Compensação de XP por usuário e grupo do evento original, não pelo grupo atual da tarefa.
+  - Contexto arquivado não recebe tarefa nova (`context_archived`).
+  - `team_overview(p_group_id, p_from, p_to, p_timezone)`: dia no fuso do visualizador, `deadline` por `scheduled_due`.
+  - `packages/data`: `teamOverview` envia `p_timezone` (padrão: fuso do aparelho). Tipos regenerados. Handoffs para `backend-funcoes` e `tarefas-calendario`.
+- **Arquivos/módulos principais:** `supabase/migrations/20261101140000` a `20261101140800`, `supabase/tests/rls_tasks.test.sql`, `packages/data/src/tasks/index.ts`, `packages/data/src/database.types.ts`
+- **Migrations:** 20261101140000_task_rrule_grammar, 140100_rrule_validation_in_rpcs, 140200_task_parent_context_guard, 140300_can_view_private_task, 140400_task_archived_context, 140500_delete_task_tree_and_rrule, 140600_task_dates_and_zones, 140700_xp_compensation_by_group, 140800_team_overview_viewer_zone. Só no banco local.
+- **Decisões/ADRs:** pg_net não foi tocado: as concessões são de `supabase_admin`, e o `postgres` não consegue revogá-las ("no privileges could be revoked"). O PostgREST não expõe o schema `net` (`PGRST106`), então `anon` e `authenticated` não o alcançam pela API. O teto de XP e a conclusão antecipada ficam para a Fase 6.
+- **Como testar:** `pnpm db:start`, `pnpm db:reset`, `pnpm db:test`, `pnpm db:check-permissions`, `pnpm check`.
+- **Verificado:** `pnpm db:test` (56 + 356 asserts), `pnpm db:check-permissions` e `pnpm check` passam. O teste de integração de `materialize-occurrences` passa nos 9 casos com o padrão de regra trocado para `FREQ=WEEKLY;BYDAY=...` (cópia fora da pasta da função); sem a troca, 7 falham no CHECK novo, porque `FREQ=WEEKLY` sem `BYDAY` não é uma regra que o app escreve.
+- **Não verificado:** nada foi aplicado no projeto hospedado; as concessões do `net` não foram vistas lá.
+- **Pendências / próximos passos:** `backend-funcoes` troca o padrão da linha 104 do teste de integração; `tarefas-calendario` passa o fuso do perfil a `teamOverview`; decidir o que fazer com o `net` no projeto hospedado.

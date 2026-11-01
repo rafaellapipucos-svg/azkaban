@@ -250,20 +250,26 @@ export const tasksRepository = {
     return materializeResponseSchema.parse(data).inserted;
   },
 
-  /** Per member and local day, for a group the user can view (`task.view_group`). */
+  /**
+   * Per member and local day in the viewer's zone, for a group the user can view (`task.view_group`).
+   * The zone defaults to the device's, until the team screen passes the profile's.
+   */
   async teamOverview({
     groupId,
     from,
     to,
+    timezone = Intl.DateTimeFormat().resolvedOptions().timeZone,
   }: {
     groupId: string;
     from: string;
     to: string;
+    timezone?: string;
   }): Promise<TeamOverviewRow[]> {
     const { data, error } = await db().rpc('team_overview', {
       p_group_id: groupId,
       p_from: from,
       p_to: to,
+      p_timezone: timezone,
     });
     if (error) throw toTaskError(error);
     return data.map((row) => ({

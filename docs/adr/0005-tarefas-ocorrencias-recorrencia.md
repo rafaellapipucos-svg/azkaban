@@ -27,7 +27,7 @@ Sim, uma ocorrência pode ser resolvida depois do horário, inclusive a partir d
 - `task_occurrences` ganha `overdue_at`. `partial_reason` vira `status_reason`, que vale para qualquer mudança e alimenta o histórico. `proof_review_status` fica para a Fase 3.
 - `scheduled_start` e `scheduled_due` nunca são nulos: `start_at` ou, sem início, `due_at`; `due_at`, ou início + duração, ou a meia-noite local seguinte em `all_day`. O início sem nulo mantém válida a unicidade por `(task_id, scheduled_start)`.
 - `tasks.parent_task_id` liga as partes de uma série dividida. `tasks.materialized_until` é o cursor da materialização.
-- `exdates` guarda instantes iguais ao `scheduled_start` excluído.
+- `exdates` é `date[]`: guarda dias locais no fuso da tarefa, não instantes. Regras na seção 8.
 - `status_changed_by` e `changed_by` nulos significam job, ou conta excluída.
 - Excluir é arquivar: `archived_at` na tarefa, sem `delete` para o cliente. A exclusão definitiva fica para F8-3.
 - O cliente não tem `update` nem `delete` em `tasks` e não escreve em `task_occurrences`, `task_status_history` nem `xp_events`. `tasks` aceita `insert` por coluna, com RLS.
@@ -122,7 +122,7 @@ O banco é o único escritor de `xp_events`, no trigger da transição, de forma
 
 | Escopo               | Tarefa original                                                      | Ocorrências                                                                                                                    | Tarefa nova                                                 |
 | -------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
-| `this`               | O instante entra em `exdates`                                        | A linha, que precisa estar `pending`, passa para a tarefa nova com o mesmo `id`                                                | Avulsa, com os campos do formulário                         |
+| `this`               | O dia local entra em `exdates`                                       | A linha, que precisa estar `pending`, passa para a tarefa nova com o mesmo `id`                                                | Avulsa, com os campos do formulário                         |
 | `this_and_following` | `rrule` termina em `UNTIL`, logo antes do pivô; `COUNT` vira `UNTIL` | Do pivô em diante: resolvidas passam para a tarefa nova; pendentes sem histórico são apagadas; com histórico viram `cancelled` | Recorrente, a partir do pivô; `COUNT` guarda só o que resta |
 | `all`                | Atualizada; `materialized_until = now()` se a agenda mudou           | Resolvidas e passadas ficam. Pendentes futuras: se a agenda mudou, como acima; se não, recebem o novo responsável              | Nenhuma                                                     |
 
@@ -132,16 +132,28 @@ O banco é o único escritor de `xp_events`, no trigger da transição, de forma
 - O `UNTIL` da tarefa original é o fim do dia local anterior ao pivô, em UTC. Equivale a "logo antes do pivô", porque as regras do app têm no máximo uma ocorrência por dia local, e o editor volta a mostrar uma data simples.
 - `after_count` no formulário conta a partir do início da tarefa editada, como o editor mostra o `COUNT` dela. A tarefa nova recebe esse valor menos as ocorrências antes do pivô, então manter o número não alonga a série. As ocorrências em `exdates` entram na conta, como no RFC 5545. Um valor que não passa do pivô é erro: `count_before_pivot`, em `packages/core`.
 - `all` vale para o trecho da série, não para os trechos já divididos. A exceção é excluir.
-- Mudar `timezone` em `all` é mudança de agenda. A RPC `edit_task`, única que escreve `exdates`, regrava cada instante mantendo a hora local: `(x at time zone antigo) at time zone novo`. Voltar ao fuso anterior desfaz a troca. Um instante que ainda assim não casar, porque a hora também mudou, fica inerte, como em qualquer mudança de horário.
+- Mudar `timezone` em `all` é mudança de agenda.
 - Em tarefa avulsa, todo escopo equivale a `all`, e mudar a agenda exige ocorrência `pending`.
 - Reagendar é editar com escopo `this`. Para reagendar uma `missed`, primeiro se reabre.
 - Duplicar é ler a tarefa e criar outra. Não precisa de RPC.
+
+Dias excluídos: um dia excluído ou destacado nunca volta por edição da série.
+
+- `exdates` guarda o dia local da instância, no fuso da tarefa. Mudar hora ou fuso em `all` não toca na lista, porque o dia continua o mesmo. Isso funciona porque as regras do app têm no máximo uma ocorrência por dia local.
+- `expandOccurrences`, em `packages/core`, pula a instância cujo dia local está na lista.
+- `edit_task` grava o dia original em `this`. `set_occurrence_status` grava o dia ao levar para `cancelled` uma ocorrência de tarefa recorrente, e `delete_task` com `this` passa por ela.
+- As `cancelled` internas de `edit_task`, por mudança de agenda, não gravam nada: ali o dia continua na série, e a materialização o recria no novo horário.
+- Em `this_and_following`, a tarefa nova herda os dias a partir do pivô.
+- Série que muda de dias da semana: um dia fora da regra nova fica inerte na lista e volta a valer se a série voltar a ele. A exclusão é daquele dia e não se desloca: sábado excluído não exclui o domingo de uma série que passou para domingo.
+- A linha `cancelled` antiga fica onde está, como registro, mesmo com a hora antiga. O dia é filtrado antes do `insert`, então `on conflict` nem chega a agir e não nasce linha nova.
+- Reabrir não tira o dia de `exdates`: a linha reaberta já é a ocorrência daquele dia, e a lista impede uma duplicata.
+- `on conflict do nothing` só decide um caso: uma `cancelled` interna cujo instante também exista na regra nova. O dia fica cancelado, e quem é `deleter` o reabre. O erro possível é faltar um dia, nunca duplicar.
 
 Excluir:
 
 | Escopo               | Efeito                                                                                          |
 | -------------------- | ----------------------------------------------------------------------------------------------- |
-| `this`               | Transição para `cancelled`. A linha fica, então a materialização não a recria                   |
+| `this`               | Transição para `cancelled`, e o dia local entra em `exdates`. A linha fica como registro        |
 | `this_and_following` | `UNTIL` como acima, e as pendentes do pivô em diante viram `cancelled`                          |
 | `all`                | `archived_at` na tarefa e nas descendentes por `parent_task_id`; as pendentes viram `cancelled` |
 
@@ -160,6 +172,7 @@ Nada é apagado. A RLS corta o acesso, a materialização e o job de vermelho ig
 
 - **Tornar o vermelho definitivo:** simples, mas pune a honestidade e obriga o admin a resolver casos comuns.
 - **Janela contada a partir de `missed`:** o resultado dependeria do horário do job.
+- **`exdates` como instantes, remapeados em `edit_task`:** é a forma do RFC 5545, mas exige recalcular a lista a cada mudança de agenda, e o Postgres e `packages/core` podem discordar na hora repetida da virada de horário de verão. Nesse caso, o dia excluído voltaria.
 - **Colunas de exceção na ocorrência, para `this`:** cobririam só alguns campos, e cada campo novo exigiria outra coluna. Destacar a ocorrência serve para todos, mantém `id`, histórico e XP e equivale a um `VEVENT` de exceção do iCalendar.
 - **`original_start` na ocorrência:** dispensável, porque só ocorrências de tarefa avulsa mudam de horário.
 - **Trigger sem RPC:** o trigger não recebe motivo nem saberia dizer quem é o ator, e uma política de `update` não expressa a janela.
@@ -178,5 +191,6 @@ Nada é apagado. A RLS corta o acesso, a materialização e o job de vermelho ig
 - `all` depois de uma divisão não alcança trechos anteriores.
 - Depois de uma edição com mudança de agenda, a série fica sem as ocorrências futuras até a materialização responder. Se a chamada falhar, o cron diário repõe.
 - Antes de F4-6, nenhuma ocorrência fica `missed` sozinha, e depois da janela o responsável só consegue marcar `missed`.
-- Sequências de "só esta" criam uma linha em `tasks` por exceção, o mesmo custo de um arquivo iCalendar. A exportação `.ics` da seção 7.9 sai quase direta desse modelo.
+- Sequências de "só esta" criam uma linha em `tasks` por exceção, o mesmo custo de um arquivo iCalendar. A exportação `.ics` da seção 7.9 sai quase direta desse modelo: cada `EXDATE` é o dia em `exdates` com a hora da âncora.
+- Se um dia as regras permitirem duas ocorrências no mesmo dia local, `exdates` terá de voltar a guardar instantes.
 - A Edge Function importa `packages/core`, o que exige import map no Deno.

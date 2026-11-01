@@ -98,7 +98,8 @@ export const taskSchema = z
     groupId: idSchema.nullable(),
     createdBy: idSchema.nullable(),
     rrule: z.string().nullable(),
-    exdates: z.array(instantSchema),
+    /** Local days, in `timezone`, so an edit to the time or the zone cannot bring one back. */
+    exdates: z.array(localDateSchema),
     /** The series this task was split or detached from. */
     parentTaskId: idSchema.nullable(),
     archivedAt: instantSchema.nullable(),

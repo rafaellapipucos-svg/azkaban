@@ -275,8 +275,11 @@ select is((select public from storage.buckets where id = 'task-proofs'), false, 
 select is((select file_size_limit from storage.buckets where id = 'task-proofs'), 2097152::bigint, 'it has the size limit of proofRules');
 select is((select allowed_mime_types from storage.buckets where id = 'task-proofs'), array['image/jpeg'], 'and only takes jpeg');
 select col_not_null('public', 'task_occurrences', 'auto_miss_at', 'auto_miss_at is never null');
+-- Only this test's users: the E2E run leaves challenges of its own in the same database.
 select is(
-  (select count(*) from public.proof_challenges), 0::bigint, 'nobody has a challenge yet');
+  (select count(*) from public.proof_challenges
+   where user_id in (pg_temp.u('a'), pg_temp.u('b'), pg_temp.u('c'), pg_temp.u('d'), pg_temp.u('e'), pg_temp.u('f'))),
+  0::bigint, 'nobody has a challenge yet');
 
 -- Context location: all of it or none
 select pg_temp.login(pg_temp.u('a'));

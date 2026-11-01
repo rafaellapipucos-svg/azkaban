@@ -14,7 +14,8 @@ export const tasksConfig = {
     weekStartsOn: 0,
     /**
      * Completion rate (done over everything due so far) at which a member is green or yellow;
-     * below `yellow` is red. Section 7.1 asks for the three colors, not for the cut-offs.
+     * below `yellow` is red. PROVISIONAL: section 7.1 asks for the three colors, not for the
+     * cut-offs, so 80% and 50% are a guess until the human validates them (ADR-0006 section 3).
      */
     bands: { green: 0.8, yellow: 0.5 },
   },

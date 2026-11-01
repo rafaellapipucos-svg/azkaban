@@ -263,18 +263,18 @@ export const tasksRepository = {
 
   /**
    * Per member and local day in the viewer's zone, for a group the user can view (`task.view_group`).
-   * The zone defaults to the device's, until the team screen passes the profile's.
+   * `timezone` is the profile's, not the device's (ADR-0006 section 1).
    */
   async teamOverview({
     groupId,
     from,
     to,
-    timezone = Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timezone,
   }: {
     groupId: string;
     from: string;
     to: string;
-    timezone?: string;
+    timezone: string;
   }): Promise<TeamOverviewRow[]> {
     const { data, error } = await db().rpc('team_overview', {
       p_group_id: groupId,

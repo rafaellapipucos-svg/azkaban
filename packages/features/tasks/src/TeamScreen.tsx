@@ -188,9 +188,10 @@ export function TeamScreen({ groupId }: { groupId: string }) {
     enabled: allowed,
   });
   const overview = useQuery({
-    queryKey: ['team-overview', groupId, first, last],
-    queryFn: () => tasksRepository.teamOverview({ groupId, from: first, to: last }),
-    enabled: allowed,
+    queryKey: ['team-overview', groupId, first, last, timezone],
+    // The days are counted in the viewer's zone (ADR-0006 section 1), so wait for the profile.
+    queryFn: () => tasksRepository.teamOverview({ groupId, from: first, to: last, timezone }),
+    enabled: allowed && ready,
   });
   const list = useMemo(
     () =>

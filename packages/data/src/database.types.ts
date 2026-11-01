@@ -23,7 +23,21 @@ export type Database = {
           }
         },"public": {
           Tables: {
-            "areas": {
+            "app_settings": {
+                  Row: {
+                    "key": string,"value": NonNullable<Json>
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "key": string,"value": NonNullable<Json>
+                  }
+                  Update: {
+                    "key"?: string,"value"?: NonNullable<Json>
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"areas": {
                   Row: {
                     "color_token": string,"i18n_key": string,"icon": string,"id": string,"key": string,"sort_order": number
                   }
@@ -173,6 +187,20 @@ isOneToOne: false
       referencedColumns: ["key"]
     }
                   ]
+                },"occurrence_transitions": {
+                  Row: {
+                    "actor": Database["public"]['Enums']["occurrence_actor"],"from_status": Database["public"]['Enums']["occurrence_status"],"to_status": Database["public"]['Enums']["occurrence_status"]
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "actor": Database["public"]['Enums']["occurrence_actor"],"from_status": Database["public"]['Enums']["occurrence_status"],"to_status": Database["public"]['Enums']["occurrence_status"]
+                  }
+                  Update: {
+                    "actor"?: Database["public"]['Enums']["occurrence_actor"],"from_status"?: Database["public"]['Enums']["occurrence_status"],"to_status"?: Database["public"]['Enums']["occurrence_status"]
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"permissions": {
                   Row: {
                     "key": string
@@ -221,6 +249,140 @@ isOneToOne: false
       referencedColumns: ["key"]
     }
                   ]
+                },"task_occurrences": {
+                  Row: {
+                    "assignee_id": string,"id": string,"late": boolean,"overdue_at": string,"scheduled_due": string,"scheduled_start": string,"status": Database["public"]['Enums']["occurrence_status"],"status_changed_at": string | null,"status_changed_by": string | null,"status_reason": string | null,"task_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "assignee_id": string,"id"?: string,"late"?: boolean,"overdue_at": string,"scheduled_due": string,"scheduled_start": string,"status"?: Database["public"]['Enums']["occurrence_status"],"status_changed_at"?: string | null,"status_changed_by"?: string | null,"status_reason"?: string | null,"task_id": string
+                  }
+                  Update: {
+                    "assignee_id"?: string,"id"?: string,"late"?: boolean,"overdue_at"?: string,"scheduled_due"?: string,"scheduled_start"?: string,"status"?: Database["public"]['Enums']["occurrence_status"],"status_changed_at"?: string | null,"status_changed_by"?: string | null,"status_reason"?: string | null,"task_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "task_occurrences_assignee_id_fkey"
+      columns: ["assignee_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "task_occurrences_status_changed_by_fkey"
+      columns: ["status_changed_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "task_occurrences_task_id_fkey"
+      columns: ["task_id"]
+isOneToOne: false
+      referencedRelation: "tasks"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"task_status_history": {
+                  Row: {
+                    "changed_at": string,"changed_by": string | null,"from_status": Database["public"]['Enums']["occurrence_status"],"id": string,"occurrence_id": string,"reason": string | null,"to_status": Database["public"]['Enums']["occurrence_status"]
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "changed_at"?: string,"changed_by"?: string | null,"from_status": Database["public"]['Enums']["occurrence_status"],"id"?: string,"occurrence_id": string,"reason"?: string | null,"to_status": Database["public"]['Enums']["occurrence_status"]
+                  }
+                  Update: {
+                    "changed_at"?: string,"changed_by"?: string | null,"from_status"?: Database["public"]['Enums']["occurrence_status"],"id"?: string,"occurrence_id"?: string,"reason"?: string | null,"to_status"?: Database["public"]['Enums']["occurrence_status"]
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "task_status_history_changed_by_fkey"
+      columns: ["changed_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "task_status_history_occurrence_id_fkey"
+      columns: ["occurrence_id"]
+isOneToOne: false
+      referencedRelation: "task_occurrences"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"tasks": {
+                  Row: {
+                    "archived_at": string | null,"assignee_id": string,"context_id": string,"created_at": string,"created_by": string | null,"difficulty": Database["public"]['Enums']["task_difficulty"],"due_at": string | null,"duration_min": number | null,"exdates": (string)[],"group_id": string | null,"id": string,"materialized_until": string | null,"notes": string | null,"parent_task_id": string | null,"priority": Database["public"]['Enums']["task_priority"],"reminders": NonNullable<Json>,"requires_admin_approval": boolean,"requires_partial_reason": boolean,"requires_photo_proof": boolean,"rrule": string | null,"schedule_type": Database["public"]['Enums']["schedule_type"],"start_at": string | null,"timezone": string,"title": string,"visibility": Database["public"]['Enums']["task_visibility"],"can_view_task": boolean | null
+                  }
+                  ComputedFields: "can_view_task"
+                  Insert: {
+                    "archived_at"?: string | null,"assignee_id": string,"context_id": string,"created_at"?: string,"created_by"?: string | null,"difficulty": Database["public"]['Enums']["task_difficulty"],"due_at"?: string | null,"duration_min"?: number | null,"exdates"?: (string)[],"group_id"?: string | null,"id"?: string,"materialized_until"?: string | null,"notes"?: string | null,"parent_task_id"?: string | null,"priority": Database["public"]['Enums']["task_priority"],"reminders": NonNullable<Json>,"requires_admin_approval": boolean,"requires_partial_reason": boolean,"requires_photo_proof": boolean,"rrule"?: string | null,"schedule_type": Database["public"]['Enums']["schedule_type"],"start_at"?: string | null,"timezone": string,"title": string,"visibility": Database["public"]['Enums']["task_visibility"]
+                  }
+                  Update: {
+                    "archived_at"?: string | null,"assignee_id"?: string,"context_id"?: string,"created_at"?: string,"created_by"?: string | null,"difficulty"?: Database["public"]['Enums']["task_difficulty"],"due_at"?: string | null,"duration_min"?: number | null,"exdates"?: (string)[],"group_id"?: string | null,"id"?: string,"materialized_until"?: string | null,"notes"?: string | null,"parent_task_id"?: string | null,"priority"?: Database["public"]['Enums']["task_priority"],"reminders"?: NonNullable<Json>,"requires_admin_approval"?: boolean,"requires_partial_reason"?: boolean,"requires_photo_proof"?: boolean,"rrule"?: string | null,"schedule_type"?: Database["public"]['Enums']["schedule_type"],"start_at"?: string | null,"timezone"?: string,"title"?: string,"visibility"?: Database["public"]['Enums']["task_visibility"]
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "tasks_assignee_id_fkey"
+      columns: ["assignee_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tasks_context_id_fkey"
+      columns: ["context_id"]
+isOneToOne: false
+      referencedRelation: "contexts"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tasks_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tasks_group_id_fkey"
+      columns: ["group_id"]
+isOneToOne: false
+      referencedRelation: "groups"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "tasks_parent_task_id_fkey"
+      columns: ["parent_task_id"]
+isOneToOne: false
+      referencedRelation: "tasks"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"xp_events": {
+                  Row: {
+                    "amount": number,"created_at": string,"group_id": string | null,"id": string,"occurrence_id": string | null,"reason": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "amount": number,"created_at"?: string,"group_id"?: string | null,"id"?: string,"occurrence_id"?: string | null,"reason": string,"user_id": string
+                  }
+                  Update: {
+                    "amount"?: number,"created_at"?: string,"group_id"?: string | null,"id"?: string,"occurrence_id"?: string | null,"reason"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "xp_events_group_id_fkey"
+      columns: ["group_id"]
+isOneToOne: false
+      referencedRelation: "groups"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "xp_events_occurrence_id_fkey"
+      columns: ["occurrence_id"]
+isOneToOne: false
+      referencedRelation: "task_occurrences"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "xp_events_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 }
           }
           Views: {
@@ -229,6 +391,26 @@ isOneToOne: false
           Functions: {
             "accept_invite":
 { Args: { "invite_code": string }; Returns: string
+                           },
+"call_materialize_occurrences":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"can_delete_task":
+{ Args: { "p_task_id": string }; Returns: boolean
+                           },
+"can_edit_task":
+{ Args: { "p_task_id": string }; Returns: boolean
+                           },
+"can_view_task":
+{ Args: { "p_task": Omit<Database["public"]['Tables']["tasks"]['Row'], Database["public"]['Tables']["tasks"]['ComputedFields']> }; Returns: boolean
+                           } |
+{ Args: { "p_task_id": string }; Returns: boolean
+                           },
+"delete_task":
+{ Args: { "p_head_rrule": string,"p_occurrence_id": string,"p_scope": Database["public"]['Enums']["task_edit_scope"] }; Returns: undefined
+                           },
+"edit_task":
+{ Args: { "p_head_rrule": string,"p_occurrence_id": string,"p_rrule": string,"p_scope": Database["public"]['Enums']["task_edit_scope"],"p_task": Json }; Returns: (string)[]
                            },
 "generate_invite_code":
 { Args: Record<PropertyKey, never>; Returns: string
@@ -249,15 +431,48 @@ isOneToOne: false
 "is_group_member":
 { Args: { "target_group_id": string }; Returns: boolean
                            },
+"occurrence_window":
+{ Args: { "p_due_at": string,"p_duration_min": number,"p_schedule_type": Database["public"]['Enums']["schedule_type"],"p_start_at": string,"p_timezone": string }; Returns: {
+              "scheduled_due": string,"scheduled_start": string
+            }[]
+                           },
 "set_member_role":
 { Args: { "new_role": Database["public"]['Enums']["group_role"],"target_group_id": string,"target_user_id": string }; Returns: undefined
+                           },
+"set_occurrence_status":
+{ Args: { "p_expected_status": Database["public"]['Enums']["occurrence_status"],"p_occurrence_id": string,"p_reason": string,"p_to_status": Database["public"]['Enums']["occurrence_status"] }; Returns: {
+              "assignee_id": string,
+"id": string,
+"late": boolean,
+"overdue_at": string,
+"scheduled_due": string,
+"scheduled_start": string,
+"status": Database["public"]['Enums']["occurrence_status"],
+"status_changed_at": string | null,
+"status_changed_by": string | null,
+"status_reason": string | null,
+"task_id": string
+            }
+                          SetofOptions: {
+        from: "*"
+        to: "task_occurrences"
+        isOneToOne: true
+        isSetofReturn: false
+      } },
+"task_rules":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"team_overview":
+{ Args: { "p_from": string,"p_group_id": string,"p_to": string }; Returns: {
+              "date": string,"display_name": string,"done": number,"late": number,"missed": number,"partial": number,"pending": number,"user_id": string
+            }[]
                            },
 "transfer_group_ownership":
 { Args: { "new_owner_id": string,"target_group_id": string }; Returns: undefined
                            }
           }
           Enums: {
-            "group_role": "owner"|"admin"|"member"
+            "group_role": "owner"|"admin"|"member","occurrence_actor": "assignee"|"editor"|"deleter"|"system","occurrence_status": "pending"|"done"|"partial"|"missed"|"cancelled","schedule_type": "timed"|"all_day"|"deadline","task_difficulty": "easy"|"medium"|"hard","task_edit_scope": "this"|"this_and_following"|"all","task_priority": "low"|"normal"|"high","task_visibility": "group"|"private"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -377,7 +592,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "group_role": ["owner", "admin", "member"]
+            "group_role": ["owner", "admin", "member"],"occurrence_actor": ["assignee", "editor", "deleter", "system"],"occurrence_status": ["pending", "done", "partial", "missed", "cancelled"],"schedule_type": ["timed", "all_day", "deadline"],"task_difficulty": ["easy", "medium", "hard"],"task_edit_scope": ["this", "this_and_following", "all"],"task_priority": ["low", "normal", "high"],"task_visibility": ["group", "private"]
           }
         }
 } as const

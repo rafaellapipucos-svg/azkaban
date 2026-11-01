@@ -1,4 +1,4 @@
-import { defaults, taskRules } from '@azkaban/config';
+import { taskRules } from '@azkaban/config';
 import type {
   OccurrenceListItem,
   OccurrenceTransitionInput,
@@ -12,12 +12,7 @@ import {
   isLate,
   localDayRange,
 } from '@azkaban/core';
-import {
-  groupsRepository,
-  profilesRepository,
-  taskErrorCode,
-  tasksRepository,
-} from '@azkaban/data';
+import { taskErrorCode, tasksRepository, useCurrentUser } from '@azkaban/data';
 import { storage } from '@azkaban/platform';
 import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -36,25 +31,6 @@ export function useNow(intervalMs = MINUTE_MS) {
     return () => clearInterval(id);
   }, [intervalMs]);
   return now;
-}
-
-/** Who is using the screen, in the shape `can()` and `deriveActors` take. */
-export function useCurrentUser() {
-  const profile = useQuery({ queryKey: ['profile'], queryFn: profilesRepository.getMine });
-  const groups = useQuery({ queryKey: ['groups'], queryFn: groupsRepository.listMine });
-  const user = useMemo(
-    () => ({
-      id: profile.data?.id ?? '',
-      memberships: (groups.data ?? []).map(({ id, role }) => ({ groupId: id, role })),
-    }),
-    [profile.data, groups.data],
-  );
-  return {
-    user,
-    groups: groups.data ?? [],
-    timezone: profile.data?.timezone ?? defaults.timezone,
-    ready: profile.isSuccess && groups.isSuccess,
-  };
 }
 
 /**

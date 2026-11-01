@@ -9,7 +9,7 @@ import {
   type MemberOverview,
   type TeamTone,
 } from '@azkaban/core';
-import { groupsRepository, tasksRepository } from '@azkaban/data';
+import { groupsRepository, tasksRepository, useCurrentUser } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import {
   Body,
@@ -28,7 +28,7 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { tasksConfig } from './config';
-import { useCurrentUser, useNow } from './hooks';
+import { useNow } from './hooks';
 
 // Never color alone: each tone has a symbol and a word, as the status controls do.
 const toneLook: Record<TeamTone, { symbol: string; box: string; text: string }> = {

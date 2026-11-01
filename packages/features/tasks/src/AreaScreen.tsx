@@ -1,5 +1,5 @@
 import { can, localDateOf, planArea } from '@azkaban/core';
-import { contextsRepository } from '@azkaban/data';
+import { contextsRepository, useCurrentUser } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import {
   Button,
@@ -20,13 +20,7 @@ import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { tasksConfig } from './config';
 import { dayLabel, errorKey } from './format';
-import {
-  useCurrentUser,
-  useLastContext,
-  useNotice,
-  useOccurrenceLists,
-  useStatusChange,
-} from './hooks';
+import { useLastContext, useNotice, useOccurrenceLists, useStatusChange } from './hooks';
 import { OccurrenceRow } from './OccurrenceRow';
 import { QuickCreate } from './QuickCreate';
 import { Section } from './Sections';

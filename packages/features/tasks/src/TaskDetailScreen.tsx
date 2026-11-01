@@ -11,6 +11,7 @@ import {
   groupsRepository,
   taskErrorCode,
   tasksRepository,
+  useCurrentUser,
 } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import {
@@ -38,7 +39,6 @@ import { View } from 'react-native';
 import { z } from 'zod';
 import { capitalize, describeRecurrence, errorKey, whenText } from './format';
 import {
-  useCurrentUser,
   useNow,
   useRefreshTasks,
   useStatusChange,

@@ -16,6 +16,7 @@ import {
   groupsRepository,
   taskErrorCode,
   tasksRepository,
+  useCurrentUser,
 } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import {
@@ -46,7 +47,7 @@ import { AssigneePicker } from './AssigneePicker';
 import { tasksConfig } from './config';
 import { errorKey, formErrorKey, reminderLabel } from './format';
 import { defaultFormValues } from './formDefaults';
-import { useCurrentUser, useLastContext, useRefreshTasks, useTransitions } from './hooks';
+import { useLastContext, useRefreshTasks, useTransitions } from './hooks';
 import { RecurrenceEditor } from './RecurrenceEditor';
 import { taskFormSchema } from './taskFormSchema';
 import { taskDefaults } from '@azkaban/config';

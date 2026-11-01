@@ -10,7 +10,7 @@ import {
   type CalendarFilter,
   type CalendarView,
 } from '@azkaban/core';
-import { contextsRepository, groupsRepository } from '@azkaban/data';
+import { contextsRepository, groupsRepository, useCurrentUser } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import {
   Body,
@@ -33,13 +33,7 @@ import { ItemList, PerfectBanner, type DayActions } from './DayParts';
 import { DayView } from './DayView';
 import { Filters } from './Filters';
 import { capitalize, dayMonth, dayMonthYear, longDay, monthTitle } from './format';
-import {
-  useCalendarOccurrences,
-  useCurrentUser,
-  useMaterializeAhead,
-  useNow,
-  type Scope,
-} from './hooks';
+import { useCalendarOccurrences, useMaterializeAhead, useNow, type Scope } from './hooks';
 import { MonthView } from './MonthView';
 import { ScopePicker, type ScopeKind } from './ScopePicker';
 import { WeekView } from './WeekView';

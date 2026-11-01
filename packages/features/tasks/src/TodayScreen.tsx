@@ -1,6 +1,6 @@
 import { taskRules } from '@azkaban/config';
 import { earnedXp, planToday } from '@azkaban/core';
-import { contextsRepository } from '@azkaban/data';
+import { contextsRepository, useCurrentUser } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import {
   Body,
@@ -19,7 +19,7 @@ import { useMemo } from 'react';
 import { Text, View } from 'react-native';
 import { tasksConfig } from './config';
 import { capitalize, errorKey } from './format';
-import { useCurrentUser, useNotice, useOccurrenceLists, useStatusChange } from './hooks';
+import { useNotice, useOccurrenceLists, useStatusChange } from './hooks';
 import { QuickCreate } from './QuickCreate';
 import { ContextGroups, Section } from './Sections';
 

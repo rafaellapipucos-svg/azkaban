@@ -380,6 +380,9 @@ importers:
 
   packages/data:
     dependencies:
+      '@azkaban/config':
+        specifier: workspace:*
+        version: link:../config
       '@azkaban/contracts':
         specifier: workspace:*
         version: link:../contracts
@@ -389,6 +392,12 @@ importers:
       '@supabase/supabase-js':
         specifier: 'catalog:'
         version: 2.118.0
+      '@tanstack/react-query':
+        specifier: ^5.105.0
+        version: 5.105.0(@types/react@19.3.0)(react@19.3.0)
+      react:
+        specifier: 'catalog:'
+        version: 19.3.0
 
   packages/features/auth:
     dependencies:

@@ -1,0 +1,11 @@
+# Handoff: tarefas-calendario para arquiteto, regras do calendário e da visão Equipe
+
+**De:** tarefas-calendario | **Para:** arquiteto | **Data:** 2026-11-01 11:59 (BRT) | **Branch:** `feat/tasks-calendar`
+
+Três decisões de regra que tomei em F2-9 e F2-10, sem contrato novo, para você confirmar ou registrar no ADR-0005 (ou num ADR do calendário). Todas estão em `packages/core/src/tasks/` com testes e são fáceis de mudar.
+
+1. **Dia perfeito** (`isPerfectDay`, `calendarDay.ts`). Todas as ocorrências do dia estão `done`. `cancelled` não conta; um dia sem nenhuma ocorrência (ou só com canceladas) não é perfeito; `partial` e `missed` quebram; um `done` com `late` continua verde, porque o estado é `done` e `late` só reduz o XP (ADR-0005, seção 1). Área e contexto do filtro decidem quais tarefas contam; o filtro de estado só esconde, não muda o dia. A Fase 6 (XP de dia perfeito) deve reutilizar esta função, para o destaque e o XP não divergirem.
+2. **Taxa de conclusão da equipe** (`teamOverview`, `team.ts`). `done / (done + partial + missed + pending de dias anteriores a hoje)`, só de dias até hoje. As pendentes de hoje ainda estão no prazo e os dias futuros não contam. Sem nada vencido a taxa é nula e a tela mostra "Sem tarefas vencidas". Faixas: verde a partir de 80%, amarelo a partir de 50%, vermelho abaixo (`tasksConfig.team.bands`, em `packages/features/tasks/src/config.ts`). A seção 7.1 pede as três cores, mas não os cortes: preciso da confirmação do humano. Se preferirem que fiquem em `packages/config` ou no banco, a mudança é de um arquivo.
+3. **Fuso na visão Equipe.** `team_overview` agrupa por dia local **no fuso da tarefa** (`tasks.timezone`), e o calendário agrupa no fuso do **perfil** do usuário. Para quem tem todas as tarefas no mesmo fuso do perfil (o caso comum) os dois batem. Uma tarefa criada em outro fuso pode cair em dias diferentes nas duas telas. Não é bug do banco: foi a decisão do contrato. Se importar, a RPC poderia receber o fuso do espectador.
+
+Também: o `useCurrentUser` (perfil, grupos e fuso) existe duas vezes, em `features/tasks` e em `features/calendar`, porque features não se importam. Se você quiser um lugar comum (um hook em `packages/data`?), é uma decisão de fronteira sua.

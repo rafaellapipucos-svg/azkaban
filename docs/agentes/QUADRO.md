@@ -26,20 +26,20 @@ Status: a fazer, em andamento, bloqueado, em revisão, feito. Handoffs em [hando
 
 ## Fase 2: Tarefas e calendário
 
-| ID    | Título                                                                  | Agente             | Status  | Depende de | Branch | Handoff |
-| ----- | ----------------------------------------------------------------------- | ------------------ | ------- | ---------- | ------ | ------- |
-| F2-1  | Contratos de tarefa, ocorrência e estado                                | arquiteto          | a fazer | F1         | —      | —       |
-| F2-2  | Migrations de tasks, occurrences, history e xp_events, com RLS e testes | banco-de-dados     | a fazer | F2-1       | —      | —       |
-| F2-3  | Máquina de estados em core                                              | tarefas-calendario | a fazer | F2-1       | —      | —       |
-| F2-4  | Recorrência: RRULE, EXDATE e fuso em core                               | tarefas-calendario | a fazer | F2-1       | —      | —       |
-| F2-5  | Job de materialização de ocorrências                                    | backend-funcoes    | a fazer | F2-2, F2-4 | —      | —       |
-| F2-6  | Criar, editar, duplicar, reagendar e excluir tarefa, com criação rápida | tarefas-calendario | a fazer | F2-3       | —      | —       |
-| F2-7  | Editor de recorrência: só esta, esta e próximas, todas                  | tarefas-calendario | a fazer | F2-4, F2-6 | —      | —       |
-| F2-8  | Tela Hoje e abas Trabalho e Doméstico com sub-abas                      | tarefas-calendario | a fazer | F2-6       | —      | —       |
-| F2-9  | Calendário: mês, semana, dia, filtros, dia perfeito                     | tarefas-calendario | a fazer | F2-6       | —      | —       |
-| F2-10 | Visão Equipe                                                            | tarefas-calendario | a fazer | F2-8       | —      | —       |
-| F2-11 | ADR de concluído atrasado                                               | arquiteto          | a fazer | F2-3       | —      | —       |
-| F2-12 | Registrar eventos de XP nas transições                                  | tarefas-calendario | a fazer | F2-3       | —      | —       |
+| ID    | Título                                                                  | Agente             | Status       | Depende de | Branch               | Handoff                                                    |
+| ----- | ----------------------------------------------------------------------- | ------------------ | ------------ | ---------- | -------------------- | ---------------------------------------------------------- |
+| F2-1  | Contratos de tarefa, ocorrência e estado                                | arquiteto          | em revisão   | F1         | feat/tasks-contracts | —                                                          |
+| F2-2  | Migrations de tasks, occurrences, history e xp_events, com RLS e testes | banco-de-dados     | em andamento | F2-1       | feat/tasks-db        | 20261101-0935-arquiteto-para-banco-de-dados-tarefas.md     |
+| F2-3  | Máquina de estados em core                                              | tarefas-calendario | em andamento | F2-1       | feat/tasks-core      | 20261101-0935-arquiteto-para-tarefas-calendario-tarefas.md |
+| F2-4  | Recorrência: RRULE, EXDATE e fuso em core                               | tarefas-calendario | em andamento | F2-1       | feat/tasks-core      | 20261101-0935-arquiteto-para-tarefas-calendario-tarefas.md |
+| F2-5  | Job de materialização de ocorrências                                    | backend-funcoes    | a fazer      | F2-2, F2-4 | —                    | —                                                          |
+| F2-6  | Criar, editar, duplicar, reagendar e excluir tarefa, com criação rápida | tarefas-calendario | a fazer      | F2-3       | —                    | —                                                          |
+| F2-7  | Editor de recorrência: só esta, esta e próximas, todas                  | tarefas-calendario | a fazer      | F2-4, F2-6 | —                    | —                                                          |
+| F2-8  | Tela Hoje e abas Trabalho e Doméstico com sub-abas                      | tarefas-calendario | a fazer      | F2-6       | —                    | —                                                          |
+| F2-9  | Calendário: mês, semana, dia, filtros, dia perfeito                     | tarefas-calendario | a fazer      | F2-6       | —                    | —                                                          |
+| F2-10 | Visão Equipe                                                            | tarefas-calendario | a fazer      | F2-8       | —                    | —                                                          |
+| F2-11 | ADR de concluído atrasado                                               | arquiteto          | em revisão   | F2-1       | feat/tasks-contracts | —                                                          |
+| F2-12 | Cálculo de XP para a tela; a gravação é do banco, em F2-2               | tarefas-calendario | a fazer      | F2-3       | —                    | —                                                          |
 
 ## Fase 3: Prova por foto
 

@@ -201,6 +201,18 @@ test('admin assigns to a member, who cannot edit; a personal task stays private'
   await button(memberPage, 'Marcar como feito').click();
   await expect(memberPage.getByText('Pendente → Feito')).toBeVisible();
 
+  // One task for each of two people, in a single step
+  await ownerPage.goto('/tasks/new');
+  await ownerPage.getByLabel('O que precisa ser feito?').fill('Limpeza');
+  await ownerPage.getByRole('radio', { name: 'Duda' }).click();
+  await expect(
+    ownerPage.getByText('Uma tarefa será criada para cada uma das 2 pessoas.'),
+  ).toBeVisible();
+  await button(ownerPage, 'Salvar').click();
+  await expect(text(ownerPage, 'Limpeza')).toBeVisible();
+  await memberPage.goto('/');
+  await expect(text(memberPage, 'Limpeza')).toBeVisible();
+
   // Duda's own task in a personal context never reaches the owner
   await newContext(memberPage, 'Meu diário');
   await memberPage.goto('/tasks/new');

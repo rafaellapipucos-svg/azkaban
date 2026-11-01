@@ -15,6 +15,27 @@ const DAY_MS = 86_400_000;
 const PAGE_SIZE = 50;
 const INSERT_CHUNK = 500;
 
+// How far into the past a series is created, counted from now. Older days are history nobody can
+// act on (the assignee resolves up to taskRules.lateCompletionWindowHours = 72h late), and a daily
+// series anchored in year 2000 would otherwise be 10 thousand rows and 300 ms of CPU for one task.
+// Local until the arquiteto adds it to taskDefaults (handoff 20261101-1604).
+const PAST_DAYS = 30;
+
+// Budget of one run, so it ends before the platform's 2 s CPU limit per request (Supabase docs,
+// Edge Functions limits) and leaves the rest for the next run. Expansion is the CPU part: about
+// 0.3 ms per typical task, but up to 30 ms for a daily series anchored in 2000, because rrule iterates
+// from the anchor. The task count bounds the database round trips (two per task).
+const EXPAND_BUDGET_MS = 600;
+const MAX_TASKS = 200;
+// A run looks at the stalest tasks only. Tasks that are skipped for good (former member, rule that
+// does not expand) stay among them and do not count against MAX_TASKS, so this bounds how many of
+// them can crowd out the others before something needs fixing.
+// ponytail: above SCAN permanently skipped tasks, healthy ones starve; fix by clearing those tasks.
+const SCAN = 1000;
+// A sweep without `until` skips a task whose cursor is less than this behind the limit: the daily
+// job is 24 h apart, so a task refreshed this morning is not worth a second look in the evening.
+const REFRESH_SLACK_MS = 12 * 3_600_000;
+
 const headers = {
   'access-control-allow-origin': '*',
   'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
@@ -58,25 +79,36 @@ function check<T>(stage: string, result: { data: T; error: { code?: string } | n
   return result.data;
 }
 
-/** Pages of the tasks to materialize, by id. The reader decides which tasks exist for the caller. */
-async function* recurringTasks(reader: SupabaseClient, taskIds: string[] | undefined) {
-  let last: string | null = null;
-  while (true) {
-    let query = reader
+/** The recurring tasks that still need work, stalest cursor first (never materialized first). */
+async function staleTaskIds(reader: SupabaseClient, staleBefore: string): Promise<string[]> {
+  const rows = check(
+    'list_tasks',
+    await reader
       .from('tasks')
-      .select(TASK_COLUMNS)
+      .select('id')
       .not('rrule', 'is', null)
       .is('archived_at', null)
+      .or(`materialized_until.is.null,materialized_until.lt.${staleBefore}`)
+      .order('materialized_until', { ascending: true, nullsFirst: true })
       .order('id')
-      .limit(PAGE_SIZE);
-    if (taskIds) query = query.in('id', taskIds);
-    if (last) query = query.gt('id', last);
-    const page = check('read_tasks', await query) as unknown as TaskRow[];
-    if (page.length === 0) return;
-    yield page;
-    if (page.length < PAGE_SIZE) return;
-    last = page[page.length - 1].id;
-  }
+      .limit(SCAN),
+  );
+  return rows.map((row) => row.id as string);
+}
+
+/** The rows of these tasks, in the order of `ids`. The reader decides which of them exist for the caller. */
+async function readTasks(reader: SupabaseClient, ids: string[]): Promise<TaskRow[]> {
+  const rows = check(
+    'read_tasks',
+    await reader
+      .from('tasks')
+      .select(TASK_COLUMNS)
+      .in('id', ids)
+      .not('rrule', 'is', null)
+      .is('archived_at', null),
+  ) as unknown as TaskRow[];
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  return ids.flatMap((id) => byId.get(id) ?? []);
 }
 
 /** `group_id:user_id` of the assignees of the page that still belong to their task's group. */
@@ -136,24 +168,14 @@ async function insertTask(admin: SupabaseClient, rows: OccurrenceRow[]) {
   return { inserted, ok: true };
 }
 
-/** Moves the cursor forward only. Returns the tasks whose update the database refused. */
-async function moveCursor(admin: SupabaseClient, ids: string[], limit: string): Promise<number> {
-  const update = (subset: string[]) =>
-    admin
-      .from('tasks')
-      .update({ materialized_until: limit })
-      .in('id', subset)
-      .or(`materialized_until.is.null,materialized_until.lt.${limit}`);
-  const all = await update(ids);
-  if (!all.error) return 0;
-  refused('move_cursor', all.error);
-  // One statement, so nothing moved. Try them apart to find which task the database refuses.
-  let failed = 0;
-  for (const id of ids) {
-    const one = await update([id]);
-    if (one.error && refused('move_cursor', one.error)) failed += 1;
-  }
-  return failed;
+/** Moves the cursor of one task forward only. True when the database refuses the update. */
+async function moveCursor(admin: SupabaseClient, id: string, limit: string): Promise<boolean> {
+  const { error } = await admin
+    .from('tasks')
+    .update({ materialized_until: limit })
+    .eq('id', id)
+    .or(`materialized_until.is.null,materialized_until.lt.${limit}`);
+  return Boolean(error && refused('move_cursor', error));
 }
 
 async function materialize(
@@ -161,16 +183,25 @@ async function materialize(
   admin: SupabaseClient,
   taskIds: string[] | undefined,
   limitMs: number,
+  nowMs: number,
+  slackMs: number,
 ) {
   const limit = new Date(limitMs).toISOString();
-  const totals = { tasks: 0, formerMembers: 0, failed: 0, inserted: 0 };
+  const floorMs = nowMs - PAST_DAYS * DAY_MS;
+  const totals = { tasks: 0, formerMembers: 0, failed: 0, inserted: 0, deferred: 0, expandMs: 0 };
+  let done = 0;
 
-  for await (const page of recurringTasks(reader, taskIds)) {
+  const ids = taskIds ?? (await staleTaskIds(reader, new Date(limitMs - slackMs).toISOString()));
+  for (let i = 0; i < ids.length; i += PAGE_SIZE) {
+    const page = await readTasks(reader, ids.slice(i, i + PAGE_SIZE));
     const members = await currentMembers(admin, page);
-    // The tasks of this page that have something to do, with their rows (possibly none).
-    const rowsOf = new Map<string, OccurrenceRow[]>();
 
-    for (const t of page) {
+    for (const [at, t] of page.entries()) {
+      if (done >= MAX_TASKS || totals.expandMs >= EXPAND_BUDGET_MS) {
+        // The rest keeps its cursors, which are the oldest, so the next run starts with it.
+        totals.deferred = ids.length - i - at;
+        return totals;
+      }
       totals.tasks += 1;
       // Left the group: nothing is created, and the cursor stays, so a new assignee gets the
       // series from where it stopped instead of from today.
@@ -178,6 +209,9 @@ async function materialize(
         totals.formerMembers += 1;
         continue;
       }
+
+      const began = performance.now();
+      let rows: OccurrenceRow[];
       try {
         const task = {
           scheduleType: t.schedule_type,
@@ -188,44 +222,37 @@ async function materialize(
           rrule: t.rrule,
           exdates: t.exdates,
         };
-        const from = t.materialized_until ?? taskAnchor(task);
-        if (Date.parse(from) >= limitMs) continue;
-        rowsOf.set(
-          t.id,
-          expandOccurrences(task, from, limit).map((o) => ({
-            task_id: t.id,
-            assignee_id: t.assignee_id,
-            scheduled_start: o.scheduledStart,
-            scheduled_due: o.scheduledDue,
-          })),
-        );
+        // Not before the floor, and not before what is already materialized. A series that starts
+        // after the limit has no rows, and its cursor still moves, so it leaves the stale list.
+        const from = Math.max(Date.parse(t.materialized_until ?? taskAnchor(task)), floorMs);
+        rows =
+          from >= limitMs
+            ? []
+            : expandOccurrences(task, new Date(from).toISOString(), limit).map((o) => ({
+                task_id: t.id,
+                assignee_id: t.assignee_id,
+                scheduled_start: o.scheduledStart,
+                scheduled_due: o.scheduledDue,
+              }));
       } catch {
         // A rule that cannot be expanded must not stop the sweep. Counted, never quoted.
         totals.failed += 1;
+        continue;
+      } finally {
+        totals.expandMs += performance.now() - began;
       }
-    }
 
-    // One statement for the page when it fits, which is all or nothing. When the database refuses
-    // it, or it is too big, each task goes alone, so one task's bad row never costs the others
-    // their occurrences or their cursor.
-    const everything = [...rowsOf.values()].flat();
-    const bulk = everything.length <= INSERT_CHUNK ? await insertRows(admin, everything) : null;
-    if (bulk !== null) {
-      totals.inserted += bulk;
-    } else {
-      for (const [id, rows] of rowsOf) {
-        const result = await insertTask(admin, rows);
-        totals.inserted += result.inserted;
-        if (!result.ok) {
-          rowsOf.delete(id);
-          totals.failed += 1;
-        }
+      // One task at a time, the rows and then its cursor, so what is finished survives a worker
+      // that dies, and a task the database refuses costs the others nothing. Only after the insert,
+      // and only forward, so a failure in the middle is repeated safely.
+      const result = await insertTask(admin, rows);
+      totals.inserted += result.inserted;
+      if (!result.ok || (await moveCursor(admin, t.id, limit))) {
+        totals.failed += 1;
+        continue;
       }
+      done += 1;
     }
-
-    // Only after the insert, and only forward, so a failure in the middle is repeated safely. A
-    // task that failed keeps its cursor, so the next run tries it again.
-    if (rowsOf.size > 0) totals.failed += await moveCursor(admin, [...rowsOf.keys()], limit);
   }
   return totals;
 }
@@ -279,13 +306,21 @@ Deno.serve(async (req) => {
       ? Math.min(Date.parse(until), now + taskDefaults.onDemandMaxDays * DAY_MS)
       : now + taskDefaults.materializationWindowDays * DAY_MS;
 
-    const totals = await materialize(reader, admin, taskIds, limitMs);
+    const totals = await materialize(
+      reader,
+      admin,
+      taskIds,
+      limitMs,
+      now,
+      until ? 0 : REFRESH_SLACK_MS,
+    );
     // Counts only: no title, note or user id in a log.
     console.log(
       JSON.stringify({
         event: 'materialized',
         caller: reader === admin ? 'cron' : 'user',
         ...totals,
+        expandMs: Math.round(totals.expandMs),
       }),
     );
     return reply(200, materializeResponseSchema.parse({ inserted: totals.inserted }));

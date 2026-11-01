@@ -456,24 +456,107 @@ describe('materialize-occurrences', () => {
     });
   });
 
-  test('9am local stays 9am across the New York DST change', async () => {
-    // Mondays 09:00 in New York: EST until Mar 14 2027 (14:00Z), EDT after it (13:00Z).
+  test('9am local stays 9am across the next New York DST change', async () => {
+    // The next US DST start (second Sunday of March) that is at least two weeks away, so the series
+    // is in the future whatever day this runs. Mondays 09:00 in New York: 14:00Z in EST, 13:00Z in EDT.
+    const secondSunday = (year: number) => {
+      const firstSunday = 1 + ((7 - new Date(Date.UTC(year, 2, 1)).getUTCDay()) % 7);
+      return Date.UTC(year, 2, firstSunday + 7);
+    };
+    const thisYear = new Date().getUTCFullYear();
+    const dst = [thisYear, thisYear + 1].map(secondSunday).find((d) => d - 14 * DAY > Date.now())!;
+    const at = (days: number, hour: number) => iso(dst + days * DAY + hour * 3_600_000);
     const taskId = await createTask({
-      start: '2027-03-01T14:00:00Z',
+      start: at(-13, 14),
       rrule: 'FREQ=WEEKLY;BYDAY=MO',
       timezone: 'America/New_York',
       context: personalContextId,
       visibility: 'private',
     });
-    const res = await call(owner.bearer, { taskIds: [taskId], until: '2027-03-31T00:00:00Z' });
-    assert.deepEqual(res, { status: 200, body: { inserted: 5 } });
-    assert.deepEqual(await starts(taskId), [
-      '2027-03-01T14:00:00.000Z',
-      '2027-03-08T14:00:00.000Z',
-      '2027-03-15T13:00:00.000Z',
-      '2027-03-22T13:00:00.000Z',
-      '2027-03-29T13:00:00.000Z',
-    ]);
+    const res = await call(owner.bearer, { taskIds: [taskId], until: at(3, 0) });
+    assert.deepEqual(res, { status: 200, body: { inserted: 3 } });
+    assert.deepEqual(await starts(taskId), [at(-13, 14), at(-6, 14), at(1, 13)]);
+  });
+
+  test('a series anchored in year 2000 is created from 30 days ago, not from its anchor', async () => {
+    // Daily since 2000-01-01 would be about 10 thousand rows and 300 ms of CPU for one task.
+    const ancient = await createTask({ start: '2000-01-01T12:00:00Z', rrule: 'FREQ=DAILY' });
+    const recent = await createTask({ start: noon(-10), rrule: 'FREQ=DAILY' });
+
+    const res = await call(owner.bearer, { taskIds: [ancient, recent] });
+    const old = await starts(ancient);
+    // 30 days back and 60 ahead, one row a day; the edges move by a day with the time of day.
+    assert.ok(old.length >= 90 && old.length <= 91, `ancient rows: ${old.length}`);
+    assert.ok(Date.parse(old[0]) >= Date.now() - 31 * DAY, old[0]);
+    assert.ok(Date.parse(old[0]) < Date.now() - 29 * DAY, old[0]);
+    // The floor does not cut a series that started inside it.
+    const near = await starts(recent);
+    assert.equal(near[0], iso(noon(-10)));
+    assert.ok(near.length >= 70 && near.length <= 71, `recent rows: ${near.length}`);
+    assert.deepEqual(res, { status: 200, body: { inserted: old.length + near.length } });
+  });
+
+  test('a run stops at its budget, keeps what it finished, and the next one goes on', async () => {
+    // Daily from 2000: rrule iterates 10 thousand days for each, which is what makes them costly.
+    const many = 80;
+    const { data: created, error } = await admin
+      .from('tasks')
+      .insert(
+        Array.from({ length: many }, () => ({
+          context_id: personalContextId,
+          created_by: owner.id,
+          assignee_id: owner.id,
+          title: 'costly',
+          schedule_type: 'timed',
+          start_at: '2000-01-01T12:00:00Z',
+          duration_min: 30,
+          timezone: 'America/Sao_Paulo',
+          rrule: 'FREQ=DAILY',
+          exdates: [],
+          reminders: [],
+          requires_photo_proof: false,
+          requires_admin_approval: false,
+          requires_partial_reason: false,
+          difficulty: 'easy',
+          priority: 'normal',
+          visibility: 'private',
+        })),
+      )
+      .select('id');
+    assert.ifError(error);
+    const ids = created!.map((row) => row.id as string);
+    const cursors = async () => {
+      const { data } = await admin.from('tasks').select('id, materialized_until').in('id', ids);
+      return new Map(
+        data!.map((row) => [row.id as string, row.materialized_until as string | null]),
+      );
+    };
+
+    let before = new Map<string, string | null>();
+    let finished = 0;
+    for (let run = 1; run <= many && finished < many; run++) {
+      const res = await call(cron, {});
+      assert.equal(res.status, 200, `run ${run}`);
+      const now = await cursors();
+      finished = [...now.values()].filter((value) => value !== null).length;
+      const before_finished = [...before.values()].filter((value) => value !== null).length;
+      // Every run advances, and what an earlier run finished is still finished, never moved back.
+      assert.ok(finished > before_finished, `run ${run}: ${before_finished} -> ${finished}`);
+      for (const [id, value] of before) {
+        if (value !== null) assert.ok(Date.parse(now.get(id)!) >= Date.parse(value));
+      }
+      // The first run cannot do 80 of them: it stopped at its budget with some already saved.
+      if (run === 1) assert.ok(finished >= 1 && finished < many, `first run finished ${finished}`);
+      before = now;
+    }
+    assert.equal(finished, many);
+
+    // All done: nothing is stale, so a further run creates nothing and the rows are the floor's.
+    assert.deepEqual(await call(cron, {}), { status: 200, body: { inserted: 0 } });
+    for (const id of ids.slice(0, 3)) {
+      const rows = await starts(id);
+      assert.ok(rows.length >= 90 && rows.length <= 91, `rows: ${rows.length}`);
+    }
   });
 
   test('a task whose rows the database refuses is counted and skipped, and the others go on', async () => {

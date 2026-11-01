@@ -240,3 +240,21 @@
 - **Verificado:** os 9 testes passam. Mutações mostraram que eles falham: sem o filtro de arquivadas, sem a checagem de ex-membro e sem o corte de `until`. O job `materialize-occurrences-daily` foi exercitado de ponta a ponta no banco local (`call_materialize_occurrences()` com os segredos no Vault, resposta 200 `{"inserted":0}`; segredos removidos em seguida). O empacotador do `supabase functions deploy` (imagem `edge-runtime`, comando `bundle`) gerou o pacote com os arquivos de `packages/` (15 MB).
 - **Não verificado:** deploy no projeto hospedado (não feito). O limite de tamanho de uma função hospedada é 20 MB, e o pacote tem 15 MB. Segredos de produção (`CRON_SECRET` em `supabase secrets set` e Vault `materialize_url`, `cron_secret`) continuam por conta do deploy.
 - **Pendências / próximos passos:** o Deno só resolve a função enquanto os imports sem extensão de `core/src/recurrence` e `contracts/src/tasks.ts` estiverem no mapa; se o `arquiteto` preferir, trocar para imports com `.ts` em `packages/` elimina o mapa extra, mas muda arquivos de outros donos. Um script `pnpm functions:test` na raiz dependeria do orquestrador.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 10:33 (BRT)
+
+- **Branch:** feat/tasks-db-edit, criada a partir de feat/phase-2-tasks
+- **Agente(s):** banco-de-dados
+- **Resumo:** Três correções em `edit_task` pedidas na revisão do arquiteto, numa migration nova.
+- **Alterações:**
+  - Deixar de repetir em `all` agora apaga ou cancela todas as pendentes, passadas inclusive. Antes sobravam pendentes passadas ao lado da ocorrência nova, e a edição seguinte falhava com `23505`. O teste que reproduz o bug foi escrito antes e falhou (3 pendentes em vez de 1).
+  - Mudança de agenda em `all` e em `this_and_following`: os dias locais, de hoje em diante, das linhas não canceladas que ficaram entram em `exdates` da tarefa que as mantém, pela função interna `exclude_kept_days`. A hora nova vale a partir de amanhã.
+  - Reatribuir sem mudar a agenda alcança as pendentes com `overdue_at > now()`.
+  - 19 asserts novos em `supabase/tests/rls_tasks.test.sql` (296 no arquivo) e tipos regenerados.
+- **Arquivos/módulos principais:** `supabase/migrations/20261101131000_edit_task_review_fixes.sql`, `supabase/tests/rls_tasks.test.sql`, `packages/data/src/database.types.ts`
+- **Migrations:** 20261101131000_edit_task_review_fixes (`create or replace function public.edit_task` e `exclude_kept_days`). Só no banco local.
+- **Decisões/ADRs:** segue o ADR-0005, seção 8. Os dias de `exclude_kept_days` são lidos no fuso novo da tarefa (o da expansão), não no antigo.
+- **Como testar:** `pnpm db:start`, `pnpm db:reset`, `pnpm db:test`, `pnpm db:check-permissions`; para a Edge Function, `supabase functions serve` e `node --test supabase/functions/materialize-occurrences/materialize.integration.test.ts`.
+- **Verificado:** `pnpm db:test` (56 + 296 asserts) e `pnpm db:check-permissions` passam; os 9 testes de integração de `materialize-occurrences` passam contra o `edit_task` novo.
+- **Não verificado:** o script `pnpm functions:test` não existe nesta branch, então rodei o teste de integração direto com `node --test`. Nada foi aplicado no projeto hospedado.
+- **Pendências / próximos passos:** nenhuma de banco.

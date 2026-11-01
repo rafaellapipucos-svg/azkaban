@@ -1,4 +1,5 @@
 import {
+  materializeResponseSchema,
   taskBatchInputSchema,
   taskErrorCodeSchema,
   taskInputSchema,
@@ -13,6 +14,7 @@ import {
   type TaskEditInput,
   type TaskErrorCode,
   type TaskInput,
+  type TeamOverviewRow,
 } from '@azkaban/contracts';
 import type { Json } from '../database.types';
 import { db } from '../client';
@@ -38,6 +40,10 @@ export function taskErrorCode(error: unknown): TaskErrorCode | null {
 }
 
 const toTaskError = (error: unknown) => new TaskError(taskErrorCode(error), { cause: error });
+
+// A calendar read goes page by page, up to this many pages (50 000 rows would be a defect).
+const calendarPageSize = 500;
+const calendarMaxPages = 100;
 
 // Joins the task and its context's area, which is all the lists need. `!inner` drops rows the
 // filters on the joined tables remove.
@@ -185,6 +191,91 @@ export const tasksRepository = {
     const { data, error } = await query.order('scheduled_start').limit(500);
     if (error) throw toTaskError(error);
     return data.map(toListItem);
+  },
+
+  /**
+   * What a calendar view draws: every occurrence that overlaps `[from, to)`, cancelled and
+   * archived ones left out, read page by page because a month of a whole team passes the limit
+   * of one request. The database decides what is visible (RLS).
+   * - `assigneeId`: one person's occurrences.
+   * - `groupId`: only that group's tasks. Together with `groupOnly`, only those shared with the
+   *   group (`visibility = 'group'`), which is what the team view counts, so an admin's own
+   *   private task in a group context never shows as part of "the team".
+   */
+  async listCalendar({
+    from,
+    to,
+    assigneeId,
+    groupId,
+    groupOnly,
+  }: {
+    from: string;
+    to: string;
+    assigneeId?: string;
+    groupId?: string;
+    groupOnly?: boolean;
+  }): Promise<OccurrenceListItem[]> {
+    const items: OccurrenceListItem[] = [];
+    for (let page = 0; page < calendarMaxPages; page += 1) {
+      let query = db()
+        .from('task_occurrences')
+        .select(listColumns)
+        .is('tasks.archived_at', null)
+        .neq('status', 'cancelled')
+        .lt('scheduled_start', to)
+        .gte('scheduled_due', from);
+      if (assigneeId) query = query.eq('assignee_id', assigneeId);
+      if (groupId) query = query.eq('tasks.group_id', groupId);
+      if (groupOnly) query = query.eq('tasks.visibility', 'group');
+      const { data, error } = await query
+        .order('scheduled_start')
+        .order('id')
+        .range(page * calendarPageSize, (page + 1) * calendarPageSize - 1);
+      if (error) throw toTaskError(error);
+      items.push(...data.map(toListItem));
+      if (data.length < calendarPageSize) break;
+    }
+    return items;
+  },
+
+  /**
+   * Asks the Edge Function to create the repeating tasks' occurrences up to `until` (the end of
+   * the visible range). Returns how many it created. The caller caps `until` at `onDemandMaxDays`.
+   */
+  async materializeUntil(until: string): Promise<number> {
+    const { data, error } = await db().functions.invoke('materialize-occurrences', {
+      body: { until },
+    });
+    if (error) throw new TaskError(null, { cause: error });
+    return materializeResponseSchema.parse(data).inserted;
+  },
+
+  /** Per member and local day, for a group the user can view (`task.view_group`). */
+  async teamOverview({
+    groupId,
+    from,
+    to,
+  }: {
+    groupId: string;
+    from: string;
+    to: string;
+  }): Promise<TeamOverviewRow[]> {
+    const { data, error } = await db().rpc('team_overview', {
+      p_group_id: groupId,
+      p_from: from,
+      p_to: to,
+    });
+    if (error) throw toTaskError(error);
+    return data.map((row) => ({
+      userId: row.user_id,
+      displayName: row.display_name,
+      date: row.date,
+      pending: row.pending,
+      done: row.done,
+      partial: row.partial,
+      missed: row.missed,
+      late: row.late,
+    }));
   },
 
   /** Pending ones past `overdueAt`: the job that marks them red does not exist yet. */

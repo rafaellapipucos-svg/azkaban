@@ -132,6 +132,7 @@ O banco é o único escritor de `xp_events`, no trigger da transição, de forma
 - O `UNTIL` da tarefa original é o fim do dia local anterior ao pivô, em UTC. Equivale a "logo antes do pivô", porque as regras do app têm no máximo uma ocorrência por dia local, e o editor volta a mostrar uma data simples.
 - `after_count` no formulário conta a partir do início da tarefa editada, como o editor mostra o `COUNT` dela. A tarefa nova recebe esse valor menos as ocorrências antes do pivô, então manter o número não alonga a série. As ocorrências em `exdates` entram na conta, como no RFC 5545. Um valor que não passa do pivô é erro: `count_before_pivot`, em `packages/core`.
 - `all` vale para o trecho da série, não para os trechos já divididos. A exceção é excluir.
+- Mudar `timezone` em `all` é mudança de agenda. A RPC `edit_task`, única que escreve `exdates`, regrava cada instante mantendo a hora local: `(x at time zone antigo) at time zone novo`. Voltar ao fuso anterior desfaz a troca. Um instante que ainda assim não casar, porque a hora também mudou, fica inerte, como em qualquer mudança de horário.
 - Em tarefa avulsa, todo escopo equivale a `all`, e mudar a agenda exige ocorrência `pending`.
 - Reagendar é editar com escopo `this`. Para reagendar uma `missed`, primeiro se reabre.
 - Duplicar é ler a tarefa e criar outra. Não precisa de RPC.

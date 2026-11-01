@@ -134,3 +134,19 @@
 - **Verificado:** `pnpm check` passa. O valor -4 do `getTimezoneOffset` foi verificado pelo orquestrador, não por mim.
 - **Não verificado:** a leitura com os campos novos, que depende de `feat/tasks-db`.
 - **Pendências / próximos passos:** `tarefas-calendario` separa os dois responsáveis em `deriveActors` e corrige o comentário de `actors.ts`. `banco-de-dados` devolve os campos listados no handoff.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 09:59 (BRT)
+
+- **Branch:** feat/tasks-adr-timezone, criada a partir de feat/phase-2-tasks
+- **Agente(s):** arquiteto
+- **Resumo:** Decidido o que acontece com `exdates` quando o fuso de uma tarefa recorrente muda em `all`.
+- **Alterações:**
+  - ADR-0005, seção 8: mudar `timezone` em `all` é mudança de agenda, e `edit_task` regrava `exdates` mantendo a hora local.
+  - Handoff curto para `banco-de-dados`.
+- **Arquivos/módulos principais:** `docs/adr/0005-tarefas-ocorrencias-recorrencia.md`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0005. Sem contrato novo, e `packages/core` não muda.
+- **Como testar:** `pnpm check`. A regra em si se testa no pgTAP, em `feat/tasks-db`.
+- **Verificado:** `pnpm check` passa.
+- **Não verificado:** a expressão SQL não rodou em um banco. Na hora repetida da virada de horário de verão, o Postgres pode escolher um instante diferente do de `packages/core`. Nesse caso, o instante fica inerte e a ocorrência excluída volta.
+- **Pendências / próximos passos:** `banco-de-dados` aplica a regra em `edit_task`.

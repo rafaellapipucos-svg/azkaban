@@ -8,7 +8,13 @@ const config: ExpoConfig = {
   orientation: 'portrait',
   icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
-  web: { bundler: 'metro', output: 'single', favicon: './assets/favicon.png' },
+  web: {
+    bundler: 'metro',
+    // `single` ignores `app/+html.tsx`, so the document's language comes from here (the default is en).
+    output: 'single',
+    lang: 'pt-BR',
+    favicon: './assets/favicon.png',
+  },
   plugins: ['expo-router', 'expo-font'],
 };
 

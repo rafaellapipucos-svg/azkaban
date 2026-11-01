@@ -27,7 +27,12 @@ test('saving a task into a context archived meanwhile says so, in words the pers
   await other.goto('/contexts');
   await other.getByRole('button', { name: /Garagem/ }).click();
   await button(other, 'Arquivar').click();
+  const archived = other.waitForResponse(
+    (response) =>
+      response.url().includes('/rest/v1/contexts') && response.request().method() === 'PATCH',
+  );
   await button(other, 'Confirmar arquivamento').click();
+  await archived;
   await expect(other.getByRole('button', { name: /Garagem/ })).toHaveCount(0);
   await other.close();
 

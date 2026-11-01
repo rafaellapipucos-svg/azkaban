@@ -450,3 +450,26 @@
 - **Verificado:** `pnpm functions:test` 10 de 10; `pnpm check`.
 - **Não verificado:** um erro de banco que não seja de dados (conexão, timeout) continua em 500 sem teste próprio. Um `rrule` legado fora da gramática (SECONDLY, por exemplo) não existe mais no banco depois da migration, então o teto não foi exercitado com ele.
 - **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 15:09 (BRT)
+
+- **Branch:** feat/tasks-final-fixes, criada a partir de feat/phase-2-tasks
+- **Agente(s):** tarefas-calendario (também a casca do app, por pedido do orquestrador)
+- **Resumo:** Última rodada de correções da Fase 2: telas de pilha sem saída, salvar tarefa que repete sem esperar a Edge Function, destino após "esta e as próximas", página 404, ordem estável, fuso da Equipe e achados de baixa prioridade do QA.
+- **Alterações:**
+  - Casca: `unstable_settings = { anchor: '(tabs)' }` na pilha `(app)`, para uma tela aberta por endereço sempre ter as abas por baixo; cabeçalho próprio (`BackHeader`) com um só controle "Voltar" de 44px, sem faixa vazia nem `<h1>` vazio; `+not-found` em pt-BR, com tema e botão "Ir para Hoje"; `web.lang: 'pt-BR'` em `app.config.ts`. O `+html.tsx` é ignorado com `web.output: 'single'` (verificado no `expo export`), por isso o idioma vai pelo config.
+  - Salvar tarefa que repete não espera mais a função: `tasksRepository.create/createBatch/edit` só gravam; `materializeTasks` (nova, lança erro) roda em segundo plano numa mutação compartilhada (`useMaterializeTasks`), com 2 novas tentativas. `MaterializeStatus`, acima da barra de abas, mostra "Criando as repetições..." e, se falhar, um alerta com "Tentar de novo". Os ids pendentes ficam no armazenamento e são retomados após recarregar a página.
+  - Depois de "esta e as próximas" a tela vai para Hoje (`dismissTo('/')`), porque a ocorrência aberta pode ter sido apagada.
+  - Ordem estável: `scheduled_start`, depois `tasks(created_at)`, depois `id`, em `listOccurrences`, `listCalendar` e `listOverdue`.
+  - `useCurrentUser` movido para `packages/data/src/session` (ADR-0006), com `react`, `@tanstack/react-query` e `@azkaban/config` no `package.json` do `data`. `teamOverview` exige o fuso do perfil e a `TeamScreen` espera o perfil. Faixas 80% e 50% marcadas como provisórias em `tasksConfig`.
+  - `context_archived` em `taskErrorCodeSchema` (mudança autorizada pelo orquestrador) e mensagem em pt-BR. `invalid_rrule` e `invalid_timezone` seguem genéricos.
+  - Calendário usa o `StatusMark` de `@azkaban/ui`; a cópia local foi apagada. `QuickCreate` e `StatusActions` já usavam `Sheet` e `Input` (feito pelo design-system).
+  - Baixa prioridade: erro de carga esconde o vazio e oferece "Tentar de novo" (Hoje, áreas, calendário); depois das 72 h o detalhe explica o motivo e a mensagem só manda procurar administrador em tarefa de grupo; só o verde é riscado; a visão do dia começa às 6h ou na primeira tarefa; limites de texto, intervalo e dia do mês saíram para `tasksConfig`; ponto de contexto usa `tokens.spacing`.
+  - `expect.timeout` de `playwright.config.ts`: de 15 s para 10 s (o padrão de 5 s ainda falha com quatro workers: a lista de uma tarefa que repete só enche quando a função termina, 4 s ou mais na partida a frio, e a criação de conta e contexto também passa de 5 s sob carga).
+- **Arquivos/módulos principais:** `apps/app/app/(app)/_layout.tsx`, `apps/app/app/+not-found.tsx`, `apps/app/src/{BackHeader,AppTabBar}.tsx`, `apps/app/app.config.ts`, `packages/data/src/{session,tasks}`, `packages/features/tasks/src/{hooks,MaterializeStatus,TaskFormScreen,TaskDetailScreen,TodayScreen,AreaScreen,OccurrenceRow,config}`, `packages/features/calendar/src`, `packages/contracts/src/tasks.ts`, `packages/i18n/src/pt-BR`, `e2e/*`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. O arquiteto pode registrar no ADR-0006 a navegação por `anchor` com cabeçalho próprio e a materialização em segundo plano.
+- **Como testar:** `pnpm db:start`, `pnpm exec supabase functions serve`, `pnpm check`, `pnpm build:web`, `pnpm db:test`, `pnpm functions:test`, `pnpm e2e`.
+- **Verificado:** testes de regressão novos, vistos falhar antes da correção: `e2e/shell.spec.ts` (saída das telas de pilha e 404), `tasks-materialize.spec.ts` (3 testes), `tasks-order.spec.ts`, `team-timezone.spec.ts`, `tasks-ui-fixes.spec.ts`; o `test.fail` de "esta e as próximas" virou teste normal. `context_archived` tem teste de contrato e E2E. Telas olhadas a 375px, claro e escuro: Hoje, detalhe, Grupos, 404 e visão do dia.
+- **Não verificado:** nativo (iOS/Android) só no typecheck; leitor de tela real; abas cortadas a 320px (item 8 do QA) não foi tratado; lampejo branco do documento no tema escuro antes do JS (`+html` não vale em `single`; exigiria `public/index.html`); `<meta theme-color>`, marcos de página e manifest PWA (itens 3, 5 e 6 do handoff da casca).
+- **Pendências / próximos passos:** `backend-funcoes` investiga o status 546 ("request has been cancelled by supervisor") da função com vários pedidos ao mesmo tempo; o arquiteto decide o dono de `apps/app/app` e o resto da casca.

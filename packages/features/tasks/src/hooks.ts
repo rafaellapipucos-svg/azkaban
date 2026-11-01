@@ -229,6 +229,10 @@ export function useMaterializeTasks() {
   const refresh = useRefreshTasks();
   return useMutation({
     mutationKey: materializeKey,
+    // The function is safe to repeat, and a worker killed under load (status 546) answers the
+    // next call: try again before telling the person.
+    retry: 2,
+    retryDelay: 1500,
     mutationFn: async (taskIds: string[]) => {
       // Written first and cleared only on success: a reload in the middle must not lose the work.
       await updatePending((ids) => [...new Set([...ids, ...taskIds])]);

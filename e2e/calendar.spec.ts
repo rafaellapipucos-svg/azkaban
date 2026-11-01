@@ -185,6 +185,9 @@ test('creating from a day or an hour prefills the date and the time', async ({ p
   await expect(page.locator('input[type="time"]')).toHaveValue('14:00');
   await page.getByLabel('O que precisa ser feito?').fill('Reunião');
   await button(page, 'Salvar').click();
+  // Leaving before the save ends aborts it (and the navigation, with ERR_ABORTED): it goes back
+  // to the calendar it came from
+  await expect(page.getByRole('heading', { name: 'Calendário', exact: true })).toBeVisible();
 
   // It shows on that hour of that day
   await openCalendar(page, `date=${day}&view=day`);

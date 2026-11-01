@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { activateOnSpace } from '@azkaban/platform';
 import { Mascot, type MascotMood } from './Mascot';
 import { Body } from './Text';
-import { contextColors, layout, spacing, type ContextColorToken } from './tokens';
+import { contextColors, layout, sizes, spacing, type ContextColorToken } from './tokens';
 import { useThemeColors } from './useThemeColors';
 
 // SafeAreaView pads only the part of the safe area it actually overlaps: full under the status bar
@@ -34,13 +35,20 @@ export function Screen({ children }: { children: ReactNode }) {
 
 export function Card({ children, onPress }: { children: ReactNode; onPress?: () => void }) {
   const box =
-    'min-h-11 gap-2 rounded-lg border-2 border-border bg-surface p-4 dark:border-border-dark dark:bg-surface-dark';
+    'gap-2 rounded-lg border-2 border-border bg-surface p-4 dark:border-border-dark dark:bg-surface-dark';
   return onPress ? (
-    <Pressable role="button" onPress={onPress} className={`${box} active:opacity-70`}>
+    <Pressable
+      role="button"
+      onPress={onPress}
+      style={{ minHeight: sizes.touch }}
+      className={`${box} active:opacity-70`}
+    >
       {children}
     </Pressable>
   ) : (
-    <View className={box}>{children}</View>
+    <View style={{ minHeight: sizes.touch }} className={box}>
+      {children}
+    </View>
   );
 }
 
@@ -65,20 +73,25 @@ export function Chip({
       aria-checked={selected}
       aria-label={label}
       onPress={onPress}
-      style={selected && color ? { backgroundColor: color, borderColor: color } : undefined}
-      className={`min-h-11 flex-row items-center gap-1 rounded-full border-2 px-4 ${
+      {...activateOnSpace(onPress)}
+      style={[
+        { minHeight: sizes.touch },
+        selected && color ? { backgroundColor: color, borderColor: color } : null,
+      ]}
+      // max-w-full + shrink: a long name wraps inside the row instead of widening it.
+      className={`max-w-full flex-row items-center gap-1 rounded-full border-2 px-4 py-2 ${
         selected
           ? 'border-primary bg-primary'
           : 'border-border bg-surface dark:border-border-dark dark:bg-surface-dark'
       }`}
     >
       {selected ? (
-        <Text aria-hidden className="font-heavy text-md text-onPrimary">
+        <Text aria-hidden className="shrink-0 font-heavy text-md text-onPrimary">
           ✓
         </Text>
       ) : null}
       <Text
-        className={`font-heavy text-md ${selected ? 'text-onPrimary' : 'text-text dark:text-text-dark'}`}
+        className={`shrink font-heavy text-md ${selected ? 'text-onPrimary' : 'text-text dark:text-text-dark'}`}
       >
         {label}
       </Text>

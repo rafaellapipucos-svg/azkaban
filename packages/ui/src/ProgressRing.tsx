@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, View } from 'react-native';
+import { Animated, Easing, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { Subtitle } from './Text';
 import { colors, motion, sizes } from './tokens';
 import { useReducedMotion } from './useReducedMotion';
 import { useThemeColors } from './useThemeColors';
@@ -90,9 +89,10 @@ export function ProgressRing({ progress, label, valueText, size = sizes.ring }: 
           />
         ) : null}
       </Svg>
-      <Subtitle role="none" className="text-center">
+      {/* Not a Subtitle: it would be a heading, and the ring already speaks the value. */}
+      <Text role="none" className="text-center font-heavy text-lg text-text dark:text-text-dark">
         {valueText}
-      </Subtitle>
+      </Text>
     </View>
   );
 }

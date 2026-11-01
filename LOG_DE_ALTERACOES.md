@@ -388,3 +388,25 @@
 - **Verificado:** `pnpm check` passa (420 testes em `core`, 204 módulos sem violação de fronteira). `grep "role ===" GroupDetailScreen.tsx` não acha mais nada.
 - **Não verificado:** a tela não foi aberta no navegador nem o E2E rodou (o banco local está com outro agente); a equivalência com a versão anterior vem da leitura e dos testes de unidade.
 - **Pendências / próximos passos:** o nome do grupo ainda aparece só dentro do campo de texto para quem pode renomear (apontado pelo qa-testes), sem título.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 14:09 (BRT)
+
+- **Branch:** feat/ui-phase-2-a11y, criada a partir de feat/phase-2-tasks
+- **Agente(s):** design-system
+- **Resumo:** Os achados de acessibilidade do QA e os pedidos de `tarefas-calendario` em `packages/ui`: nome longo em `Chip`, tecla Espaço, contraste do exemplo de texto, folha de criação rápida com nome e foco, níveis de título, `StatusMark` e `SegmentedControl` com rótulo longo.
+- **Alterações:**
+  - `Chip`: `max-w-full`, texto que encolhe e quebra linha, `min-height` pelo token `sizes.touch`. Um nome de 80 caracteres vira 3 linhas, 343px numa coluna de 343px (antes 643px). O nome inteiro continua no `aria-label`.
+  - Teclado: `activateOnSpace` em `packages/platform` (`keyboard.web.ts` trata Espaço, sem rolar a página, sem repetição, só quando o alvo é o próprio controle; `keyboard.ts` não faz nada no nativo). Usado em `TaskCheck`, `SwitchRow`, `Chip` e `SegmentedControl`; desativado quando `disabled`. Enter e clique seguem como antes (react-native-web). Teste de unidade do adapter.
+  - `Input` (novo) e `FormTextField` por cima dele: o exemplo de texto usa a cor do tema ativo e a cor do próprio campo vai inline, porque o preflight do Tailwind pinta de `#9ca3af` (2,53:1) o campo vazio e vencia a classe. `StatusActions` troca `TextInput` por `Input` (mínimo, fora do escopo, antes usava `tokens.colors.muted`, que é o claro, também no escuro).
+  - `Sheet` (novo): `Modal` com `aria-label` (o `aria-modal` do react-native-web nascia sem nome), fundo escuro fora da ordem de foco e foco devolvido a quem abriu (`useRestoreFocus`, lido na renderização, porque o `autoFocus` do filho roubava o foco antes de qualquer efeito). `QuickCreate` usa `Sheet`.
+  - `Title` é nível 1 e `Subtitle` nível 2, com `level={3}`. `ProgressRing` deixa de usar `Subtitle` para o valor (virava `role=none` com `aria-level`).
+  - `StatusMark` promovido a `@azkaban/ui`, com `statusSymbol` compartilhado com `StatusBadge` e `TaskCheck`. `SegmentedControl`: o `✓` entra no texto do rótulo, então um rótulo de duas linhas continua centrado.
+  - Tokens: `sizes.{stepperValue, lateBadge, statusDot, statusRow, border, mascot, mascotSmall}`, `opacity.scrim`; `min-h-11`, `min-h-12`, `min-w-16`, `h-5 w-5`, `borderWidth: 2` e o tamanho do mascote saíram das classes e dos números soltos.
+  - `/design-system`: exemplos de nomes longos (chips de uma e de várias escolhas), `SegmentedControl` com rótulos longos, `StatusMark`, folha com campo em foco automático, campo com exemplo de texto, nível 3 e dica de teclado. Textos em `ui.json`.
+- **Arquivos/módulos principais:** `packages/ui/src`, `packages/platform/src/keyboard*.ts`, `packages/i18n/src/pt-BR/ui.json`, `packages/features/tasks/src/{QuickCreate,StatusActions}.tsx`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. A troca do `StatusMark` do calendário ficou para `tarefas-calendario` (handoff), por estar fora do escopo.
+- **Como testar:** `pnpm check`, `pnpm build:web`; `pnpm dev`, abrir `/design-system` a 375px, claro e escuro, apertar Tab e Espaço.
+- **Verificado:** `pnpm check` e `pnpm build:web` passam. No Chromium (Playwright) a 375px, nos dois temas: três chips longos com 343px de largura, sem rolagem lateral; Espaço alterna `switch`, `TaskCheck`, `Chip` de várias escolhas, `Chip` de escolha única e `SegmentedControl`, sem rolar a página; Enter e clique seguem alternando; títulos saem `h1`, `h2` e `h3`; o diálogo tem nome e, depois de Esc, o foco volta para "Abrir folha" mesmo com o campo da folha em foco automático. axe-core 4.10.2 (de fora do repositório) em `/design-system`: zero violações de contraste, `aria-allowed-attr`, `aria-dialog-name` e `aria-prohibited-attr`; sobram `region` (a página não tem landmarks) e uma barra de progresso sem nome que é a do indicador de carregamento do Expo, não do app.
+- **Não verificado:** nada rodou em iOS, Android nem leitor de tela real; o nativo só passou no typecheck (o `Sheet` não foi visto no nativo). `QuickCreate` e `StatusActions` com dados não foram abertos (sem Supabase), só o equivalente em `/design-system`. `pnpm e2e` não rodou. A barra de abas apertada (item 6 do QA) não foi tocada.
+- **Pendências / próximos passos:** `tarefas-calendario` troca o `StatusMark` do calendário (handoff de 14:09) e pode usar `Subtitle level={3}` em nomes de item. O Metro da web não pegou edições feitas depois da primeira compilação neste worktree; foi preciso reiniciar o servidor a cada rodada.

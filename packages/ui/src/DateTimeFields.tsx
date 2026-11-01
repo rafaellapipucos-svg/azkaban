@@ -47,7 +47,7 @@ function DateTimeField<T extends FieldValues>({
           accentColor: theme.primary,
           backgroundColor: theme.surface,
           borderColor: fieldState.invalid ? theme.danger : theme.border,
-          borderWidth: 2,
+          borderWidth: sizes.border,
           borderRadius: radii.md,
           minHeight: sizes.field,
           paddingHorizontal: spacing[4],

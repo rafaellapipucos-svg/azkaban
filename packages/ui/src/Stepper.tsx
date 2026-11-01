@@ -2,7 +2,7 @@ import { useTranslation } from '@azkaban/i18n';
 import { View } from 'react-native';
 import { IconButton } from './IconButton';
 import { Body } from './Text';
-import { spacing } from './tokens';
+import { sizes, spacing } from './tokens';
 
 type Props = {
   /** What is being counted, read by screen readers: "Repetir a cada". */
@@ -33,7 +33,11 @@ export function Stepper({ label, value, onChange, min = 1, max, step = 1, format
         disabled={value - step < min}
         onPress={() => onChange(Math.max(min, value - step))}
       />
-      <Body aria-live="polite" className="min-w-16 text-center font-heavy">
+      <Body
+        aria-live="polite"
+        style={{ minWidth: sizes.stepperValue }}
+        className="text-center font-heavy"
+      >
         {text}
       </Body>
       <IconButton

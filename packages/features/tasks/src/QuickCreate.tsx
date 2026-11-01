@@ -11,16 +11,16 @@ import {
   FormTextField,
   IconButton,
   SegmentedControl,
+  Sheet,
   Subtitle,
   TimeField,
-  tokens,
 } from '@azkaban/ui';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useController, useForm } from 'react-hook-form';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { z } from 'zod';
 import { errorKey } from './format';
 import { defaultFormValues } from './formDefaults';
@@ -132,91 +132,58 @@ export function QuickCreate({ contextId, onCreated }: Props) {
         extended
         onPress={() => (list.length === 0 ? router.push('/contexts/new') : setOpen(true))}
       />
-      <Modal visible={open} transparent animationType="fade" onRequestClose={close}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={{ flex: 1, justifyContent: 'flex-end' }}
-        >
-          <Pressable
-            aria-label={t('quick.close')}
-            onPress={close}
-            style={{
-              position: 'absolute',
-              top: 0,
-              right: 0,
-              bottom: 0,
-              left: 0,
-              backgroundColor: tokens.colors.text,
-              opacity: 0.4,
-            }}
-          />
-          <View
-            role="dialog"
-            aria-label={t('quick.title')}
-            style={{
-              gap: tokens.spacing[3],
-              padding: tokens.spacing[4],
-              width: '100%',
-              maxWidth: tokens.layout.maxContentWidth,
-              alignSelf: 'center',
-            }}
-            className="rounded-t-lg bg-background dark:bg-background-dark"
-          >
-            <View className="flex-row items-center justify-between">
-              <Subtitle>{t('quick.title')}</Subtitle>
-              <IconButton icon="✕" label={t('quick.close')} onPress={close} />
-            </View>
-            <FormTextField
-              control={control}
-              name="title"
-              label={t('quick.titleLabel')}
-              errorText={t('form.titleRequired')}
-              autoFocus
-              maxLength={120}
-              returnKeyType="done"
-              onSubmitEditing={() => void submit()}
-            />
-            <SegmentedControl
-              label={t('quick.dayLabel')}
-              value={day.value}
-              onChange={day.onChange}
-              options={[
-                { value: 'today', label: t('days.today') },
-                { value: 'tomorrow', label: t('days.tomorrow') },
-              ]}
-            />
-            <TimeField
-              control={control}
-              name="time"
-              label={t('quick.timeLabel')}
-              errorText={t('form.timeRequired')}
-            />
-            {list.length > 1 ? <Body>{t('form.context')}</Body> : null}
-            {list.length > 1 ? (
-              <ChipRow label={t('form.context')}>
-                {list.map((item) => (
-                  <Chip
-                    key={item.id}
-                    label={`${item.icon} ${item.name}`}
-                    colorToken={item.colorToken}
-                    selected={context.value === item.id}
-                    onPress={() => context.onChange(item.id)}
-                  />
-                ))}
-              </ChipRow>
-            ) : null}
-            {create.isError ? (
-              <ErrorText>{t(errorKey(taskErrorCode(create.error)))}</ErrorText>
-            ) : null}
-            <Button
-              label={t('quick.create')}
-              loading={create.isPending}
-              onPress={() => void submit()}
-            />
-            <Button variant="secondary" label={t('quick.moreOptions')} onPress={moreOptions} />
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <Sheet visible={open} label={t('quick.title')} onClose={close}>
+        <View className="flex-row items-center justify-between">
+          <Subtitle>{t('quick.title')}</Subtitle>
+          <IconButton icon="✕" label={t('quick.close')} onPress={close} />
+        </View>
+        <FormTextField
+          control={control}
+          name="title"
+          label={t('quick.titleLabel')}
+          errorText={t('form.titleRequired')}
+          autoFocus
+          maxLength={120}
+          returnKeyType="done"
+          onSubmitEditing={() => void submit()}
+        />
+        <SegmentedControl
+          label={t('quick.dayLabel')}
+          value={day.value}
+          onChange={day.onChange}
+          options={[
+            { value: 'today', label: t('days.today') },
+            { value: 'tomorrow', label: t('days.tomorrow') },
+          ]}
+        />
+        <TimeField
+          control={control}
+          name="time"
+          label={t('quick.timeLabel')}
+          errorText={t('form.timeRequired')}
+        />
+        {list.length > 1 ? <Body>{t('form.context')}</Body> : null}
+        {list.length > 1 ? (
+          <ChipRow label={t('form.context')}>
+            {list.map((item) => (
+              <Chip
+                key={item.id}
+                label={`${item.icon} ${item.name}`}
+                colorToken={item.colorToken}
+                selected={context.value === item.id}
+                onPress={() => context.onChange(item.id)}
+              />
+            ))}
+          </ChipRow>
+        ) : null}
+        {create.isError ? <ErrorText>{t(errorKey(taskErrorCode(create.error)))}</ErrorText> : null}
+        <Button
+          label={t('quick.create')}
+          loading={create.isPending}
+          onPress={() => void submit()}
+        />
+        <Button variant="secondary" label={t('quick.moreOptions')} onPress={moreOptions} />
+      </Sheet>
     </>
   );
 }

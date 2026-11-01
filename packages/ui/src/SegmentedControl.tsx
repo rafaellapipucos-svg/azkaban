@@ -1,3 +1,4 @@
+import { activateOnSpace } from '@azkaban/platform';
 import { Pressable, Text, View } from 'react-native';
 import { sizes } from './tokens';
 
@@ -12,6 +13,7 @@ type Props<T extends string> = {
 };
 
 // Same radio-group principle as ChipRow, for 2 to 4 short exclusive choices in one connected bar.
+// The check is part of the label text, so a label that wraps to two lines stays centered with it.
 export function SegmentedControl<T extends string>({ label, options, value, onChange }: Props<T>) {
   return (
     <View
@@ -28,19 +30,16 @@ export function SegmentedControl<T extends string>({ label, options, value, onCh
             aria-checked={selected}
             aria-label={option.label}
             onPress={() => onChange(option.value)}
+            {...activateOnSpace(() => onChange(option.value))}
             style={{ minHeight: sizes.touch }}
-            className={`flex-1 flex-row items-center justify-center gap-1 rounded-full px-2 ${
+            className={`flex-1 items-center justify-center rounded-full px-2 py-2 ${
               selected ? 'bg-primary' : 'active:opacity-70'
             }`}
           >
-            {selected ? (
-              <Text aria-hidden className="font-heavy text-md text-onPrimary">
-                ✓
-              </Text>
-            ) : null}
             <Text
-              className={`font-heavy text-md ${selected ? 'text-onPrimary' : 'text-text dark:text-text-dark'}`}
+              className={`shrink text-center font-heavy text-md ${selected ? 'text-onPrimary' : 'text-text dark:text-text-dark'}`}
             >
+              {selected ? <Text aria-hidden>{'✓ '}</Text> : null}
               {option.label}
             </Text>
           </Pressable>

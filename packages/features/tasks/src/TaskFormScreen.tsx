@@ -1,11 +1,11 @@
 import { taskEditScopeSchema, type GroupMember } from '@azkaban/contracts';
 import {
-  addDays,
   buildTaskInput,
   can,
   localDayRange,
   nextHourTime,
   planEdit,
+  resolvePrefill,
   rruleOf,
   taskFormValues,
   toBatchInput,
@@ -58,7 +58,10 @@ type Props = {
   scope?: string;
   /** Creating a copy of another occurrence's task. */
   duplicateOf?: string;
-  /** From quick create's "Mais opções". */
+  /**
+   * From quick create's "Mais opções" and from the calendar. `day` is `tomorrow` or `yyyy-MM-dd`,
+   * `time` is `HH:mm`; the route's text is checked by `resolvePrefill`.
+   */
   prefill?: { title?: string; contextId?: string; day?: string; time?: string };
 };
 
@@ -149,12 +152,18 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
       [prefill?.contextId, lastContextId].find((id) => list.some((context) => context.id === id)) ??
       list[0]?.id ??
       '';
+    const start = resolvePrefill({ day: prefill?.day, time: prefill?.time }, today);
     return {
       ...defaultFormValues({
         contextId,
         userId: user.id,
-        date: prefill?.day === 'tomorrow' ? addDays(today, 1) : today,
-        time: prefill?.time ?? nextHourTime(profileTimezone, opened),
+        date: start.date,
+        // Another day than today has no "next hour": it starts at a normal hour of the day.
+        time:
+          start.time ??
+          (start.date === today
+            ? nextHourTime(profileTimezone, opened)
+            : tasksConfig.otherDayDefaultTime),
       }),
       title: prefill?.title ?? '',
     };

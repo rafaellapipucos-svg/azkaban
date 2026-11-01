@@ -16,12 +16,22 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
+import type { ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { InvitesSection } from './InvitesSection';
 
 const nameSchema = groupInputSchema.pick({ name: true });
 
-export function GroupDetailScreen({ groupId, userId }: { groupId: string; userId: string }) {
+export function GroupDetailScreen({
+  groupId,
+  userId,
+  children,
+}: {
+  groupId: string;
+  userId: string;
+  /** Entry points other modules add to this group's page, such as the team view. */
+  children?: ReactNode;
+}) {
   const { t } = useTranslation('groups');
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -150,6 +160,8 @@ export function GroupDetailScreen({ groupId, userId }: { groupId: string; userId
           {memberActions(member)}
         </Card>
       ))}
+
+      {children}
 
       {can(user, 'member.invite', scope) ? (
         <InvitesSection

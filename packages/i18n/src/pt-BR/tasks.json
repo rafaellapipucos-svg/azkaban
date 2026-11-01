@@ -234,5 +234,34 @@
     "entry": "{{from}} → {{to}}",
     "by": "Por {{name}}, em {{when}}",
     "reason": "Motivo: {{reason}}"
+  },
+  "team": {
+    "title": "Equipe",
+    "link": "Ver equipe",
+    "forbidden": "Só quem pode ver as tarefas do grupo acessa a equipe.",
+    "previousWeek": "Semana anterior",
+    "nextWeek": "Próxima semana",
+    "thisWeek": "Esta semana",
+    "range": "{{from}} a {{to}}",
+    "you": "(você)",
+    "loadError": "Não deu para carregar a equipe. Tente de novo.",
+    "noMembers": "Este grupo ainda não tem membros.",
+    "hint": "Toque em uma pessoa para abrir o calendário dela. A taxa conta o que foi feito entre as tarefas que já venceram.",
+    "rate": {
+      "green": "Em dia",
+      "yellow": "Atenção",
+      "red": "Em atraso",
+      "none": "Sem tarefas vencidas"
+    },
+    "rateValue": "{{label}}: {{percent}}%",
+    "dayTone": {
+      "green": "tudo feito",
+      "yellow": "parcial",
+      "red": "com falha",
+      "none": "pendente"
+    },
+    "daySpoken": "{{day}}: {{done}} de {{total}} feitas, {{tone}}",
+    "noTasksInWeek": "sem tarefas na semana",
+    "memberSpoken": "{{name}}. {{rate}}. {{days}}. Abrir o calendário"
   }
 }

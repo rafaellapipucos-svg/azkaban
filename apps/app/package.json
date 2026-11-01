@@ -12,6 +12,7 @@
     "@azkaban/config": "workspace:*",
     "@azkaban/data": "workspace:*",
     "@azkaban/feature-auth": "workspace:*",
+    "@azkaban/feature-calendar": "workspace:*",
     "@azkaban/feature-contexts": "workspace:*",
     "@azkaban/feature-groups": "workspace:*",
     "@azkaban/feature-tasks": "workspace:*",

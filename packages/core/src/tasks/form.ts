@@ -1,4 +1,4 @@
-import { taskBatchInputSchema } from '@azkaban/contracts';
+import { localDateSchema, taskBatchInputSchema } from '@azkaban/contracts';
 import type {
   RecurrenceFrequency,
   RecurrenceInput,
@@ -71,6 +71,27 @@ export function localTimeOf(timezone: string, instant: string): string {
 export function nextHourTime(timezone: string, at: Date): string {
   const hour = Number(localTimeOf(timezone, at.toISOString()).slice(0, 2)) + 1;
   return hour > 23 ? DEADLINE_TIME : `${String(hour).padStart(2, '0')}:00`;
+}
+
+const PREFILL_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/**
+ * The day and time a route asked the new-task form to start with. `day` is `tomorrow` or a real
+ * `yyyy-MM-dd` date (from a tap in the calendar); `time` is `HH:mm`. Anything else, such as a
+ * hand-edited link, falls back: today, and no time, so the caller picks its own.
+ */
+export function resolvePrefill(
+  prefill: { day?: string; time?: string },
+  today: string,
+): { date: string; time: string | null } {
+  const date =
+    prefill.day === 'tomorrow'
+      ? addDays(today, 1)
+      : localDateSchema.safeParse(prefill.day).success
+        ? (prefill.day as string)
+        : today;
+  const time = prefill.time !== undefined && PREFILL_TIME.test(prefill.time) ? prefill.time : null;
+  return { date, time };
 }
 
 /** Adds `days` to a `yyyy-MM-dd` date. */

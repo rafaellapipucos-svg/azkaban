@@ -35,6 +35,7 @@ export {
   defaultRecurrence,
   localTimeOf,
   nextHourTime,
+  resolvePrefill,
   taskFormValues,
   toBatchInput,
   weekdayOf,
@@ -52,3 +53,45 @@ export {
   type AreaPlan,
   type TodayPlan,
 } from './tasks/today';
+export {
+  addMonths,
+  dayRange,
+  daysBetween,
+  firstOfMonth,
+  lastOfMonth,
+  monthGrid,
+  monthOf,
+  shiftDate,
+  startOfWeek,
+  visibleRange,
+  weekDays,
+  weekdayIndex,
+  type CalendarView,
+  type MonthCell,
+  type WeekStart,
+} from './tasks/calendarGrid';
+export {
+  buildDays,
+  calendarStatuses,
+  dayTimeline,
+  emptyDay,
+  isPerfectDay,
+  noFilter,
+  occurrenceDay,
+  summarizeDay,
+  type CalendarFilter,
+  type CalendarStatus,
+  type DayInfo,
+  type DaySummary,
+  type DayTimeline,
+} from './tasks/calendarDay';
+export { materializationNeed, type MaterializeNeed } from './tasks/calendarMaterialize';
+export {
+  dayTone,
+  teamOverview,
+  toneOf,
+  type DayCounts,
+  type MemberOverview,
+  type RateBands,
+  type TeamTone,
+} from './tasks/team';

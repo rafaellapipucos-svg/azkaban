@@ -213,6 +213,9 @@ export function useRefreshTasks() {
         queryClient.invalidateQueries({ queryKey: ['occurrences'] }),
         queryClient.invalidateQueries({ queryKey: ['occurrence'] }),
         queryClient.invalidateQueries({ queryKey: ['history'] }),
+        // The calendar asks for far-off occurrences once per range: a new repeating task must
+        // make it ask again.
+        queryClient.invalidateQueries({ queryKey: ['materialize'] }),
       ]),
     [queryClient],
   );

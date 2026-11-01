@@ -1,6 +1,6 @@
 import type { Task } from '@azkaban/contracts';
 import { RRule } from 'rrule';
-import { DAY_MS, instantOf, wallClockOf } from './zone';
+import { DAY_MS, instantOf, localDateOf, wallClockOf } from './zone';
 
 /** The fields of a task that decide its occurrences. */
 export type ExpandableTask = Pick<
@@ -71,8 +71,10 @@ function scheduledDue(task: ExpandableTask, startMs: number, anchorMs: number): 
 }
 
 /**
- * Occurrences of a task with `from <= scheduledStart < to`, in time order, without the instants
- * in `exdates`. Half-open, so consecutive windows never repeat an occurrence. A task without
+ * Occurrences of a task with `from <= scheduledStart < to`, in time order, without the instances
+ * whose local day (in the task's zone) is in `exdates`: a day, not an instant, so an excluded day
+ * stays out after a change of time or zone, and in the repeated or missing hour of a DST change.
+ * A listed day the rule does not reach is inert. Half-open, so consecutive windows never repeat an occurrence. A task without
  * `rrule` yields its single occurrence. Pure: this is the function the Edge Function calls.
  */
 export function expandOccurrences(
@@ -81,9 +83,9 @@ export function expandOccurrences(
   to: string,
 ): ExpandedOccurrence[] {
   const anchorMs = Date.parse(taskAnchor(task));
-  const excluded = new Set(task.exdates.map((instant) => Date.parse(instant)));
+  const excluded = new Set(task.exdates);
   return ruleStarts(task.rrule, anchorMs, task.timezone, Date.parse(from), Date.parse(to))
-    .filter((start) => !excluded.has(start))
+    .filter((start) => !excluded.has(localDateOf(task.timezone, start)))
     .map((start) => ({
       scheduledStart: new Date(start).toISOString(),
       scheduledDue: new Date(scheduledDue(task, start, anchorMs)).toISOString(),

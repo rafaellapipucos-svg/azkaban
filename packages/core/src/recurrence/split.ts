@@ -15,9 +15,12 @@ export type SplitResult = {
  * pivot, which is "just before" because a rule has one occurrence per local day; this also keeps
  * `fromRRule` of the head reading as a plain date. An original COUNT becomes that end date.
  *
- * `tailRecurrence.end` of type `after_count` counts occurrences of the whole series, the way the
+ * `tailRecurrence.end` of type `after_count` counts from the start of the task being edited, the way the
  * editor shows them: the tail gets what remains after the occurrences before the pivot. The
  * occurrences before the pivot are counted with `exdates` included, as RFC 5545 counts COUNT.
+ *
+ * Dividing `exdates` is not done here: the tail inherits the days from the pivot on, and the
+ * `edit_task` RPC does it in SQL, comparing `YYYY-MM-DD` strings (ADR-0005 section 8).
  *
  * @param pivotStart `scheduled_start` of the occurrence being edited, as an ISO instant
  * @throws RangeError `count_before_pivot` when the new count is not past the pivot

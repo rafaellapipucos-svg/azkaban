@@ -4,14 +4,18 @@ import { can, type PermissionUser } from '../permissions/can';
 export type ActorUser = PermissionUser & { id: string };
 
 /**
- * What the database looks at to derive the actor. `assigneeId` is the occurrence's: it is also the
- * task's, because editing the schedule hands pending occurrences to the new assignee (ADR-0005).
+ * What the database looks at to derive the actor (ADR-0005 section 4). There are two assignees
+ * and they differ for an occurrence resolved before a reassignment: it keeps whoever resolved it,
+ * while the task already points to the new one.
  */
 export type ActorSubject = {
   /** Null for a task in a personal context. */
   groupId: string | null;
   createdBy: string | null;
-  assigneeId: string;
+  /** `task_occurrences.assignee_id`: decides `assignee`. */
+  occurrenceAssigneeId: string;
+  /** `tasks.assignee_id`: decides `própria` and the `task.edit_assigned` and `task.delete_assigned` cases. */
+  taskAssigneeId: string;
   visibility: TaskVisibility;
 };
 
@@ -21,17 +25,19 @@ export type ActorSubject = {
  */
 export function deriveActors(
   user: ActorUser,
-  { groupId, createdBy, assigneeId, visibility }: ActorSubject,
+  { groupId, createdBy, occurrenceAssigneeId, taskAssigneeId, visibility }: ActorSubject,
 ): OccurrenceActor[] {
   const group = groupId === null ? null : { id: groupId };
   // Leaving a group costs the access to its tasks, including the ones the user created.
   if (group && !user.memberships.some((m) => m.groupId === group.id)) return [];
 
-  const assignee = assigneeId === user.id;
-  const own = createdBy === user.id && assignee;
+  const assignee = occurrenceAssigneeId === user.id;
+  const taskAssignee = taskAssigneeId === user.id;
+  const own = createdBy === user.id && taskAssignee;
   const manages = group !== null && visibility === 'group' && can(user, 'task.manage_group', group);
-  const mayEditAssigned = assignee && group !== null && can(user, 'task.edit_assigned', group);
-  const mayDeleteAssigned = assignee && group !== null && can(user, 'task.delete_assigned', group);
+  const mayEditAssigned = taskAssignee && group !== null && can(user, 'task.edit_assigned', group);
+  const mayDeleteAssigned =
+    taskAssignee && group !== null && can(user, 'task.delete_assigned', group);
 
   const actors: OccurrenceActor[] = [];
   if (assignee) actors.push('assignee');

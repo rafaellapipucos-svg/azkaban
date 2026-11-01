@@ -127,42 +127,122 @@ describe('expandOccurrences: EXDATE', () => {
   const weekly = task({ rrule: 'FREQ=WEEKLY;BYDAY=MO,WE,FR' });
   const window = ['2026-11-02T00:00:00Z', '2026-11-09T00:00:00Z'] as const;
 
-  it('removes the excluded instants', () => {
-    expect(starts({ ...weekly, exdates: ['2026-11-04T12:00:00.000Z'] }, ...window)).toEqual([
+  it('removes the instance of an excluded local day', () => {
+    expect(starts({ ...weekly, exdates: ['2026-11-04'] }, ...window)).toEqual([
       '2026-11-02T12:00:00.000Z',
       '2026-11-06T12:00:00.000Z',
     ]);
   });
 
-  it('compares instants, so another spelling of the same moment excludes it', () => {
-    expect(starts({ ...weekly, exdates: ['2026-11-04T09:00:00-03:00'] }, ...window)).toEqual([
-      '2026-11-02T12:00:00.000Z',
-      '2026-11-06T12:00:00.000Z',
-    ]);
+  it('ignores a day the rule does not reach: it is inert', () => {
+    // Tuesday and Saturday are not in the rule.
+    expect(starts({ ...weekly, exdates: ['2026-11-03', '2026-11-07'] }, ...window)).toHaveLength(3);
   });
 
-  it('ignores instants that match no occurrence', () => {
-    expect(starts({ ...weekly, exdates: ['2026-11-04T12:00:01.000Z'] }, ...window)).toHaveLength(3);
+  it('does not shift an excluded day onto another: Saturday out does not exclude Sunday', () => {
+    const excluded = ['2026-11-07']; // Saturday
+    const toSaturdaySunday = task({ rrule: 'FREQ=WEEKLY;BYDAY=SA,SU', exdates: excluded });
+    // Saturday is out; Sunday is a different day and is not excluded.
+    expect(starts(toSaturdaySunday, ...window)).toEqual(['2026-11-08T12:00:00.000Z']);
+    const toSunday = task({ rrule: 'FREQ=WEEKLY;BYDAY=SU', exdates: excluded });
+    expect(starts(toSunday, ...window)).toEqual(['2026-11-08T12:00:00.000Z']);
   });
 
   it('can exclude the anchor itself', () => {
-    expect(starts({ ...weekly, exdates: ['2026-11-02T12:00:00.000Z'] }, ...window)).toEqual([
+    expect(starts({ ...weekly, exdates: ['2026-11-02'] }, ...window)).toEqual([
       '2026-11-04T12:00:00.000Z',
       '2026-11-06T12:00:00.000Z',
     ]);
   });
 
   it('removes the only occurrence of a task without a rule', () => {
-    const single = task({ rrule: null, exdates: ['2026-11-02T12:00:00.000Z'] });
+    const single = task({ rrule: null, exdates: ['2026-11-02'] });
     expect(starts(single, ...window)).toEqual([]);
   });
 
-  it('does not count excluded instants as extra COUNT: they still use up the count', () => {
-    const t = task({ rrule: 'FREQ=DAILY;COUNT=3', exdates: ['2026-11-03T12:00:00.000Z'] });
+  it('does not count excluded days as extra COUNT: they still use up the count', () => {
+    const t = task({ rrule: 'FREQ=DAILY;COUNT=3', exdates: ['2026-11-03'] });
     expect(starts(t, '2026-11-01T00:00:00Z', '2027-01-01T00:00:00Z')).toEqual([
       '2026-11-02T12:00:00.000Z',
       '2026-11-04T12:00:00.000Z',
     ]);
+  });
+
+  it('keeps the day out after the time of day changes', () => {
+    const exdates = ['2026-11-04'];
+    for (const startAt of [
+      '2026-11-02T12:00:00.000Z',
+      '2026-11-02T23:30:00.000Z',
+      '2026-11-02T03:00:00.000Z',
+    ]) {
+      const days = starts({ ...weekly, startAt, exdates }, ...window).map((s) => s.slice(0, 10));
+      expect(days.some((d) => d === '2026-11-04')).toBe(false);
+      expect(days).toHaveLength(2);
+    }
+  });
+
+  it('keeps the day out after the time zone changes', () => {
+    const exdates = ['2026-11-04'];
+    for (const timezone of [SP, NY, 'Asia/Tokyo']) {
+      const t = { ...weekly, timezone, startAt: '2026-11-02T14:00:00.000Z', exdates };
+      // Mon, Wed and Fri at 14:00 UTC, which is the same local day in all three zones.
+      expect(starts(t, '2026-11-01T00:00:00Z', '2026-11-08T00:00:00Z')).toEqual([
+        '2026-11-02T14:00:00.000Z',
+        '2026-11-06T14:00:00.000Z',
+      ]);
+    }
+  });
+
+  it('uses the local day of the zone, not the UTC day', () => {
+    // 23:30 in Sao Paulo is 02:30 UTC on the next day.
+    const t = task({ startAt: '2026-11-03T02:30:00.000Z', rrule: 'FREQ=DAILY' }); // 2 Nov 23:30
+    expect(starts(t, '2026-11-03T00:00:00Z', '2026-11-06T00:00:00Z')).toEqual([
+      '2026-11-03T02:30:00.000Z',
+      '2026-11-04T02:30:00.000Z',
+      '2026-11-05T02:30:00.000Z',
+    ]);
+    // Excluding 3 Nov removes the instance at 2026-11-04T02:30Z (3 Nov 23:30 local), not the 03 UTC one.
+    expect(
+      starts({ ...t, exdates: ['2026-11-03'] }, '2026-11-03T00:00:00Z', '2026-11-06T00:00:00Z'),
+    ).toEqual(['2026-11-03T02:30:00.000Z', '2026-11-05T02:30:00.000Z']);
+    // The UTC date of that instance does not exclude it.
+    expect(
+      starts({ ...t, exdates: ['2026-11-04'] }, '2026-11-03T00:00:00Z', '2026-11-06T00:00:00Z'),
+    ).toEqual(['2026-11-03T02:30:00.000Z', '2026-11-04T02:30:00.000Z']);
+  });
+
+  describe('across a DST change in New York', () => {
+    it('spring forward: the missing 02:30 is moved to 03:30 and the day stays excluded', () => {
+      const base = task({ timezone: NY, startAt: '2026-03-07T07:30:00.000Z', rrule: 'FREQ=DAILY' });
+      const window = ['2026-03-07T00:00:00Z', '2026-03-10T00:00:00Z'] as const;
+      expect(starts({ ...base, exdates: ['2026-03-08'] }, ...window)).toEqual([
+        '2026-03-07T07:30:00.000Z',
+        '2026-03-09T06:30:00.000Z',
+      ]);
+    });
+
+    it('fall back: the repeated 01:30 is one instance, and the day stays excluded', () => {
+      const base = task({ timezone: NY, startAt: '2026-10-31T05:30:00.000Z', rrule: 'FREQ=DAILY' });
+      const window = ['2026-10-31T00:00:00Z', '2026-11-03T00:00:00Z'] as const;
+      expect(starts({ ...base, exdates: ['2026-11-01'] }, ...window)).toEqual([
+        '2026-10-31T05:30:00.000Z',
+        '2026-11-02T06:30:00.000Z',
+      ]);
+    });
+
+    it('a day excluded before the change stays excluded when the offset moves the instance', () => {
+      // 09:00 daily: 14:00Z before 8 Mar, 13:00Z after. The excluded day is the 9th.
+      const t = task({
+        timezone: NY,
+        startAt: '2026-03-06T14:00:00.000Z',
+        rrule: 'FREQ=DAILY',
+        exdates: ['2026-03-09'],
+      });
+      expect(starts(t, '2026-03-08T00:00:00Z', '2026-03-11T00:00:00Z')).toEqual([
+        '2026-03-08T13:00:00.000Z',
+        '2026-03-10T13:00:00.000Z',
+      ]);
+    });
   });
 });
 

@@ -11,10 +11,15 @@ const user = (role: GroupRole | null) => ({
   memberships: role ? [{ groupId: G, role }] : [],
 });
 
-const subject = (overrides: Partial<ActorSubject>): ActorSubject => ({
+// `assigneeId` sets both assignees, the usual case; the two fields set them apart.
+const subject = ({
+  assigneeId = me,
+  ...overrides
+}: Partial<ActorSubject> & { assigneeId?: string }): ActorSubject => ({
   groupId: G,
   createdBy: me,
-  assigneeId: me,
+  occurrenceAssigneeId: assigneeId,
+  taskAssigneeId: assigneeId,
   visibility: 'group',
   ...overrides,
 });
@@ -70,6 +75,36 @@ describe('deriveActors in a group context', () => {
   });
 });
 
+// An occurrence resolved before a reassignment keeps whoever resolved it, while the task already
+// points to the new assignee (ADR-0005 section 4).
+describe('deriveActors when the occurrence and the task have different assignees', () => {
+  const old = { occurrenceAssigneeId: me, taskAssigneeId: other };
+  const reassignedToMe = { occurrenceAssigneeId: other, taskAssigneeId: me };
+
+  it.each([
+    // I resolved it, then it was reassigned to someone else. I stay `assignee` of that
+    // occurrence, and I lose editor and deleter because the task is no longer mine.
+    ['member', { ...old, createdBy: other }, ['assignee']],
+    // Even when I created the task, it is no longer "own" once it is assigned to someone else.
+    ['member', { ...old, createdBy: me }, ['assignee']],
+    // An admin keeps editor and deleter through task.manage_group, whoever the assignees are.
+    ['admin', { ...old, createdBy: other }, ['assignee', 'editor', 'deleter']],
+    // The mirror case: the task is mine now, the old occurrence is someone else's.
+    ['member', { ...reassignedToMe, createdBy: me }, ['editor', 'deleter']],
+    ['member', { ...reassignedToMe, createdBy: other }, []],
+    ['admin', { ...reassignedToMe, createdBy: other }, ['editor', 'deleter']],
+    // A private task is out of reach of task.manage_group: only the assignment rules are left.
+    ['admin', { ...old, createdBy: other, visibility: 'private' }, ['assignee']],
+    [
+      'admin',
+      { ...reassignedToMe, createdBy: other, visibility: 'private' },
+      ['editor', 'deleter'],
+    ],
+  ] as const)('%s %j -> %j', (role, overrides, want) => {
+    expect(deriveActors(user(role), subject({ ...overrides }))).toEqual(want);
+  });
+});
+
 describe('deriveActors in a personal context', () => {
   const personal = subject({ groupId: null, visibility: 'private' });
 
@@ -78,9 +113,14 @@ describe('deriveActors in a personal context', () => {
   });
 
   it('gives nothing to anyone else', () => {
-    expect(deriveActors(user(null), { ...personal, createdBy: other, assigneeId: other })).toEqual(
-      [],
-    );
+    expect(
+      deriveActors(user(null), {
+        ...personal,
+        createdBy: other,
+        occurrenceAssigneeId: other,
+        taskAssigneeId: other,
+      }),
+    ).toEqual([]);
   });
 });
 

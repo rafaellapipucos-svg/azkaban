@@ -123,6 +123,13 @@ describe('splitRecurrence: COUNT', () => {
     expect(splitRecurrence(task, last, tail).tailRrule).toBe('FREQ=DAILY;COUNT=1');
   });
 
+  it('counts excluded days before the pivot, as RFC 5545 counts COUNT', () => {
+    const withGaps = { ...task, exdates: ['2026-11-03', '2026-11-04'] };
+    const tail = recurrence({ end: { type: 'after_count', count: 10 } });
+    expect(splitRecurrence(withGaps, pivot, tail)).toEqual(splitRecurrence(task, pivot, tail));
+    expect(splitRecurrence(withGaps, pivot, tail).tailRrule).toBe('FREQ=DAILY;COUNT=6');
+  });
+
   it('adds nothing when the tail has no count', () => {
     expect(splitRecurrence(task, pivot, recurrence({})).tailRrule).toBe('FREQ=DAILY');
   });

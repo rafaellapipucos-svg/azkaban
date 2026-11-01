@@ -3,12 +3,17 @@
 //   pnpm db:start
 //   cp supabase/functions/.env.example supabase/functions/.env     # once; ignored by git
 //   pnpm exec supabase functions serve                             # leave it running
-//   node --test supabase/functions/materialize-occurrences/materialize.integration.test.ts
+//   pnpm functions:test                                            # another terminal
+//
+// Do not edit files under supabase/functions while `functions serve` runs: it restarts the runtime
+// and the next call gets a 502. One test needs `docker exec` into the local database container
+// (DB_CONTAINER, default supabase_db_azkaban) to create legacy rows that the API cannot.
 //
 // Everything is created under unique ids in the local database and removed at the end. The keys
 // below are the universal demo keys of every local Supabase stack, not secrets. Dates are relative
 // to now, with a margin of at least a day from any window edge, except the DST test, which is fixed.
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { after, before, describe, test } from 'node:test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
@@ -60,6 +65,26 @@ async function newPerson(name: string): Promise<Person> {
   };
 }
 
+// Only for the legacy-row test, which needs DDL that the API cannot do.
+const DB_CONTAINER = process.env.DB_CONTAINER ?? 'supabase_db_azkaban';
+const sql = (statement: string) =>
+  execFileSync(
+    'docker',
+    [
+      'exec',
+      '-i',
+      DB_CONTAINER,
+      'psql',
+      '-U',
+      'postgres',
+      '-v',
+      'ON_ERROR_STOP=1',
+      '-c',
+      statement,
+    ],
+    { stdio: 'pipe' },
+  );
+
 const cron = { 'x-cron-secret': CRON_SECRET };
 const iso = (ms: number) => new Date(ms).toISOString();
 /** 12:00 UTC, `days` from today. */
@@ -101,7 +126,11 @@ describe('materialize-occurrences', () => {
         start_at: typeof task.start === 'string' ? task.start : iso(task.start),
         duration_min: 30,
         timezone: task.timezone ?? 'UTC',
-        rrule: task.rrule === undefined ? 'FREQ=WEEKLY' : task.rrule,
+        // The column only takes what the app writes (tasks_rrule_grammar_check): weekly needs BYDAY.
+        rrule:
+          task.rrule === undefined
+            ? `FREQ=WEEKLY;BYDAY=${weekday(typeof task.start === 'string' ? Date.parse(task.start) : task.start)}`
+            : task.rrule,
         exdates: task.exdates ?? [],
         reminders: [],
         requires_photo_proof: false,
@@ -445,5 +474,60 @@ describe('materialize-occurrences', () => {
       '2027-03-22T13:00:00.000Z',
       '2027-03-29T13:00:00.000Z',
     ]);
+  });
+
+  test('a task whose rows the database refuses is counted and skipped, and the others go on', async () => {
+    // The grammar CHECK of tasks.rrule keeps rules like these out today, so both rows are legacy
+    // ones: the constraint is dropped and re-added NOT VALID in one transaction, which leaves it
+    // enforced for new rows and for any update of these two. Two ways for the database to refuse:
+    //  - refusedInsert: BYMINUTE moves the start to 09:30 while the due moment stays 09:10, so each
+    //    occurrence ends before it starts and breaks a CHECK of task_occurrences;
+    //  - refusedCursor: its occurrences insert fine, but updating the task (the cursor) rechecks
+    //    the grammar and fails.
+    const good = await createTask({ start: noon(1) });
+    const refusedInsert = randomUUID();
+    const refusedCursor = randomUUID();
+    const when = (hour: number, minute: number) =>
+      iso(noon(1) - 12 * 3_600_000 + hour * 3_600_000 + minute * 60_000);
+    const legacy = (id: string, type: 'deadline' | 'timed', rrule: string) => `
+      insert into public.tasks (id, context_id, created_by, assignee_id, title, schedule_type, start_at,
+        due_at, duration_min, timezone, rrule, reminders, requires_photo_proof,
+        requires_admin_approval, requires_partial_reason, difficulty, priority, visibility)
+      values ('${id}', '${contextId}', '${owner.id}', '${owner.id}', 'legacy', '${type}',
+        '${when(9, 0)}', ${type === 'deadline' ? `'${when(9, 10)}'` : 'null'},
+        ${type === 'timed' ? 30 : 'null'}, 'UTC', '${rrule}', '[]', false, false, false,
+        'easy', 'normal', 'group');`;
+    sql(`
+      alter table public.tasks drop constraint tasks_rrule_grammar_check;
+      ${legacy(refusedInsert, 'deadline', 'FREQ=DAILY;BYMINUTE=30')}
+      ${legacy(refusedCursor, 'timed', 'FREQ=DAILY;WKST=MO')}
+      alter table public.tasks add constraint tasks_rrule_grammar_check
+        check (rrule is null or public.is_valid_rrule(rrule)) not valid;`);
+    try {
+      // One call with all three: the refused ones must not take the good task down with them.
+      const first = await call(owner.bearer, { taskIds: [refusedInsert, refusedCursor, good] });
+      const cursorRows = (await starts(refusedCursor)).length;
+      assert.ok(cursorRows >= 59 && cursorRows <= 61, `daily rows: ${cursorRows}`);
+      assert.deepEqual(first, { status: 200, body: { inserted: 9 + cursorRows } });
+      assert.deepEqual(await starts(refusedInsert), []);
+      assert.equal(await cursor(refusedInsert), null);
+      assert.equal(await cursor(refusedCursor), null);
+      assert.equal((await starts(good)).length, 9);
+      assert.ok((await cursor(good)) !== null);
+
+      // Retried and refused again, with nothing new, and the cron sweep survives them too.
+      assert.deepEqual(
+        await call(owner.bearer, { taskIds: [refusedInsert, refusedCursor, good] }),
+        {
+          status: 200,
+          body: { inserted: 0 },
+        },
+      );
+      assert.equal((await call(cron, {})).status, 200);
+      assert.deepEqual(await starts(refusedInsert), []);
+    } finally {
+      await admin.from('tasks').delete().in('id', [refusedInsert, refusedCursor]);
+      sql('alter table public.tasks validate constraint tasks_rrule_grammar_check;');
+    }
   });
 });

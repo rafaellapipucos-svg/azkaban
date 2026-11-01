@@ -97,6 +97,65 @@ async function currentMembers(admin: SupabaseClient, page: TaskRow[]): Promise<S
   return new Set(rows.map((m) => `${m.group_id}:${m.user_id}`));
 }
 
+type OccurrenceRow = {
+  task_id: string;
+  assignee_id: string;
+  scheduled_start: string;
+  scheduled_due: string;
+};
+
+// SQLSTATE of a refusal of the data itself: data exception (22), integrity violation (23), RAISE
+// EXCEPTION (P0001). Anything else, such as a lost connection, is the infrastructure and fails the call.
+const REFUSAL = /^(22|23|P0001)/;
+function refused(stage: string, error: { code?: string }): true {
+  console.error(JSON.stringify({ event: 'materialize_refused', stage, code: error.code }));
+  if (!REFUSAL.test(error.code ?? '')) throw new DatabaseError(stage);
+  return true;
+}
+
+/** One statement. Null when the database refuses a row, and then none was inserted. */
+async function insertRows(admin: SupabaseClient, rows: OccurrenceRow[]): Promise<number | null> {
+  if (rows.length === 0) return 0;
+  // on conflict do nothing: a repeated or overlapping run inserts nothing twice, and `select`
+  // returns only the rows that were really inserted.
+  const { data, error } = await admin
+    .from('task_occurrences')
+    .upsert(rows, { onConflict: 'task_id,scheduled_start', ignoreDuplicates: true })
+    .select('id');
+  return error && refused('insert_occurrences', error) ? null : data!.length;
+}
+
+/** The rows of one task, in chunks. A refusal in a later chunk keeps what the earlier ones inserted. */
+async function insertTask(admin: SupabaseClient, rows: OccurrenceRow[]) {
+  let inserted = 0;
+  for (let i = 0; i < rows.length; i += INSERT_CHUNK) {
+    const chunk = await insertRows(admin, rows.slice(i, i + INSERT_CHUNK));
+    if (chunk === null) return { inserted, ok: false };
+    inserted += chunk;
+  }
+  return { inserted, ok: true };
+}
+
+/** Moves the cursor forward only. Returns the tasks whose update the database refused. */
+async function moveCursor(admin: SupabaseClient, ids: string[], limit: string): Promise<number> {
+  const update = (subset: string[]) =>
+    admin
+      .from('tasks')
+      .update({ materialized_until: limit })
+      .in('id', subset)
+      .or(`materialized_until.is.null,materialized_until.lt.${limit}`);
+  const all = await update(ids);
+  if (!all.error) return 0;
+  refused('move_cursor', all.error);
+  // One statement, so nothing moved. Try them apart to find which task the database refuses.
+  let failed = 0;
+  for (const id of ids) {
+    const one = await update([id]);
+    if (one.error && refused('move_cursor', one.error)) failed += 1;
+  }
+  return failed;
+}
+
 async function materialize(
   reader: SupabaseClient,
   admin: SupabaseClient,
@@ -108,8 +167,8 @@ async function materialize(
 
   for await (const page of recurringTasks(reader, taskIds)) {
     const members = await currentMembers(admin, page);
-    const rows: Record<string, string>[] = [];
-    const done: string[] = [];
+    // The tasks of this page that have something to do, with their rows (possibly none).
+    const rowsOf = new Map<string, OccurrenceRow[]>();
 
     for (const t of page) {
       totals.tasks += 1;
@@ -131,48 +190,42 @@ async function materialize(
         };
         const from = t.materialized_until ?? taskAnchor(task);
         if (Date.parse(from) >= limitMs) continue;
-        for (const o of expandOccurrences(task, from, limit)) {
-          rows.push({
+        rowsOf.set(
+          t.id,
+          expandOccurrences(task, from, limit).map((o) => ({
             task_id: t.id,
             assignee_id: t.assignee_id,
             scheduled_start: o.scheduledStart,
             scheduled_due: o.scheduledDue,
-          });
-        }
-        done.push(t.id);
+          })),
+        );
       } catch {
         // A rule that cannot be expanded must not stop the sweep. Counted, never quoted.
         totals.failed += 1;
       }
     }
 
-    // on conflict do nothing: a repeated or overlapping run inserts nothing twice, and `select`
-    // returns only the rows that were really inserted.
-    for (let i = 0; i < rows.length; i += INSERT_CHUNK) {
-      const inserted = check(
-        'insert_occurrences',
-        await admin
-          .from('task_occurrences')
-          .upsert(rows.slice(i, i + INSERT_CHUNK), {
-            onConflict: 'task_id,scheduled_start',
-            ignoreDuplicates: true,
-          })
-          .select('id'),
-      );
-      totals.inserted += inserted.length;
+    // One statement for the page when it fits, which is all or nothing. When the database refuses
+    // it, or it is too big, each task goes alone, so one task's bad row never costs the others
+    // their occurrences or their cursor.
+    const everything = [...rowsOf.values()].flat();
+    const bulk = everything.length <= INSERT_CHUNK ? await insertRows(admin, everything) : null;
+    if (bulk !== null) {
+      totals.inserted += bulk;
+    } else {
+      for (const [id, rows] of rowsOf) {
+        const result = await insertTask(admin, rows);
+        totals.inserted += result.inserted;
+        if (!result.ok) {
+          rowsOf.delete(id);
+          totals.failed += 1;
+        }
+      }
     }
 
-    // Only after the insert, and only forward, so a failure in the middle is repeated safely.
-    if (done.length > 0) {
-      check(
-        'move_cursor',
-        await admin
-          .from('tasks')
-          .update({ materialized_until: limit })
-          .in('id', done)
-          .or(`materialized_until.is.null,materialized_until.lt.${limit}`),
-      );
-    }
+    // Only after the insert, and only forward, so a failure in the middle is repeated safely. A
+    // task that failed keeps its cursor, so the next run tries it again.
+    if (rowsOf.size > 0) totals.failed += await moveCursor(admin, [...rowsOf.keys()], limit);
   }
   return totals;
 }

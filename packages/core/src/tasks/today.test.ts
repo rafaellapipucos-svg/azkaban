@@ -1,6 +1,6 @@
 import type { OccurrenceListItem } from '@azkaban/contracts';
 import { describe, expect, it } from 'vitest';
-import { earnedXp, groupByContext, localDayRange, planToday } from './today';
+import { earnedXp, groupByContext, localDayRange, planArea, planToday } from './today';
 import type { XpRules } from './xp';
 
 const SP = 'America/Sao_Paulo';
@@ -155,6 +155,49 @@ describe('planToday', () => {
       { scheduleType: 'deadline' },
     );
     expect(plan([done]).soon).toEqual([]);
+  });
+});
+
+describe('planArea', () => {
+  it('lists overdue first, then days in order, skipping past days and cancelled items', () => {
+    const result = planArea(
+      [
+        item('later', { scheduledStart: '2026-11-06T15:00:00.000Z' }),
+        item('now'),
+        item('old', {
+          scheduledStart: '2026-11-02T15:00:00.000Z',
+          overdueAt: '2026-11-03T03:00:00.000Z',
+        }),
+        item('old-done', {
+          status: 'done',
+          scheduledStart: '2026-11-02T15:00:00.000Z',
+          overdueAt: '2026-11-03T03:00:00.000Z',
+        }),
+        item('gone', { status: 'cancelled' }),
+        item('later-early', { scheduledStart: '2026-11-06T12:00:00.000Z' }),
+      ],
+      { now, timezone: SP },
+    );
+    expect(result.overdue.map(({ id }) => id)).toEqual(['old']);
+    expect(result.days.map(({ date, items }) => [date, items.map(({ id }) => id)])).toEqual([
+      ['2026-11-04', ['now']],
+      ['2026-11-06', ['later-early', 'later']],
+    ]);
+  });
+
+  it('puts a deadline on the day it falls due', () => {
+    const due = item(
+      'due',
+      {
+        scheduledStart: '2026-11-02T03:00:00.000Z',
+        scheduledDue: '2026-11-08T02:59:00.000Z',
+        overdueAt: '2026-11-08T02:59:00.000Z',
+      },
+      { scheduleType: 'deadline' },
+    );
+    expect(planArea([due], { now, timezone: SP }).days.map(({ date }) => date)).toEqual([
+      '2026-11-07',
+    ]);
   });
 });
 

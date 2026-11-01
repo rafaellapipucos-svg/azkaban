@@ -11,6 +11,13 @@ export type RulePlan = { rrule: string | null; headRrule: string | null };
 
 const STOP: RecurrenceInput = defaultRecurrence();
 
+/** The rule of a new task, or null when it does not repeat. */
+export function rruleOf(
+  input: Pick<TaskInput, 'recurrence' | 'startAt' | 'dueAt' | 'timezone'>,
+): string | null {
+  return input.recurrence ? toRRule(input.recurrence, taskAnchor(input), input.timezone) : null;
+}
+
 /**
  * The rule strings for an edit, computed here because only core reads RRULE. The RPC compares
  * `rrule` as text to know whether the schedule changed, and `toRRule` is stable for that.
@@ -32,7 +39,7 @@ export function planEdit({
 }): RulePlan {
   if (scope === 'this') return { rrule: null, headRrule: null };
   const { recurrence } = input;
-  const whole = recurrence ? toRRule(recurrence, taskAnchor(input), input.timezone) : null;
+  const whole = rruleOf(input);
   if (scope === 'all' || task.rrule === null) return { rrule: whole, headRrule: null };
 
   const { headRrule, tailRrule } = splitRecurrence(task, pivotStart, recurrence ?? STOP);

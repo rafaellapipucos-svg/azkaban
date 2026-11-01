@@ -26,7 +26,8 @@ export {
 export { fromRRule, toRRule } from './recurrence/rrule';
 export { splitRecurrence, type SplitResult } from './recurrence/split';
 export { alignToRule } from './recurrence/align';
-export { planDelete, planEdit, type RulePlan } from './tasks/edit';
+export { localDateOf } from './recurrence/zone';
+export { planDelete, planEdit, rruleOf, type RulePlan } from './tasks/edit';
 export {
   DEADLINE_TIME,
   addDays,
@@ -42,4 +43,12 @@ export {
   type FormTask,
   type TaskFormValues,
 } from './tasks/form';
-export { earnedXp, groupByContext, localDayRange, planToday, type TodayPlan } from './tasks/today';
+export {
+  earnedXp,
+  groupByContext,
+  localDayRange,
+  planArea,
+  planToday,
+  type AreaPlan,
+  type TodayPlan,
+} from './tasks/today';

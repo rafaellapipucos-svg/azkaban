@@ -69,6 +69,45 @@ export function planToday(
   return plan;
 }
 
+export type AreaPlan = {
+  overdue: OccurrenceListItem[];
+  /** One entry per local day, nearest first. A deadline sits on the day it falls due. */
+  days: { date: string; items: OccurrenceListItem[] }[];
+};
+
+/** The list of an area tab: what is overdue, then everything ahead day by day. */
+export function planArea(
+  items: readonly OccurrenceListItem[],
+  { now, timezone }: { now: Date; timezone: string },
+): AreaPlan {
+  const today = localDateOf(timezone, now.getTime());
+  const seen = new Set<string>();
+  const overdue: OccurrenceListItem[] = [];
+  const byDay = new Map<string, OccurrenceListItem[]>();
+
+  for (const item of items) {
+    if (seen.has(item.id) || item.status === 'cancelled') continue;
+    seen.add(item.id);
+    if (isOverdue(item, now)) {
+      overdue.push(item);
+      continue;
+    }
+    const anchor = item.task.scheduleType === 'deadline' ? item.scheduledDue : item.scheduledStart;
+    const day = localDateOf(timezone, Date.parse(anchor));
+    if (day < today) continue;
+    byDay.set(day, [...(byDay.get(day) ?? []), item]);
+  }
+
+  const byStart = (a: OccurrenceListItem, b: OccurrenceListItem) =>
+    Date.parse(a.scheduledStart) - Date.parse(b.scheduledStart);
+  return {
+    overdue: overdue.sort(byStart),
+    days: [...byDay]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, dayItems]) => ({ date, items: dayItems.sort(byStart) })),
+  };
+}
+
 /** Keeps the order of first appearance, so the sections follow the time of their first item. */
 export function groupByContext(
   items: readonly OccurrenceListItem[],

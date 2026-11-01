@@ -124,6 +124,7 @@ export type ProofUrl = z.infer<typeof proofUrlSchema>;
 /**
  * Raised by the proof RPCs and returned as `{ error }` by the proof functions, which the UI maps to
  * i18n keys. `forbidden` and `late_window_expired` mean the same as in `taskErrorCodeSchema`.
+ * Only what has its own message belongs here: any other value is a generic failure. See ADR-0007.
  */
 export const proofErrorCodeSchema = z.enum([
   'forbidden',
@@ -136,6 +137,7 @@ export const proofErrorCodeSchema = z.enum([
   'challenge_invalid',
   'challenge_expired',
   'challenge_used',
+  'upload_timeout',
   'proof_too_large',
   'proof_bad_type',
   'proof_bad_dimensions',

@@ -696,3 +696,21 @@
 - **Verificado:** Medido nesta máquina com a 8081 ocupada por um servidor HTTP descartável, que registrou só a minha sonda e nenhum pedido da suíte: `pnpm e2e` 40 de 40 em 122 s; `pnpm db:test` depois dela, sem reset, 906 testes em 29 s; `pnpm functions:test` 80 de 80 em 157 s; `pnpm check` em 18 s, com o turbo inteiro em cache. O teste de magic link passou na 8091. Duas rodadas seguidas de `e2e/shell.spec.ts` passaram, então o encerramento do servidor não trava a seguinte. Com um servidor estranho na 8091, a suíte recusou com "is already used" e saiu com código 1. No mesmo banco sujo (1 desafio deixado pela E2E) o assert antigo falhou com have 1, want 0, e o novo falhou com um desafio de Duda inserido de propósito. Sem contêiner de vector ou analytics, e `docker logs supabase_edge_runtime_azkaban` segue trazendo o log das funções (702 linhas após os testes).
 - **Não verificado:** A rodada não foi repetida com o `expo start` do outro projeto na 8081, porque ele foi encerrado durante o trabalho: a prova usou o servidor descartável. O workflow do CI não rodou. A economia de memória não foi medida: não há leitura de antes, só a soma de agora, cerca de 1,6 GiB na pilha. O Studio não foi aberto, e as telas de log dele dependem de analytics.
 - **Pendências / próximos passos:** A nota do bloco anterior sobre rodar `supabase db reset` antes do `db:test` deixou de valer. O assert agora ignora dados de outros usuários de propósito, então desafios deixados por seeds não seriam pegos por ele.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 20:44 (BRT)
+
+- **Branch:** docs/proof-closeout, criada a partir de feat/phase-3-proof (be426b9)
+- **Agente(s):** arquiteto
+- **Resumo:** Fecha as pendências de contrato e documentação da prova: `upload_timeout` entra em `proofErrorCodeSchema`, os outros códigos ficam fora com critério escrito, e "nada em disco" passa a exigir apagar a foto bruta do nativo.
+- **Alterações:**
+  - `packages/contracts/src/proof.ts`: `upload_timeout` em `proofErrorCodeSchema`, e o comentário diz que a lista só tem o que tem mensagem própria.
+  - `packages/contracts/src/proof.test.ts`: fixa quem entra e quem fica fora.
+  - `docs/adr/0007-prova-por-foto.md`: seção 19 nova (códigos de erro), seção 16 reescrita na parte de disco, passo 4 da seção 3 nomeia o código, alternativa de `transportErrorCodeSchema`.
+  - `docs/arquitetura.md`: lib `dom` e adapters sem tela, seção i18n com a armadilha do `{{lng}}`, e a dependência de feature em `@azkaban/platform`.
+- **Arquivos/módulos principais:** `packages/contracts/src/proof.ts`, `docs/adr/0007-prova-por-foto.md`, `docs/arquitetura.md`, handoffs `20261101-2042-arquiteto-para-*`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0007, seções 16 e 19. (1) A lista guarda só o que a tela nomeia; o resto é falha genérica. (2) `upload_timeout` entra; `unauthorized`, `invalid_request`, `method_not_allowed` e `internal` ficam fora, sem schema à parte. (3) `invalid_consent_version`, `invalid_decision` e `invalid_storage_path` ficam fora. (4) O nativo apaga o arquivo bruto do `expo-camera` no `finally` de `capture`. (5) `feature-contexts` depender de `@azkaban/platform` está aprovado.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou, com 24 testes em contracts. `scripts/check-permission-mirror.mjs` não lê `proofErrorCodeSchema`, então não mudou. Fontes do `expo-camera` 58 (Android e iOS): grava o arquivo sempre, mesmo com `base64`. Fontes do `react-native-view-shot`: `result: 'base64'` não cria arquivo.
+- **Não verificado:** `pnpm functions:test`, `pnpm db:test` e `pnpm db:check-permissions` não rodaram, por decisão da tarefa e porque esta mudança não toca função nem banco. Nada rodou em aparelho.
+- **Pendências / próximos passos:** `prova-foto`: mensagem de `upload_timeout` e apagar a foto bruta, com `expo-file-system` como dependência direta de `packages/platform`. `backend-funcoes`: `upload_timeout: 408` em `STATUS`; sem isso, o tipo fica incompleto em código que `pnpm check` não compila, e nada muda em execução. F8-7 confere no aparelho que o cache fica vazio.

@@ -1,6 +1,6 @@
 import type { OccurrenceListItem } from '@azkaban/contracts';
 import { DAY_MS, dateOfWall, instantOf, localDateOf, wallMidnight } from '../recurrence/zone';
-import { isOverdue } from './late';
+import { isOverdue, isStillResolvable } from './late';
 import { occurrenceXp, type XpRules } from './xp';
 
 /** `[from, to)` of `days` local days starting at the local midnight of `at`, in `timezone`. */
@@ -14,8 +14,24 @@ export function localDayRange(timezone: string, at: Date, days = 1) {
   };
 }
 
+/** The viewer's side of the late window: `canManageGroup` answers per group of the task. */
+export type OverdueRules = {
+  lateCompletionWindowHours: number;
+  canManageGroup: (groupId: string | null) => boolean;
+};
+
+function listsAsOverdue(item: OccurrenceListItem, now: Date, rules: OverdueRules) {
+  return (
+    isOverdue(item, now) ||
+    isStillResolvable(item, now, {
+      lateCompletionWindowHours: rules.lateCompletionWindowHours,
+      canManageGroup: rules.canManageGroup(item.task.groupId),
+    })
+  );
+}
+
 export type TodayPlan = {
-  /** Pending and past `overdueAt`, oldest first. */
+  /** Past `overdueAt` and still to do: pending, or red and still resolvable. Oldest first. */
   overdue: OccurrenceListItem[];
   /** The day's own list, resolved ones included, in time order. */
   today: OccurrenceListItem[];
@@ -28,11 +44,16 @@ export type TodayPlan = {
 /**
  * What the start screen shows. A deadline belongs to the day it falls due, not the day it
  * started, so a long one only comes up here when it is near. Cancelled ones are gone.
- * `overdueAt` decides "overdue" because the job that marks red automatically does not exist yet.
+ * A red one stays among the overdue while the viewer can still resolve it, then leaves.
  */
 export function planToday(
   items: readonly OccurrenceListItem[],
-  { now, timezone, dueSoonDays }: { now: Date; timezone: string; dueSoonDays: number },
+  {
+    now,
+    timezone,
+    dueSoonDays,
+    ...late
+  }: { now: Date; timezone: string; dueSoonDays: number } & OverdueRules,
 ): TodayPlan {
   const today = localDateOf(timezone, now.getTime());
   const lastSoonDay = dateOfWall(wallMidnight(today) + dueSoonDays * DAY_MS);
@@ -42,7 +63,7 @@ export function planToday(
   for (const item of items) {
     if (seen.has(item.id) || item.status === 'cancelled') continue;
     seen.add(item.id);
-    if (isOverdue(item, now)) {
+    if (listsAsOverdue(item, now, late)) {
       plan.overdue.push(item);
       continue;
     }
@@ -78,7 +99,7 @@ export type AreaPlan = {
 /** The list of an area tab: what is overdue, then everything ahead day by day. */
 export function planArea(
   items: readonly OccurrenceListItem[],
-  { now, timezone }: { now: Date; timezone: string },
+  { now, timezone, ...late }: { now: Date; timezone: string } & OverdueRules,
 ): AreaPlan {
   const today = localDateOf(timezone, now.getTime());
   const seen = new Set<string>();
@@ -88,7 +109,7 @@ export function planArea(
   for (const item of items) {
     if (seen.has(item.id) || item.status === 'cancelled') continue;
     seen.add(item.id);
-    if (isOverdue(item, now)) {
+    if (listsAsOverdue(item, now, late)) {
       overdue.push(item);
       continue;
     }

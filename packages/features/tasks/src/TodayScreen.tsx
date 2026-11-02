@@ -1,5 +1,5 @@
 import { taskRules } from '@azkaban/config';
-import { earnedXp, planToday } from '@azkaban/core';
+import { canManageGroupTask, earnedXp, planToday } from '@azkaban/core';
 import { contextsRepository, useCurrentUser } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import {
@@ -47,8 +47,15 @@ export function TodayScreen({
   const [created, showCreated] = useNotice();
 
   const plan = useMemo(
-    () => planToday(items, { now, timezone, dueSoonDays: tasksConfig.dueSoonDays }),
-    [items, now, timezone],
+    () =>
+      planToday(items, {
+        now,
+        timezone,
+        dueSoonDays: tasksConfig.dueSoonDays,
+        lateCompletionWindowHours: taskRules.lateCompletionWindowHours,
+        canManageGroup: (groupId) => canManageGroupTask(user, groupId),
+      }),
+    [items, now, timezone, user],
   );
   const xp = earnedXp(plan.today, user.id, taskRules.xp);
   const actions = {

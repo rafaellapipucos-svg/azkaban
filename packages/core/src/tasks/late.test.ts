@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isLate, isLateWindowOpen, isOverdue, lateWindowEnd } from './late';
+import { isLate, isLateWindowOpen, isOverdue, isStillResolvable, lateWindowEnd } from './late';
 
 const overdueAt = '2026-11-02T03:00:00.000Z';
 const ms = Date.parse(overdueAt);
@@ -51,5 +51,18 @@ describe('isOverdue', () => {
 
   it('is not overdue on time', () => {
     expect(isOverdue({ status: 'pending', overdueAt }, new Date(ms))).toBe(false);
+  });
+});
+
+describe('isStillResolvable', () => {
+  const rules = { lateCompletionWindowHours: 72, canManageGroup: false };
+  it.each([
+    ['pending', false],
+    ['done', false],
+    ['partial', false],
+    ['missed', true],
+    ['cancelled', false],
+  ] as const)('%s inside the window -> %s', (status, want) => {
+    expect(isStillResolvable({ status, overdueAt }, new Date(ms + 1), rules)).toBe(want);
   });
 });

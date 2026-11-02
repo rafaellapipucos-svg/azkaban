@@ -308,7 +308,11 @@ export const tasksRepository = {
     }));
   },
 
-  /** Pending ones past `overdueAt`: the job that marks them red does not exist yet. */
+  /**
+   * Pending or red ones past `overdueAt`, newest first. Whether a red one is still inside the late
+   * window is the viewer's call (`planToday`, `planArea`), so the expired ones come along too.
+   * ponytail: expired red ones count against the 100; cut by the window here if a list ever fills.
+   */
   async listOverdue({
     before,
     assigneeId,
@@ -320,7 +324,7 @@ export const tasksRepository = {
       .from('task_occurrences')
       .select(listColumns)
       .is('tasks.archived_at', null)
-      .eq('status', 'pending')
+      .in('status', ['pending', 'missed'])
       .lt('overdue_at', before);
     if (assigneeId) query = query.eq('assignee_id', assigneeId);
     const { data, error } = await query

@@ -1198,3 +1198,19 @@
 - **Verificado:** `pnpm install --frozen-lockfile` e `pnpm check` passaram (core 542 testes, 26 deles de `safeInternalPath`). Mutação: a regex antiga faz 10 testes falharem (tab, LF, CR, U+0000, U+007F, U+009F, 201 caracteres e as três formas `%09`, `%0a`, `%0d`); restaurada.
 - **Não verificado:** `pnpm dev` na porta 8081 com `/sign-in?next=/%09/evil.com` depois de entrar, porque entrar precisa da pilha, que está com o QA. Que o expo-router entrega o `next` já decodificado, como o teste supõe (se não decodificar, `/%09/evil.com` é texto no caminho e fica na origem, o que o teste também confere). Hora do título derivada de UTC menos 3, porque o PowerShell foi bloqueado.
 - **Pendências / próximos passos:** nenhuma em `auth-grupos`. `sw.js` continua com `notificacoes-whatsapp`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 14:34 (BRT)
+
+- **Branch:** fix/notifications-security (a partir de `feat/phase-4-notifications`, `0d23f88`)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** SEG4-6, SEG4-7 e SEG4-8 do ADR-0008, seção 17, como pedido no handoff do arquiteto (`20261102-1430`). Hora: PowerShell bloqueado no worktree, então UTC menos 3.
+- **Alterações:**
+  - SEG4-6: `internalPath` do `sw.js` usa a regex de `internalPathSchema` (sem caractere de controle) e depois resolve contra `self.location.origin`, aceitando só a mesma origem; devolve `pathname + search + hash`, senão `'/'`.
+  - SEG4-7: `_headers` com `frame-ancestors 'none'; object-src 'none'; base-uri 'self'`, `nosniff` e `strict-origin-when-cross-origin` para `/*`. Os `Cache-Control` ficam. A CSP completa, em Report-Only, é o passo seguinte.
+  - SEG4-8: `stopPushWhenSignedOut()` em `feature-notifications`, chamado uma vez no layout raiz: com sessão nula por qualquer caminho e chave local presente, `unsubscribePush()` e limpa a chave. O botão Sair segue igual.
+  - `feature-notifications` ganhou `vitest` e o primeiro teste.
+- **Arquivos/módulos principais:** `apps/app/public/sw.js`, `apps/app/public/_headers`, `apps/app/public.test.ts`, `apps/app/app/_layout.tsx`, `packages/features/notifications/src/device.ts` e `device.test.ts`.
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0008, seção 17. Nenhuma nova.
+- **Como testar:** `pnpm check`; `pnpm build:web` e conferir `apps/app/dist/_headers`. Manual do SEG4-8: ativar push, apagar a sessão do `localStorage`, recarregar; a inscrição some e a chave `notifications.thisDevice` também.
+- **Pendências / próximos passos:** E2E e o teste manual do SEG4-8 no navegador não rodaram (a pilha estava com o QA). O servidor da E2E não aplica `_headers`, então os cabeçalhos só se confirmam no Netlify.

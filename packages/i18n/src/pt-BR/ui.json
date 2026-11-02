@@ -54,7 +54,20 @@
     "sheetOpen": "Abrir folha",
     "sheetTitle": "Nova tarefa rápida",
     "sheetText": "Esc, o botão Fechar ou o fundo escuro fecham. O foco volta para Abrir folha.",
-    "sheetClose": "Fechar"
+    "sheetClose": "Fechar",
+    "tabBar": "Barra de abas",
+    "tabBarHint": "A 320 px, cada rótulo aparece inteiro.",
+    "bellLabel_zero": "Notificações, nenhuma nova",
+    "bellLabel_one": "Notificações, {{count}} nova",
+    "bellLabel_other": "Notificações, {{count}} novas",
+    "tabToday": "Hoje",
+    "tabWork": "Trabalho",
+    "tabHome": "Doméstico",
+    "tabCalendar": "Calendário",
+    "tabProfile": "Perfil"
+  },
+  "tabBar": {
+    "label": "Navegação principal"
   },
   "dateField": {
     "placeholder": "Escolher data"

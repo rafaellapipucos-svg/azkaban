@@ -42,3 +42,16 @@ describe.each([
 it('the dark fill stands out from the dark card by itself', () => {
   expect(contrast(colors['review-dark'], colors['surface-dark'])).toBeGreaterThanOrEqual(3);
 });
+
+// IconButton `badge`: the count passes AA on its fill, and the fill stands out from the card (3:1).
+describe.each([
+  { theme: 'light', fill: colors.danger, text: colors.onPrimary, card: colors.surface },
+  { theme: 'dark', fill: colors['danger-light'], text: colors.text, card: colors['surface-dark'] },
+])('count badge, $theme', ({ fill, text, card }) => {
+  it('count on the fill passes AA', () => {
+    expect(contrast(text, fill)).toBeGreaterThanOrEqual(4.5);
+  });
+  it('fill against the card is at least 3:1', () => {
+    expect(contrast(fill, card)).toBeGreaterThanOrEqual(3);
+  });
+});

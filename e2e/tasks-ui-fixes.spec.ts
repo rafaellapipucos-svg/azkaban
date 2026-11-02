@@ -103,16 +103,18 @@ test('a detail opened while the status is saving shows the new status when the s
     await read;
     await route.continue();
   });
+  let held = Promise.resolve();
   await page.route(
     '**/rest/v1/task_status_history*',
-    async (route) => {
-      const response = await route.fetch();
-      const saved = page.waitForResponse('**/rest/v1/rpc/set_occurrence_status');
-      readDone();
-      await saved;
-      await page.waitForTimeout(300); // the screen hears of the save first
-      await route.fulfill({ response });
-    },
+    (route) =>
+      (held = (async () => {
+        const response = await route.fetch();
+        const saved = page.waitForResponse('**/rest/v1/rpc/set_occurrence_status');
+        readDone();
+        await saved;
+        await page.waitForTimeout(300); // the screen hears of the save first
+        await route.fulfill({ response });
+      })()),
     { times: 1 },
   );
   await button(page, 'Mais opções: Lavar').click();
@@ -124,10 +126,10 @@ test('a detail opened while the status is saving shows the new status when the s
   ).toBeVisible();
   await page.getByText('Lavar', { exact: true }).locator('visible=true').click();
 
-  // Known bug, in docs/agentes/handoffs/20261101-2240-qa-testes-para-tarefas-calendario-detalhe-defasado.md.
-  // Declared here, so that only this assertion may fail. Delete this line along with the fix.
-  test.fail();
   await expect(page.getByText('Pendente → Tentei')).toBeVisible({ timeout: 5_000 });
+  // The held read still answers after that, and must not take the screen back to before the save
+  await held;
+  await expect(page.getByText('Pendente → Tentei')).toBeVisible();
 });
 
 test('the context form cannot be saved before its areas arrive, instead of doing nothing', async ({

@@ -207,14 +207,11 @@ test('reopening drops the photo: the link goes, and green takes a new one', asyn
     .order('received_at');
   expect(data!.map(({ superseded_at }) => superseded_at !== null)).toEqual([true, false]);
 
-  // Known bug, item 3 of docs/agentes/handoffs/20261101-2240-qa-testes-para-prova-foto-achados-do-qa.md:
-  // without the reload, the link stays and leads to the photo that no longer counts. Delete `test.fail`
-  // along with the fix.
+  // Without a reload, the link goes away too, instead of leading to the photo that no longer counts
   await memberPage.goto(`/tasks/${occurrenceId}`);
   await expect(button(memberPage, 'Ver a foto da prova')).toBeVisible();
   await button(memberPage, 'Voltar para pendente').click();
   await expect(button(memberPage, 'Tirar a foto para concluir')).toBeVisible();
-  test.fail();
   await expect(button(memberPage, 'Ver a foto da prova')).toHaveCount(0, { timeout: 3_000 });
 });
 

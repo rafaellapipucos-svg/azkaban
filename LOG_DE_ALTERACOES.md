@@ -852,3 +852,29 @@
 - **Verificado:** estado lido do git às 11:57: árvore limpa, HEAD `2935b7a`, `fix/proof-task-rules` em `18ca79f` (WIP, não integrado).
 - **Não verificado:** nenhuma suíte rodou nesta entrada. A Fase 3 não foi verificada no estado integrado e não tem push.
 - **Pendências / próximos passos:** as da seção 3 do handoff.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:28 (BRT)
+
+- **Branch:** fix/proof-task-rules-final, a partir do WIP `18ca79f` de fix/proof-task-rules, sobre feat/phase-3-proof (2935b7a)
+- **Agente(s):** tarefas-calendario
+- **Resumo:** Trava das regras de foto, rastro, `proof_visibility_locked`, detalhe defasado (B4), link de revisão na Equipe (B2), aviso da limitação da web (B9) e link da foto depois de reabrir (B5, item 3 do QA). Começou às 00:43 como WIP, interrompido pelo reinício, e foi fechado aqui com as duas falhas da E2E diagnosticadas.
+- **Alterações:**
+  - `packages/contracts/src/tasks.ts`: `proofFlagsLocked` sem `default(false)` e em `OccurrenceListItem.task`.
+  - `packages/core/src/tasks/actors.ts`: `ActorSubject.proofFlagsLocked`, `deleter` e `proofFlagsLocked(...)` conforme o handoff, com testes.
+  - `packages/data/src/tasks/index.ts`: coluna nas duas leituras e `listRuleChanges`.
+  - `TaskFormScreen`: interruptor de privada travado com a tarefa travada, textos de trava e aviso `form.proofLimit`.
+  - `TaskDetailScreen`: bloco "Mudanças nas regras".
+  - `hooks.ts`: `useStatusChange` cancela antes de invalidar, e agora também `proof-current`, a chave de `ProofLink`, sem importar o módulo de prova. `useRefreshTasks` invalida `rule-changes`.
+  - `TeamScreen` aceita `children`, e `team/[groupId].tsx` compõe `ProofQueueLink`.
+  - `tasks.json`: `errors.proof_flags_locked` reescrito, `errors.proof_visibility_locked`, `form.proofLimit` e bloco `rules`.
+  - E2E: teste novo da trava, com "Cancelar esta tarefa" além de "Excluir", e recusa nova em `tasks-proof.spec.ts`. `test.fail()` removido de `tasks-ui-fixes.spec.ts` (B4) e de `proof-paths.spec.ts` (B5).
+- **Arquivos/módulos principais:** `packages/core/src/tasks/actors.ts`, `packages/features/tasks/src`, `packages/data/src/tasks/index.ts`, `packages/i18n/src/pt-BR/tasks.json`, `e2e/`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova. O texto de `form.proofLocked` também mudou, porque "quem criou" deixava de ser verdade. "B9" vem da lista do relatório de QA ao orquestrador, em que B5 a B9 são os itens 3 a 7 do handoff `20261101-2240-qa-testes-para-prova-foto-achados-do-qa.md`: B9 é o item 7, o aviso da limitação da web, e B5 é o item 3.
+- **Causa das duas falhas da E2E do WIP, ambas do teste:**
+  - `tasks-proof.spec.ts:159`: o formulário aberto pelo endereço não tem para onde voltar e vai para Hoje (`goBack` em `TaskFormScreen`), como no resto do app. O trace mostrou `edit_task` com 200 e a tela Hoje. O teste agora espera Hoje.
+  - `tasks-ui-fixes.spec.ts:90`: a asserção final passou em 270 ms. O que falhou foi o callback da rota segurada, ainda em `waitForTimeout(300)` quando o teste acabou. Com `times: 1` a rota sai da lista, então `unrouteAll({ behavior: 'wait' })` não a espera: o teste guarda a promessa do callback, espera por ela e confere de novo que a leitura velha não volta a tela.
+- **Como testar:** `pnpm check`; `pnpm db:start` e `pnpm exec playwright test e2e/tasks-proof.spec.ts e2e/tasks-ui-fixes.spec.ts e2e/proof-paths.spec.ts`.
+- **Verificado:** `pnpm check` passou, com 505 testes em core. `pnpm db:test` 1004 de 1004. `pnpm functions:test` 85 de 85, sem `functions serve`. `pnpm e2e` 56 de 56, sem `test.fail` nem `retries`. Mutações, todas pegas e revertidas: em core, `proofFlagsLocked` ignorando a trava, `deleter` ignorando a trava, revisor sem `proof.review` e revisor igual ao autor; na E2E da trava, interruptor da foto destravado, de privada destravado e `deleter` ignorando a trava; tirar o `cancelQueries` (B4) e tirar `proof-current` (B5) fizeram os testes deles falharem.
+- **Não verificado:** nada rodou no projeto hospedado nem no CI. A barreira do servidor (`edit_task`, `can_delete_task`) não foi mutada aqui: é do `banco-de-dados` e coberta por `db:test`. A segunda asserção do teste de B4 roda logo depois de a resposta velha chegar, e pode passar antes de um render atrasado.
+- **Pendências / próximos passos:** B2 é só o link, sem contagem de provas aguardando. `prova-foto` segue com B6 a B8 e o aviso `consentVersion` 2.

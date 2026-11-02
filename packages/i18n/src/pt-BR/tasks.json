@@ -60,7 +60,8 @@
     "context_not_found": "Esse contexto não existe mais.",
     "context_archived": "Esse contexto foi arquivado. Escolha outro para a tarefa.",
     "proof_required": "Esta tarefa só fica feita com uma foto tirada na hora. Abra a tarefa para enviá-la.",
-    "proof_flags_locked": "Só quem criou a tarefa ou administra o grupo pode ligar ou desligar a foto e a aprovação.",
+    "proof_flags_locked": "Um administrador definiu as regras de foto desta tarefa. Só quem administra o grupo pode mudá-las.",
+    "proof_visibility_locked": "Esta tarefa já tem foto enviada, então não pode mudar entre privada e do grupo. Crie outra tarefa.",
     "proof_disputed": "Um administrador contestou a foto desta tarefa. Só quem revisa fotos pode mudar o estado dela agora.",
     "overdue_occurrence_blocks_edit": "Esta tarefa tem uma repetição atrasada que a mudança apagaria. Marque-a como feita ou como não feita antes, ou edite só esta."
   },
@@ -159,7 +160,8 @@
     "photoProofHint": "A pessoa tira a foto na hora, e só então a tarefa fica feita.",
     "adminApproval": "Um administrador aprova a foto",
     "adminApprovalHint": "O XP só chega depois da aprovação.",
-    "proofLocked": "Só quem criou a tarefa ou administra o grupo muda a foto e a aprovação."
+    "proofLocked": "Só quem administra o grupo muda a foto e a aprovação desta tarefa.",
+    "proofLimit": "A foto ajuda, mas não é uma garantia: no navegador, não dá para ter certeza de que ela veio de uma câmera nem de que foi tirada na hora, e a foto de uma tela passa como qualquer outra. Quem precisa de mais pode pedir a aprovação de um administrador."
   },
   "difficulty": {
     "easy": "Fácil",
@@ -268,6 +270,22 @@
     "proofApproved": "Foto aprovada",
     "proofDisputed": "Foto contestada",
     "inReview": "em análise"
+  },
+  "rules": {
+    "title": "Mudanças nas regras",
+    "entry": "{{name}} {{change}}",
+    "requires_photo_proof": {
+      "true": "ligou a foto obrigatória",
+      "false": "desligou a foto obrigatória"
+    },
+    "requires_admin_approval": {
+      "true": "ligou a aprovação",
+      "false": "desligou a aprovação"
+    },
+    "visibility": {
+      "group": "tornou do grupo",
+      "private": "tornou privada"
+    }
   },
   "team": {
     "title": "Equipe",

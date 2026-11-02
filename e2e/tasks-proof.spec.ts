@@ -141,9 +141,75 @@ test('the other refusals of the database have a message of their own', async ({ 
   await button(page, 'Salvar').click();
   await expect(
     page.getByText(
-      'Só quem criou a tarefa ou administra o grupo pode ligar ou desligar a foto e a aprovação.',
+      'Um administrador definiu as regras de foto desta tarefa. Só quem administra o grupo pode mudá-las.',
     ),
   ).toBeVisible();
+  await page.unroute('**/rest/v1/rpc/edit_task');
+
+  // A task with a photo keeps its audience
+  await refuse('edit_task', 'proof_visibility_locked');
+  await button(page, 'Salvar').click();
+  await expect(
+    page.getByText(
+      'Esta tarefa já tem foto enviada, então não pode mudar entre privada e do grupo. Crie outra tarefa.',
+    ),
+  ).toBeVisible();
+});
+
+test("a photo rule an admin sets on a member's own task holds: locked switches, no delete, and a trail", async ({
+  browser,
+}) => {
+  const { ownerPage, memberPage } = await groupWithMember(browser);
+  const title = uniqueTitle('Tarefa da Duda');
+  const lockedText =
+    'Um administrador definiu as regras de foto desta tarefa. Só quem administra o grupo pode mudá-las.';
+
+  // Duda's own task in the group's context
+  await memberPage.goto('/tasks/new');
+  await memberPage.getByLabel('O que precisa ser feito?').fill(title);
+  await button(memberPage, 'Salvar').click();
+  await expect(memberPage.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
+  const spot = await spotOf(title);
+  expect(spot.groupId).not.toBeNull();
+
+  // No rule changed yet: the block has nothing to show, and the task is still hers to delete
+  await memberPage.goto(`/tasks/${spot.occurrenceId}`);
+  await expect(memberPage.getByRole('heading', { name: title })).toBeVisible();
+  await expect(button(memberPage, 'Excluir')).toBeVisible();
+  await expect(button(memberPage, 'Cancelar esta tarefa')).toBeVisible();
+  await expect(contains(memberPage, 'Mudanças nas regras')).toHaveCount(0);
+
+  // The admin asks for a photo, and for the web's limit to be spelled out before relying on it
+  await ownerPage.goto(`/tasks/${spot.occurrenceId}/edit?scope=all`);
+  await button(ownerPage, 'Mais opções').click();
+  await ownerPage.getByRole('switch', { name: PHOTO }).click();
+  await expect(contains(ownerPage, /no navegador, não dá para ter certeza/)).toBeVisible();
+  await button(ownerPage, 'Salvar').click();
+  // A form opened by its address has nothing to go back to, so it lands on Hoje
+  await expect(ownerPage.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
+
+  // The detail names who did it
+  await memberPage.goto(`/tasks/${spot.occurrenceId}`);
+  await expect(contains(memberPage, 'Mudanças nas regras')).toBeVisible();
+  await expect(contains(memberPage, /Dona .*ligou a foto obrigatória/)).toBeVisible();
+  await expect(button(memberPage, 'Excluir')).toHaveCount(0);
+  await expect(button(memberPage, 'Cancelar esta tarefa')).toHaveCount(0);
+  await expect(button(memberPage, 'Editar')).toBeVisible();
+
+  // Duda still edits the task, but neither the photo nor who sees it
+  await button(memberPage, 'Editar').click();
+  await button(memberPage, 'Mais opções').click();
+  await expect(memberPage.getByRole('switch', { name: PHOTO })).toBeDisabled();
+  await expect(memberPage.getByRole('switch', { name: 'Só eu vejo' })).toBeDisabled();
+  await expect(contains(memberPage, lockedText).first()).toBeVisible();
+  await memberPage.getByLabel('O que precisa ser feito?').fill(`${title} novo`);
+  await button(memberPage, 'Salvar').click();
+  await expect(memberPage.getByRole('heading', { name: `${title} novo` })).toBeVisible();
+
+  // The review link lives on the team's page too, for who reviews
+  await ownerPage.goto(`/team/${spot.groupId}`);
+  await button(ownerPage, 'Revisar fotos').click();
+  await expect(ownerPage).toHaveURL(new RegExp(`/reviews/${spot.groupId}$`));
 });
 
 test('a proof in review shows as "em análise" everywhere, then as contested, then approved', async ({

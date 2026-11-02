@@ -80,9 +80,54 @@ test('the day view starts in the morning, or at the first task when it is earlie
   await page.goto(`/tasks/new?day=${day}&time=03:00`);
   await page.getByLabel('O que precisa ser feito?').fill('Madrugada');
   await button(page, 'Salvar').click();
+  // A `goto` right after the click cancels the save that is still in flight.
+  await expect(page.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
   await page.goto(`/calendar?view=day&date=${day}`);
   await expect(hour('03:00')).toBeVisible();
   await expect(hour('02:00')).toHaveCount(0);
+});
+
+test('a detail opened while the status is saving shows the new status when the save ends', async ({
+  page,
+}) => {
+  await signUpWithContext(page, 'Corrida');
+  await button(page, 'Nova tarefa').click();
+  await page.getByLabel('O que precisa ser feito?').fill('Lavar');
+  await button(page, 'Criar').click();
+  await expect(page.getByText('Pronto! A tarefa foi criada.')).toBeVisible();
+
+  // The first read of the detail reaches the database before the commit, and answers after it
+  let readDone = () => {};
+  const read = new Promise<void>((resolve) => (readDone = resolve));
+  await page.route('**/rest/v1/rpc/set_occurrence_status', async (route) => {
+    await read;
+    await route.continue();
+  });
+  await page.route(
+    '**/rest/v1/task_status_history*',
+    async (route) => {
+      const response = await route.fetch();
+      const saved = page.waitForResponse('**/rest/v1/rpc/set_occurrence_status');
+      readDone();
+      await saved;
+      await page.waitForTimeout(300); // the screen hears of the save first
+      await route.fulfill({ response });
+    },
+    { times: 1 },
+  );
+  await button(page, 'Mais opções: Lavar').click();
+  await button(page, 'Tentei, mas não consegui').click();
+  await page.getByLabel('O que aconteceu? (uma frase curta)').fill('Faltou sabão');
+  await button(page, 'Confirmar').click();
+  await expect(
+    page.getByRole('checkbox', { name: 'Lavar: Tentei' }).locator('visible=true'),
+  ).toBeVisible();
+  await page.getByText('Lavar', { exact: true }).locator('visible=true').click();
+
+  // Known bug, in docs/agentes/handoffs/20261101-2240-qa-testes-para-tarefas-calendario-detalhe-defasado.md.
+  // Declared here, so that only this assertion may fail. Delete this line along with the fix.
+  test.fail();
+  await expect(page.getByText('Pendente → Tentei')).toBeVisible({ timeout: 5_000 });
 });
 
 test('the context form cannot be saved before its areas arrive, instead of doing nothing', async ({

@@ -16,7 +16,7 @@ import {
   uniqueTitle,
 } from './proof-fixtures';
 
-// Needs `pnpm db:start` and `pnpm exec supabase functions serve`. Here a proof is sent and reviewed through
+// Needs `pnpm db:start`, which serves the functions too. Here a proof is sent and reviewed through
 // the database functions, in `proof-fixtures.ts`, to reach each state fast; `proof-capture.spec.ts` goes
 // through the camera. Accounts are unique per run and exist only in the local database.
 const ZONE = 'America/Sao_Paulo';

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
 
-// Needs `pnpm db:start` and `pnpm exec supabase functions serve`.
+// Needs `pnpm db:start`, which serves the functions too.
 const button = (page: Page, name: string) =>
   page.getByRole('button', { name, exact: true }).locator('visible=true');
 

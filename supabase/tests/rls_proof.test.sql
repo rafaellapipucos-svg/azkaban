@@ -1323,7 +1323,7 @@ select throws_ok($$insert into storage.objects (bucket_id, name) values ('task-p
 select is(pg_temp.rows($q$update storage.objects set name = 'x/other.jpg' where bucket_id = 'task-proofs'$q$), 0::bigint, 'task-proofs: anon cannot update');
 select is(pg_temp.rows($q$delete from storage.objects where bucket_id = 'task-proofs'$q$), 0::bigint, 'task-proofs: anon cannot delete');
 select pg_temp.pg();
-select is((select name from storage.objects where bucket_id = 'task-proofs'), 'x/y.jpg', 'and the object is exactly where it was');
+select is((select count(*) from storage.objects where bucket_id = 'task-proofs' and name = 'x/y.jpg'), 1::bigint, 'and the object is exactly where it was');
 select is((select count(*) from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname <> 'control_all'), 0::bigint, 'no other policy exists on storage.objects');
 delete from storage.objects where bucket_id in ('control', 'task-proofs');
 drop policy control_all on storage.objects;

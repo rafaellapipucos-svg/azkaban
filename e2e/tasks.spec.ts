@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, type Browser, type Page } from '@playwright/test';
 
-// Needs `pnpm db:start` and `pnpm exec supabase functions serve` (repeating tasks are materialized
+// Needs `pnpm db:start`, which serves the functions too (repeating tasks are materialized
 // by the Edge Function). Accounts are unique per run and exist only in the local database.
 const newUser = (name: string) => ({
   name,
@@ -105,10 +105,13 @@ test('quick create shows in Hoje, then green and yellow with a reason', async ({
   await button(page, 'Tentei, mas não consegui').click();
   await expect(button(page, 'Confirmar')).toBeDisabled();
   await page.getByLabel('O que aconteceu? (uma frase curta)').fill('Faltou sabão');
+  const saved = page.waitForResponse('**/rest/v1/rpc/set_occurrence_status');
   await button(page, 'Confirmar').click();
   await expect(check(page, 'Lavar a louça', 'Tentei')).toBeVisible();
 
-  // The detail keeps the history, with the reason
+  // The detail keeps the history, with the reason. Past the save: a read that crosses it is a known bug,
+  // with a test of its own in tasks-ui-fixes.spec.ts.
+  expect((await saved).status()).toBe(200);
   await text(page, 'Lavar a louça').click();
   await expect(page.getByText('Motivo: Faltou sabão')).toBeVisible();
   await expect(page.getByText('Pendente → Tentei')).toBeVisible();

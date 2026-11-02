@@ -141,10 +141,33 @@ export const taskSchema = z
     parentTaskId: idSchema.nullable(),
     archivedAt: instantSchema.nullable(),
     createdAt: instantSchema,
+    /** Set by a manager on someone's own task: its photo rules are no longer the owner's. ADR-0007, section 20. */
+    proofFlagsLocked: z.boolean().default(false),
   })
   .superRefine(checkSchedule)
   .superRefine(checkApproval);
 export type Task = z.infer<typeof taskSchema>;
+
+export const taskRuleFieldSchema = z.enum([
+  'requires_photo_proof',
+  'requires_admin_approval',
+  'visibility',
+]);
+export type TaskRuleField = z.infer<typeof taskRuleFieldSchema>;
+
+/** One row per changed rule, written by a trigger. Whoever sees the task reads it. ADR-0007, section 20. */
+export const taskRuleChangeSchema = z.object({
+  id: idSchema,
+  taskId: idSchema,
+  field: taskRuleFieldSchema,
+  /** `true`/`false`, or `group`/`private` for `visibility`. */
+  fromValue: z.string(),
+  toValue: z.string(),
+  /** Null for a job, or after the account is deleted. */
+  changedBy: idSchema.nullable(),
+  changedAt: instantSchema,
+});
+export type TaskRuleChange = z.infer<typeof taskRuleChangeSchema>;
 
 /** Sends the whole form: the scope decides what it replaces. See ADR-0005. */
 export const taskEditInputSchema = z.object({
@@ -275,8 +298,10 @@ export const taskErrorCodeSchema = z.enum([
   'context_archived',
   /** Green on a task with photo proof only comes from `proof-validate` or a review. */
   'proof_required',
-  /** Someone with only `task.edit_assigned` cannot switch a photo proof or an approval off. */
+  /** The photo rules are a manager's: of a task locked by one, or with only `task.edit_assigned`. */
   'proof_flags_locked',
+  /** A task that has a proof keeps its visibility, so nobody's photo changes audience. */
+  'proof_visibility_locked',
   /** A dispute stands until someone with `proof.review` undoes it. */
   'proof_disputed',
   /** A schedule change would drop an overdue occurrence. See ADR-0005, section 11. */

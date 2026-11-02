@@ -73,6 +73,7 @@ describe('taskErrorCodeSchema', () => {
   it('knows the codes the user can act on, and leaves the other database errors generic', () => {
     // A new task in an archived context (banco-de-dados, 23514): the person can pick another one.
     expect(taskErrorCodeSchema.safeParse('context_archived').success).toBe(true);
+    expect(taskErrorCodeSchema.safeParse('proof_visibility_locked').success).toBe(true);
     // The app never writes these, so they stay out and get the generic text.
     expect(taskErrorCodeSchema.safeParse('invalid_rrule').success).toBe(false);
     expect(taskErrorCodeSchema.safeParse('invalid_timezone').success).toBe(false);

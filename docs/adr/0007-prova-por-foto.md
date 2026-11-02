@@ -46,7 +46,7 @@ A RPC recusa, nesta ordem:
 
 Só o `assignee` envia prova, mesmo quando um admin poderia resolver por ele: a foto é de quem fez. Em tarefa própria, os dois são a mesma pessoa.
 
-`proof_challenges` tem `id`, `occurrence_id`, `user_id`, `created_at`, `expires_at` e `used_at`. **O `id` é o nonce**: `gen_random_uuid()` dá 122 bits aleatórios, e uma coluna a mais não acrescentaria nada. O cliente não lê nem escreve nessa tabela.
+`proof_challenges` tem `id`, `occurrence_id`, `user_id`, `created_at`, `expires_at` e `used_at`. `occurrence_id` não tem chave estrangeira (seção 20, SEG-3). **O `id` é o nonce**: `gen_random_uuid()` dá 122 bits aleatórios, e uma coluna a mais não acrescentaria nada. O cliente não lê nem escreve nessa tabela.
 
 A resposta é `proofChallengeSchema`: o nonce, `expiresInSeconds` e `checkLocation`. Ela traz uma duração, e não um instante, para o relógio errado do aparelho não interferir.
 
@@ -140,20 +140,20 @@ A posição é declarada pelo cliente, então a marca informa e nunca prova.
 
 Caminhos que contornariam a regra, e como cada um fecha:
 
-| Caminho                                                     | Fechamento                                                                                                                                 |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `insert` em `task_occurrences` com `status = 'done'`        | Trigger novo `before insert` recusa status diferente de `pending` em tarefa com foto. Hoje o trigger só olha `update`                      |
-| `edit_task` desliga `requires_photo_proof` e depois conclui | Só pode mudar as duas flags quem tem a tarefa própria ou `task.manage_group`. Quem tem só `task.edit_assigned` recebe `proof_flags_locked` |
-| `edit_task` com `this` destaca a ocorrência sem a flag      | A mesma checagem, antes do `insert` da tarefa nova                                                                                         |
-| `tasks.parent_task_id` e `task_id` escritos pelo cliente    | Sem `grant` por coluna. Só `edit_task` os escreve                                                                                          |
-| `set_occurrence_status` com `done`                          | `proof_required`, e o trigger logo atrás                                                                                                   |
-| `set_occurrence_status` como revisor                        | `reviewer` nunca entra em `actors` dessa RPC, então os pares novos dão `forbidden`                                                         |
-| Reabrir e reaproveitar a prova                              | Reabrir zera `current_proof_id` e marca `superseded_at`                                                                                    |
-| Prova forjada por outro caminho de service role             | FK composta `(challenge_id, occurrence_id, user_id)` para `proof_challenges` e `unique (challenge_id)`                                     |
-| Chamada direta a `claim_proof_challenge` ou `commit_proof`  | `execute` só para `service_role`                                                                                                           |
-| Escrita direta nas tabelas de prova                         | Sem `grant` de escrita a `anon` nem `authenticated`                                                                                        |
+| Caminho                                                     | Fechamento                                                                                                                                                        |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `insert` em `task_occurrences` com `status = 'done'`        | Trigger novo `before insert` recusa status diferente de `pending` em tarefa com foto. Hoje o trigger só olha `update`                                             |
+| `edit_task` desliga `requires_photo_proof` e depois conclui | Só pode mudar as duas flags quem tem `task.manage_group`, ou o dono de tarefa própria sem `proof_flags_locked` (seção 20). Os demais recebem `proof_flags_locked` |
+| `edit_task` com `this` destaca a ocorrência sem a flag      | A mesma checagem, antes do `insert` da tarefa nova                                                                                                                |
+| `tasks.parent_task_id` e `task_id` escritos pelo cliente    | Sem `grant` por coluna. Só `edit_task` os escreve                                                                                                                 |
+| `set_occurrence_status` com `done`                          | `proof_required`, e o trigger logo atrás                                                                                                                          |
+| `set_occurrence_status` como revisor                        | `reviewer` nunca entra em `actors` dessa RPC, então os pares novos dão `forbidden`                                                                                |
+| Reabrir e reaproveitar a prova                              | Reabrir zera `current_proof_id` e marca `superseded_at`                                                                                                           |
+| Prova forjada por outro caminho de service role             | FK composta `(challenge_id, occurrence_id, user_id)` para `proof_challenges` e `unique (challenge_id)`                                                            |
+| Chamada direta a `claim_proof_challenge` ou `commit_proof`  | `execute` só para `service_role`                                                                                                                                  |
+| Escrita direta nas tabelas de prova                         | Sem `grant` de escrita a `anon` nem `authenticated`                                                                                                               |
 
-Mudar a flag vale para as ocorrências abertas: o trigger lê `tasks` na hora da transição. Um admin que desliga a foto de uma tarefa abre mão da prova conscientemente, e é a única saída quando o celular de alguém quebra.
+Mudar a flag vale para as ocorrências abertas: o trigger lê `tasks` na hora da transição. Um admin que desliga a foto de uma tarefa abre mão da prova conscientemente, e é a única saída quando o celular de alguém quebra. A mudança fica registrada em `task_rule_changes` (seção 20).
 
 **Sem conclusão manual por admin.** A spec diz que só fica verde com prova válida, e a saída acima é explícita. É a opção fácil de reverter: uma isenção pode entrar depois, e o contrário exigiria limpar dados.
 
@@ -200,7 +200,7 @@ Uma chave só. Ver sem poder revisar, ou o contrário, não tem pedido real, e u
 - `requires_admin_approval` exige `requires_photo_proof` e `visibility = 'group'`, no Zod e em `check`. Sem foto não há o que revisar, e tarefa privada não tem revisor. A migration normaliza as linhas antigas antes do `check`.
 - Sem a flag, a prova nasce `unreviewed` e o admin ainda pode aprovar ou contestar depois.
 
-`review_proof`, RPC para `authenticated`, com `proofReviewInputSchema`. Trava a ocorrência e exige `can_review_proof`: membro atual, `proof.review`, tarefa `group`, tarefa não arquivada e **revisor diferente do autor**. A prova precisa ser `current_proof_id`, senão `proof_superseded`.
+`review_proof`, RPC para `authenticated`, com `proofReviewInputSchema`. Trava a ocorrência e exige `can_review_proof`: membro atual, `proof.review`, tarefa `group` e **revisor diferente do autor**. Tarefa arquivada continua revisável (seção 20, SEG-2). A prova precisa ser `current_proof_id`, senão `proof_superseded`.
 
 | De                          | Decisão               | Status                    | XP                                |
 | --------------------------- | --------------------- | ------------------------- | --------------------------------- |
@@ -277,19 +277,25 @@ Repetir é seguro: remover um objeto inexistente não é erro. O job também:
 
 - Remove objetos do bucket sem linha em `task_proofs` e com mais de 24 horas, o que cobre a função que morreu entre upload e commit, e o grupo apagado em cascata.
 - Apaga desafios com mais de 24 horas sem prova.
+- Apaga as linhas de `task_proofs` já sem foto, com mais de `recordRetentionDays` (seção 20, SEG-5).
 
-**O que fica:** hash, horários, tamanho, marcas, decisão, autor, histórico e XP. Isso sustenta a auditoria sem a imagem.
+**O que fica até `recordRetentionDays`:** hash, horários, tamanho, marcas, decisão e autor. Isso sustenta a auditoria sem a imagem. Histórico de status e XP são da tarefa (ADR-0005), e não vencem aqui.
 
-Mudar `retentionDays` vale de imediato, para todas as fotos, e exige migration, como `taskRules`.
+**A foto contestada segue o mesmo prazo** (seção 20, SEG-8).
 
-**Consentimento e transparência.** Antes da primeira prova, e sempre que `consentVersion` subir, o app mostra um aviso e registra o aceite em `profiles.proof_consent_version` e `proof_consent_at`, pela RPC `record_proof_consent`. O aviso diz:
+Mudar `retentionDays` ou `recordRetentionDays` vale de imediato, para todas as linhas, e exige migration, como `taskRules`.
+
+**Consentimento e transparência.** Antes da primeira prova, e sempre que `consentVersion` subir, o app mostra um aviso e registra o aceite em `proof_consents`, uma linha por versão, e em `profiles.proof_consent_version` e `proof_consent_at`, pela RPC `record_proof_consent`. O aviso diz:
 
 - o que é coletado: foto, horário, aparelho e navegador, versão do app e, se o contexto tiver local, a distância até ele;
 - que coordenadas não são guardadas;
 - quem vê: você e os admins do grupo, nunca colegas; em tarefa privada, só você;
-- que a foto é apagada depois de 90 dias, lido de `retentionDays`, e o registro sem a imagem fica.
+- que a foto leva carimbados o nome, o título da tarefa e o horário;
+- que outras pessoas podem aparecer na foto, e quem revisa as vê;
+- que a foto é apagada depois de 90 dias, lido de `retentionDays`, e o registro sem a imagem depois de 365 dias, lido de `recordRetentionDays`;
+- como pedir a exclusão antes do prazo.
 
-Quem recusa não envia prova, mas pode marcar amarelo ou vermelho. O servidor exige o aceite, para um cliente hostil não pular a tela. Exportar os dados e excluir a conta ficam em F8-3, que precisa cobrir fotos e objetos.
+Quem recusa não envia prova, mas pode marcar amarelo ou vermelho. O servidor exige o aceite, para um cliente hostil não pular a tela. Revogar, exportar os dados e excluir a conta ficam em F8-3, que precisa cobrir fotos e objetos (seção 20, SEG-5 e SEG-7).
 
 ### 15. Limitação honesta
 
@@ -326,7 +332,7 @@ Tudo em `proofRules`, com espelho em `app_settings`, chave `proof_rules`.
 | ------------------------ | -------------------------------------------------------------- | --------------------------------- |
 | Desafios por usuário     | 30 por hora                                                    | `issue_proof_challenge`           |
 | Desafios por ocorrência  | 10 por hora                                                    | `issue_proof_challenge`           |
-| Provas por usuário       | 30 por dia                                                     | `issue_proof_challenge`           |
+| Corpos lidos por usuário | 30 por dia, contando `used_at`                                 | `issue_proof_challenge`           |
 | Corpos lidos             | 1 por nonce                                                    | `claim_proof_challenge`           |
 | Tamanho                  | 2 MiB                                                          | `Content-Length`, leitura, bucket |
 | Tempo de leitura         | 30 s                                                           | Função                            |
@@ -337,7 +343,7 @@ Tudo em `proofRules`, com espelho em `app_settings`, chave `proof_rules`.
 | `user_agent`             | 256 caracteres                                                 | Função                            |
 | Linhas de desafio        | Limpas depois de 24 horas                                      | `proof-retention`                 |
 
-Pior caso de uma conta hostil: 30 × 2 MiB por dia, cerca de 5,3 GiB em 90 dias, sempre com arquivos diferentes, porque o `unique` por hash não deixa repetir.
+Pior caso de uma conta hostil: 30 × 2 MiB por dia, cerca de 5,3 GiB em 90 dias, sempre com arquivos diferentes, porque o `unique` por hash não deixa repetir. Apagar o grupo não zera a conta (seção 20, SEG-3).
 
 O limite de desafios entra em F3-2, e não em F8-4: a seção 9 o exige, e basta contar linhas de `proof_challenges`. `proof-validate` não tem limite próprio por usuário, porque uma chamada sem nonce válido para em uma ida ao banco, sem ler o corpo.
 
@@ -368,6 +374,68 @@ O tamanho da foto ainda não foi medido. Com 0,5 MB, 1 GB guarda 2 mil fotos, ce
 
 Quem consome a lista precisa cobrir `upload_timeout`, e `Record<ProofErrorCode, ...>` falha na compilação até isso acontecer. Os outros quatro seguem sem contrato, como em `materialize-occurrences`.
 
+### 20. Revisão de segurança da Fase 3
+
+Decisões sobre os achados da revisão e do QA, em 2026-11-01. Valem sobre as seções anteriores onde há diferença, e os trechos afetados já remetem para cá.
+
+**SEG-1: a exigência do admin vale.** A exceção de tarefa própria não previu um admin impondo regra na tarefa de outra pessoa.
+
+- `tasks.proof_flags_locked`, booleana, começa falsa. O dono da tarefa própria perde a exceção enquanto ela estiver ligada.
+- Liga quando quem tem `task.manage_group` e não é o dono muda uma das flags, e a tarefa fica `group` com alguma flag ligada. Desliga quando essa pessoa desliga as duas. É booleana, e não `proof_required_by`, para a exigência não cair com a exclusão da conta de quem a fez, nem com a troca de papel.
+- Com ela ligada, o dono não muda as flags (`proof_flags_locked`), não exclui nem cancela (`can_delete_task` sem a exceção) e ninguém, admin incluído, leva a tarefa a `private`: uma tarefa privada não teria mais quem a destrave. O admin desliga as flags antes.
+- `edit_task` com `this` e `this_and_following` copia a coluna para a tarefa nova.
+- Sem histórico para reconstruir: as linhas antigas ficam falsas. Só há dados de desenvolvimento.
+
+**Rastro.** `task_rule_changes`, só de leitura para o cliente, recebe uma linha por regra alterada (`requires_photo_proof`, `requires_admin_approval`, `visibility`): tarefa, regra, valor anterior, valor novo, autor e horário. Um trigger em `tasks` a escreve, então vale para qualquer caminho. Na tarefa nascida de `edit_task` com `parent_task_id`, a comparação é com a tarefa de origem. Quem vê a tarefa vê o rastro, e o detalhe da tarefa o mostra. Uma tabela só para isso, e não uma auditoria genérica: não há outro pedido.
+
+**SEG-2 e item 1 do QA: tirar a prova do alcance do revisor.**
+
+- `can_review_proof` deixa de olhar `archived_at`. A prova de tarefa excluída continua na fila, e os botões funcionam. Excluir não muda mais nada para o revisor, e é uma linha a menos.
+- `set_occurrence_status` e `issue_proof_challenge` continuam recusando tarefa arquivada, então só `review_proof` age nela.
+- **A retenção continua pagando o XP, arquivada ou não.** O furo era a revisão impossível. Com ela possível, excluir não dá vantagem: se o admin ignorar a prova por 90 dias, a tabela da seção 11 vale igual, com ou sem exclusão. Não pagar exigiria um estado novo em `proof_review_status` e uma linha a mais na tabela, para um caso sem ganho para ninguém.
+- **Tarefa com prova não muda de visibilidade.** Qualquer linha de `task_proofs`, superada ou não, faz `edit_task` responder `proof_visibility_locked` nos dois sentidos, olhando só as ocorrências que mudariam de visibilidade naquele escopo. Isso fecha `private` depois de enviar, a contestação presa em tarefa privada e o XP preso ao ranking do grupo. Quem quer mudar cria outra tarefa, ou divide a série em `this_and_following`.
+
+**SEG-9: fotos antigas ao mudar para grupo.** A regra anterior fecha também este sentido. "Em tarefa privada, só você" fica verdadeiro sem coluna nova nem alerta.
+
+**SEG-3: limites que sobrevivem à cascata.**
+
+- `proof_challenges.occurrence_id` perde a chave estrangeira. A linha fica até a limpeza de 24 horas, mesmo com o grupo apagado. `on delete set null` não serve: a coluna faz parte da chave composta de `task_proofs`, e a ordem das cascatas recusaria apagar o grupo.
+- O limite diário passa a contar `proof_challenges.used_at` do usuário, em vez de `task_proofs`. Conta o que custa, que é o corpo lido, e uma falha também conta.
+- `proof_assert_open` recusa ocorrência inexistente com `challenge_invalid`. Sem a chave estrangeira, é ela que barra um nonce de ocorrência apagada.
+- A janela de 24 horas de órfãos fica como está: com o teto de volta, ela não cresce sem limite.
+
+**SEG-7: excluir a conta apaga a prova.** Vale a cascata, e o comentário do schema estava errado. Foto e carimbo são dado pessoal, e a ocorrência, o histórico e o XP do titular já caem juntos. Guardar uma linha sem autor para uma ocorrência que não existe mais não sustenta auditoria nenhuma.
+
+- `user_id` com `on delete set null` continua necessário. Ele alcança a prova superada de uma ocorrência que passou a outra pessoa, e `can_review_proof` segue tratando autor nulo.
+- Esse é o único caso em que a foto sobreviveria à exclusão. F8-3 remove os objetos e as linhas com `user_id` do titular antes de `auth.admin.deleteUser`. Se a função morrer depois disso, a limpeza de órfãos cuida do resto em 24 horas.
+
+**SEG-8: a retenção apaga a foto contestada.** Aceito. O prazo do aviso não tem exceção, 90 dias bastam para a decisão, e ficam a nota, o hash e as marcas. Estender criaria mais uma regra e mais um item no aviso, e pode entrar depois. O uso em disputa trabalhista é parte da pendência de base legal abaixo.
+
+**SEG-5: consentimento.**
+
+| Agora, na Fase 3                                                                              | F8-3                                               |
+| --------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| Aviso com terceiros, nome carimbado e como pedir exclusão, em `consentVersion` 2              | Revogar o aceite, por RPC e tela                   |
+| `proof_consents`, append-only, chave `(user_id, version)`; o texto de cada versão está no git | Excluir a conta, com fotos e objetos (SEG-7)       |
+| Prazo do registro sem foto no aviso e no job                                                  | Exportar as fotos do autor, inclusive de ex-membro |
+
+- **Prazo do registro sem foto: `proofRules.recordRetentionDays = 365`.** O job apaga a linha de `task_proofs`, já sem foto. Isso leva horários e `out_of_radius`, o que a revisão apontou como histórico de presença. `current_proof_id` vira nulo pela chave estrangeira, e `proof_review_status` fica na ocorrência.
+- **É reversível:** nada sai antes de um ano da primeira prova real, e o valor muda por migration. É um padrão proposto, e o humano confirma.
+- **Fora do prazo:** `task_status_history` e a própria ocorrência continuam sem prazo. São dados de toda tarefa, com ou sem foto (ADR-0005), e entram na decisão de base legal.
+- **Como pedir exclusão:** "fale com o dono do grupo", até F8-3 trazer a tela. Não há endereço de contato definido, e inventar um seria pior.
+- `distance_m` exato fica por 90 dias. O revisor a usa, e ela sai com a foto.
+
+**Pendência humana, bloqueante para uso com funcionários:** a base legal do tratamento. Consentimento é frágil em relação de trabalho, e isso pede orientação jurídica. Este ADR não decide. Sem essa decisão e sem F8-3, a prova não vai para funcionários reais.
+
+**Riscos aceitos, conferidos:**
+
+| Risco                                  | Decisão | Motivo                                                                                                                                                  |
+| -------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Prova de ocorrência 30 dias à frente   | Mantido | Dá verde e XP hoje, como qualquer tarefa sem foto. Fechar só aqui não fecha o XP em massa, que é da Fase 6, e o limite diário segura o volume           |
+| Coordenadas falsas, e precisão a favor | Mantido | A posição é declarada, seção 15. Uma leitura a 345 m com raio de 150 m e precisão de 200 m não gera marca. Apertar pune sinal ruim e não barra a fraude |
+| 1 bit evita `proof_duplicate`          | Mantido | O `unique` barra o reenvio casual. Hash perceptual exigiria decodificar, contra os 2 s de CPU. Quem altera bytes de propósito cai na seção 15           |
+| EXIF de cliente hostil                 | Mantido | Só quem burla o app grava o próprio EXIF, e o revisor veria um dado que o autor escolheu enviar. Reescrever os bytes quebraria o hash                   |
+
 ## Alternativas
 
 - **`transportErrorCodeSchema` à parte, com os cinco códigos:** uma lista a mais para ler em dobro, e quatro códigos que nenhuma tela distingue. `upload_timeout` já cabe na definição da lista atual.
@@ -385,6 +453,12 @@ Quem consome a lista precisa cobrir `upload_timeout`, e `Record<ProofErrorCode, 
 - **Guardar `lat` e `lng`:** o revisor não precisa, e isso vira histórico de posição de funcionários.
 - **Geocodificar o endereço:** custo, um terceiro recebendo endereços e erro de posição, para algo que o celular resolve no próprio local.
 - **Chave `proof.view`:** sem pedido real. Pode entrar depois.
+- **`proof_required_by`, com o `uuid` de quem exigiu:** cai com a exclusão da conta, e `task_rule_changes` já diz quem foi.
+- **Recusar `delete_task` com prova em análise:** bloquearia também o admin, que pode ter motivo para excluir.
+- **Gravar a visibilidade em cada prova:** resolve SEG-9 com uma coluna e uma regra de leitura a mais, e não resolve SEG-2.
+- **Contador por usuário para os limites:** uma tabela nova, quando as linhas de desafio já contam.
+- **Foto contestada com prazo próprio:** ver seção 20.
+- **Estado `expired` para prova vencida em tarefa arquivada:** ver seção 20.
 
 ## Consequências
 
@@ -395,3 +469,6 @@ Quem consome a lista precisa cobrir `upload_timeout`, e `Record<ProofErrorCode, 
 - A Fase 4 herda o aviso ao usuário em contestação e ao admin em "em análise".
 - `proof-validate` usa a API pública do Storage dentro da requisição, então uma falha do Storage vira falha da prova, e o usuário tenta de novo com outro desafio.
 - A prova contestada só volta por quem tem `proof.review`. Em um grupo com um admin só, a prova dele mesmo nunca é revista.
+- Uma tarefa com prova tem a visibilidade congelada até o registro vencer.
+- `task_proofs` deixa de ser permanente: a auditoria da prova dura `recordRetentionDays`.
+- `pnpm db:check-permissions` continua valendo: nenhuma permissão nem transição muda. `proofRules` e a linha `proof_rules` mudam juntos, na mesma migration e no mesmo commit.

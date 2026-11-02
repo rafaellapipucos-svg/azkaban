@@ -781,3 +781,21 @@
 - **Verificado:** como cliente hostil, com resultado observado: RPC e PostgREST direto, embed, `select` por coluna, Storage por todas as rotas (leitura, listagem, upload, TUS, troca, remoção e URL assinada), JWT forjado, nonce reusado, em corrida, alheio e vencido, JPEG malicioso, `x-proof-meta`, coordenadas falsas, `proof-url` por colega, ex-membro e tarefa privada, `x-cron-secret`, e XP em laço e corrida. Também `pnpm build:web` com busca no bundle e varredura do histórico. Catálogo: `security definer` com `search_path`, sem `execute` para `anon`, RLS em toda tabela, nenhuma política em `storage.objects`, publicação de realtime vazia.
 - **Não verificado:** nada rodou no projeto hospedado: limite de corpo, logs de requisição com `x-proof-meta`, cabeçalhos do Storage. `proofRules.outOfRadius = 'block'` não rodou de ponta a ponta. Nada em iOS ou Android. `pnpm audit --prod` mostrou 2 moderadas, em cadeia de ferramentas do Expo, sem análise de impacto. `pnpm db:test`, `pnpm functions:test` e `pnpm e2e` não rodaram: nenhum código mudou.
 - **Pendências / próximos passos:** `arquiteto`: decidir SEG-1, SEG-2, SEG-8 e SEG-9. `banco-de-dados`: SEG-3 e SEG-7. `backend-funcoes`: SEG-4, SEG-6 e SEG-10. `auth-grupos`: SEG-5 em F8-3. Humano: base legal para funcionários.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 23:44 (BRT)
+
+- **Branch:** docs/proof-security-decisions, criada a partir de feat/phase-3-proof (d223e4b)
+- **Agente(s):** arquiteto
+- **Resumo:** Decisões sobre os achados de segurança e do QA da prova, na seção 20 do ADR-0007, com contrato e um handoff por dono. Nenhuma migration ou tela mudou: a implementação está nos handoffs.
+- **Alterações:**
+  - `docs/adr/0007-prova-por-foto.md`: seção 20 e ajustes nas seções 2, 8, 10, 14 e 17, Alternativas e Consequências.
+  - `packages/contracts/src/tasks.ts`: `taskSchema.proofFlagsLocked`, `taskRuleChangeSchema`, `taskRuleFieldSchema` e o código `proof_visibility_locked`.
+  - `packages/contracts/src/tasks.test.ts`: o código novo.
+  - Cinco handoffs `20261101-2339-arquiteto-para-*`.
+- **Arquivos/módulos principais:** `docs/adr/0007-prova-por-foto.md`, `packages/contracts/src/tasks.ts`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma. Nove especificadas para `banco-de-dados`.
+- **Decisões/ADRs:** SEG-1: `tasks.proof_flags_locked` tira a exceção de tarefa própria, e `task_rule_changes` registra as mudanças. SEG-2 e item 1 do QA: `can_review_proof` deixa de olhar `archived_at`, e a retenção segue pagando XP, porque excluir deixou de dar vantagem. SEG-2 e SEG-9: tarefa com prova não muda de visibilidade. SEG-3: `proof_challenges.occurrence_id` perde a chave estrangeira, e o limite diário conta `used_at`. SEG-7: vale a cascata, e F8-3 apaga antes a prova superada em ocorrência alheia. SEG-8: aceito. SEG-5: aviso versão 2, `proof_consents` e `recordRetentionDays = 365` agora; revogação, exclusão e exportação em F8-3. Quatro riscos aceitos mantidos.
+- **Como testar:** `pnpm check`. O comportamento será testado por cada dono, conforme "Como testar" dos handoffs.
+- **Verificado:** `pnpm check` passou. Leitura das migrations de `edit_task`, `delete_task`, `set_occurrence_status`, retenção, desafios e barreiras.
+- **Não verificado:** sem pilha local, nada rodou no banco. A recusa de apagar o grupo com `on delete set null` em `proof_challenges` é dedução da ordem das cascatas, sem teste, e `pnpm db:check-permissions` não rodou. As decisões não mudam matriz nem transições, e `proofRules` só muda junto com a migration.
+- **Pendências / próximos passos:** `banco-de-dados` primeiro, depois `backend-funcoes`, `tarefas-calendario` e `prova-foto`. `auth-grupos` só em F8-3. Humano: base legal para funcionários, bloqueante para esse uso; confirmar os 365 dias; contato de privacidade para o aviso; validar a seção 20 na aprovação da fase. SEG-4, SEG-6 e SEG-10 seguem com `backend-funcoes`; SEG-10 pede ajuste em `proofUploadMetaSchema`, ainda não feito.

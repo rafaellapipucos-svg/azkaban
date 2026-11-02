@@ -24,21 +24,23 @@ Leia também o handoff anterior, `20261102-1157-orquestrador-para-nova-sessao.md
 
 Integrado em `feat/phase-4-notifications`:
 
-| Item                                              | Estado                                                                                                  |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| ADR-0008 e contratos                              | feito (arquiteto), seção 17 com as decisões da revisão de segurança                                     |
-| F4-1 banco e F4-6 vermelho automático             | feito (`banco-de-dados`); F4-6 mudou de dono no QUADRO                                                  |
-| F4-2 despacho Web Push e F4-8 materialização      | feito (`backend-funcoes`), push sem biblioteca, testado contra o vetor da RFC 8291                      |
-| F4-3 sino, F4-4 push, F4-5 preferências, F4-7     | feito (`notificacoes-whatsapp`)                                                                         |
-| F4-9 casca PWA, título por tela, marcos, `TabBar` | feito (`notificacoes-whatsapp`, `design-system`, títulos por cada dono)                                 |
-| Lado cliente de F4-8 e sino em Hoje               | feito (`tarefas-calendario`)                                                                            |
-| QA da fase                                        | feito; QA4-1 a QA4-4 corrigidos e integrados (E2E dessas correções ainda **não rodou**)                 |
-| Revisão de segurança                              | feita; correções de cliente integradas (SEG4-6, 7, 8 e `safeInternalPath`)                              |
-| **Correções de banco SEG4-1, 2, 3 e 5**           | **em andamento** na branch `fix/notifications-db-security` (agente `banco-de-dados`), **não integrada** |
+| Item                                              | Estado                                                                                                     |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| ADR-0008 e contratos                              | feito (arquiteto), seção 17 com as decisões da revisão de segurança                                        |
+| F4-1 banco e F4-6 vermelho automático             | feito (`banco-de-dados`); F4-6 mudou de dono no QUADRO                                                     |
+| F4-2 despacho Web Push e F4-8 materialização      | feito (`backend-funcoes`), push sem biblioteca, testado contra o vetor da RFC 8291                         |
+| F4-3 sino, F4-4 push, F4-5 preferências, F4-7     | feito (`notificacoes-whatsapp`)                                                                            |
+| F4-9 casca PWA, título por tela, marcos, `TabBar` | feito (`notificacoes-whatsapp`, `design-system`, títulos por cada dono)                                    |
+| Lado cliente de F4-8 e sino em Hoje               | feito (`tarefas-calendario`)                                                                               |
+| QA da fase                                        | feito; QA4-1 a QA4-4 corrigidos e integrados (E2E dessas correções ainda **não rodou**)                    |
+| Revisão de segurança                              | feita; correções de cliente integradas (SEG4-6, 7, 8 e `safeInternalPath`)                                 |
+| Correções de banco SEG4-1, 2, 3 e 5               | feito (`banco-de-dados`, `1af2bca`), integrado em `90de6fb`: `db:test` 1227, PoCs fechados, mutações pegas |
+
+**Atualização às 15:10:** o `banco-de-dados` terminou antes da pausa, e a branch `fix/notifications-db-security` já está integrada. O espelho de `notification_rules` entrou, então `db:check-permissions` volta a passar. Na E2E dele, sem chave VAPID, deram 66 ok, 2 pulados e nenhuma falha. A E2E rodou antes da integração das correções QA4-1 a QA4-4, por isso o `test.fail()` do QA4-1 ainda aparecia.
 
 ### O que falta, em ordem
 
-1. **Retomar `fix/notifications-db-security`.** Confira `git log feat/phase-4-notifications..fix/notifications-db-security`. Se o último commit for `chore(wip):`, chame o `banco-de-dados` para terminar, a partir dessa branch (crie outra a partir dela no worktree novo). Escopo no handoff `20261102-1430-arquiteto-para-banco-de-dados-seguranca-fase-4.md`. A entrega inclui o espelho de `notificationRules.renotifyCooldown` e `pushSubscriptionRetentionDays`: **até ela entrar, `pnpm db:check-permissions` falha**. A entrega também roda os PoCs de banco que o revisor deixou sem executar. Depois, integrar.
+1. ~~Retomar `fix/notifications-db-security`~~: feito.
 2. **Verificação final da Fase 4, em banco limpo,** com `bash docs/agentes/ferramentas/verificar-fase.sh <checkout> <arquivo.log>`. O script cobre `install`, `db:start`, `db reset`, `db:test`, `db:check-permissions`, `turbo typecheck test --force`, `lint`, `boundaries`, `build:web`, `functions:test`, `e2e` duas vezes e `db:test` de novo. Antes, copie `supabase/functions/.env.example` para `supabase/functions/.env`. Para a E2E rodar também os testes de push, passe só pelo ambiente uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória; sem a chave, 1 ou 2 testes ficam pulados de propósito. Rode em segundo plano. Depois faça a varredura de segredos no diff `feat/phase-3-proof..feat/phase-4-notifications`.
 3. Se a E2E falhar nas correções novas (QA4-1 em `notifications-jobs.spec.ts`, QA4-2 e QA4-3 no aviso ao vivo), chame o dono.
 4. Entrada do orquestrador no LOG, QUADRO da Fase 4 como "feito", push e PR de `feat/phase-4-notifications` para `feat/phase-3-proof`. Acompanhe o CI por `ccd_pr`, sem polling.

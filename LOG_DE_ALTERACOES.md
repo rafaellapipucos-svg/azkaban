@@ -842,3 +842,13 @@
 - **Verificado:** `pnpm check` passou. `pnpm db:test` 1004 de 1004. `pnpm db:check-permissions` em dia. `pnpm functions:test` 85 de 85, sem `functions serve`. `pnpm e2e` 55 de 55, sendo 2 com `test.fail` de bugs já conhecidos. Com um job de 1 segundo, `cron.job_run_details` mostrou `failed` e `proof_retention_not_configured`. Seis mutações falharam nos testes: ler o corpo todo em `proof-url` (546, com `memory limit reached` no log), limite do corpo deslocado em um byte, sem a regra de `appVersion` (500, depois de gastar o nonce), retorno silencioso sem segredo, exceção no lugar do aviso de atraso e sem esse aviso. Depois de restaurar, os testes voltaram a passar.
 - **Não verificado:** nada rodou no projeto hospedado nem no CI, inclusive a lista de `docs/implantacao.md` e o `ci.yml` novo. Os comandos de deploy e de `pg_graphql` da lista não foram executados. Se `proof_retention_overdue` aparece nos logs do painel hospedado não foi visto. Metade de par substituto foi testada só como recusa, sem reproduzir o erro no Postgres. O aviso não cobre segredo errado nos primeiros 91 dias, e por isso a lista manda conferir a resposta da função.
 - **Pendências / próximos passos:** não há alerta automático: alguém precisa olhar os dois sinais. `materialize-occurrences/index.ts:290` tem o mesmo `req.text()` sem limite que SEG-6 achou, alcançável por qualquer usuário autenticado, e `call_materialize_occurrences` continua silenciosa sem Vault. `CLAUDE.md` ainda diz que `pnpm functions:test` exige `functions serve`, troca que cabe ao orquestrador.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 11:57 (BRT)
+
+- **Branch:** feat/phase-3-proof
+- **Agente(s):** orquestrador
+- **Resumo:** handoff para uma nova sessão do Claude Code assumir a orquestração, com o estado da Fase 3, o que falta, as pendências humanas e as armadilhas conhecidas.
+- **Alterações:** `docs/agentes/handoffs/20261102-1157-orquestrador-para-nova-sessao.md` criado; F3-8 no QUADRO volta a "em andamento" na branch `fix/proof-task-rules`.
+- **Verificado:** estado lido do git às 11:57: árvore limpa, HEAD `2935b7a`, `fix/proof-task-rules` em `18ca79f` (WIP, não integrado).
+- **Não verificado:** nenhuma suíte rodou nesta entrada. A Fase 3 não foi verificada no estado integrado e não tem push.
+- **Pendências / próximos passos:** as da seção 3 do handoff.

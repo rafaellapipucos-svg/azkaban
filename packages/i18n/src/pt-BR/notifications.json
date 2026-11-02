@@ -1,0 +1,95 @@
+{
+  "push": {
+    "genericTask": "Uma tarefa",
+    "lead": {
+      "minutes_one": "{{count}} minuto",
+      "minutes_other": "{{count}} minutos",
+      "hours_one": "{{count}} hora",
+      "hours_other": "{{count}} horas",
+      "days_one": "{{count}} dia",
+      "days_other": "{{count}} dias"
+    },
+    "task_reminder": {
+      "title": "{{task}}",
+      "now": "Está na hora.",
+      "soon": "Daqui a {{lead}}."
+    },
+    "occurrence_missed": {
+      "title": "Tarefa não feita",
+      "auto": "{{task}} passou do prazo e ficou como não feita.",
+      "byUser": "{{task}} foi marcada como não feita."
+    },
+    "occurrence_resolved": {
+      "title": {
+        "done": "Tarefa feita",
+        "partial": "Tarefa tentada",
+        "missed": "Tarefa não feita"
+      },
+      "body": "{{task}}"
+    },
+    "proof_in_review": {
+      "title": "Foto para revisar",
+      "body": "{{task}}"
+    },
+    "proof_disputed": {
+      "title": "Sua foto foi contestada",
+      "body": {
+        "partial": "{{task}} passou para Tentei.",
+        "missed": "{{task}} passou para Não feito."
+      }
+    }
+  },
+  "bell": {
+    "label_zero": "Avisos",
+    "label_one": "Avisos, {{count}} não lido",
+    "label_other": "Avisos, {{count}} não lidos"
+  },
+  "inbox": {
+    "title": "Avisos",
+    "empty": "Nenhum aviso por aqui.",
+    "markAll": "Marcar todos como lidos",
+    "unread": "Não lido"
+  },
+  "types": {
+    "task_reminder": "Lembretes das suas tarefas",
+    "occurrence_missed": "Tarefa sua que ficou como não feita",
+    "occurrence_resolved": "Tarefa que você criou e outra pessoa resolveu",
+    "proof_in_review": "Foto esperando a sua revisão",
+    "proof_disputed": "Foto sua que foi contestada"
+  },
+  "channels": {
+    "web_push": "Notificação no aparelho",
+    "whatsapp": "WhatsApp"
+  },
+  "preferences": {
+    "title": "Notificações",
+    "intro": "Os avisos sempre aparecem no sino. Aqui você escolhe quais também tocam no aparelho.",
+    "quietHours": {
+      "title": "Horário de silêncio",
+      "hint": "Nesse horário o aparelho não toca. Lembrete de tarefa marcada para dentro do silêncio toca mesmo assim.",
+      "start": "Começa às",
+      "end": "Termina às",
+      "none": "Sem horário de silêncio"
+    },
+    "devices": {
+      "title": "Aparelhos que recebem",
+      "empty": "Nenhum aparelho recebe notificações ainda.",
+      "unknown": "Aparelho sem nome",
+      "remove": "Parar de receber neste aparelho",
+      "lastSuccess": "Último aviso em {{date}}"
+    }
+  },
+  "setup": {
+    "title": "Receber avisos no aparelho",
+    "text": "Lembretes e avisos de revisão chegam mesmo com o app fechado.",
+    "enable": "Ativar notificações",
+    "enabled": "Este aparelho recebe notificações.",
+    "denied": "As notificações estão bloqueadas. Libere nas configurações do navegador ou do aparelho.",
+    "unsupported": "Este navegador não recebe notificações. O sino continua funcionando.",
+    "ios": {
+      "title": "No iPhone e no iPad",
+      "steps": "Toque em Compartilhar, depois em \"Adicionar à Tela de Início\". Abra o app pelo ícone novo e ative as notificações por lá.",
+      "tooOld": "Este iPhone ou iPad precisa do iOS 16.4 ou mais novo para receber notificações. O sino continua funcionando."
+    }
+  }
+}

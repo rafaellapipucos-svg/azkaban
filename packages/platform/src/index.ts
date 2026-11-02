@@ -29,6 +29,7 @@ export type {
 
 export { activateOnSpace, useRestoreFocus, type SpaceActivation } from './keyboard';
 export { useOnline } from './network';
+export { useDocumentTitle } from './documentTitle';
 
 export const storage = AsyncStorage;
 

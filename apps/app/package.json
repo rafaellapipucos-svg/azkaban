@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "expo start --web",
     "build:web": "expo export --platform web",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@azkaban/config": "workspace:*",
@@ -49,6 +50,7 @@
   "devDependencies": {
     "@types/react": "catalog:",
     "tailwindcss": "^3.4.19",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

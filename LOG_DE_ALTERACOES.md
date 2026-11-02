@@ -1182,3 +1182,19 @@
 - **Verificado:** `pnpm install --frozen-lockfile` e `pnpm check` passaram. Mutação no contrato: a regex antiga faz 7 testes falharem; restaurada.
 - **Não verificado:** a pilha não foi usada (está com o QA), então `pnpm db:check-permissions` não rodou e vai acusar `notification_rules` até a migration do espelho. Nenhuma CSP foi testada em navegador. Se `router.replace` do expo-router sai da origem com `?next=/%09/evil.com`. Hora do título derivada de UTC menos 3, porque o PowerShell foi bloqueado.
 - **Pendências / próximos passos:** `banco-de-dados` (SEG4-1, 2, 3, 5 e espelho), `notificacoes-whatsapp` (SEG4-6, 7, 8), `auth-grupos` (`safeInternalPath`). Humano: esconder o conteúdo na tela bloqueada, e os itens 8 a 10 da seção 16.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 14:31 (BRT)
+
+- **Branch:** fix/auth-internal-path, criada a partir de feat/phase-4-notifications (0d23f88)
+- **Agente(s):** auth-grupos
+- **Resumo:** SEG4-9. `safeInternalPath` passa a usar `internalPathSchema` do contrato e recusa tab, LF, CR, qualquer caractere de controle, `\`, `//` e mais de 200 caracteres no `?next=`.
+- **Alterações:**
+  - `packages/core/src/navigation/safeInternalPath.ts`: `path !== undefined && internalPathSchema.safeParse(path).success ? path : undefined`. A regra fica só no contrato.
+  - `packages/core/src/navigation/safeInternalPath.test.ts`: casos antigos mantidos; recusa `"/\t/evil.com"`, `"/\n/evil.com"`, `"/\r/evil.com"`, U+0000, U+007F, U+009F e 201 caracteres; aceita `/join/ABC`, query e hash, `/%09/evil.com` ainda codificado e 200 caracteres, conferindo com `new URL` que fica na origem. Formas do `?next=` (`/%09/evil.com`, `/%0a/evil.com`, `/%0d/evil.com`, `/%5c/evil.com`, `/%5cevil.com`, `%2F%2Fevil.com`): decodificadas com `URLSearchParams`, cada uma sai da origem com `new URL` e é recusada.
+- **Arquivos/módulos principais:** `packages/core/src/navigation/`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0008, seção 17 (SEG4-6 e SEG4-9). Sem contrato novo.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/navigation`.
+- **Verificado:** `pnpm install --frozen-lockfile` e `pnpm check` passaram (core 542 testes, 26 deles de `safeInternalPath`). Mutação: a regex antiga faz 10 testes falharem (tab, LF, CR, U+0000, U+007F, U+009F, 201 caracteres e as três formas `%09`, `%0a`, `%0d`); restaurada.
+- **Não verificado:** `pnpm dev` na porta 8081 com `/sign-in?next=/%09/evil.com` depois de entrar, porque entrar precisa da pilha, que está com o QA. Que o expo-router entrega o `next` já decodificado, como o teste supõe (se não decodificar, `/%09/evil.com` é texto no caminho e fica na origem, o que o teste também confere). Hora do título derivada de UTC menos 3, porque o PowerShell foi bloqueado.
+- **Pendências / próximos passos:** nenhuma em `auth-grupos`. `sw.js` continua com `notificacoes-whatsapp`.

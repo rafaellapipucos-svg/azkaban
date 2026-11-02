@@ -41,6 +41,18 @@ export type ProofPhoto = {
   capturedAt: string;
 };
 
+declare const btoa: (data: string) => string; // browsers and Hermes have it; packages using this file have no DOM lib
+
+/** A preview of the photo that stays in memory: nothing is written to disk (ADR-0007, section 16). */
+export function photoDataUri(photo: Pick<ProofPhoto, 'bytes' | 'mimeType'>): string {
+  let binary = '';
+  // In pieces: spreading a whole photo into one call overflows the stack.
+  for (let i = 0; i < photo.bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...photo.bytes.subarray(i, i + 0x8000));
+  }
+  return `data:${photo.mimeType};base64,${btoa(binary)}`;
+}
+
 export type PhotoErrorCode = 'not_ready' | 'too_small' | 'too_large' | 'encode_failed';
 
 export class PhotoError extends Error {

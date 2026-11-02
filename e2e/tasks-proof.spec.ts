@@ -1,86 +1,28 @@
-import { randomUUID } from 'node:crypto';
-import { expect, test, type Browser, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { admin } from '../supabase/functions/_shared/proof-kit';
-import { currentProofId, reviewProof, sendProof, spotOf } from './proof-fixtures';
+import {
+  APPROVAL,
+  PHOTO,
+  button,
+  check,
+  contains,
+  currentProofId,
+  groupWithMember,
+  reviewProof,
+  sendProof,
+  signUpWithContext,
+  spotOf,
+  text,
+  uniqueTitle,
+} from './proof-fixtures';
 
-// Needs `pnpm db:start` and `pnpm exec supabase functions serve`. The camera flow does not exist yet
-// (prova-foto), so a proof is sent and reviewed through the database functions it will call, in
-// `proof-fixtures.ts`. Accounts are unique per run and exist only in the local database.
-const newUser = (name: string) => ({
-  name,
-  email: `${name.toLowerCase()}-${randomUUID()}@example.com`,
-  password: randomUUID(),
-});
-type User = ReturnType<typeof newUser>;
-
-// Titles are looked up in the database, so each test makes its own.
-const uniqueTitle = (base: string) => `${base} ${randomUUID().slice(0, 6)}`;
-
-const button = (page: Page, name: string) =>
-  page.getByRole('button', { name, exact: true }).locator('visible=true');
-const text = (page: Page, value: string) =>
-  page.getByText(value, { exact: true }).locator('visible=true');
-const contains = (page: Page, value: string | RegExp) =>
-  page.getByText(value).locator('visible=true');
-const check = (page: Page, title: string, status: string) =>
-  page.getByRole('checkbox', { name: `${title}: ${status}` });
-
+// Needs `pnpm db:start` and `pnpm exec supabase functions serve`. Here a proof is sent and reviewed through
+// the database functions, in `proof-fixtures.ts`, to reach each state fast; `proof-capture.spec.ts` goes
+// through the camera. Accounts are unique per run and exist only in the local database.
 const ZONE = 'America/Sao_Paulo';
 const todayLocal = () => new Intl.DateTimeFormat('en-CA', { timeZone: ZONE }).format(new Date());
 const plusDays = (date: string, days: number) =>
   new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
-
-async function signUp(page: Page, user: User) {
-  await page.goto('/sign-up');
-  await page.getByLabel('Seu nome').fill(user.name);
-  await page.getByLabel('E-mail', { exact: true }).fill(user.email);
-  await page.getByLabel('Senha').fill(user.password);
-  await button(page, 'Criar conta').first().click();
-}
-
-async function signUpWithContext(page: Page, name: string, context = 'Casa') {
-  await signUp(page, newUser(name));
-  await button(page, 'Novo contexto').click();
-  await page.getByLabel('Nome', { exact: true }).fill(context);
-  await button(page, 'Salvar').click();
-  await expect(page.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
-}
-
-async function newContext(page: Page, name: string, group: string) {
-  await page.goto('/contexts/new');
-  await page.getByLabel('Nome', { exact: true }).fill(name);
-  await page.getByRole('radio', { name: group }).click();
-  await button(page, 'Salvar').click();
-  await expect(page.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
-}
-
-/** A group owner and a member, both signed in, and a group context for the owner's tasks. */
-async function groupWithMember(browser: Browser) {
-  const owner = newUser('Dona');
-  const member = newUser('Duda');
-  const ownerPage = await (await browser.newContext()).newPage();
-  const memberPage = await (await browser.newContext()).newPage();
-
-  await signUp(ownerPage, owner);
-  await expect(ownerPage.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
-  await ownerPage.goto('/groups/new');
-  await ownerPage.getByLabel('Nome do grupo').fill('Equipe P');
-  await button(ownerPage, 'Criar grupo').click();
-  await button(ownerPage, 'Convidar membro').click();
-  const code = await ownerPage.getByRole('heading', { name: /^[A-Z2-9]{10}$/ }).innerText();
-  await newContext(ownerPage, 'Escritório', 'Equipe P');
-
-  await memberPage.goto(`/join/${code}`);
-  await button(memberPage, 'Entrar').click();
-  await button(memberPage, 'Criar conta').click();
-  await memberPage.getByLabel('Seu nome').fill(member.name);
-  await memberPage.getByLabel('E-mail', { exact: true }).fill(member.email);
-  await memberPage.getByLabel('Senha').fill(member.password);
-  await button(memberPage, 'Criar conta').first().click();
-  await button(memberPage, 'Aceitar').click();
-  await expect(memberPage.getByText('Dona')).toBeVisible();
-  return { ownerPage, memberPage };
-}
 
 async function createOn(page: Page, title: string, day: string) {
   await page.goto(`/tasks/new?day=${day}&time=09:00`);
@@ -88,9 +30,6 @@ async function createOn(page: Page, title: string, day: string) {
   await button(page, 'Salvar').click();
   await expect(page.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
 }
-
-const PHOTO = 'Pedir uma foto para concluir';
-const APPROVAL = 'Um administrador aprova a foto';
 
 test('a task that asks for a photo cannot be marked done from the list or the detail', async ({
   page,
@@ -107,9 +46,12 @@ test('a task that asks for a photo cannot be marked done from the list or the de
   await button(page, 'Salvar').click();
   await expect(page.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
 
-  // The list says why the check is off, and tapping it changes nothing
-  await expect(check(page, title, 'Pendente')).toBeDisabled();
+  // The list says why, and its check leads to the camera instead of marking anything
   await expect(contains(page, 'Pede foto para concluir')).toBeVisible();
+  await check(page, title, 'Pendente').click();
+  await expect(page).toHaveURL(/\/tasks\/[^/]+\/proof$/);
+  await expect(page.getByRole('heading', { name: 'Antes de enviar a foto' })).toBeVisible();
+  await page.goto('/');
 
   // The detail has no "feito", and still offers the yellow and the red, which need no photo
   await text(page, title).click();
@@ -118,6 +60,7 @@ test('a task that asks for a photo cannot be marked done from the list or the de
     contains(page, 'Esta tarefa só fica feita com uma foto tirada na hora.'),
   ).toBeVisible();
   await expect(button(page, 'Marcar como feito')).toHaveCount(0);
+  await expect(button(page, 'Tirar a foto para concluir')).toBeVisible();
   await expect(button(page, 'Tentei, mas não consegui')).toBeVisible();
   await expect(button(page, 'Não fiz')).toBeVisible();
   const task = await spotOf(title);
@@ -231,10 +174,11 @@ test('a proof in review shows as "em análise" everywhere, then as contested, th
   const ownerId = spot.createdBy;
   const memberId = spot.assigneeId;
 
-  // Duda cannot tick it: the photo is the only road
+  // Duda's check does not mark it: the photo is the only road
   await memberPage.goto('/');
-  await expect(check(memberPage, title, 'Pendente')).toBeDisabled();
   await expect(contains(memberPage, 'Pede foto para concluir')).toBeVisible();
+  await check(memberPage, title, 'Pendente').click();
+  await expect(memberPage).toHaveURL(/\/tasks\/[^/]+\/proof$/);
 
   // The photo arrives and waits for an admin
   const proofId = await (async () => {

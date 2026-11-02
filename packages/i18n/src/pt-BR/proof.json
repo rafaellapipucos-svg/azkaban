@@ -1,0 +1,151 @@
+{
+  "entry": {
+    "take": "Tirar a foto para concluir",
+    "offline": "Sem conexão, não dá para enviar a foto. A prova é validada na hora, então ela não fica guardada para depois."
+  },
+  "loading": "Carregando…",
+  "back": "Voltar à tarefa",
+  "retry": "Tentar de novo",
+  "consent": {
+    "title": "Antes de enviar a foto",
+    "collected": "Guardamos a foto, o horário, o aparelho e o navegador, a versão do app e, se o contexto tiver um local, a distância até ele.",
+    "coordinates": "Suas coordenadas não são guardadas.",
+    "viewers": "Quem vê: você e os administradores do grupo, nunca os colegas. Em tarefa privada, só você.",
+    "retention": "A foto é apagada depois de {{days}} dias. O registro sem a imagem continua.",
+    "declineHint": "Sem aceitar não dá para enviar foto, mas você ainda pode marcar Tentei ou Não fiz.",
+    "accept": "Aceitar e continuar",
+    "decline": "Agora não"
+  },
+  "location": {
+    "title": "Sua localização",
+    "why": "Esta tarefa fica em um local. Lemos a sua posição uma vez, só agora, para calcular a distância até ele. Guardamos a distância, nunca as coordenadas.",
+    "skipHint": "Sem a localização a foto vale do mesmo jeito, e o revisor vê que ela faltou.",
+    "allow": "Usar minha localização",
+    "skip": "Continuar sem localização",
+    "reading": "Lendo a sua localização…"
+  },
+  "camera": {
+    "title": "Tire a foto agora",
+    "hint": "Mostre o que foi feito. A foto leva a data, a hora, o título da tarefa e o seu nome.",
+    "preview": "Imagem da câmera",
+    "take": "Tirar foto",
+    "flip": "Trocar de câmera",
+    "denied": "O acesso à câmera foi recusado. Libere a câmera nas permissões do aparelho ou do navegador.",
+    "reason": {
+      "no_device": "Não encontramos uma câmera neste aparelho.",
+      "in_use": "A câmera está em uso por outro app. Feche-o e tente de novo.",
+      "insecure_context": "O navegador só abre a câmera em uma conexão segura.",
+      "unsupported": "Este navegador não abre a câmera.",
+      "error": "A câmera não abriu."
+    },
+    "fallback": "Sem câmera não dá para concluir com foto. Na tarefa, você ainda pode marcar Tentei ou Não fiz."
+  },
+  "photo": {
+    "not_ready": "A câmera ainda não está pronta. Espere a imagem aparecer e tente de novo.",
+    "too_small": "A imagem desta câmera é pequena demais para valer como prova.",
+    "too_large": "A foto ficou grande demais para enviar. Tire outra, com menos detalhes.",
+    "encode_failed": "Não conseguimos preparar a foto. Tire outra."
+  },
+  "confirm": {
+    "title": "Confira a foto",
+    "image": "A foto que será enviada",
+    "send": "Enviar foto",
+    "retake": "Tirar outra",
+    "offline": "Sem conexão. A foto continua aqui, e dá para enviar quando a conexão voltar.",
+    "sending": "Enviando. A tarefa só fica feita quando o servidor confirmar."
+  },
+  "expired": {
+    "title": "O tempo acabou",
+    "body": "A foto ficou tempo demais sem ser enviada e foi descartada. Tire outra.",
+    "again": "Tirar outra foto"
+  },
+  "done": {
+    "title": "Foto enviada",
+    "accepted": "O servidor aceitou a foto, e a tarefa está feita.",
+    "inReview": "O servidor aceitou a foto. Agora um administrador confere, e o XP chega quando ele aprovar.",
+    "late": "Feita depois do prazo."
+  },
+  "flags": {
+    "out_of_radius": "Fora do raio do local",
+    "location_missing": "Sem localização",
+    "clock_mismatch": "O horário do aparelho não bate com o do servidor"
+  },
+  "link": {
+    "open": "Ver a foto da prova",
+    "queue": "Revisar fotos"
+  },
+  "queue": {
+    "title": "Fotos para revisar",
+    "empty": "Nenhuma foto esperando revisão.",
+    "forbidden": "Só quem revisa fotos neste grupo vê esta lista.",
+    "load": "Não deu para carregar as fotos.",
+    "item": "De {{name}}, recebida em {{when}}",
+    "mine": "É a sua foto: outra pessoa precisa revisar."
+  },
+  "review": {
+    "title": "Foto da prova",
+    "notFound": "Não encontramos esta prova, ou você não tem acesso a ela.",
+    "image": "Foto enviada como prova de {{task}}",
+    "photoFailed": "Não deu para abrir a foto.",
+    "reloadPhoto": "Abrir a foto de novo",
+    "photoDeleted": "A foto já foi apagada pelo prazo de guarda. O registro continua.",
+    "stampNote": "O carimbo na foto é só um desenho. Valem os dados abaixo, que vêm do servidor.",
+    "official": "Registro do servidor",
+    "receivedAt": "Recebida em {{when}}",
+    "author": "Enviada por {{name}}",
+    "you": "você",
+    "someone": "alguém",
+    "capturedAt": "Horário do aparelho: {{when}}",
+    "device": "Enviada de {{platform}}, versão {{version}}",
+    "deviceUnknown": "Aparelho desconhecido",
+    "userAgent": "Navegador: {{value}}",
+    "distance": "A {{distance}} m do local, com precisão de {{accuracy}} m",
+    "noFlags": "Nenhum aviso.",
+    "reviewStatus": {
+      "unreviewed": "Aceita sem aprovação",
+      "in_review": "Esperando aprovação",
+      "approved": "Aprovada",
+      "disputed": "Contestada"
+    },
+    "note": "Motivo: {{note}}",
+    "superseded": "Esta foto foi substituída, porque a tarefa foi reaberta. Ela não conta mais.",
+    "approve": "Aprovar",
+    "undo": "Desfazer contestação",
+    "dispute": "Contestar",
+    "disputeTitle": "Contestar a foto",
+    "toStatus": "Como a tarefa fica",
+    "toPartial": "Tentei",
+    "toMissed": "Não fiz",
+    "reason": "Motivo",
+    "reasonInvalid": "Escreva o motivo, em até 500 caracteres.",
+    "disputeSend": "Enviar contestação",
+    "cancel": "Cancelar"
+  },
+  "errors": {
+    "forbidden": "Você não pode fazer isso nesta tarefa.",
+    "late_window_expired": "O prazo para enviar a foto desta tarefa acabou.",
+    "occurrence_not_open": "Esta tarefa não está mais aberta para receber foto.",
+    "proof_not_required": "Esta tarefa não pede mais foto. Volte e marque como feita.",
+    "proof_consent_required": "Aceite o aviso antes de enviar a foto.",
+    "proof_disputed": "Um administrador contestou a foto desta tarefa. Só quem revisa fotos pode mudar o estado dela agora.",
+    "challenge_rate_limited": "Foram muitas tentativas em pouco tempo. Espere um pouco antes de tirar outra foto.",
+    "challenge_invalid": "A tarefa mudou enquanto a foto subia. Tire outra.",
+    "challenge_expired": "O tempo para enviar a foto acabou. Tire outra.",
+    "challenge_used": "Esta tentativa já foi usada. Tire outra foto.",
+    "proof_too_large": "A foto ficou grande demais para enviar. Tire outra.",
+    "proof_bad_type": "A foto não chegou inteira. Tire outra.",
+    "proof_bad_dimensions": "O tamanho da foto não é aceito. Tire outra.",
+    "proof_hash_mismatch": "A foto chegou diferente do que saiu do aparelho. Tire outra.",
+    "proof_duplicate": "Esta mesma foto já foi enviada antes. Tire outra.",
+    "proof_out_of_radius": "Você está fora do local desta tarefa, ou sem localização, e a foto foi recusada.",
+    "proof_superseded": "Esta foto foi substituída e não pode mais ser revisada.",
+    "proof_already_reviewed": "Esta decisão já foi tomada. Atualizamos a tela.",
+    "proof_photo_deleted": "A foto já foi apagada pelo prazo de guarda. O registro continua.",
+    "upload_timeout": "A conexão ficou lenta e a foto não chegou inteira. Tente de novo.",
+    "unauthorized": "Sua sessão terminou. Entre de novo para enviar a foto.",
+    "invalid_request": "A conexão caiu no meio do envio. Tente de novo.",
+    "method_not_allowed": "Algo deu errado. Tente de novo mais tarde.",
+    "internal": "Algo deu errado do nosso lado. Tente de novo.",
+    "network": "Sem resposta do servidor. Confira a sua conexão e tente de novo."
+  }
+}

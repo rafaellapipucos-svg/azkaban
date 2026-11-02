@@ -1146,3 +1146,21 @@
 - **Verificado:** `pnpm check` passou. `pnpm e2e` 64 passaram e 1 pulado, numa só execução, com uma chave pública VAPID de teste passada só pelo ambiente do comando: o par foi gerado em memória, a privada nunca foi escrita nem mostrada, e a pública foi apagada depois. O pulado é o teste "sem chave pública", que só roda sem ela. As quatro specs de notificações passaram na primeira vez: sino ao vivo pelo Realtime em duas abas, aviso, alvo de 44 px, título "Avisos · Azkaban", um `main`, toque em `/proofs/<id>`, contador zerado na outra aba, contestação ao autor, linha genérica depois de sair do grupo, "Marcar todos"; silêncio salvo, recusado igual, desligado e religado; interruptores por tipo; aparelho "Chrome · Android" listado e removido. Telas por capturas do Chromium em 375x812 e 1280x800, claro e escuro: sino com contador ao lado de "Hoje", sem empurrar a data; aviso ao vivo no topo, com fechar; lista com não lidos e a linha "Uma tarefa" de ocorrência apagada; preferências com o cartão "Ativar notificações", interruptores, silêncio 22:00 a 07:00 com o fuso e a lista de aparelhos vazia; título do documento por tela.
 - **Não verificado:** a permissão real e a inscrição no navegador (o Chromium sem janela responde `denied` mesmo com a permissão concedida, então o estado do botão foi visto com `Notification.permission` forçado a `default`), o registro do `sw.js` e push real; iOS, Android e o projeto hospedado. A 320 px não foi conferido. O aviso ao vivo cobre o cabeçalho, inclusive o sino e o "Voltar", por até 6 s. Hora derivada de UTC menos 3 (PowerShell bloqueado).
 - **Pendências / próximos passos:** verificação manual do push no Android, desktop e iPhone pela Tela de Início.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 14:18 (BRT)
+
+- **Branch:** chore/security-phase-4, criada a partir de feat/phase-4-notifications (55f87f0)
+- **Agente(s):** revisor-seguranca
+- **Resumo:** Revisão de segurança da Fase 4 (diff `feat/phase-3-proof..feat/phase-4-notifications`), estática, sem PoC de banco: a pilha estava com outro agente e o orquestrador pediu para não usá-la. Um achado médio, oito baixos ou informativos e um risco de produto, em três handoffs.
+- **Alterações:**
+  - Handoffs `20261102-1420-revisor-seguranca-para-{banco-de-dados-notificacoes,notificacoes-whatsapp-service-worker-e-cabecalhos,arquiteto-caminho-interno}`.
+  - SEG4-1 (média): alternar `done` e `pending` gera um `occurrence_resolved` novo por volta para o criador, sem limite (chave pelo id da linha do histórico).
+  - SEG4-2 a SEG4-9 (baixa ou informativo): troca de dono do endpoint sem prova de posse; `proof_in_review` sem `can_view_task_for`; `DELETE` do Realtime para todo assinante; `push_subscriptions` sem retenção; `internalPath` do `sw.js`, do contrato e `safeInternalPath` aceitam tab, LF e CR e resolvem para outra origem; `_headers` sem CSP, `frame-ancestors`, `nosniff` e `Referrer-Policy`; sessão que acaba sem Sair mantém o push.
+  - Risco de produto: título da tarefa na tela bloqueada.
+- **Arquivos/módulos principais:** `docs/agentes/handoffs/`, este LOG
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma
+- **Como testar:** os passos estão em cada handoff.
+- **Verificado:** `pnpm install --frozen-lockfile`, `pnpm check` e `pnpm build:web` passaram; `node --test supabase/functions/dispatch-notifications/push.test.ts` 18 de 18, com o vetor do apêndice A da RFC 8291. PoC no Node: regex de caminho interno com tab, LF e CR resolvendo para `https://evil.com/`; `endpointAllowed` contra maiúsculas, ponto final, portas, userinfo, `%2e`, tab e U+3002 (todos corretos). Busca de segredos em `apps/app/dist`: nenhum. `.env` e `.env.*` ignorados pelo git. Leitura da cifra aes128gcm e do VAPID contra as RFCs 8291 e 8292: conferem.
+- **Não verificado:** nenhum PoC de banco (SEG4-1, SEG4-2, regex do host no Postgres, RLS e Realtime de `notifications` com dois usuários): a pilha chegou a subir e foi parada sem rodar nada, a pedido do orquestrador. Nenhum envio a serviço de push real. Se `router.replace` do expo-router sai da origem com `?next=/%09/evil.com`. Hora derivada de UTC menos 3, porque o PowerShell foi bloqueado.
+- **Pendências / próximos passos:** rodar os PoCs de banco sobre o estado integrado depois do QA. Donos: `banco-de-dados`, `notificacoes-whatsapp`, `arquiteto`.

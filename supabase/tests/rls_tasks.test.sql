@@ -484,7 +484,7 @@ select is((select title from public.tasks where id = current_setting('t.r2')::uu
 
 -- all, only the assignee changed
 select pg_temp.mk('R3', '20000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000d', 'group', now() + interval '1 day', 'easy', true, 'FREQ=DAILY');
-select pg_temp.mk_occ('R3', now() - interval '1 day');
+select pg_temp.mk_occ('R3', now() - interval '2 days');
 select pg_temp.mk_occ('R3', now() + interval '1 day');
 select pg_temp.mk_occ('R3', now() + interval '2 days');
 select set_config('t.r3', pg_temp.tid('R3')::text, true);

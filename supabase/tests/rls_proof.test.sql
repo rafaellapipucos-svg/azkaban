@@ -4,7 +4,7 @@
 -- with the same code as a real denial, so a rejection alone proves little.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(481);
+select plan(579);
 
 -- Alice owns Casa A, Bea owns Casa B, Caio is admin of A, Duda is a member of A and B,
 -- Fred is a member of A, Eva is outside.
@@ -38,7 +38,7 @@ insert into public.contexts (id, area_id, group_id, owner_user_id, name, color_t
     'Rua A, 1', -23.55, -46.63, 150);
 
 -- Alice, Caio and Duda accepted the notice. Fred and Bea did not.
-update public.profiles set proof_consent_version = 1, proof_consent_at = now()
+update public.profiles set proof_consent_version = 2, proof_consent_at = now()
 where id in ('00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000c',
   '00000000-0000-0000-0000-00000000000d');
 
@@ -270,7 +270,7 @@ select is((select count(*) from public.occurrence_transitions), 23::bigint, 'the
 select is((select string_agg(from_status || '>' || to_status, ',' order by from_status::text, to_status::text) from public.occurrence_transitions where actor = 'reviewer'), 'done>missed,done>partial,missed>done,partial>done', 'and they are the reviewer''s');
 select is((select string_agg(role::text, ',' order by role::text) from public.role_permissions where permission_key = 'proof.review'), 'admin,owner', 'proof.review belongs to owner and admin, and not to member');
 select is((select (value ->> 'maxBytes')::int from public.app_settings where key = 'proof_rules'), 2097152, 'proof_rules are seeded');
-select is((public.proof_rules() ->> 'consentVersion')::int, 1, 'and read by the accessor');
+select is((public.proof_rules() ->> 'consentVersion')::int, 2, 'and read by the accessor');
 select is((select public from storage.buckets where id = 'task-proofs'), false, 'the proofs bucket is private');
 select is((select file_size_limit from storage.buckets where id = 'task-proofs'), 2097152::bigint, 'it has the size limit of proofRules');
 select is((select allowed_mime_types from storage.buckets where id = 'task-proofs'), array['image/jpeg'], 'and only takes jpeg');
@@ -302,7 +302,7 @@ select is((select count(*) from public.contexts where name = 'Sem local'), 0::bi
 
 -- Consent columns: read by the owner, written only by record_proof_consent
 select pg_temp.login(pg_temp.u('d'));
-select is((select proof_consent_version from public.profiles where id = auth.uid()), 1, 'a user reads their own consent');
+select is((select proof_consent_version from public.profiles where id = auth.uid()), 2, 'a user reads their own consent');
 select throws_ok($$update public.profiles set proof_consent_version = 5 where id = auth.uid()$$, '42501', 'permission denied for table profiles', 'but cannot write it');
 select throws_ok($$update public.profiles set proof_consent_at = now() where id = auth.uid()$$, '42501', 'permission denied for table profiles', 'nor its date');
 select lives_ok($$update public.profiles set display_name = 'Duda B' where id = auth.uid()$$, 'while the other profile fields stay editable');
@@ -682,7 +682,7 @@ select throws_ok($$select public.issue_proof_challenge(pg_temp.occ('PH1'))$$, '4
 -- Left the group
 select pg_temp.pg();
 select pg_temp.mkp('PHF', '20000000-0000-0000-0000-00000000000a', pg_temp.u('f'), pg_temp.u('f'), 'group');
-update public.profiles set proof_consent_version = 1 where id = pg_temp.u('f');
+update public.profiles set proof_consent_version = 2 where id = pg_temp.u('f');
 select pg_temp.login(pg_temp.u('f'));
 select lives_ok($$select public.issue_proof_challenge(pg_temp.occ('PHF'))$$, 'Fred, a member, asks for a challenge');
 select pg_temp.pg();
@@ -729,23 +729,23 @@ select pg_temp.pg();
 select pg_temp.mkp('PHG', '20000000-0000-0000-0000-00000000000a', pg_temp.u('f'), pg_temp.u('f'), 'group');
 select pg_temp.login(pg_temp.u('f'));
 select throws_ok($$select public.issue_proof_challenge(pg_temp.occ('PHG'))$$, 'P0001', 'proof_consent_required', 'without the notice accepted: proof_consent_required');
-select throws_ok($$select public.record_proof_consent(2)$$, '22023', 'invalid_consent_version', 'the consent only takes the current version');
-select throws_ok($$select public.record_proof_consent(0)$$, '22023', 'invalid_consent_version', 'not an older one either');
-select lives_ok($$select public.record_proof_consent(1)$$, 'the current version is recorded');
-select is((select proof_consent_version from public.profiles where id = auth.uid()), 1, 'with its version');
+select throws_ok($$select public.record_proof_consent(3)$$, '22023', 'invalid_consent_version', 'the consent only takes the current version');
+select throws_ok($$select public.record_proof_consent(1)$$, '22023', 'invalid_consent_version', 'not an older one either');
+select lives_ok($$select public.record_proof_consent(2)$$, 'the current version is recorded');
+select is((select proof_consent_version from public.profiles where id = auth.uid()), 2, 'with its version');
 select ok((select proof_consent_at from public.profiles where id = auth.uid()) is not null, 'and its date');
 select lives_ok($$select public.issue_proof_challenge(pg_temp.occ('PHG'))$$, 'and then the challenge is issued');
 select pg_temp.pg();
 -- A new notice version asks everyone again (39)
-update public.app_settings set value = jsonb_set(value, '{consentVersion}', '2') where key = 'proof_rules';
+update public.app_settings set value = jsonb_set(value, '{consentVersion}', '3') where key = 'proof_rules';
 select pg_temp.login(pg_temp.u('d'));
 select throws_ok($$select public.issue_proof_challenge(pg_temp.occ('PHS'))$$, 'P0001', 'proof_consent_required', 'after consentVersion goes up, an old acceptance is not enough');
-select throws_ok($$select public.record_proof_consent(1)$$, '22023', 'invalid_consent_version', 'and the old version cannot be recorded again');
-select lives_ok($$select public.record_proof_consent(2)$$, 'the new version can');
+select throws_ok($$select public.record_proof_consent(2)$$, '22023', 'invalid_consent_version', 'and the old version cannot be recorded again');
+select lives_ok($$select public.record_proof_consent(3)$$, 'the new version can');
 select lives_ok($$select public.issue_proof_challenge(pg_temp.occ('PHS'))$$, 'and then the challenge is issued');
 select pg_temp.pg();
-update public.app_settings set value = jsonb_set(value, '{consentVersion}', '1') where key = 'proof_rules';
-update public.profiles set proof_consent_version = 1 where id = pg_temp.u('d');
+update public.app_settings set value = jsonb_set(value, '{consentVersion}', '2') where key = 'proof_rules';
+update public.profiles set proof_consent_version = 2 where id = pg_temp.u('d');
 -- The order of the table: the first failing line is the one reported
 select pg_temp.mk('NPX', '20000000-0000-0000-0000-00000000000a', pg_temp.u('c'), pg_temp.u('d'), 'group', now() + interval '2 days');
 update public.task_occurrences set status = 'cancelled' where id = pg_temp.occ('NPX');
@@ -763,7 +763,7 @@ select pg_temp.login(pg_temp.u('d'));
 select throws_ok($$select public.issue_proof_challenge(pg_temp.occ('PH5'))$$, 'P0001', 'late_window_expired', 'the window comes before the missing consent');
 select pg_temp.pg();
 update public.task_occurrences set overdue_at = now() + interval '1 day' where id = pg_temp.occ('PH5');
-update public.profiles set proof_consent_version = 1 where id = pg_temp.u('d');
+update public.profiles set proof_consent_version = 2 where id = pg_temp.u('d');
 -- The shape of the answer
 select pg_temp.login(pg_temp.u('d'));
 select pg_temp.sv('ok_challenge', public.issue_proof_challenge(pg_temp.occ('PH5'))::text);
@@ -832,30 +832,26 @@ select pg_temp.login(pg_temp.u('c'));
 select lives_ok($$select public.issue_proof_challenge(pg_temp.occ('PH4'))$$, 'the 10th challenge on the same occurrence');
 select throws_ok($$select public.issue_proof_challenge(pg_temp.occ('PH4'))$$, 'P0001', 'challenge_rate_limited', 'the 11th on the occurrence is refused');
 select pg_temp.pg();
--- 30 proofs in the day: Alice has 30 received two hours ago
+-- 30 bodies read in the day: Alice used 30 challenges two hours ago, out of the hourly limit
 delete from public.proof_challenges;
-update public.profiles set proof_consent_version = 1 where id = pg_temp.u('a');
+update public.profiles set proof_consent_version = 2 where id = pg_temp.u('a');
 select pg_temp.mkp('PHA', '20000000-0000-0000-0000-00000000000a', pg_temp.u('a'), pg_temp.u('a'), 'group');
-insert into public.proof_challenges (id, occurrence_id, user_id, created_at, expires_at, used_at)
-select ('90000000-0000-0000-0000-' || lpad(n::text, 12, '0'))::uuid, pg_temp.occ('PH5'), pg_temp.u('a'),
-  now() - interval '2 hours', now() - interval '115 minutes', now() - interval '2 hours' from generate_series(1, 30) n;
-insert into public.task_proofs (occurrence_id, challenge_id, user_id, sha256, size_bytes, width_px, height_px, captured_at_device, received_at, clock_delta_seconds)
-select pg_temp.occ('PH5'), ('90000000-0000-0000-0000-' || lpad(n::text, 12, '0'))::uuid, pg_temp.u('a'), lpad(to_hex(1000000 + n), 64, '0'), 100, 640, 480,
-  now() - interval '2 hours', now() - interval '2 hours', 0 from generate_series(1, 29) n;
+insert into public.proof_challenges (occurrence_id, user_id, created_at, expires_at, used_at)
+select pg_temp.occ('PH5'), pg_temp.u('a'), now() - interval '2 hours', now() - interval '115 minutes', now() - interval '2 hours'
+from generate_series(1, 29) n;
 select pg_temp.login(pg_temp.u('a'));
-select lives_ok($$select public.issue_proof_challenge(pg_temp.occ('PHA'))$$, '29 proofs in the day still leave room for one more challenge');
+select lives_ok($$select public.issue_proof_challenge(pg_temp.occ('PHA'))$$, '29 used in the day still leave room for one more challenge');
 select pg_temp.pg();
-insert into public.task_proofs (occurrence_id, challenge_id, user_id, sha256, size_bytes, width_px, height_px, captured_at_device, received_at, clock_delta_seconds)
-values (pg_temp.occ('PH5'), '90000000-0000-0000-0000-000000000030', pg_temp.u('a'), lpad(to_hex(1000030), 64, '0'), 100, 640, 480, now() - interval '2 hours', now() - interval '2 hours', 0);
 delete from public.proof_challenges where user_id = pg_temp.u('a') and used_at is null;
+insert into public.proof_challenges (occurrence_id, user_id, created_at, expires_at, used_at)
+values (pg_temp.occ('PH5'), pg_temp.u('a'), now() - interval '2 hours', now() - interval '115 minutes', now() - interval '2 hours');
 select pg_temp.login(pg_temp.u('a'));
-select throws_ok($$select public.issue_proof_challenge(pg_temp.occ('PHA'))$$, 'P0001', 'challenge_rate_limited', 'with 30 proofs in the day, the next challenge is refused');
+select throws_ok($$select public.issue_proof_challenge(pg_temp.occ('PHA'))$$, 'P0001', 'challenge_rate_limited', 'with 30 used in the day, the next challenge is refused');
 select pg_temp.pg();
-update public.task_proofs set superseded_at = now() where user_id = pg_temp.u('a');
+update public.proof_challenges set created_at = now() - interval '26 hours', expires_at = now() - interval '25 hours', used_at = now() - interval '25 hours' where user_id = pg_temp.u('a');
 select pg_temp.login(pg_temp.u('a'));
-select throws_ok($$select public.issue_proof_challenge(pg_temp.occ('PHA'))$$, 'P0001', 'challenge_rate_limited', 'superseded proofs still count: the photo is stored until retention');
+select lives_ok($$select public.issue_proof_challenge(pg_temp.occ('PHA'))$$, 'and those older than a day stop counting');
 select pg_temp.pg();
-delete from public.task_proofs where user_id = pg_temp.u('a');
 delete from public.proof_challenges where user_id = pg_temp.u('a');
 
 -- ===== commit_proof =====
@@ -961,7 +957,7 @@ select lives_ok($$select pg_temp.commit(pg_temp.g('n45e')::uuid, pg_temp.u('d'))
 
 -- 46. An assignee who left the group
 select pg_temp.mkp('C46', '20000000-0000-0000-0000-00000000000b', pg_temp.u('b'), pg_temp.u('d'), 'group');
-update public.profiles set proof_consent_version = 1 where id = pg_temp.u('d');
+update public.profiles set proof_consent_version = 2 where id = pg_temp.u('d');
 select pg_temp.sv('n46', pg_temp.claimed(pg_temp.u('d'), pg_temp.occ('C46'))::text);
 delete from public.group_members where user_id = pg_temp.u('d') and group_id = '10000000-0000-0000-0000-00000000000b';
 select throws_ok($$select pg_temp.commit(pg_temp.g('n46')::uuid, pg_temp.u('d'))$$, '42501', 'forbidden', 'a user who left the group cannot commit');
@@ -1221,7 +1217,7 @@ select pg_temp.mkp('V1', '20000000-0000-0000-0000-00000000000a', pg_temp.u('c'),
 select pg_temp.mk_occ('V1', now() + interval '1 day');
 select pg_temp.mk_occ('V1', now() + interval '2 days');
 update public.task_occurrences set assignee_id = pg_temp.u('f') where id = pg_temp.occ('V1', 1);
-update public.profiles set proof_consent_version = 1 where id = pg_temp.u('f');
+update public.profiles set proof_consent_version = 2 where id = pg_temp.u('f');
 select pg_temp.prove(pg_temp.u('f'), pg_temp.occ('V1', 1));
 select pg_temp.prove(pg_temp.u('d'), pg_temp.occ('V1', 2));
 select pg_temp.sv('v_f', pg_temp.proof_of(pg_temp.occ('V1', 1))::text);
@@ -1331,7 +1327,7 @@ delete from storage.buckets where id = 'control';
 
 -- ===== Flags that only the owner or manage_group switch (31) =====
 insert into public.role_permissions (role, permission_key) values ('member', 'task.edit_assigned');
-update public.profiles set proof_consent_version = 1 where id = pg_temp.u('f');
+update public.profiles set proof_consent_version = 2 where id = pg_temp.u('f');
 select pg_temp.mkp('FL1', '20000000-0000-0000-0000-00000000000a', pg_temp.u('c'), pg_temp.u('f'), 'group', now() + interval '2 days', false, true, 'FREQ=DAILY');
 select pg_temp.mk_occ('FL1', now() + interval '1 day');
 select pg_temp.mk_occ('FL1', now() + interval '2 days');
@@ -1455,7 +1451,7 @@ select pg_temp.pg();
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-000000000010', 'gina@test.local', '{"display_name": "Gina"}');
 insert into public.group_members (group_id, user_id, role) values ('10000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-000000000010', 'member');
-update public.profiles set proof_consent_version = 1 where id = '00000000-0000-0000-0000-000000000010';
+update public.profiles set proof_consent_version = 2 where id = '00000000-0000-0000-0000-000000000010';
 select pg_temp.mkp('GG', '20000000-0000-0000-0000-00000000000b', pg_temp.u('b'), '00000000-0000-0000-0000-000000000010', 'group');
 select pg_temp.prove('00000000-0000-0000-0000-000000000010', pg_temp.occ('GG'));
 select pg_temp.sv('v_g', pg_temp.proof_of(pg_temp.occ('GG'))::text);
@@ -1466,6 +1462,262 @@ select lives_ok($$delete from auth.users where id = '00000000-0000-0000-0000-000
 select is((select count(*) from public.task_proofs where id = pg_temp.g('v_g')::uuid), 1::bigint, 'the proof of an occurrence that stayed survives it');
 select is((select user_id from public.task_proofs where id = pg_temp.g('v_g')::uuid), null, 'with a null author');
 select is((select count(*) from public.proof_challenges where user_id = '00000000-0000-0000-0000-000000000010'), 0::bigint, 'and her challenges are gone');
+
+-- ===== ADR-0007, section 20 =====
+create function pg_temp.sa(p_title text) returns timestamptz language sql security definer as $$
+  select start_at from public.tasks where title = p_title;
+$$;
+
+create function pg_temp.rr(p_title text) returns text language sql security definer as $$
+  select rrule from public.tasks where title = p_title;
+$$;
+
+create function pg_temp.lk(p_title text) returns boolean language sql security definer as $$
+  select proof_flags_locked from public.tasks where title = p_title;
+$$;
+
+-- The trail of a task as field:from>to@author, whatever the caller can see.
+create function pg_temp.trail(p_title text) returns text language sql security definer as $$
+  select string_agg(c.field || ':' || c.from_value || '>' || c.to_value || '@' || right(c.changed_by::text, 1), ' ' order by c.field)
+  from public.task_rule_changes c join public.tasks t on t.id = c.task_id where t.title = p_title;
+$$;
+
+-- SEG-1. Caio, an admin, requires the photo on a task of Fred's own
+select pg_temp.mkp('LK1', '20000000-0000-0000-0000-00000000000a', pg_temp.u('f'), pg_temp.u('f'), 'group', now() + interval '2 days', false, false, 'FREQ=DAILY');
+select pg_temp.mk_occ('LK1', now() + interval '1 day');
+select pg_temp.mk_occ('LK1', now() + interval '2 days');
+select pg_temp.mk_occ('LK1', now() + interval '3 days');
+select pg_temp.mk_occ('LK1', now() + interval '4 days');
+select is(pg_temp.lk('LK1'), false, 'a new task is not locked');
+select pg_temp.login(pg_temp.u('c'));
+select lives_ok($$select public.edit_task(pg_temp.occ('LK1'), 'all', pg_temp.fform(pg_temp.sa('LK1'), 'LK1', '{"requiresPhotoProof": true}'), 'FREQ=DAILY', null)$$, 'the admin requires the photo on the task of a member');
+select pg_temp.pg();
+select is(pg_temp.lk('LK1'), true, 'which locks the flags');
+select is(pg_temp.trail('LK1'), 'requires_photo_proof:false>true@c', 'with one line in the trail, and its author');
+select pg_temp.login(pg_temp.u('f'));
+select lives_ok($$select public.edit_task(pg_temp.occ('LK1'), 'all', pg_temp.fform(pg_temp.sa('LK1'), 'LK1', '{"requiresPhotoProof": true, "notes": "n"}'), 'FREQ=DAILY', null)$$, 'the owner still edits the rest');
+select is(pg_temp.trail('LK1'), 'requires_photo_proof:false>true@c', 'and an edit with no change of rule writes nothing');
+select throws_ok($$select public.edit_task(pg_temp.occ('LK1'), 'all', pg_temp.fform(pg_temp.sa('LK1'), 'LK1', '{"requiresPhotoProof": false}'), 'FREQ=DAILY', null)$$, '42501', 'proof_flags_locked', 'the owner cannot switch the photo off');
+select throws_ok($$select public.edit_task(pg_temp.occ('LK1'), 'all', pg_temp.fform(pg_temp.sa('LK1'), 'LK1', '{"requiresPhotoProof": true, "visibility": "private"}'), 'FREQ=DAILY', null)$$, '42501', 'proof_flags_locked', 'nor take the task to private');
+select throws_ok($$select public.edit_task(pg_temp.occ('LK1'), 'this', pg_temp.fform(now() + interval '5 days', 'LK1 off', '{"requiresPhotoProof": false}'), null, null)$$, '42501', 'proof_flags_locked', 'nor detach an occurrence without the photo');
+select throws_ok($$select public.edit_task(pg_temp.occ('LK1'), 'this', pg_temp.fform(now() + interval '5 days', 'LK1 off', '{"requiresPhotoProof": true, "visibility": "private"}'), null, null)$$, '42501', 'proof_flags_locked', 'nor detach it as private');
+select throws_ok($$select public.delete_task(pg_temp.occ('LK1'), 'all', null)$$, '42501', 'forbidden', 'nor delete the task');
+select throws_ok($$select public.set_occurrence_status(pg_temp.occ('LK1'), 'cancelled', 'pending', null)$$, '42501', 'forbidden', 'nor cancel a day of it');
+select throws_ok($$insert into public.tasks (context_id, assignee_id, title, schedule_type, start_at, timezone, reminders, requires_photo_proof, requires_admin_approval, requires_partial_reason, difficulty, priority, visibility, proof_flags_locked) values ('20000000-0000-0000-0000-00000000000a', auth.uid(), 'X', 'timed', now(), 'UTC', '[]', false, false, false, 'easy', 'normal', 'group', true)$$, '42501', 'permission denied for table tasks', 'and the client cannot write the column');
+select pg_temp.login(pg_temp.u('c'));
+select throws_ok($$select public.edit_task(pg_temp.occ('LK1'), 'all', pg_temp.fform(pg_temp.sa('LK1'), 'LK1', '{"requiresPhotoProof": true, "visibility": "private"}'), 'FREQ=DAILY', null)$$, '42501', 'proof_flags_locked', 'not even the admin takes it to private: nobody could unlock it');
+-- The splits copy the column
+select pg_temp.login(pg_temp.u('f'));
+select lives_ok($$select public.edit_task(pg_temp.occ('LK1', 4), 'this', pg_temp.fform(now() + interval '6 days', 'LK1 once', '{"requiresPhotoProof": true}'), null, null)$$, 'the owner detaches an occurrence with the photo on');
+select is(pg_temp.lk('LK1 once'), true, 'and the new task is locked');
+select lives_ok($$select public.edit_task(pg_temp.occ('LK1', 3), 'this_and_following', pg_temp.fform(now() + interval '3 days', 'LK1 tail', '{"requiresPhotoProof": true}'), 'FREQ=DAILY', 'FREQ=DAILY;UNTIL=20261231T000000Z')$$, 'the owner splits the series');
+select is(pg_temp.lk('LK1 tail'), true, 'and the tail is locked');
+select is(pg_temp.lk('LK1'), true, 'like the original');
+select is(pg_temp.trail('LK1 tail'), null, 'a split with the same rules writes nothing');
+select throws_ok($$select public.delete_task(pg_temp.occ('LK1 tail'), 'all', null)$$, '42501', 'forbidden', 'the tail is as protected as the original');
+-- The admin lets go
+select pg_temp.login(pg_temp.u('c'));
+select lives_ok($$select public.edit_task(pg_temp.occ('LK1'), 'all', pg_temp.fform(pg_temp.sa('LK1'), 'LK1', '{"requiresPhotoProof": false}'), pg_temp.rr('LK1'), null)$$, 'the admin switches the flags off');
+select pg_temp.pg();
+select is(pg_temp.lk('LK1'), false, 'and the column goes back to false');
+select pg_temp.login(pg_temp.u('f'));
+select lives_ok($$select public.set_occurrence_status(pg_temp.occ('LK1', 2), 'cancelled', 'pending', null)$$, 'the owner cancels again');
+select lives_ok($$select public.edit_task(pg_temp.occ('LK1'), 'all', pg_temp.fform(pg_temp.sa('LK1'), 'LK1', '{"requiresPhotoProof": true}'), pg_temp.rr('LK1'), null)$$, 'and switches the flags again');
+select pg_temp.pg();
+select is(pg_temp.lk('LK1'), false, 'which does not lock anything: it is the owner');
+-- One flag of two stays
+select pg_temp.mkp('LK2', '20000000-0000-0000-0000-00000000000a', pg_temp.u('f'), pg_temp.u('f'), 'group', now() + interval '2 days', false, false);
+select pg_temp.login(pg_temp.u('c'));
+select lives_ok($$select public.edit_task(pg_temp.occ('LK2'), 'all', pg_temp.fform(pg_temp.sa('LK2'), 'LK2', '{"requiresPhotoProof": true, "requiresAdminApproval": true}'), null, null)$$, 'the admin requires the photo and the approval');
+select lives_ok($$select public.edit_task(pg_temp.occ('LK2'), 'all', pg_temp.fform(pg_temp.sa('LK2'), 'LK2', '{"requiresPhotoProof": true}'), null, null)$$, 'and then drops the approval');
+select pg_temp.pg();
+select is(pg_temp.lk('LK2'), true, 'with one flag on, the lock stays');
+select is(pg_temp.trail('LK2'), 'requires_admin_approval:false>true@c requires_admin_approval:true>false@c requires_photo_proof:false>true@c', 'one line per rule and per change');
+-- A split with a new rule compares with the task it came from
+select pg_temp.mkp('LK3', '20000000-0000-0000-0000-00000000000a', pg_temp.u('f'), pg_temp.u('f'), 'group', now() + interval '2 days', false, true, 'FREQ=DAILY');
+select pg_temp.mk_occ('LK3', now() + interval '1 day');
+select pg_temp.mk_occ('LK3', now() + interval '2 days');
+select pg_temp.login(pg_temp.u('c'));
+select lives_ok($$select public.edit_task(pg_temp.occ('LK3', 2), 'this_and_following', pg_temp.fform(now() + interval '2 days', 'LK3 tail', '{"requiresPhotoProof": true, "requiresAdminApproval": true}'), 'FREQ=DAILY', 'FREQ=DAILY;UNTIL=20261231T000000Z')$$, 'the admin splits the series with the approval on');
+select pg_temp.pg();
+select is(pg_temp.trail('LK3 tail'), 'requires_admin_approval:false>true@c', 'the tail gets the line, with its author');
+select is(pg_temp.trail('LK3'), null, 'and the original none');
+select is(pg_temp.lk('LK3 tail'), true, 'the tail is locked by the admin');
+select is(pg_temp.lk('LK3'), false, 'and the original stays as it was');
+
+-- The trail: whoever sees the task reads it, nobody writes it
+select pg_temp.mkp('LK4', '20000000-0000-0000-0000-00000000000a', pg_temp.u('f'), pg_temp.u('f'), 'group', now() + interval '2 days', false, false);
+select pg_temp.login(pg_temp.u('f'));
+select lives_ok($$select public.edit_task(pg_temp.occ('LK4'), 'all', pg_temp.fform(pg_temp.sa('LK4'), 'LK4', '{"visibility": "private"}'), null, null)$$, 'the owner takes a task without proof to private');
+select is((select count(*) from public.task_rule_changes where task_id = pg_temp.tid('LK4') and field = 'visibility' and from_value = 'group' and to_value = 'private'), 1::bigint, 'and reads the line');
+select throws_ok($$insert into public.task_rule_changes (task_id, field, from_value, to_value) values (pg_temp.tid('LK4'), 'visibility', 'a', 'b')$$, '42501', 'permission denied for table task_rule_changes', 'authenticated cannot insert in the trail');
+select throws_ok($$update public.task_rule_changes set to_value = 'group'$$, '42501', 'permission denied for table task_rule_changes', 'nor change it');
+select throws_ok($$delete from public.task_rule_changes$$, '42501', 'permission denied for table task_rule_changes', 'nor delete it');
+select pg_temp.login(pg_temp.u('d'));
+select is((select count(*) from public.task_rule_changes where task_id = pg_temp.tid('LK4')), 0::bigint, 'a colleague without access to the task does not read it');
+select pg_temp.login(pg_temp.u('c'));
+select is((select count(*) from public.task_rule_changes where task_id = pg_temp.tid('LK4')), 0::bigint, 'nor does the admin, on a private task');
+select is((select count(*) from public.task_rule_changes where task_id = pg_temp.tid('LK2')), 3::bigint, 'who reads the trail of a group task');
+select pg_temp.login(pg_temp.u('e'));
+select is((select count(*) from public.task_rule_changes), 0::bigint, 'an outsider reads nothing');
+select pg_temp.pg();
+set local role anon;
+select throws_ok($$select id from public.task_rule_changes$$, '42501', 'permission denied for table task_rule_changes', 'anon cannot read the trail');
+select pg_temp.pg();
+select is((select relrowsecurity from pg_class where oid = 'public.task_rule_changes'::regclass), true, 'RLS is on for the trail');
+
+-- SEG-2 and SEG-9. A row with a proof, of any kind, does not change visibility
+select pg_temp.mkp(x, '20000000-0000-0000-0000-00000000000a', pg_temp.u('f'), pg_temp.u('f'), 'group', now() + interval '2 days', false, true, 'FREQ=DAILY')
+from unnest(array['VC', 'VS', 'VD', 'VR']) x;
+select pg_temp.mk_occ(x, now() + interval '1 day') from unnest(array['VC', 'VS', 'VD', 'VR']) x;
+select pg_temp.mk_occ(x, now() + interval '2 days') from unnest(array['VC', 'VS', 'VD', 'VR']) x;
+select pg_temp.prove(pg_temp.u('f'), pg_temp.occ(x, 1)) from unnest(array['VC', 'VS', 'VD', 'VR']) x;
+select pg_temp.login(pg_temp.u('f'));
+select public.set_occurrence_status(pg_temp.occ('VS'), 'pending', 'done', null);
+select public.set_occurrence_status(pg_temp.occ('VS'), 'partial', 'pending', 'x');
+select public.set_occurrence_status(pg_temp.occ('VR'), 'pending', 'done', null);
+select pg_temp.login(pg_temp.u('a'));
+select public.review_proof(pg_temp.proof_of(pg_temp.occ('VD')), 'dispute', 'partial', 'x');
+select pg_temp.login(pg_temp.u('f'));
+select throws_ok($$select public.edit_task(pg_temp.occ('VC'), 'all', pg_temp.fform(pg_temp.sa('VC'), 'VC', '{"requiresPhotoProof": true, "visibility": "private"}'), 'FREQ=DAILY', null)$$, '23514', 'proof_visibility_locked', 'current proof, all: no going private');
+select throws_ok($$select public.edit_task(pg_temp.occ('VC'), 'this_and_following', pg_temp.fform(now() + interval '1 day', 'VC tail', '{"requiresPhotoProof": true, "visibility": "private"}'), 'FREQ=DAILY', 'FREQ=DAILY;UNTIL=20261231T000000Z')$$, '23514', 'proof_visibility_locked', 'current proof, this_and_following');
+select throws_ok($$select public.edit_task(pg_temp.occ('VS'), 'all', pg_temp.fform(pg_temp.sa('VS'), 'VS', '{"requiresPhotoProof": true, "visibility": "private"}'), 'FREQ=DAILY', null)$$, '23514', 'proof_visibility_locked', 'superseded proof, all');
+select throws_ok($$select public.edit_task(pg_temp.occ('VS'), 'this_and_following', pg_temp.fform(now() + interval '1 day', 'VS tail', '{"requiresPhotoProof": true, "visibility": "private"}'), 'FREQ=DAILY', 'FREQ=DAILY;UNTIL=20261231T000000Z')$$, '23514', 'proof_visibility_locked', 'superseded proof, this_and_following');
+select throws_ok($$select public.edit_task(pg_temp.occ('VD'), 'all', pg_temp.fform(pg_temp.sa('VD'), 'VD', '{"requiresPhotoProof": true, "visibility": "private"}'), 'FREQ=DAILY', null)$$, '23514', 'proof_visibility_locked', 'contested proof, all');
+select throws_ok($$select public.edit_task(pg_temp.occ('VD'), 'this_and_following', pg_temp.fform(now() + interval '1 day', 'VD tail', '{"requiresPhotoProof": true, "visibility": "private"}'), 'FREQ=DAILY', 'FREQ=DAILY;UNTIL=20261231T000000Z')$$, '23514', 'proof_visibility_locked', 'contested proof, this_and_following');
+select throws_ok($$select public.edit_task(pg_temp.occ('VR'), 'this', pg_temp.fform(now() + interval '5 days', 'VR once', '{"requiresPhotoProof": true, "visibility": "private"}'), null, null)$$, '23514', 'proof_visibility_locked', 'a reopened row with a proof, this');
+select pg_temp.pg();
+select is((select count(*) from public.tasks where title in ('VC tail', 'VS tail', 'VD tail', 'VR once')), 0::bigint, 'and nothing was created');
+select is((select visibility::text from public.tasks where title = 'VC'), 'group', 'nor changed');
+select pg_temp.login(pg_temp.u('f'));
+select lives_ok($$select public.edit_task(pg_temp.occ('VC', 2), 'this_and_following', pg_temp.fform(now() + interval '2 days', 'VC free', '{"requiresPhotoProof": true, "visibility": "private"}'), 'FREQ=DAILY', 'FREQ=DAILY;UNTIL=20261231T000000Z')$$, 'a split past the rows with a proof passes');
+select lives_ok($$select public.edit_task(pg_temp.occ('VR', 2), 'this', pg_temp.fform(now() + interval '5 days', 'VR free', '{"requiresPhotoProof": true, "visibility": "private"}'), null, null)$$, 'and so does detaching a row without one');
+select pg_temp.pg();
+select is((select visibility::text from public.tasks where title = 'VC free'), 'private', 'the tail is private');
+select is(pg_temp.trail('VC free'), 'visibility:group>private@f', 'and the trail has it');
+-- The other direction: old photos of a private task do not reach the admins
+select pg_temp.mkp('VP', '20000000-0000-0000-0000-00000000000a', pg_temp.u('f'), pg_temp.u('f'), 'private', now() + interval '2 days', false, true, 'FREQ=DAILY');
+select pg_temp.mk_occ('VP', now() + interval '1 day');
+select pg_temp.mk_occ('VP', now() + interval '2 days');
+select pg_temp.prove(pg_temp.u('f'), pg_temp.occ('VP'));
+select pg_temp.login(pg_temp.u('f'));
+select throws_ok($$select public.edit_task(pg_temp.occ('VP'), 'all', pg_temp.fform(pg_temp.sa('VP'), 'VP', '{"requiresPhotoProof": true}'), 'FREQ=DAILY', null)$$, '23514', 'proof_visibility_locked', 'private to group, all');
+select throws_ok($$select public.edit_task(pg_temp.occ('VP'), 'this_and_following', pg_temp.fform(now() + interval '1 day', 'VP tail', '{"requiresPhotoProof": true}'), 'FREQ=DAILY', 'FREQ=DAILY;UNTIL=20261231T000000Z')$$, '23514', 'proof_visibility_locked', 'private to group, this_and_following');
+select pg_temp.pg();
+
+-- SEG-2. A deleted task stays with the reviewer
+select pg_temp.mkp('A20', '20000000-0000-0000-0000-00000000000a', pg_temp.u('c'), pg_temp.u('f'), 'group', now() + interval '2 days', true);
+select pg_temp.mkp('A21', '20000000-0000-0000-0000-00000000000a', pg_temp.u('c'), pg_temp.u('f'), 'group');
+select pg_temp.prove(pg_temp.u('f'), pg_temp.occ('A20'));
+select pg_temp.prove(pg_temp.u('f'), pg_temp.occ('A21'));
+select pg_temp.login(pg_temp.u('c'));
+select public.delete_task(pg_temp.occ('A20'), 'all', null);
+select public.delete_task(pg_temp.occ('A21'), 'all', null);
+select lives_ok($$select public.review_proof(pg_temp.proof_of(pg_temp.occ('A20')), 'approve', null, null)$$, 'an archived task: review_proof approves');
+select lives_ok($$select public.review_proof(pg_temp.proof_of(pg_temp.occ('A21')), 'dispute', 'partial', 'x')$$, 'and disputes');
+select throws_ok($$select public.set_occurrence_status(pg_temp.occ('A21'), 'pending', 'partial', null)$$, '42501', 'forbidden', 'while set_occurrence_status stays forbidden');
+select pg_temp.pg();
+select is(pg_temp.xp(pg_temp.occ('A20')), 10::bigint, 'the approval pays the XP');
+select is(pg_temp.status_of(pg_temp.occ('A21')), 'partial', 'and the dispute takes it to yellow');
+select pg_temp.login(pg_temp.u('f'));
+select throws_ok($$select public.review_proof(pg_temp.proof_of(pg_temp.occ('A21')), 'approve', null, null)$$, '42501', 'forbidden', 'the author does not review on an archived task either');
+select pg_temp.pg();
+
+-- SEG-3. Hana fills her limits in a group and deletes it, with the same calls as the review's PoC
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('00000000-0000-0000-0000-000000000011', 'hana@test.local', '{"display_name": "Hana"}');
+update public.profiles set proof_consent_version = 2 where id = '00000000-0000-0000-0000-000000000011';
+insert into public.groups (id, name, type, owner_id) values
+  ('10000000-0000-0000-0000-0000000000c1', 'Casa H1', 'family', '00000000-0000-0000-0000-000000000011'),
+  ('10000000-0000-0000-0000-0000000000c2', 'Casa H2', 'family', '00000000-0000-0000-0000-000000000011');
+insert into public.contexts (id, area_id, group_id, name, color_token, icon, created_by) values
+  ('20000000-0000-0000-0000-0000000000c1', (select id from public.areas where key = 'home'), '10000000-0000-0000-0000-0000000000c1', 'H1', 'teal', 'x', '00000000-0000-0000-0000-000000000011'),
+  ('20000000-0000-0000-0000-0000000000c2', (select id from public.areas where key = 'home'), '10000000-0000-0000-0000-0000000000c2', 'H2', 'teal', 'x', '00000000-0000-0000-0000-000000000011');
+-- With approval, so no XP yet: a row of xp_events written in this same transaction would trip its own key
+-- when the cascade updates it, which does not happen across transactions.
+select pg_temp.mkp('H1', '20000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-000000000011', '00000000-0000-0000-0000-000000000011', 'group', now() + interval '2 days', true);
+select pg_temp.mkp('H3', '20000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-000000000011', '00000000-0000-0000-0000-000000000011', 'group');
+select pg_temp.prove('00000000-0000-0000-0000-000000000011', pg_temp.occ('H1'));
+select pg_temp.sv('h_proof', pg_temp.proof_of(pg_temp.occ('H1'))::text);
+insert into public.proof_challenges (occurrence_id, user_id, created_at, expires_at, used_at)
+select pg_temp.occ('H1'), '00000000-0000-0000-0000-000000000011', now() - interval '2 hours', now() - interval '115 minutes', now() - interval '2 hours'
+from generate_series(1, 29) n;
+select pg_temp.login('00000000-0000-0000-0000-000000000011');
+select is(pg_temp.rows($q$delete from public.groups where id = '10000000-0000-0000-0000-0000000000c1'$q$), 1::bigint, 'the owner deletes a group with a proof, and it does not fail');
+select pg_temp.pg();
+select is((select count(*) from public.task_proofs where id = pg_temp.g('h_proof')::uuid), 0::bigint, 'the proof goes with it');
+select is((select count(*) from public.proof_challenges where user_id = '00000000-0000-0000-0000-000000000011'), 30::bigint, 'and the 30 challenges stay');
+select pg_temp.login('00000000-0000-0000-0000-000000000011');
+select throws_ok($$select public.issue_proof_challenge(pg_temp.occ('H3'))$$, 'P0001', 'challenge_rate_limited', 'so the daily limit survives the deleted group');
+select pg_temp.pg();
+update public.proof_challenges set created_at = now() - interval '1 minute', expires_at = now() + interval '4 minutes', used_at = null where user_id = '00000000-0000-0000-0000-000000000011';
+select pg_temp.login('00000000-0000-0000-0000-000000000011');
+select throws_ok($$select public.issue_proof_challenge(pg_temp.occ('H3'))$$, 'P0001', 'challenge_rate_limited', 'and so does the hourly one');
+select pg_temp.pg();
+update public.proof_challenges set created_at = now() - interval '2 hours', expires_at = now() - interval '115 minutes' where user_id = '00000000-0000-0000-0000-000000000011';
+-- A nonce of an occurrence that is gone
+select pg_temp.login('00000000-0000-0000-0000-000000000011');
+select pg_temp.sv('h_free', public.issue_proof_challenge(pg_temp.occ('H3')) ->> 'nonce');
+select pg_temp.pg();
+select pg_temp.sv('h_claimed', pg_temp.claimed('00000000-0000-0000-0000-000000000011', pg_temp.occ('H3'))::text);
+delete from public.groups where id = '10000000-0000-0000-0000-0000000000c2';
+select pg_temp.service();
+select throws_ok($$select public.claim_proof_challenge(pg_temp.g('h_free')::uuid, '00000000-0000-0000-0000-000000000011')$$, 'P0001', 'challenge_invalid', 'claiming a nonce of a deleted occurrence: challenge_invalid');
+select pg_temp.pg();
+select throws_ok($$select pg_temp.commit(pg_temp.g('h_claimed')::uuid, '00000000-0000-0000-0000-000000000011')$$, 'P0001', 'challenge_invalid', 'and committing one already claimed too');
+select is((select used_at from public.proof_challenges where id = pg_temp.g('h_free')::uuid), null, 'the refused claim is not consumed');
+-- The cleanup still reaches them
+update public.proof_challenges set created_at = now() - interval '30 hours', expires_at = now() - interval '29 hours' where user_id = '00000000-0000-0000-0000-000000000011';
+select pg_temp.service();
+select is(public.delete_stale_proof_challenges(), 32::int, 'the cleanup removes the challenges of a deleted group');
+select pg_temp.pg();
+
+-- SEG-5. Each version accepted, once
+select pg_temp.login(pg_temp.u('b'));
+select lives_ok($$select public.record_proof_consent(2)$$, 'Bea accepts the notice');
+select lives_ok($$select public.record_proof_consent(2)$$, 'and accepts it again');
+select is((select count(*) from public.proof_consents where user_id = auth.uid() and version = 2), 1::bigint, 'one row for the version');
+select is((select proof_consent_version from public.profiles where id = auth.uid()), 2, 'and the profile follows');
+select throws_ok($$insert into public.proof_consents (user_id, version) values (auth.uid(), 9)$$, '42501', 'permission denied for table proof_consents', 'the client does not write the record');
+select throws_ok($$update public.proof_consents set accepted_at = now()$$, '42501', 'permission denied for table proof_consents', 'nor rewrite it');
+select throws_ok($$delete from public.proof_consents$$, '42501', 'permission denied for table proof_consents', 'nor delete it');
+select pg_temp.login(pg_temp.u('e'));
+select is((select count(*) from public.proof_consents where user_id = pg_temp.u('b')), 0::bigint, 'nobody else reads it');
+select pg_temp.pg();
+set local role anon;
+select throws_ok($$select user_id from public.proof_consents$$, '42501', 'permission denied for table proof_consents', 'anon reads nothing');
+select pg_temp.pg();
+select is((select relrowsecurity from pg_class where oid = 'public.proof_consents'::regclass), true, 'RLS is on for the consents');
+
+-- SEG-5. The row without a photo, after recordRetentionDays
+select pg_temp.mkp(x, '20000000-0000-0000-0000-00000000000a', pg_temp.u('a'), pg_temp.u('f'), 'group')
+from unnest(array['E1', 'E2', 'E3']) x;
+select pg_temp.sv('e1', pg_temp.claimed(pg_temp.u('f'), pg_temp.occ('E1'))::text);
+select pg_temp.sv('e2', pg_temp.claimed(pg_temp.u('f'), pg_temp.occ('E2'))::text);
+select pg_temp.sv('e3', pg_temp.claimed(pg_temp.u('f'), pg_temp.occ('E3'))::text);
+update public.proof_challenges set created_at = now() - interval '401 days', used_at = now() - interval '400 days', expires_at = now() - interval '401 days' + interval '5 minutes'
+where id in (pg_temp.g('e1')::uuid, pg_temp.g('e2')::uuid);
+update public.proof_challenges set created_at = now() - interval '101 days', used_at = now() - interval '100 days', expires_at = now() - interval '101 days' + interval '5 minutes'
+where id = pg_temp.g('e3')::uuid;
+select pg_temp.commit(pg_temp.g('e1')::uuid, pg_temp.u('f'));
+select pg_temp.commit(pg_temp.g('e2')::uuid, pg_temp.u('f'));
+select pg_temp.commit(pg_temp.g('e3')::uuid, pg_temp.u('f'));
+select pg_temp.service();
+select public.mark_proof_photo_deleted(pg_temp.proof_of(pg_temp.occ('E1')));
+select public.mark_proof_photo_deleted(pg_temp.proof_of(pg_temp.occ('E3')));
+select is(public.delete_expired_proof_records(100), 1::int, 'only one row is past the term and without a photo');
+select is(public.delete_expired_proof_records(100), 0::int, 'and running it again finds nothing');
+select pg_temp.pg();
+select is(pg_temp.proofs_of(pg_temp.occ('E1')), 0::bigint, 'the old row without a photo is gone');
+select is(pg_temp.proof_of(pg_temp.occ('E1')), null, 'current_proof_id is cleared by the key');
+select is(pg_temp.status_of(pg_temp.occ('E1')), 'done', 'the occurrence stays done');
+select is(pg_temp.review_of(pg_temp.occ('E1')), 'unreviewed', 'with its review state');
+select is(pg_temp.xp(pg_temp.occ('E1')), 10::bigint, 'and its XP');
+select is(pg_temp.proofs_of(pg_temp.occ('E2')), 1::bigint, 'a row that still has its photo stays, however old');
+select is(pg_temp.proofs_of(pg_temp.occ('E3')), 1::bigint, 'and so does a row without a photo inside the term');
+select is(has_function_privilege('authenticated', 'public.delete_expired_proof_records(int)', 'execute'), false, 'authenticated cannot run it');
+select is(has_function_privilege('anon', 'public.delete_expired_proof_records(int)', 'execute'), false, 'nor anon');
+select is(has_function_privilege('service_role', 'public.delete_expired_proof_records(int)', 'execute'), true, 'only the service role');
 
 select * from finish();
 rollback;

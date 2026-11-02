@@ -23,9 +23,11 @@ export const proofRules = {
   /** A reading worse than this counts as no reading. */
   maxLocationAccuracyM: 200,
   retentionDays: 90,
+  /** How long a proof row outlives its photo. ADR-0007, section 20. */
+  recordRetentionDays: 365,
   signedUrlTtlSeconds: 60,
   /** Raise it when the notice changes, so everyone reads the new text before the next proof. */
-  consentVersion: 1,
+  consentVersion: 2,
 } as const;
 
 /** Client and function defaults, with nothing for the database to mirror. */

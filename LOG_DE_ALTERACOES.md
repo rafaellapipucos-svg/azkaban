@@ -799,3 +799,23 @@
 - **Verificado:** `pnpm check` passou. Leitura das migrations de `edit_task`, `delete_task`, `set_occurrence_status`, retenção, desafios e barreiras.
 - **Não verificado:** sem pilha local, nada rodou no banco. A recusa de apagar o grupo com `on delete set null` em `proof_challenges` é dedução da ordem das cascatas, sem teste, e `pnpm db:check-permissions` não rodou. As decisões não mudam matriz nem transições, e `proofRules` só muda junto com a migration.
 - **Pendências / próximos passos:** `banco-de-dados` primeiro, depois `backend-funcoes`, `tarefas-calendario` e `prova-foto`. `auth-grupos` só em F8-3. Humano: base legal para funcionários, bloqueante para esse uso; confirmar os 365 dias; contato de privacidade para o aviso; validar a seção 20 na aprovação da fase. SEG-4, SEG-6 e SEG-10 seguem com `backend-funcoes`; SEG-10 pede ajuste em `proofUploadMetaSchema`, ainda não feito.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 00:12 (BRT)
+
+- **Branch:** fix/proof-rules-db, criada a partir de feat/phase-3-proof (b618c02)
+- **Agente(s):** banco-de-dados
+- **Resumo:** Nove migrations da seção 20 do ADR-0007: a exigência do admin trava a tarefa própria (SEG-1), o rastro de regras, tarefa com prova não muda de visibilidade (SEG-2, SEG-9), prova de tarefa arquivada segue revisável, os limites sobrevivem a apagar o grupo (SEG-3), `proof_consents` e o prazo do registro sem foto (SEG-5). Também a fixture de `rls_tasks` que falhava entre 23:00 e 23:59.
+- **Alterações:**
+  - `supabase/migrations/20261101173000` a `20261101173800`, uma por item do handoff `20261101-2339-arquiteto-para-banco-de-dados-regras-da-prova`.
+  - `packages/config/src/proof.ts`: `consentVersion: 2` e `recordRetentionDays: 365`, autorizado no handoff.
+  - `packages/data/src/database.types.ts`: gerado.
+  - `supabase/tests/rls_proof.test.sql`: 98 asserções novas, versão 2 do aviso e limite diário por `used_at`.
+  - `supabase/tests/rls_tasks.test.sql`: linha 487 com `now() - interval '2 days'`.
+  - Handoffs `20261102-0009-banco-de-dados-para-{backend-funcoes,qa-testes}-*`.
+- **Arquivos/módulos principais:** `supabase/migrations/`, `supabase/tests/rls_proof.test.sql`, `packages/config/src/proof.ts`
+- **Migrations:** `task_proof_flags_locked`, `can_delete_task_proof_lock`, `edit_task_proof_lock`, `task_rule_changes`, `can_review_proof_archived`, `proof_limits_survive_cascade`, `proof_consents`, `proof_record_retention`, `task_proofs_user_comment`.
+- **Decisões/ADRs:** nenhuma nova. Dois índices parciais além do handoff, `proof_challenges (user_id, used_at)` e `task_proofs (received_at) where photo_deleted_at is not null`, para o limite e o job não varrerem a tabela.
+- **Como testar:** `pnpm db:start`, `pnpm db:test`, `pnpm db:check-permissions`. `pnpm functions:test` e `pnpm e2e` só depois dos dois handoffs.
+- **Verificado:** `pnpm check` passou. `pnpm db:test` 1004 de 1004, depois da E2E, sem reset (579 em proof, 369 em tasks, 56 em groups). `rls_tasks` 369 de 369 às 23:52, dentro da hora que falhava. `pnpm db:check-permissions` em dia. Com os valores de versão trocados nas fixtures de `supabase/functions` e `e2e` e revertidos depois, porque não são meus: `pnpm functions:test` 80 de 80 e `pnpm e2e` 55 passaram, 2 deles os `test.fail()` já conhecidos. Apagar grupo com prova e XP em transações separadas: não falha, e o desafio seguinte responde `challenge_rate_limited`. 21 mutações nas barreiras, todas pegas pela suíte de prova: trava em `can_delete_task` e nos quatro pontos de `edit_task`, escopos da checagem de visibilidade, gatilho e política do rastro, `can_review_proof`, limite diário, guarda de ocorrência nula, chave estrangeira de volta, consentimentos e `delete_expired_proof_records`.
+- **Não verificado:** a cópia para `proof_consents` só rodou como instrução solta, com dados simulados, porque os bancos locais nascem sem aceites. Nada rodou no projeto hospedado, nem no CI. Sem os dois handoffs, `pnpm functions:test` e `pnpm e2e` falham com `invalid_consent_version`. No teste de pgTAP, a prova do grupo apagado é de tarefa com aprovação, sem XP: uma linha de `xp_events` escrita na mesma transação dispara a própria chave na cascata. Fora da transação isso não acontece, e a PoC acima cobre o caso.
+- **Pendências / próximos passos:** `backend-funcoes` e `qa-testes`: trocar a versão nas fixtures. `prova-foto`: aviso novo na mesma integração. `arquiteto`: o limite diário olha só o que já foi consumido, então nonces emitidos juntos chegam a 59 no dia, como antes desta entrega; e um admin dono da tarefa que desliga as flags postas por outro admin não solta a trava, porque só quem não é o dono a muda.

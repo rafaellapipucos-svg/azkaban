@@ -30,6 +30,10 @@ async function photoTaskForMember(owner: Page, title: string) {
   await owner.getByRole('switch', { name: APPROVAL }).click();
   await button(owner, 'Salvar').click();
   await expect(owner.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
+  // The form starts at the next hour with leads of 30 and 0 minutes: from :30 on, the reminder cron
+  // (every minute, also locally) would ring the member's bell, which this test counts.
+  const quiet = await admin.from('tasks').update({ reminders: [] }).eq('title', title);
+  expect(quiet.error).toBeNull();
 }
 
 test('a photo to review rings the admin bell live, opens the review and clears in every tab', async ({

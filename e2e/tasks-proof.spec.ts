@@ -10,6 +10,7 @@ import {
   groupWithMember,
   reviewProof,
   sendProof,
+  shieldFromAutoMiss,
   signUpWithContext,
   spotOf,
   text,
@@ -376,6 +377,7 @@ test('moving an overdue task warns it stays overdue, and it keeps its original d
   const onTime = uniqueTitle('Amanhã tranquila');
   await createOn(page, late, plusDays(today, -1));
   await createOn(page, onTime, plusDays(today, 1));
+  await shieldFromAutoMiss(page);
 
   const notice =
     'Esta tarefa já passou do prazo. Mudar o horário não tira o atraso: ela continua atrasada, com menos XP, e o prazo para concluir segue o de antes.';

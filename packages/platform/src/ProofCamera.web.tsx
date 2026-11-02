@@ -14,7 +14,7 @@ import type {
   ProofCameraProps,
 } from './ProofCamera';
 import { sha256Hex } from './sha256';
-import { layoutStamp, stampLines } from './stamp';
+import { layoutStamp, stampColors, stampLines } from './stamp';
 
 function failure(error: unknown): CameraStatus {
   const name = error instanceof Error ? error.name : '';
@@ -63,11 +63,11 @@ async function takePhoto(video: HTMLVideoElement, stamp: ProofStamp): Promise<Pr
           ctx.font = `${fontSize}px sans-serif`;
           return ctx.measureText(text).width;
         });
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillStyle = stampColors.band;
         ctx.fillRect(layout.band.x, layout.band.y, layout.band.width, layout.band.height);
         ctx.font = `${layout.fontSize}px sans-serif`;
         ctx.textBaseline = 'top';
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = stampColors.text;
         for (const line of layout.lines) ctx.fillText(line.text, line.x, line.y);
         const blob = await toBlob(canvas, step.quality);
         canvas.width = 0; // lets the browser free the pixels now
@@ -165,7 +165,7 @@ export function ProofCamera({ facing, label, onStatusChange, ref }: ProofCameraP
         width: '100%',
         height: '100%',
         overflow: 'hidden',
-        backgroundColor: '#000000',
+        backgroundColor: stampColors.letterbox,
       }}
     >
       <video

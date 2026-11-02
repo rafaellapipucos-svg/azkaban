@@ -13,7 +13,7 @@ import {
 } from './photo';
 import type { CameraStatus, ProofCameraHandle, ProofCameraProps } from './ProofCamera';
 import { sha256Hex } from './sha256';
-import { stampLines, stampMetrics } from './stamp';
+import { stampColors, stampLines, stampMetrics } from './stamp';
 
 declare const atob: (data: string) => string; // Hermes has it; the shared tsconfig has no DOM lib
 
@@ -185,7 +185,7 @@ export function ProofCamera({ facing, label, onStatusChange, ref }: ProofCameraP
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.6)',
+              backgroundColor: stampColors.band,
               padding: metrics.padding / ratio,
             }}
           >
@@ -196,7 +196,7 @@ export function ProofCamera({ facing, label, onStatusChange, ref }: ProofCameraP
                 ellipsizeMode="tail"
                 allowFontScaling={false}
                 style={{
-                  color: '#ffffff',
+                  color: stampColors.text,
                   fontSize: metrics.fontSize / ratio,
                   lineHeight: metrics.lineHeight / ratio,
                 }}
@@ -223,5 +223,5 @@ export function ProofCamera({ facing, label, onStatusChange, ref }: ProofCameraP
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, overflow: 'hidden', backgroundColor: '#000000' },
+  root: { flex: 1, overflow: 'hidden', backgroundColor: stampColors.letterbox },
 });

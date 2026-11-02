@@ -852,3 +852,24 @@
 - **Verificado:** estado lido do git às 11:57: árvore limpa, HEAD `2935b7a`, `fix/proof-task-rules` em `18ca79f` (WIP, não integrado).
 - **Não verificado:** nenhuma suíte rodou nesta entrada. A Fase 3 não foi verificada no estado integrado e não tem push.
 - **Pendências / próximos passos:** as da seção 3 do handoff.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:16 (BRT)
+
+- **Branch:** fix/proof-consent-v2, criada a partir de feat/phase-3-proof (86811ca)
+- **Agente(s):** prova-foto
+- **Resumo:** aviso da prova na versão 2, com tudo da seção 14 do ADR-0007, link da fila na Equipe, e os itens 4, 5 e 6 do QA. Parte do item 7 também, pelo lado do revisor.
+- **Alterações:**
+  - `proof.json`: `consent.stamp`, `consent.thirdParties`, `consent.deletion` e `consent.retention` com `{{recordDays}}`. `ProofCaptureScreen` lê `retentionDays` e `recordRetentionDays` de `proofRules`.
+  - Item 2 do QA: `ProofQueueBar`, o `ProofQueueLink` com a mesma moldura de `ProofLink`, composto acima de `TeamScreen` na rota da Equipe. Rota fina, como pede o handoff do `arquiteto`.
+  - Item 4: o quadrado da câmera ocupa no máximo metade da altura da janela. Em 375x812 não muda nada; em 1280x800 fica com 400 px.
+  - Item 5: sem `borderRadius` nas fotos carimbadas, em "Confira a foto" e na revisão. A câmera ao vivo continua arredondada.
+  - Item 6: `stampColors` em `packages/platform/src/stamp.ts`, usado pelos dois adapters. `@azkaban/ui` depende de `@azkaban/platform`, então os tokens não podem ser importados ali. Na revisão, a plataforma sai por i18n ("pelo navegador") e a versão ausente tem frase própria, sem `'?'`.
+  - Item 7, só a revisão: `review.webLimit` em provas enviadas pela web. O formulário ficou com `tarefas-calendario`, por handoff.
+  - E2E escrita, não executada: as frases do aviso com os números da config, o aviso de volta para quem aceitou a versão 1, o quadrado e o botão inteiros em 375x812 e 1280x800, a linha do aparelho e o aviso da web na revisão, e a prova de tarefa excluída aprovada pela fila da Equipe, com XP.
+- **Arquivos/módulos principais:** `packages/features/proof/src/{ProofCaptureScreen,ProofEntry,ProofReviewScreen,index}.tsx`, `packages/platform/src/{stamp.ts,ProofCamera.web.tsx,ProofCamera.native.tsx}`, `packages/i18n/src/pt-BR/proof.json`, `apps/app/app/(app)/team/[groupId].tsx`, `e2e/proof-capture.spec.ts`, `e2e/proof-paths.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. Item 1 do QA, conforme o `arquiteto`: nada a mudar na fila. A frase de `deletion` é a provisória da seção 20.
+- **Como testar:** `pnpm check`; com a pilha, `pnpm e2e`.
+- **Verificado:** `pnpm check` passou (feature-proof 6 de 6, platform 38 de 38).
+- **Não verificado:** **E2E pendente**, nem executada, porque a pilha local estava em uso por outro agente. Telas não conferidas em 375px e 1280px, claro e escuro. Nada em iOS ou Android, inclusive as cores do carimbo nativo.
+- **Pendências / próximos passos:** rodar `pnpm e2e` e conferir as telas quando a pilha liberar. Item 3 do QA (`proof-current` em `useStatusChange`) e a parte do formulário do item 7 com `tarefas-calendario`, no handoff `20261102-1215-prova-foto-para-tarefas-calendario-achados-do-qa`. A versão 2 do banco já está na base, então até esta branch entrar o app mostra o aviso velho a quem aceita a versão 2.

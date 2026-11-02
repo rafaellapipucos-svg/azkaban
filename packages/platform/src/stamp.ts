@@ -24,6 +24,17 @@ export function stampLines(input: StampText): string[] {
   return [when, input.taskTitle.trim(), input.userName.trim()];
 }
 
+/**
+ * Colors burned into the photo, and the letterbox around the preview. They are part of the image, not
+ * of the theme, so they are the same in light and dark. `@azkaban/ui` depends on this package, so its
+ * tokens cannot be imported here.
+ */
+export const stampColors = {
+  band: 'rgba(0, 0, 0, 0.6)',
+  text: '#FFFFFF',
+  letterbox: '#000000',
+} as const;
+
 /** Sizes follow the short edge, so the stamp reads the same at 1600 px and after a shrink to 600. */
 export function stampMetrics(width: number, height: number) {
   const fontSize = Math.round(Math.min(40, Math.max(12, Math.min(width, height) * 0.032)));

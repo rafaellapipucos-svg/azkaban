@@ -112,11 +112,15 @@ export type PushDevice = z.infer<typeof pushDeviceSchema>;
  */
 export const pushPayloadMaxBytes = 3072;
 
-/** Same rule as `safeInternalPath` in core: a path of the app, never another origin. */
-const internalPath = z
+/**
+ * A path of the app, never another origin. `safeInternalPath` in core uses it, and `sw.js` repeats it
+ * (ADR-0008, section 17). No backslash and no control character: the URL parser drops tab, LF and CR
+ * anywhere, so `"/\t/evil.com"` would resolve to `https://evil.com/`.
+ */
+export const internalPathSchema = z
   .string()
   .max(200)
-  .regex(/^\/[^/\\][^\\]*$/);
+  .regex(/^\/[^/\\\p{Cc}][^\\\p{Cc}]*$/u);
 
 /** Decrypted body of a Web Push, read by `sw.js`. The text is rendered by the server in the user's locale. */
 export const pushPayloadSchema = z.object({
@@ -126,7 +130,7 @@ export const pushPayloadSchema = z.object({
   title: z.string().min(1).max(120),
   body: z.string().max(300),
   /** Opened on tap. A task with photo proof goes straight to the camera. */
-  url: internalPath,
+  url: internalPathSchema,
   /** A newer notification with the same tag replaces the older one on screen. */
   tag: z.string().min(1).max(64),
 });

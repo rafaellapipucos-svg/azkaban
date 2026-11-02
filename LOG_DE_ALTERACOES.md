@@ -1164,3 +1164,21 @@
 - **Verificado:** `pnpm install --frozen-lockfile`, `pnpm check` e `pnpm build:web` passaram; `node --test supabase/functions/dispatch-notifications/push.test.ts` 18 de 18, com o vetor do apêndice A da RFC 8291. PoC no Node: regex de caminho interno com tab, LF e CR resolvendo para `https://evil.com/`; `endpointAllowed` contra maiúsculas, ponto final, portas, userinfo, `%2e`, tab e U+3002 (todos corretos). Busca de segredos em `apps/app/dist`: nenhum. `.env` e `.env.*` ignorados pelo git. Leitura da cifra aes128gcm e do VAPID contra as RFCs 8291 e 8292: conferem.
 - **Não verificado:** nenhum PoC de banco (SEG4-1, SEG4-2, regex do host no Postgres, RLS e Realtime de `notifications` com dois usuários): a pilha chegou a subir e foi parada sem rodar nada, a pedido do orquestrador. Nenhum envio a serviço de push real. Se `router.replace` do expo-router sai da origem com `?next=/%09/evil.com`. Hora derivada de UTC menos 3, porque o PowerShell foi bloqueado.
 - **Pendências / próximos passos:** rodar os PoCs de banco sobre o estado integrado depois do QA. Donos: `banco-de-dados`, `notificacoes-whatsapp`, `arquiteto`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 14:30 (BRT)
+
+- **Branch:** docs/notifications-security-decisions, criada a partir de feat/phase-4-notifications (15f5424)
+- **Agente(s):** arquiteto
+- **Resumo:** decisões da revisão de segurança da Fase 4 (SEG4-1 a SEG4-9), do risco do título na tela bloqueada e das diferenças do despacho, no ADR-0008, seção 17. Contrato do caminho interno corrigido.
+- **Alterações:**
+  - `docs/adr/0008-notificacoes-push-pwa-vermelho-automatico.md`: seção 17 nova; itens 8 a 10 na seção 16; remissões nas seções 3, 6, 7, 8, 9, 13, 14 e 15.
+  - `packages/contracts/src/notifications.ts`: `internalPathSchema` exportado, sem `\` e sem caractere de controle (`\p{Cc}`); `pushPayloadSchema.url` o usa. Testes recusam `"/\t/evil.com"`, `"/\n/evil.com"`, `"/\r/evil.com"`, `//evil.com`, `/\evil.com`, U+0000, U+007F e `/`, e conferem com `new URL` que cada recusado sai da origem e cada aceito fica.
+  - `packages/config/src/notifications.ts`: `notificationRules.renotifyCooldown` (10 minutos; `occurrence_missed`, `occurrence_resolved`, `proof_disputed`) e `pushSubscriptionRetentionDays` (90).
+  - Handoffs `20261102-1430-arquiteto-para-{banco-de-dados-seguranca-fase-4,notificacoes-whatsapp-seguranca-fase-4,auth-grupos-caminho-interno}`.
+- **Arquivos/módulos principais:** `docs/adr/0008-notificacoes-push-pwa-vermelho-automatico.md`, `packages/contracts/src/notifications.ts`, `packages/config/src/notifications.ts`
+- **Migrations:** nenhuma; o espelho dos dois valores novos é de `banco-de-dados`.
+- **Decisões/ADRs:** ADR-0008, seção 17. SEG4-1: o mesmo aviso (usuário, tipo, ocorrência e `data`) não se repete em 10 minutos. SEG4-2: troca de dono só com as mesmas chaves, senão `forbidden`. SEG4-3: `proof_in_review` passa por `can_view_task_for` e `archived_at`. SEG4-4: risco aceito. SEG4-5: inscrição sem entrega há 90 dias sai. SEG4-6 e SEG4-9: regex sem controle no contrato, `safeInternalPath` usa o schema (`auth-grupos`), `sw.js` compara a origem (`notificacoes-whatsapp`). SEG4-7: `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`, `nosniff` e `Referrer-Policy` agora; CSP completa como Report-Only depois. SEG4-8: sessão nula cancela o push. Título na tela bloqueada mantido, opção de esconder a confirmar pelo humano. As cinco diferenças do despacho aceitas.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/contracts exec vitest run src/notifications.test.ts`.
+- **Verificado:** `pnpm install --frozen-lockfile` e `pnpm check` passaram. Mutação no contrato: a regex antiga faz 7 testes falharem; restaurada.
+- **Não verificado:** a pilha não foi usada (está com o QA), então `pnpm db:check-permissions` não rodou e vai acusar `notification_rules` até a migration do espelho. Nenhuma CSP foi testada em navegador. Se `router.replace` do expo-router sai da origem com `?next=/%09/evil.com`. Hora do título derivada de UTC menos 3, porque o PowerShell foi bloqueado.
+- **Pendências / próximos passos:** `banco-de-dados` (SEG4-1, 2, 3, 5 e espelho), `notificacoes-whatsapp` (SEG4-6, 7, 8), `auth-grupos` (`safeInternalPath`). Humano: esconder o conteúdo na tela bloqueada, e os itens 8 a 10 da seção 16.

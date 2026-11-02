@@ -34,6 +34,21 @@ export const notificationRules = {
   ],
   /** The bell keeps a notification this long, then it is deleted with its outbox rows. */
   inboxRetentionDays: 30,
+  /**
+   * The same notice is not written twice within `minutes`: same user, type, occurrence and `data`
+   * (ADR-0008, section 17, SEG4-1). Closes the flood of a member who toggles done and pending; a
+   * different fact (another status, another person) is still told. Reminders and reviews are keyed
+   * by their lead and their proof, so they stay out.
+   */
+  renotifyCooldown: {
+    minutes: 10,
+    types: ['occurrence_missed', 'occurrence_resolved', 'proof_disputed'],
+  },
+  /**
+   * A subscription with no delivery this long (from its creation, if it never had one) is deleted
+   * (SEG4-5). The app registers it again the next time it opens with permission.
+   */
+  pushSubscriptionRetentionDays: 90,
 } as const;
 
 /** Dispatcher values, passed by the function to the database, with nothing to mirror. */

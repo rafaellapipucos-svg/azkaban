@@ -874,3 +874,23 @@
 - **Verificado:** `pnpm check` passou. Testes de `packages/contracts` (44, 17 novos) e `packages/config` (7, 4 novos).
 - **Não verificado:** nada rodou na pilha. Que o Expo 58 use `apps/app/public/index.html` como modelo em `output: 'single'` foi lido no código do CLI, sem build. Que o Chrome não exija `fetch` no service worker para instalar não foi conferido. Hosts de push da lista vêm de conhecimento, não de teste com cada navegador. `pnpm db:check-permissions` vai acusar `task_rules` até a migration de F4-1.
 - **Pendências / próximos passos:** `banco-de-dados` (F4-1 e F4-6) primeiro; `backend-funcoes` F4-8 já, F4-2 depois de F4-1; `notificacoes-whatsapp` core, i18n e F4-9 já, o resto depois de F4-1; `tarefas-calendario` e `design-system` nos encaixes. Orquestrador: F4-6 muda de dono no QUADRO; pedir a `auth-grupos` o `PushSetupCard` no onboarding. Humano: os sete padrões da seção 16 do ADR-0008.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:34 (BRT)
+
+- **Branch:** feat/ui-page-landmarks, criada a partir de feat/phase-4-notifications (336f35d)
+- **Agente(s):** design-system
+- **Resumo:** marcos de página e título por tela do lado de `packages/ui` (ADR-0008, seção 13): `Screen` é o `main` e aceita `title`, `TabBar` nova com `navigation` e rótulos inteiros a 320 px, e `IconButton` com selo de contagem para o sino.
+- **Alterações:**
+  - `Screen`: `role="main"` no `ScrollView`; `title?: string` aceito e ainda ignorado, com a chamada de `useDocumentTitle` marcada como pendente de F4-9.
+  - `TabBar` nova: `navigation` com nome, `tablist` e `tab`; cada aba com a largura do rótulo, mínimo de 44 px, rótulo em até duas linhas.
+  - `IconButton`: `badge?: number`, `aria-hidden`, "99+" acima de 99; `danger` no claro e `danger-light` com texto `text` no escuro.
+  - Token `sizes.lateBadge` vira `sizes.cornerBadge`, usado por `TaskCheck` e pelo selo.
+  - `/design-system`: título na `Screen`, seção "Barra de abas" de largura inteira e sino com selo em "Botões de ícone". Chaves novas em `ui.json`.
+  - Cinco handoffs `20261102-1233-design-system-para-*`.
+- **Arquivos/módulos principais:** `packages/ui/src/Layout.tsx`, `packages/ui/src/TabBar.tsx`, `packages/ui/src/IconButton.tsx`, `packages/ui/src/DesignSystemScreen.tsx`, `packages/i18n/src/pt-BR/ui.json`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** largura pelo conteúdo em vez de quintos iguais: a 320 px, quintos dão 64 px, e "Calendário" mede 72 px em Nunito 800 de 14 px; pelo conteúdo, as cinco abas somam 319 px. O nome da navegação mora em `ui.json`, dentro de `TabBar`, para a casca não precisar de chave nova. Não criei `useDocumentTitle`: é de `notificacoes-whatsapp` em F4-9.
+- **Como testar:** `pnpm check`; `pnpm dev` e `/design-system` a 320, 375 e 1280 px.
+- **Verificado:** `pnpm check` passou (ui 11 testes, 4 novos de contraste do selo; contracts 44, platform 38, core 500, config 7, data 7, proof 6). `pnpm build:web` exportou. Com Playwright em `/design-system`, claro e escuro, a 320, 375 e 1280 px: um só `main`, um `navigation` chamado "Navegação principal", nenhum rótulo cortado e uma linha por rótulo; a 320 px as abas medem 44, 68, 80, 81 e 46 px, sem rolagem horizontal. Selo visto nos dois temas.
+- **Não verificado:** `document.title` não muda, porque o adapter não existe. A barra real do app não usa `TabBar` até a casca trocar, e as telas logadas não foram abertas. O selo com "99+" e o comportamento no nativo não foram vistos. Que o stack esconde as telas de baixo com `display: none` foi lido no código do `expo-router`, não conferido no leitor de tela.
+- **Pendências / próximos passos:** orquestrador: `AppTabBar` usar `TabBar`. `notificacoes-whatsapp`: `useDocumentTitle` e a linha em `Screen`. `auth-grupos`, `tarefas-calendario` e `prova-foto`: `title` nas próprias telas.

@@ -94,7 +94,7 @@ export function TaskCheck({
         {isLate ? (
           <View
             aria-hidden
-            style={{ width: sizes.lateBadge, height: sizes.lateBadge }}
+            style={{ width: sizes.cornerBadge, height: sizes.cornerBadge }}
             className="absolute -right-1 -top-1 items-center justify-center rounded-full border-2 border-surface bg-partial dark:border-surface-dark"
           >
             <Text className="font-heavy text-sm text-onPartial">!</Text>

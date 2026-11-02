@@ -10,11 +10,21 @@ import { useThemeColors } from './useThemeColors';
 // SafeAreaView pads only the part of the safe area it actually overlaps: full under the status bar
 // on a tab or welcome screen, nothing under a stack header that already clears it. useSafeAreaInsets
 // cannot tell, and used to add the status bar height on top of the header.
-export function Screen({ children }: { children: ReactNode }) {
+// The content is the page's `main` landmark (ADR-0008, section 13): one Screen per route, and the
+// stack hides the screens underneath with display: none, so a page has a single main.
+export function Screen({
+  children,
+}: {
+  children: ReactNode;
+  /** Name of the screen for the browser tab: "<title> · <app>". Without it, the app name. */
+  title?: string;
+}) {
+  // pending F4-9: useDocumentTitle(title) from @azkaban/platform, created by notificacoes-whatsapp.
   const { background } = useThemeColors();
   return (
     <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: background }}>
       <ScrollView
+        role="main"
         className="flex-1"
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{

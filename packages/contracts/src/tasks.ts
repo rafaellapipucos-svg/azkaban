@@ -142,7 +142,7 @@ export const taskSchema = z
     archivedAt: instantSchema.nullable(),
     createdAt: instantSchema,
     /** Set by a manager on someone's own task: its photo rules are no longer the owner's. ADR-0007, section 20. */
-    proofFlagsLocked: z.boolean().default(false),
+    proofFlagsLocked: z.boolean(),
   })
   .superRefine(checkSchedule)
   .superRefine(checkApproval);
@@ -220,6 +220,7 @@ export type OccurrenceListItem = Occurrence & {
     | 'requiresPartialReason'
     | 'requiresPhotoProof'
     | 'requiresAdminApproval'
+    | 'proofFlagsLocked'
   >;
 };
 

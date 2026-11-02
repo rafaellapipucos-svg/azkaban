@@ -28,6 +28,7 @@ const subject = ({
   occurrenceAssigneeId: assigneeId,
   taskAssigneeId: assigneeId,
   visibility: 'group',
+  proofFlagsLocked: false,
   ...overrides,
 });
 
@@ -112,6 +113,22 @@ describe('deriveActors when the occurrence and the task have different assignees
   });
 });
 
+// ADR-0007 section 20: a manager's rule on someone's own task. The owner still edits the title and
+// the time, and only the way out of the rule closes.
+describe('deriveActors on a task a manager locked', () => {
+  const locked = { proofFlagsLocked: true };
+
+  it('takes deleter from the owner and leaves editor', () => {
+    expect(deriveActors(user('member'), subject(locked))).toEqual(['assignee', 'editor']);
+  });
+
+  it('leaves whoever manages the group as they were, the owner included', () => {
+    const someoneElses = subject({ ...locked, createdBy: other, assigneeId: other });
+    expect(deriveActors(user('admin'), someoneElses)).toEqual(['editor', 'deleter']);
+    expect(deriveActors(user('admin'), subject(locked))).toEqual(['assignee', 'editor', 'deleter']);
+  });
+});
+
 describe('deriveActors in a personal context', () => {
   const personal = subject({ groupId: null, visibility: 'private' });
 
@@ -182,7 +199,14 @@ describe('forgivesOverdue', () => {
 
 // ADR-0007 section 8: `proof_flags_locked`. Who owns the task, or manages a group task, moves them.
 describe('proofFlagsLocked', () => {
-  const task = { groupId: G, createdBy: other, assigneeId: me, visibility: 'group' as const };
+  const task = {
+    groupId: G,
+    createdBy: other,
+    assigneeId: me,
+    visibility: 'group' as const,
+    proofFlagsLocked: false,
+  };
+  const ownLocked = { ...task, createdBy: me, proofFlagsLocked: true };
 
   it.each([
     // Assigned to me by someone else: only task.edit_assigned reaches it.
@@ -196,6 +220,10 @@ describe('proofFlagsLocked', () => {
     ['member', { ...task, createdBy: me, assigneeId: other }, true],
     // manage_group does not reach a private task of another person.
     ['admin', { ...task, assigneeId: other, visibility: 'private' as const }, true],
+    // A manager's rule on my own task: it stops being mine to switch, and stays theirs.
+    ['member', ownLocked, true],
+    ['admin', ownLocked, false],
+    ['admin', { ...ownLocked, createdBy: other, assigneeId: other }, false],
   ] as const)('%s on %j -> locked=%s', (role, subjectOfTask, want) => {
     expect(proofFlagsLocked(user(role), subjectOfTask)).toBe(want);
   });

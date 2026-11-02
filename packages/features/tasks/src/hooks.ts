@@ -97,6 +97,7 @@ export function useTransitions(item: OccurrenceListItem | undefined) {
       occurrenceAssigneeId: item.assigneeId,
       taskAssigneeId: item.task.assigneeId,
       visibility: item.task.visibility,
+      proofFlagsLocked: item.task.proofFlagsLocked,
     });
     const canReview = canReviewProof(user, {
       groupId: item.task.groupId,
@@ -219,6 +220,7 @@ export function useRefreshTasks() {
         queryClient.invalidateQueries({ queryKey: ['occurrences'] }),
         queryClient.invalidateQueries({ queryKey: ['occurrence'] }),
         queryClient.invalidateQueries({ queryKey: ['history'] }),
+        queryClient.invalidateQueries({ queryKey: ['rule-changes'] }),
         // The calendar asks for far-off occurrences once per range: a new repeating task must
         // make it ask again.
         queryClient.invalidateQueries({ queryKey: ['materialize'] }),

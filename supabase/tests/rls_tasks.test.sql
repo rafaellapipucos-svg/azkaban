@@ -1049,7 +1049,10 @@ select is(has_function_privilege('authenticated', 'public.occurrences_after_stat
 select is(has_function_privilege('authenticated', 'public.call_materialize_occurrences()', 'execute'), false, 'authenticated cannot trigger the cron call');
 select is(has_function_privilege('authenticated', 'public.occurrence_window(public.schedule_type, timestamptz, timestamptz, int, text)', 'execute'), false, 'nor the window helper');
 select is((select count(*) from cron.job where jobname = 'materialize-occurrences' and schedule = '*/15 * * * *'), 1::bigint, 'the materialization runs every 15 minutes');
-select lives_ok($$select public.call_materialize_occurrences()$$, 'the cron call does nothing without Vault secrets');
+-- The secrets created above for pg_net go, so this is the call with an empty Vault.
+delete from vault.secrets where name in ('materialize_url', 'cron_secret');
+select throws_ok($$select public.call_materialize_occurrences()$$, 'P0001', 'materialize_not_configured',
+  'without Vault secrets the cron call fails loudly');
 select is((select count(*) from pg_tables where schemaname = 'public' and not rowsecurity), 0::bigint, 'every public table has RLS');
 
 select * from finish();

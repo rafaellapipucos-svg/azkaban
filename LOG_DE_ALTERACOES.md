@@ -1271,6 +1271,27 @@
 - **Não verificado:** nenhuma E2E rodou (a pilha estava com o `banco-de-dados`), nem o aviso foi visto no navegador. Leitor de tela real não foi usado. Se um rótulo de aba quebrar em duas linhas, a barra passa de 64 px e o aviso pode encostar na faixa do "Nova tarefa" (o QA mediu 64 px a 320). Hora derivada de UTC menos 3 (PowerShell bloqueado).
 - **Pendências / próximos passos:** prazo no push, conforme o handoff.
 
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 15:02 (BRT)
+
+- **Branch:** fix/notifications-db-security, criada a partir de feat/phase-4-notifications (a6c1a32)
+- **Agente(s):** banco-de-dados
+- **Resumo:** SEG4-1, SEG4-2, SEG4-3 e SEG4-5 do ADR-0008, seção 17, e o espelho de `renotifyCooldown` e `pushSubscriptionRetentionDays`, como pede o handoff `20261102-1430-arquiteto-para-banco-de-dados-seguranca-fase-4`. Cinco migrations, uma por mudança. Hora: PowerShell bloqueado no worktree, então UTC menos 3.
+- **Alterações:**
+  - Espelho: `app_settings.notification_rules` ganha `renotifyCooldown` (10 minutos; `occurrence_missed`, `occurrence_resolved`, `proof_disputed`) e `pushSubscriptionRetentionDays` (90).
+  - SEG4-1: `enqueue_notification` não grava nada se o mesmo usuário já tem, há menos de `renotifyCooldown.minutes`, uma linha do mesmo tipo, da mesma ocorrência e com o mesmo `data`, para os tipos da lista. Ocorrência nula fica fora. A chave do evento e o `on conflict do nothing` continuam. Sem índice novo: `notifications_user_created_idx` serve a busca.
+  - SEG4-2: `register_push_subscription` só troca o dono com `p256dh` e `auth` iguais aos guardados (`on conflict ... do update ... where`); sem linha devolvida, `forbidden` (42501). O dono continua atualizando chaves e agente.
+  - SEG4-3: `can_receive_notification`, ramo `proof_in_review`, exige `can_view_task_for` e `archived_at is null`, além de grupo, `visibility = 'group'` e `proof.review`. Vale na gravação e no recheque do claim.
+  - SEG4-5: `delete_expired_notifications` (cron diário, 04:30 UTC) apaga também as inscrições com `coalesce(last_success_at, created_at)` mais velho que 90 dias. Continua devolvendo as linhas do sino apagadas.
+  - `rls_tasks.test.sql`: a chamada do cron da materialização agora apaga os dois segredos antes e usa `throws_ok(..., 'P0001', 'materialize_not_configured', ...)` (pendência do handoff `20261102-1355` do `backend-funcoes`).
+  - `rls_notifications.test.sql`: 24 testes novos (plano 223). Quatro contagens antigas mudaram de propósito: `done, pending, done` na mesma transação deixou de ser dois avisos.
+- **Arquivos/módulos principais:** `supabase/migrations/2026110215*.sql`, `supabase/tests/rls_notifications.test.sql`, `supabase/tests/rls_tasks.test.sql`
+- **Migrations:** 20261102150000_notification_rules_security, 20261102150100_enqueue_notification_cooldown, 20261102150200_push_subscription_owner_keys, 20261102150300_proof_in_review_task_access, 20261102150400_push_subscription_retention. Só no banco local.
+- **Decisões/ADRs:** ADR-0008, seção 17. Nenhuma nova.
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`, `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`.
+- **Verificado:** PoCs do revisor rodados antes da correção, no banco local: 50 voltas `done`/`pending` de Duda deram 50 `occurrence_resolved` a Caio; Eva com o endpoint de Duda e outras chaves tomou a linha; um admin com `proof.review` e sem `task.view_group`, e uma tarefa arquivada, recebiam `proof_in_review`; uma inscrição de 91 dias sem entrega sobrevivia ao job. Depois da correção: 1 aviso, `forbidden` com a linha ainda de Duda, `false` nos dois casos, inscrição apagada. `pnpm db:test` 1227 de 1227. `pnpm db:check-permissions` em dia ("Notification rules in sync."). `pnpm functions:test` 114 de 114. `pnpm check` passou. Mutação nas quatro barreiras, aplicada direto no banco e desfeita com `db reset`: sem a janela, 9 testes falham (o laço de 50 dá 50, não 1); sem o `where` do upsert, 2; sem `can_view_task_for` e `archived_at`, 2; sem o `delete` das inscrições, 1. `pnpm e2e` uma vez, sem chave VAPID: 66 passaram e 2 pulados (os de push), sem falha; `notifications-jobs` e `notifications-bell` passaram sem ajuste, porque nenhum dependia de reavisar dentro da janela (o `x` de `notifications-jobs.spec.ts:248` é o `test.fail()` já marcado do QA4-1). `pnpm db:test` rodou mais de uma vez por causa das mutações.
+- **Não verificado:** o cliente tratando `forbidden` do `register_push_subscription` como falha genérica (é do `notificacoes-whatsapp`); corrida real de duas transações na janela (o argumento é o bloqueio da linha da ocorrência, não testado com duas sessões); nada no projeto hospedado nem no CI.
+- **Pendências / próximos passos:** nenhuma no banco. O teto de seis avisos por hora para quem alterna a cada 11 minutos fica como está, como diz o ADR.
+
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-02 15:05 (BRT)
 
 - **Branch:** feat/phase-4-notifications

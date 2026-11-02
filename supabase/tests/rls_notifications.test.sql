@@ -3,7 +3,7 @@
 -- allowed to whoever it should allow.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(199);
+select plan(223);
 
 -- Alice owns Casa A, Caio is admin of A, Duda and Fred are members of A, Eva is outside.
 insert into auth.users (id, email, raw_user_meta_data) values
@@ -181,6 +181,9 @@ select pg_temp.sv('am9', pg_temp.mk('AM9 on time', pg_temp.u('c'), pg_temp.u('d'
 
 -- ===== Mirrors and schedules =====
 select is(public.notification_rules() -> 'activeChannels', '["web_push"]'::jsonb, 'notification_rules is mirrored');
+select is(public.notification_rules() -> 'renotifyCooldown' || jsonb_build_object('retention', public.notification_rules() -> 'pushSubscriptionRetentionDays'),
+  '{"minutes": 10, "types": ["occurrence_missed", "occurrence_resolved", "proof_disputed"], "retention": 90}'::jsonb,
+  'with the cooldown and the retention of browsers');
 select is(public.task_rules() -> 'autoMissJob', '{"batchSize": 500, "reopenGraceMinutes": 60}'::jsonb, 'task_rules has autoMissJob');
 select is(
   (select string_agg(jobname || '=' || schedule, ',' order by jobname) from cron.job
@@ -316,13 +319,13 @@ select is((pg_temp.last(pg_temp.u('c'), 'occurrence_resolved')).dedupe_key,
 select is((pg_temp.last(pg_temp.u('c'), 'occurrence_resolved')).group_id, '10000000-0000-0000-0000-00000000000a'::uuid, 'with the group');
 select is(pg_temp.ob(pg_temp.u('c'), 'occurrence_resolved'), 0::bigint, 'the notice to the creator is bell only by default');
 
--- Repeating an event writes nothing; done, pending, done is two events.
+-- Repeating an event writes nothing; done, pending, done is two events but the same notice (SEG4-1).
 select is(public.enqueue_notification(pg_temp.u('c'), 'occurrence_resolved', pg_temp.g('t1'), null, '{}',
   (select id from public.task_status_history where occurrence_id = pg_temp.g('t1'))::text), null, 'the same event again writes nothing');
 select is(pg_temp.n(pg_temp.u('c'), 'occurrence_resolved'), 1::bigint, 'still one');
 select pg_temp.act(pg_temp.u('d'), pg_temp.g('t1'), 'pending');
 select pg_temp.act(pg_temp.u('d'), pg_temp.g('t1'), 'done');
-select is(pg_temp.n(pg_temp.u('c'), 'occurrence_resolved'), 2::bigint, 'done, pending, done in one transaction is two notices');
+select is(pg_temp.n(pg_temp.u('c'), 'occurrence_resolved'), 1::bigint, 'done, pending, done within the cooldown is still one notice');
 select is(pg_temp.n(pg_temp.u('d')), 0::bigint, 'and reopening tells nobody');
 
 -- Caio turns Duda's task red: Duda is told, Caio, the creator and the actor, is not.
@@ -332,7 +335,7 @@ select pg_temp.pg();
 select pg_temp.act(pg_temp.u('c'), pg_temp.g('t2'), 'missed');
 select is(pg_temp.n(pg_temp.u('d'), 'occurrence_missed'), 1::bigint, 'the assignee gets occurrence_missed');
 select is((pg_temp.last(pg_temp.u('d'), 'occurrence_missed')).data, jsonb_build_object('byUserId', pg_temp.u('c')), 'by Caio');
-select is(pg_temp.n(pg_temp.u('c'), 'occurrence_resolved'), 2::bigint, 'the creator who acted is not told');
+select is(pg_temp.n(pg_temp.u('c'), 'occurrence_resolved'), 1::bigint, 'the creator who acted is not told');
 select is(pg_temp.ob(pg_temp.u('d'), 'occurrence_missed'), 1::bigint, 'a preference turned on writes the push row');
 select is(public.enqueue_notification(pg_temp.u('d'), 'occurrence_missed', pg_temp.g('t2'), null, '{}',
   (select id from public.task_status_history where occurrence_id = pg_temp.g('t2'))::text), null, 'replaying it writes nothing');
@@ -353,7 +356,7 @@ select is((pg_temp.last(pg_temp.u('d'), 'occurrence_resolved')).data, jsonb_buil
 
 -- A private task: the admin is never told.
 select pg_temp.act(pg_temp.u('d'), pg_temp.g('t4'), 'done');
-select is(pg_temp.n(pg_temp.u('c')) + pg_temp.n(pg_temp.u('a')), 3::bigint, 'the admin hears nothing of a private task');
+select is(pg_temp.n(pg_temp.u('c')) + pg_temp.n(pg_temp.u('a')), 2::bigint, 'the admin hears nothing of a private task');
 select pg_temp.service();
 update public.task_occurrences set status = 'missed' where id = pg_temp.g('t4b');
 select pg_temp.pg();
@@ -365,7 +368,7 @@ delete from public.group_members where user_id = pg_temp.u('f');
 select pg_temp.act(null, pg_temp.g('t5'), 'missed');
 select pg_temp.act(pg_temp.u('c'), pg_temp.g('t5b'), 'done');
 select is(pg_temp.n(pg_temp.u('f')), 0::bigint, 'an ex-member gets neither the red nor the resolution');
-select is(pg_temp.n(pg_temp.u('c'), 'occurrence_resolved'), 3::bigint, 'and the job tells no creator');
+select is(pg_temp.n(pg_temp.u('c'), 'occurrence_resolved'), 2::bigint, 'and the job tells no creator');
 
 -- A photo that waits for review.
 select pg_temp.sv('proof', pg_temp.proof(pg_temp.u('d'), pg_temp.g('pr'))::text);
@@ -608,9 +611,104 @@ select pg_temp.q('old', pg_temp.u('d'), 'task_reminder', pg_temp.g('r1'), '{}');
 select pg_temp.q('young', pg_temp.u('d'), 'task_reminder', pg_temp.g('r1'), '{}');
 update public.notifications set created_at = now() - interval '31 days' where dedupe_key = 'test:old';
 update public.notifications set created_at = now() - interval '29 days' where dedupe_key = 'test:young';
+-- SEG4-5: a browser with no delivery in 90 days goes, counted from its creation if it never had one.
+insert into public.push_subscriptions (user_id, endpoint, p256dh, auth, created_at, last_success_at) values
+  (pg_temp.u('d'), pg_temp.ep('stale91'), repeat('A', 87), repeat('B', 22), now() - interval '91 days', null),
+  (pg_temp.u('d'), pg_temp.ep('young89'), repeat('A', 87), repeat('B', 22), now() - interval '89 days', null),
+  (pg_temp.u('d'), pg_temp.ep('used10'), repeat('A', 87), repeat('B', 22), now() - interval '200 days', now() - interval '10 days'),
+  (pg_temp.u('d'), pg_temp.ep('used91'), repeat('A', 87), repeat('B', 22), now() - interval '200 days', now() - interval '91 days');
+create temp table subs_before as select id from public.push_subscriptions
+where endpoint not in (pg_temp.ep('stale91'), pg_temp.ep('young89'), pg_temp.ep('used10'), pg_temp.ep('used91'));
 select is(public.delete_expired_notifications(), 1, 'the bell forgets after 30 days');
 select is((select count(*) from public.notification_outbox where id = pg_temp.g('old')), 0::bigint, 'with the outbox row');
 select is((select count(*) from public.notification_outbox where id = pg_temp.g('young')), 1::bigint, 'and keeps the younger ones');
+select is(
+  (select string_agg(substr(endpoint, 37), ',' order by endpoint) from public.push_subscriptions
+    where endpoint in (pg_temp.ep('stale91'), pg_temp.ep('young89'), pg_temp.ep('used10'), pg_temp.ep('used91'))),
+  'used10,young89', 'the same job deletes the browsers with no delivery in 90 days, and only them');
+select is((select count(*) from public.push_subscriptions where id in (select id from subs_before)), (select count(*) from subs_before),
+  'every other browser stays');
+
+-- ===== The same notice within the cooldown (SEG4-1) =====
+-- Caio turned on push for resolutions, so every notice would also be a push row.
+select pg_temp.sv('cd', pg_temp.mk('CD toggled', pg_temp.u('c'), pg_temp.u('d'), now() + interval '2 days')::text);
+select pg_temp.login(pg_temp.u('c'));
+insert into public.notification_preferences (type, channel, enabled) values ('occurrence_resolved', 'web_push', true);
+select pg_temp.login(pg_temp.u('d'));
+select lives_ok($t$do $$ begin
+  for i in 1..50 loop
+    perform public.set_occurrence_status(pg_temp.g('cd'), 'done', 'pending', null);
+    perform public.set_occurrence_status(pg_temp.g('cd'), 'pending', 'done', null);
+  end loop;
+end $$ $t$, 'Duda toggles CD done and pending 50 times');
+select pg_temp.pg();
+select is((select count(*) from public.task_status_history where occurrence_id = pg_temp.g('cd')), 100::bigint, 'the 50 rounds are 100 history lines');
+select is(pg_temp.n(pg_temp.u('c'), 'occurrence_resolved', pg_temp.g('cd')), 1::bigint, 'and one notice in the creator''s bell');
+select is((select count(*) from public.notification_outbox ob join public.notifications n on n.id = ob.notification_id
+  where n.occurrence_id = pg_temp.g('cd')), 1::bigint, 'with one push row');
+-- Past the cooldown the same fact is told again.
+update public.notifications set created_at = now() - interval '11 minutes' where occurrence_id = pg_temp.g('cd');
+select pg_temp.login(pg_temp.u('d'));
+select public.set_occurrence_status(pg_temp.g('cd'), 'done', 'pending', null);
+select pg_temp.pg();
+select is(pg_temp.n(pg_temp.u('c'), 'occurrence_resolved', pg_temp.g('cd')), 2::bigint, 'after 10 minutes the same notice comes again');
+-- A different fact inside the cooldown is told at once.
+select pg_temp.login(pg_temp.u('d'));
+select public.set_occurrence_status(pg_temp.g('cd'), 'pending', 'done', null);
+select public.set_occurrence_status(pg_temp.g('cd'), 'partial', 'pending', null);
+select pg_temp.pg();
+select is(pg_temp.n(pg_temp.u('c'), 'occurrence_resolved', pg_temp.g('cd')), 3::bigint, 'another status inside the window is a new notice');
+select is((pg_temp.last(pg_temp.u('c'), 'occurrence_resolved')).data, jsonb_build_object('status', 'partial', 'byUserId', pg_temp.u('d')), 'the partial one');
+
+-- Reminders are out of the cooldown: two leads of the same occurrence are two notices.
+select pg_temp.sv('cdr', pg_temp.mk('CDR two leads', pg_temp.u('c'), pg_temp.u('d'), now() - interval '1 minute', 'group', '[5, 0]')::text);
+select ok(public.enqueue_due_reminders() >= 2, 'the scan writes the two leads');
+select is(pg_temp.n(pg_temp.u('d'), 'task_reminder', pg_temp.g('cdr')), 2::bigint, 'two reminders of one occurrence');
+select isnt(public.enqueue_notification(pg_temp.u('d'), 'task_reminder', pg_temp.g('cdr'), null,
+  (pg_temp.last(pg_temp.u('d'), 'task_reminder')).data, 'another-key'), null, 'even the same data under another key is written');
+
+-- Disputing and undoing in a loop tells the author once.
+select pg_temp.sv('cdp', pg_temp.mk('CDP disputed', pg_temp.u('c'), pg_temp.u('d'), now() + interval '2 days', 'group', '[]', true, true)::text);
+select pg_temp.sv('cdproof', pg_temp.proof(pg_temp.u('d'), pg_temp.g('cdp'))::text);
+select pg_temp.login(pg_temp.u('c'));
+select lives_ok($t$do $$ begin
+  for i in 1..5 loop
+    perform public.review_proof(pg_temp.g('cdproof'), 'dispute', 'missed', 'blurry');
+    perform public.review_proof(pg_temp.g('cdproof'), 'approve', null, null);
+  end loop;
+end $$ $t$, 'Caio disputes and undoes it five times');
+select pg_temp.pg();
+select is(pg_temp.n(pg_temp.u('d'), 'proof_disputed', pg_temp.g('cdp')), 1::bigint, 'the author hears of the dispute once');
+
+-- ===== The owner of a browser changes only with its keys (SEG4-2) =====
+select pg_temp.login(pg_temp.u('d'));
+select pg_temp.sv('subseg2', pg_temp.reg(pg_temp.ep('seg2'))::text);
+select pg_temp.login(pg_temp.u('e'));
+select throws_ok($$select public.register_push_subscription(pg_temp.ep('seg2'), repeat('C', 87), repeat('D', 22), 'Eva')$$,
+  '42501', 'forbidden', 'another account with the endpoint and other keys is refused');
+select pg_temp.pg();
+select is((select user_id::text || ':' || left(p256dh, 1) || left(auth, 1) || ':' || user_agent from public.push_subscriptions where endpoint = pg_temp.ep('seg2')),
+  pg_temp.u('d')::text || ':AB:Test agent', 'and the row is still Duda''s, keys and all');
+select pg_temp.login(pg_temp.u('e'));
+select is(pg_temp.reg(pg_temp.ep('seg2')), pg_temp.g('subseg2'), 'with the same keys the same browser changes account');
+select pg_temp.pg();
+select is((select user_id from public.push_subscriptions where endpoint = pg_temp.ep('seg2')), pg_temp.u('e'), 'and is Eva''s');
+select pg_temp.login(pg_temp.u('d'));
+select pg_temp.sv('subseg2b', pg_temp.reg(pg_temp.ep('seg2b'))::text);
+select is(public.register_push_subscription(pg_temp.ep('seg2b'), repeat('C', 87), repeat('D', 22), 'New agent'), pg_temp.g('subseg2b'),
+  'the owner renews the keys of her own browser');
+select pg_temp.pg();
+select is((select left(p256dh, 1) || left(auth, 1) || ':' || user_agent from public.push_subscriptions where endpoint = pg_temp.ep('seg2b')),
+  'CD:New agent', 'and they are stored');
+
+-- ===== proof_in_review needs the task (SEG4-3) =====
+-- T3 is Duda's: Caio, admin, neither created it nor does it.
+select is(public.can_receive_notification(pg_temp.u('c'), 'proof_in_review', pg_temp.g('t3')), true, 'an admin who reviews and sees the group''s tasks is asked');
+delete from public.role_permissions where role = 'admin' and permission_key = 'task.view_group';
+select is(public.can_receive_notification(pg_temp.u('c'), 'proof_in_review', pg_temp.g('t3')), false, 'proof.review without seeing the task is not');
+insert into public.role_permissions (role, permission_key) values ('admin', 'task.view_group');
+update public.tasks set archived_at = now() where id = (select task_id from public.task_occurrences where id = pg_temp.g('t3'));
+select is(public.can_receive_notification(pg_temp.u('c'), 'proof_in_review', pg_temp.g('t3')), false, 'nor of an archived task');
 
 select * from finish();
 rollback;

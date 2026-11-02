@@ -54,7 +54,7 @@ O sino não é um canal da outbox: ele é a própria linha, sempre gravada. Cana
 - O cliente lê só `id`, `user_agent`, `created_at` e `last_success_at` (`pushDeviceSchema`), por privilégio de coluna. O endpoint é uma capacidade: com ele e as chaves, qualquer um empurra para aquele navegador. Nunca vai a log.
 - O cliente apaga a própria linha. Inserir só pela RPC `register_push_subscription(pushSubscriptionInputSchema)`, `security definer`:
   - recusa com `push_endpoint_not_allowed` um host fora de `notificationRules.pushEndpointHosts` (o próprio host ou um subdomínio). A função faria um `POST` para esse endereço, e sem a lista seria uma requisição do nosso servidor para onde o cliente quisesse;
-  - faz upsert por `endpoint`. O mesmo navegador com outra conta passa a ser da conta nova, porque é o mesmo aparelho;
+  - faz upsert por `endpoint`. O mesmo navegador com outra conta passa a ser da conta nova, porque é o mesmo aparelho, desde que as chaves sejam as mesmas (seção 17, SEG4-2);
   - acima de `maxPushSubscriptionsPerUser` (10), apaga a mais antiga.
 - Ao sair da conta, o app cancela a inscrição no navegador e apaga a linha, para o próximo usuário do mesmo navegador não receber avisos de outro.
 
@@ -65,7 +65,7 @@ O sino não é um canal da outbox: ele é a própria linha, sempre gravada. Cana
 - Sem nenhum `grant` a `anon` nem `authenticated`.
 - Índice parcial `(next_attempt_at) where status in ('pending', 'sending')`.
 
-**Idempotência.** A seção 7.7 pede uma chave por ocorrência, tipo e canal. Aqui ela tem duas partes: `notifications.dedupe_key` é `<tipo>:<chave do evento>` (seção 2), única por usuário, e `(notification_id, channel)` é única na outbox. Juntas equivalem à chave pedida, e ainda separam dois eventos legítimos da mesma ocorrência, como concluir, reabrir e concluir de novo, ou dois lembretes de antecedências diferentes. Um `insert ... on conflict do nothing` torna toda gravação repetível.
+**Idempotência.** A seção 7.7 pede uma chave por ocorrência, tipo e canal. Aqui ela tem duas partes: `notifications.dedupe_key` é `<tipo>:<chave do evento>` (seção 2), única por usuário, e `(notification_id, channel)` é única na outbox. Juntas equivalem à chave pedida, e ainda separam dois eventos legítimos da mesma ocorrência, como concluir, reabrir e concluir de novo, ou dois lembretes de antecedências diferentes. Um `insert ... on conflict do nothing` torna toda gravação repetível. O mesmo aviso não se repete em 10 minutos (seção 17, SEG4-1).
 
 ### 4. Gravação
 
@@ -114,13 +114,13 @@ type SendResult =
   | { kind: 'gone'; subscriptionIds: string[] };
 ```
 
-Uma implementação por canal: `WebPushChannel` agora, `WhatsAppChannel` na Fase 5. Canal novo não muda claim, report, backoff nem silêncio.
+`sent`, `retry` e `failed` levam também as listas `delivered` e `gone` (seção 17). Uma implementação por canal: `WebPushChannel` agora, `WhatsAppChannel` na Fase 5. Canal novo não muda claim, report, backoff nem silêncio.
 
 Logs: contagens e códigos. Nunca endpoint, título, `user_id` ou payload.
 
 ### 7. Canal in-app
 
-- `notifications` entra na publicação `supabase_realtime`. O app assina `postgres_changes` em `notifications` com filtro `user_id=eq.<id>`, e o Realtime confere a política de `select` para cada assinante. A linha não tem nada além do que o próprio usuário vê.
+- `notifications` entra na publicação `supabase_realtime`. O app assina `postgres_changes` em `notifications` com filtro `user_id=eq.<id>`, e o Realtime confere a política de `select` para cada assinante. A linha não tem nada além do que o próprio usuário vê. O `DELETE` é exceção: vai a todos, só com o `id` (seção 17, SEG4-4).
 - `insert` mostra um aviso curto, sem bloquear a tela, e atualiza o contador. `update` de `read_at` sincroniza o contador entre abas.
 - O contador lê `count` das linhas sem `read_at`. Marcar como lida é um `update` em `read_at`; "marcar todas" é o mesmo `update` com filtro.
 - O sino mora no cabeçalho de Hoje, com o contador, e abre a lista em `/notifications`. Um item leva ao mesmo endereço do push (seção 8).
@@ -132,7 +132,7 @@ Logs: contagens e códigos. Nunca endpoint, título, `user_id` ou payload.
 - `VAPID_SUBJECT` é um `mailto:` ou uma URL `https:`. O serviço da Apple recusa outros valores.
 - A chave pública do cliente e a do servidor precisam ser iguais. Inscrições feitas com uma chave só aceitam envios assinados por ela. Por isso um 403 **não** apaga a inscrição: marca `failed` com `push_forbidden`, e corrigir o segredo do servidor restaura tudo. A lista de implantação confere as duas.
 - **Envio:** `aes128gcm` (RFC 8291), `Authorization: vapid t=<jwt>, k=<pública>` (RFC 8292), com `aud` = origem do endpoint e validade de até 12 horas, `TTL` e `Urgency`. A biblioteca é decisão de `backend-funcoes`, com uma condição: passar no vetor de teste do apêndice A da RFC 8291. Sem dependência paga, e sem serviço terceiro.
-- **TTL:** o de um lembrete vai até a âncora, nunca menos que `minPushTtlSeconds`; os outros tipos, `pushTtlSeconds`. `Urgency: high` para lembrete, `normal` para o resto.
+- **TTL:** o de um lembrete vai até a âncora, nunca menos que `minPushTtlSeconds` nem mais que `pushTtlSeconds` (seção 17); os outros tipos, `pushTtlSeconds`. `Urgency: high` para lembrete, `normal` para o resto.
 - **Respostas:** 201 é `sent`. 404 e 410 apagam a inscrição. 429, 5xx e falha de rede são nova tentativa. 413 e outros 4xx são `failed`, porque é defeito nosso. Com várias inscrições, uma entrega basta para `sent`, e as falhas transitórias das outras não se repetem, para não duplicar onde já chegou.
 - **Payload:** `pushPayloadSchema`, até `pushPayloadMaxBytes` (3072) em UTF-8. Leva título e corpo já no idioma do perfil, um caminho interno e o `tag`. O título da tarefa vai cifrado de ponta a ponta: o serviço de push não o lê, mas a tela bloqueada mostra. A pessoa controla isso nas preferências.
 - **Endereço do toque:** lembrete de tarefa com foto abre `/tasks/<ocorrência>/proof`; os outros tipos de tarefa abrem `/tasks/<ocorrência>`; `proof_in_review` abre `/proofs/<prova>`.
@@ -142,7 +142,7 @@ Logs: contagens e códigos. Nunca endpoint, título, `user_id` ou payload.
 
 - `apps/app/public/sw.js`, JavaScript puro, servido na raiz com escopo `/`. Três eventos:
   - `push`: lê o JSON e chama `showNotification` **sempre**. O iPhone revoga a inscrição de quem recebe push sem mostrar nada, e o Chrome exige `userVisibleOnly`;
-  - `notificationclick`: aceita só caminho interno (a mesma regra do contrato), foca uma janela do app e navega, ou abre uma nova;
+  - `notificationclick`: aceita só caminho interno (a mesma regra do contrato, e a mesma origem depois de resolver, seção 17), foca uma janela do app e navega, ou abre uma nova;
   - nenhum `fetch`. Cache offline é de F8-5, com a fila. Um `fetch` vazio só atrasa toda requisição.
 - O registro do service worker, a permissão e a inscrição ficam num adapter de `packages/platform` (`push.web.ts`; o nativo lança "não suportado" até F8). A permissão só é pedida a partir de um toque, nunca ao abrir.
 - Toda vez que o app abre com permissão concedida, ele chama `register_push_subscription` com a inscrição atual. É idempotente e cobre a inscrição renovada pelo navegador, já que o service worker não tem sessão para avisar o servidor em `pushsubscriptionchange`. Se `applicationServerKey` da inscrição difere da chave atual, o app cancela e se inscreve de novo.
@@ -192,20 +192,20 @@ Isso fecha a seção 13 do ADR-0005.
   - `<link rel="manifest">`, `apple-touch-icon` de 180 px e `lang` vindo de `web.lang`.
 - **Manifest** em `apps/app/public/manifest.webmanifest`: `name` e `short_name` iguais ao nome do app, `lang: pt-BR`, `start_url` e `scope` `/`, `display: standalone`, `orientation: portrait`, `background_color` e `theme_color` = `background` claro, e ícones de 192 e 512 px, mais um de 512 `maskable`, gerados a partir de `assets/icon.png`. `standalone` é o que libera o push no iPhone.
 - As cores e o nome nesses dois arquivos estáticos repetem os tokens e o nome provisório. Um teste de unidade compara as cores com `packages/ui/src/tokens.ts`. O nome é provisório; quando for definido, ou se passar a variar por ambiente, os dois arquivos passam a ser gerados no build.
-- **Netlify:** `apps/app/public/_headers` com `Cache-Control: no-cache` para `/sw.js` e `/manifest.webmanifest`, e `_redirects` com `/* /index.html 200`, para um endereço de notificação abrir direto na rota.
+- **Netlify:** `apps/app/public/_headers` com `Cache-Control: no-cache` para `/sw.js` e `/manifest.webmanifest`, e `_redirects` com `/* /index.html 200`, para um endereço de notificação abrir direto na rota. Os cabeçalhos de segurança estão na seção 17 (SEG4-7).
 - **Título por tela:** `Screen`, em `packages/ui`, ganha a propriedade `title`, e um adapter de `packages/platform` (`useDocumentTitle`, que só age na web) define `document.title` como `"<tela> · <nome do app>"`, com o formato em `common.json`. Sem `title`, o documento fica com o nome do app. Cada feature passa o título das próprias telas.
 - **Marcos de página:** o conteúdo de `Screen` recebe `role="main"`, e a barra de abas, `role="navigation"` com nome acessível. O React Native Web transforma `role` no atributo, que é o que o leitor de tela usa. Um `main` por tela.
 - Os rótulos das abas cortados a 320 px seguem com `design-system`.
 
 ### 14. Regras e espelhos
 
-| Onde                    | O quê                                                                                                     | Espelho                                    |
-| ----------------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
-| `notificationRules`     | Canais ativos, padrões por tipo e canal, silêncio padrão, varredura de lembretes, inscrições, hosts, sino | `app_settings`, chave `notification_rules` |
-| `notificationDefaults`  | Lote, orçamento, concessão, backoff, atraso máximo e TTL do despacho                                      | Nenhum: a função passa os valores ao banco |
-| `taskRules.autoMissJob` | Lote e carência do vermelho automático                                                                    | `app_settings`, chave `task_rules`         |
-| `taskDefaults`          | `materializationPastDays` e `materializeMaxFollowUps`                                                     | Nenhum                                     |
-| `parseClientEnv`        | `EXPO_PUBLIC_VAPID_PUBLIC_KEY`, opcional                                                                  | —                                          |
+| Onde                    | O quê                                                                                                                                           | Espelho                                    |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| `notificationRules`     | Canais ativos, padrões por tipo e canal, silêncio padrão, varredura de lembretes, inscrições e retenção delas, hosts, sino, janela de repetição | `app_settings`, chave `notification_rules` |
+| `notificationDefaults`  | Lote, orçamento, concessão, backoff, atraso máximo e TTL do despacho                                                                            | Nenhum: a função passa os valores ao banco |
+| `taskRules.autoMissJob` | Lote e carência do vermelho automático                                                                                                          | `app_settings`, chave `task_rules`         |
+| `taskDefaults`          | `materializationPastDays` e `materializeMaxFollowUps`                                                                                           | Nenhum                                     |
+| `parseClientEnv`        | `EXPO_PUBLIC_VAPID_PUBLIC_KEY`, opcional                                                                                                        | —                                          |
 
 `pnpm db:check-permissions` passa a comparar também `notification_rules`. Até a migration de F4-1 entrar, ele acusa `task_rules` diferente.
 
@@ -215,7 +215,7 @@ Isso fecha a seção 13 do ADR-0005.
 - O host do endpoint é conferido na RPC e de novo na função, antes do `POST`.
 - O sino guarda referências, não conteúdo. O título é lido pela RLS, então quem saiu do grupo não o vê mais.
 - O push leva o título cifrado, e a pessoa escolhe por tipo se quer push.
-- Linhas do sino e da outbox somem em 30 dias. A inscrição some ao sair da conta, com 404 ou 410, e com a conta.
+- Linhas do sino e da outbox somem em 30 dias. A inscrição some ao sair da conta, com 404 ou 410, com a conta e depois de 90 dias sem entrega (seção 17).
 - Exportar e excluir a conta, em F8-3, precisam cobrir `notifications`, `notification_preferences` e `push_subscriptions`. A cascata por `user_id` já apaga.
 
 ### 16. A confirmar pelo humano
@@ -229,6 +229,86 @@ Padrões reversíveis, escolhidos para não travar a fase:
 5. **Sem ações na notificação** na Fase 4.
 6. **Sem antecedência padrão por usuário:** o padrão continua o de `taskDefaults` por tipo de agendamento, e cada tarefa tem a própria lista. Entra como coluna em `profiles` se for pedido.
 7. **O sino guarda 30 dias.**
+8. **O push mostra o título da tarefa na tela bloqueada** (seção 17, risco de produto). Uma opção "esconder o conteúdo na tela bloqueada" fica para depois.
+9. **O mesmo aviso não se repete em 10 minutos** (seção 17, SEG4-1).
+10. **Inscrição de push sem entrega há 90 dias sai** (seção 17, SEG4-5).
+
+### 17. Revisão de segurança da Fase 4
+
+Decisões sobre os achados da revisão de segurança e sobre o que o despacho fez diferente deste texto, em 2026-11-02. Valem sobre as seções anteriores onde há diferença, e os trechos afetados remetem para cá.
+
+**SEG4-1: o mesmo aviso não se repete dentro de `notificationRules.renotifyCooldown.minutes` (10).**
+
+- Em `enqueue_notification`, para os tipos de `renotifyCooldown.types` (`occurrence_missed`, `occurrence_resolved`, `proof_disputed`): se o mesmo usuário já tem uma linha do mesmo tipo, da mesma ocorrência e com o mesmo `data`, criada há menos de 10 minutos, nada é gravado. Sem linha no sino, sem outbox, sem evento de Realtime e, portanto, sem aviso na tela.
+- "O mesmo `data`" é o mesmo fato: mesmo status e mesma pessoa em `occurrence_resolved`, mesma pessoa em `occurrence_missed`, mesma prova e mesmo destino em `proof_disputed`. O laço `pending → done → pending → done` do mesmo membro gera um aviso a cada 10 minutos, no máximo. Um fato diferente (outro status, outra pessoa) é avisado na hora, então a reabertura honesta que termina em `partial`, ou a conclusão por outra pessoa, não se perde.
+- A reabertura honesta que volta a `done` em menos de 10 minutos não avisa de novo. O criador já leu "concluiu", e o estado é o mesmo.
+- `task_reminder` e `proof_in_review` ficam de fora: a chave deles já é a antecedência e a prova, e duas antecedências próximas (5 e 0 minutos) são legítimas. Uma prova nova por volta é limitada pelo teto diário de `proofRules`.
+- A chave do evento continua a linha do histórico, e `on conflict do nothing` continua valendo para a repetição exata. A janela é uma checagem a mais, não uma chave nova: com balde de tempo na chave, dois eventos nos dois lados da virada do balde passariam, e o teste precisaria mexer no relógio. Aqui o teste recua o `created_at` da primeira linha.
+- Corrida: as transições da mesma ocorrência já passam pelo bloqueio da linha em `task_occurrences`, então duas transações não leem a janela ao mesmo tempo.
+- **Teto:** um membro que alterna devagar, a cada 11 minutos, gera seis avisos por hora no sino do criador, que só vão a push se ele ligou `occurrence_resolved`. É o custo de manter a reabertura. Um limite por usuário em `set_occurrence_status` entra se for preciso.
+- Espelho em `app_settings.notification_rules`, pela migration de `banco-de-dados`. Até ela entrar, `pnpm db:check-permissions` acusa a diferença.
+
+**SEG4-2: trocar o dono de uma inscrição exige as mesmas chaves.** No `on conflict (endpoint)`, a linha só muda de `user_id` se `p256dh` e `auth` forem iguais aos guardados; o mesmo dono atualiza as chaves como hoje. Senão, `register_push_subscription` levanta `forbidden`, que o cliente trata como falha genérica, sem código novo no contrato. O mesmo navegador com outra conta chega com as mesmas chaves, e `syncThisDevice` já cancela a inscrição de outra conta antes de criar a sua. **Risco aceito:** quem tem endpoint e as duas chaves tem a inscrição inteira, o que equivale a ter o navegador.
+
+**SEG4-3: `proof_in_review` passa por `can_view_task_for` e `archived_at is null`**, além de `proof.review`, em `can_receive_notification`. Alinha com `can_review_proof` e fecha o dia em que um papel tiver só `proof.review`.
+
+**SEG4-4: risco aceito.** O Realtime entrega a todo assinante o `DELETE` de `notifications`, com só a chave primária, e o cliente o ignora. Não há conteúdo. A seção 7 fica corrigida assim: o Realtime só entrega `insert` e `update` das linhas do próprio usuário, e o `DELETE` vai a todos com o `id`. O caminho, se o volume da limpeza diária pesar, é o Broadcast em canal privado já previsto.
+
+**SEG4-5: `push_subscriptions` ganha retenção.** O cron diário de `delete_expired_notifications` apaga também as inscrições com `coalesce(last_success_at, created_at)` mais velho que `notificationRules.pushSubscriptionRetentionDays` (90), com espelho. **Teto:** quem abre o app todo dia mas não recebeu push nenhum em 90 dias tem a linha apagada e recriada na próxima abertura, porque `register_push_subscription` faz upsert. Entre as duas, um push daquela conta não sai. Uma coluna `last_registered_at` resolve, se for pedido.
+
+**SEG4-6 e SEG4-9: caminho interno sem caractere de controle.**
+
+- O contrato passa a exportar `internalPathSchema`: até 200 caracteres, começa com `/`, o segundo caractere não é `/`, e nenhum é `\` ou de controle (`\p{Cc}`, que inclui tab, LF, CR, U+0000 a U+001F e U+007F a U+009F). O parser de URL remove tab, LF e CR em qualquer posição, então `"/\t/evil.com"` resolvia para `https://evil.com/`. `pushPayloadSchema.url` usa o novo schema, com teste que recusa `"/\t/evil.com"`, `"/\n/evil.com"`, `"/\r/evil.com"`, `//evil.com` e `/\evil.com` e confere com `new URL` que cada recusado sai da origem e cada aceito fica nela.
+- `safeInternalPath` em `packages/core/src/navigation`, do login e anterior à Fase 4, passa a ser `internalPathSchema.safeParse(path).success ? path : undefined`. Dono: `auth-grupos`, que a criou e a usa nas telas de entrar e criar conta. A regra fica num lugar só para o TypeScript, e o `?next=` ganha o teto de 200.
+- `sw.js` não importa o contrato. Ele resolve o caminho contra a própria origem e só aceita a mesma origem: `const u = new URL(path, self.location.origin); return u.origin === self.location.origin ? u.pathname + u.search + u.hash : '/'`, com o teto de 200 e a regex do contrato antes, como cinto. Dono: `notificacoes-whatsapp`.
+
+**SEG4-7: cabeçalhos de segurança em `_headers`, em dois passos.**
+
+- **Agora**, para `/*`, sem nada que toque script, estilo ou conexão:
+
+  ```text
+  /*
+    Content-Security-Policy: frame-ancestors 'none'; object-src 'none'; base-uri 'self'
+    X-Content-Type-Options: nosniff
+    Referrer-Policy: strict-origin-when-cross-origin
+  ```
+
+  `frame-ancestors 'none'` fecha o app num iframe, que exporia as ações de um toque (concluir, revisar) a clique sequestrado. `object-src` e `base-uri` não afetam o Expo web, que não usa `<object>` nem `<base>`. `apps/app/public.test.ts` confere que as três linhas existem.
+
+- **Depois**, a CSP completa, primeiro como `Content-Security-Policy-Report-Only`, conferida no console do navegador com o app inteiro (login, Realtime, câmera e foto, sino, push):
+
+  ```text
+  default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://<projeto>.supabase.co; connect-src 'self' https://<projeto>.supabase.co wss://<projeto>.supabase.co; font-src 'self' data:; worker-src 'self'; manifest-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'
+  ```
+
+  `style-src 'unsafe-inline'` é o preço do react-native-web, que escreve estilos em tempo de execução, e do `<style>` do `index.html`. O host do Supabase muda por ambiente, então o `_headers` passa a ser gerado no build a partir de `EXPO_PUBLIC_SUPABASE_URL`, ou usa `https://*.supabase.co` e `wss://*.supabase.co`, que é mais largo. Só vira `Content-Security-Policy` depois de uma rodada sem violação. Dono: `notificacoes-whatsapp`, com `qa-testes` na conferência.
+
+- `Permissions-Policy` fica para o mesmo passo: a câmera e a localização da prova precisam de `self`, e um valor errado quebraria a prova sem teste no navegador.
+- HSTS fica com a Netlify, que o envia nos domínios dela. Num domínio próprio, a lista de implantação confere.
+
+**SEG4-8: sessão que acaba sem o botão Sair desliga o push.** Quando a sessão some por qualquer motivo (expirada, revogada, cookies limpos), o módulo de notificações chama `unsubscribePush()` e limpa a chave local `{ userId, deviceId }`, se ela existir. O gatilho é o `onSessionChange` que `packages/data/src/auth` já expõe, com sessão nula. Sem sessão a linha não é apagada, mas o endpoint morre, o serviço responde 404 ou 410, e o despacho a apaga. Dono: `notificacoes-whatsapp`; se precisar do tipo do evento, e não só da sessão, pede a `auth-grupos`.
+
+**Risco de produto: o título da tarefa na tela bloqueada.** Mantido como padrão: o valor de um lembrete é dizer o quê ("Academia em 30 minutos"), e o título vai cifrado até o aparelho. Quem não quer, desliga o push por tipo. A opção "esconder o conteúdo na tela bloqueada" (título genérico, o detalhe só ao abrir) custa uma preferência por usuário e um ramo em `buildPushPayload`, e fica **a confirmar pelo humano** (seção 16, item 8). Não entra na Fase 4.
+
+**Diferenças do despacho (handoff de `backend-funcoes`), todas aceitas:**
+
+1. **`SendResult`**: os quatro tipos da seção 6 ficam, e `sent`, `retry` e `failed` levam também `delivered` e `gone`, as listas de inscrições que entregaram e que morreram. Com várias inscrições, o report precisa das duas. `gone` sozinho é "todas morreram" e vira `failed` com `push_gone`.
+2. **TTL do lembrete** vai até a âncora, com mínimo `minPushTtlSeconds` e teto `pushTtlSeconds`. Alguns serviços recusam TTL longo, e a outbox desiste em `maxDelayHours` de qualquer forma.
+3. **Redirecionamento nunca é seguido**: um 3xx é `failed` com `push_redirect`. Seguir levaria o `POST` a um host que a lista não conferiu.
+4. **Host conferido na função** exige também `https:`, porta padrão e URL sem usuário e senha.
+5. **`t` sem i18next**, um equivalente curto com chave por ponto, `{{nome}}` e plural por `Intl.PluralRules`. Vale enquanto as chaves `push.*` usarem só isso; uma chave com formatação ou contexto do i18next pede a biblioteca.
+
+Os códigos de `last_error` (`push_gone`, `push_forbidden`, `push_too_large`, `push_redirect`, `push_http_<status>`, `push_rate_limited`, `push_server_error`, `push_network`, `push_endpoint_not_allowed`, `push_bad_keys`, `no_subscription`, `no_channel`, `send_error`, `invalid_item`) ficam registrados aqui. Todos cabem nos 64 caracteres do `check`.
+
+**Donos:**
+
+| Achado                         | Dono                    | Handoff                                                               |
+| ------------------------------ | ----------------------- | --------------------------------------------------------------------- |
+| SEG4-1, SEG4-2, SEG4-3, SEG4-5 | `banco-de-dados`        | `20261102-1430-arquiteto-para-banco-de-dados-seguranca-fase-4`        |
+| SEG4-6, SEG4-7, SEG4-8         | `notificacoes-whatsapp` | `20261102-1430-arquiteto-para-notificacoes-whatsapp-seguranca-fase-4` |
+| SEG4-9 (`safeInternalPath`)    | `auth-grupos`           | `20261102-1430-arquiteto-para-auth-grupos-caminho-interno`            |
+| SEG4-9 (contrato)              | `arquiteto`             | Feito nesta revisão                                                   |
+| SEG4-4                         | Ninguém                 | Risco aceito                                                          |
 
 ## Alternativas
 

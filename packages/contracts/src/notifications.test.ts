@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  internalPathSchema,
   notificationItemSchema,
   pushPayloadMaxBytes,
   pushPayloadSchema,
@@ -9,6 +10,9 @@ import {
 import { materializeResponseSchema } from './tasks';
 
 const id = '11111111-1111-4111-8111-111111111111';
+
+// The runtime has it; the lib of this package (es2023, no DOM, no Node types) does not.
+declare const URL: new (url: string, base: string) => { origin: string };
 
 describe('quietHoursSchema', () => {
   it('takes a window across midnight, or none', () => {
@@ -64,13 +68,41 @@ describe('pushPayloadSchema', () => {
     tag: id,
   };
 
-  it.each(['//evil.example', 'https://evil.example', '/\\evil.example', 'tasks'])(
-    'opens only paths of the app, not %s',
-    (url) => {
-      expect(pushPayloadSchema.safeParse(payload).success).toBe(true);
-      expect(pushPayloadSchema.safeParse({ ...payload, url }).success).toBe(false);
-    },
-  );
+  it.each([
+    '//evil.example',
+    'https://evil.example',
+    '/\\evil.example',
+    'tasks',
+    '/',
+    // The URL parser drops tab, LF and CR anywhere: each of these resolves to https://evil.com/.
+    '/\t/evil.com',
+    '/\n/evil.com',
+    '/\r/evil.com',
+    '/tasks/\t/x',
+    '/\u0000/evil.com',
+    '/\u007f/evil.com',
+  ])('opens only paths of the app, not %j', (url) => {
+    expect(pushPayloadSchema.safeParse(payload).success).toBe(true);
+    expect(pushPayloadSchema.safeParse({ ...payload, url }).success).toBe(false);
+  });
+
+  it('keeps every path that stays in the app, and the regex agrees with the URL parser', () => {
+    const origin = 'https://app.example';
+    for (const url of [`/tasks/${id}`, `/proofs/${id}`, '/notifications?x=1#y', '/ /evil.com']) {
+      expect(internalPathSchema.safeParse(url).success).toBe(true);
+      expect(new URL(url, origin).origin).toBe(origin);
+    }
+    for (const url of [
+      '/\t/evil.com',
+      '/\n/evil.com',
+      '/\r/evil.com',
+      '//evil.com',
+      '/\\evil.com',
+    ]) {
+      expect(new URL(url, origin).origin).not.toBe(origin);
+      expect(internalPathSchema.safeParse(url).success).toBe(false);
+    }
+  });
 
   it('fits the encrypted record at its largest, with four-byte characters', () => {
     const largest = {

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { activateOnSpace } from '@azkaban/platform';
+import { activateOnSpace, useDocumentTitle } from '@azkaban/platform';
 import { Mascot, type MascotMood } from './Mascot';
 import { Body } from './Text';
 import { contextColors, layout, sizes, spacing, type ContextColorToken } from './tokens';
@@ -14,12 +14,13 @@ import { useThemeColors } from './useThemeColors';
 // stack hides the screens underneath with display: none, so a page has a single main.
 export function Screen({
   children,
+  title,
 }: {
   children: ReactNode;
   /** Name of the screen for the browser tab: "<title> · <app>". Without it, the app name. */
   title?: string;
 }) {
-  // pending F4-9: useDocumentTitle(title) from @azkaban/platform, created by notificacoes-whatsapp.
+  useDocumentTitle(title);
   const { background } = useThemeColors();
   return (
     <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: background }}>

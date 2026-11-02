@@ -206,6 +206,12 @@ export function TaskDetailScreen({
     queryKey: ['history', occurrenceId],
     queryFn: () => tasksRepository.listHistory(occurrenceId),
   });
+  const taskId = detail.data?.task.id;
+  const ruleChanges = useQuery({
+    queryKey: ['rule-changes', taskId],
+    queryFn: () => tasksRepository.listRuleChanges(taskId ?? ''),
+    enabled: taskId !== undefined,
+  });
   const contexts = useQuery({ queryKey: ['contexts'], queryFn: contextsRepository.list });
   const groupId = detail.data?.task.groupId ?? null;
   const members = useQuery({
@@ -447,6 +453,21 @@ export function TaskDetailScreen({
             })}
           </Muted>
           {entry.reason ? <Body>{t('history.reason', { reason: entry.reason })}</Body> : null}
+        </Card>
+      ))}
+
+      {ruleChanges.data?.length ? <Subtitle>{t('rules.title')}</Subtitle> : null}
+      {ruleChanges.data?.map((change) => (
+        <Card key={change.id}>
+          <Body>
+            {capitalize(
+              t('rules.entry', {
+                name: nameOf(change.changedBy),
+                change: t(`rules.${change.field}.${change.toValue}`),
+              }),
+            )}
+          </Body>
+          <Muted className="text-sm">{changeFormat.format(Date.parse(change.changedAt))}</Muted>
         </Card>
       ))}
     </Screen>

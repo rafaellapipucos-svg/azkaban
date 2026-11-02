@@ -853,6 +853,68 @@
 - **Não verificado:** nenhuma suíte rodou nesta entrada. A Fase 3 não foi verificada no estado integrado e não tem push.
 - **Pendências / próximos passos:** as da seção 3 do handoff.
 
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:16 (BRT)
+
+- **Branch:** fix/proof-consent-v2, criada a partir de feat/phase-3-proof (86811ca)
+- **Agente(s):** prova-foto
+- **Resumo:** aviso da prova na versão 2, com tudo da seção 14 do ADR-0007, link da fila na Equipe, e os itens 4, 5 e 6 do QA. Parte do item 7 também, pelo lado do revisor.
+- **Alterações:**
+  - `proof.json`: `consent.stamp`, `consent.thirdParties`, `consent.deletion` e `consent.retention` com `{{recordDays}}`. `ProofCaptureScreen` lê `retentionDays` e `recordRetentionDays` de `proofRules`.
+  - Item 2 do QA: `ProofQueueBar`, o `ProofQueueLink` com a mesma moldura de `ProofLink`, composto acima de `TeamScreen` na rota da Equipe. Rota fina, como pede o handoff do `arquiteto`.
+  - Item 4: o quadrado da câmera ocupa no máximo metade da altura da janela. Em 375x812 não muda nada; em 1280x800 fica com 400 px.
+  - Item 5: sem `borderRadius` nas fotos carimbadas, em "Confira a foto" e na revisão. A câmera ao vivo continua arredondada.
+  - Item 6: `stampColors` em `packages/platform/src/stamp.ts`, usado pelos dois adapters. `@azkaban/ui` depende de `@azkaban/platform`, então os tokens não podem ser importados ali. Na revisão, a plataforma sai por i18n ("pelo navegador") e a versão ausente tem frase própria, sem `'?'`.
+  - Item 7, só a revisão: `review.webLimit` em provas enviadas pela web. O formulário ficou com `tarefas-calendario`, por handoff.
+  - E2E escrita, não executada: as frases do aviso com os números da config, o aviso de volta para quem aceitou a versão 1, o quadrado e o botão inteiros em 375x812 e 1280x800, a linha do aparelho e o aviso da web na revisão, e a prova de tarefa excluída aprovada pela fila da Equipe, com XP.
+- **Arquivos/módulos principais:** `packages/features/proof/src/{ProofCaptureScreen,ProofEntry,ProofReviewScreen,index}.tsx`, `packages/platform/src/{stamp.ts,ProofCamera.web.tsx,ProofCamera.native.tsx}`, `packages/i18n/src/pt-BR/proof.json`, `apps/app/app/(app)/team/[groupId].tsx`, `e2e/proof-capture.spec.ts`, `e2e/proof-paths.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. Item 1 do QA, conforme o `arquiteto`: nada a mudar na fila. A frase de `deletion` é a provisória da seção 20.
+- **Como testar:** `pnpm check`; com a pilha, `pnpm e2e`.
+- **Verificado:** `pnpm check` passou (feature-proof 6 de 6, platform 38 de 38).
+- **Não verificado:** **E2E pendente**, nem executada, porque a pilha local estava em uso por outro agente. Telas não conferidas em 375px e 1280px, claro e escuro. Nada em iOS ou Android, inclusive as cores do carimbo nativo.
+- **Pendências / próximos passos:** rodar `pnpm e2e` e conferir as telas quando a pilha liberar. Item 3 do QA (`proof-current` em `useStatusChange`) e a parte do formulário do item 7 com `tarefas-calendario`, no handoff `20261102-1215-prova-foto-para-tarefas-calendario-achados-do-qa`. A versão 2 do banco já está na base, então até esta branch entrar o app mostra o aviso velho a quem aceita a versão 2.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:28 (BRT)
+
+- **Branch:** fix/proof-task-rules-final, a partir do WIP `18ca79f` de fix/proof-task-rules, sobre feat/phase-3-proof (2935b7a)
+- **Agente(s):** tarefas-calendario
+- **Resumo:** Trava das regras de foto, rastro, `proof_visibility_locked`, detalhe defasado (B4), link de revisão na Equipe (B2), aviso da limitação da web (B9) e link da foto depois de reabrir (B5, item 3 do QA). Começou às 00:43 como WIP, interrompido pelo reinício, e foi fechado aqui com as duas falhas da E2E diagnosticadas.
+- **Alterações:**
+  - `packages/contracts/src/tasks.ts`: `proofFlagsLocked` sem `default(false)` e em `OccurrenceListItem.task`.
+  - `packages/core/src/tasks/actors.ts`: `ActorSubject.proofFlagsLocked`, `deleter` e `proofFlagsLocked(...)` conforme o handoff, com testes.
+  - `packages/data/src/tasks/index.ts`: coluna nas duas leituras e `listRuleChanges`.
+  - `TaskFormScreen`: interruptor de privada travado com a tarefa travada, textos de trava e aviso `form.proofLimit`.
+  - `TaskDetailScreen`: bloco "Mudanças nas regras".
+  - `hooks.ts`: `useStatusChange` cancela antes de invalidar, e agora também `proof-current`, a chave de `ProofLink`, sem importar o módulo de prova. `useRefreshTasks` invalida `rule-changes`.
+  - `TeamScreen` aceita `children`, e `team/[groupId].tsx` compõe `ProofQueueLink`.
+  - `tasks.json`: `errors.proof_flags_locked` reescrito, `errors.proof_visibility_locked`, `form.proofLimit` e bloco `rules`.
+  - E2E: teste novo da trava, com "Cancelar esta tarefa" além de "Excluir", e recusa nova em `tasks-proof.spec.ts`. `test.fail()` removido de `tasks-ui-fixes.spec.ts` (B4) e de `proof-paths.spec.ts` (B5).
+- **Arquivos/módulos principais:** `packages/core/src/tasks/actors.ts`, `packages/features/tasks/src`, `packages/data/src/tasks/index.ts`, `packages/i18n/src/pt-BR/tasks.json`, `e2e/`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova. O texto de `form.proofLocked` também mudou, porque "quem criou" deixava de ser verdade. "B9" vem da lista do relatório de QA ao orquestrador, em que B5 a B9 são os itens 3 a 7 do handoff `20261101-2240-qa-testes-para-prova-foto-achados-do-qa.md`: B9 é o item 7, o aviso da limitação da web, e B5 é o item 3.
+- **Causa das duas falhas da E2E do WIP, ambas do teste:**
+  - `tasks-proof.spec.ts:159`: o formulário aberto pelo endereço não tem para onde voltar e vai para Hoje (`goBack` em `TaskFormScreen`), como no resto do app. O trace mostrou `edit_task` com 200 e a tela Hoje. O teste agora espera Hoje.
+  - `tasks-ui-fixes.spec.ts:90`: a asserção final passou em 270 ms. O que falhou foi o callback da rota segurada, ainda em `waitForTimeout(300)` quando o teste acabou. Com `times: 1` a rota sai da lista, então `unrouteAll({ behavior: 'wait' })` não a espera: o teste guarda a promessa do callback, espera por ela e confere de novo que a leitura velha não volta a tela.
+- **Como testar:** `pnpm check`; `pnpm db:start` e `pnpm exec playwright test e2e/tasks-proof.spec.ts e2e/tasks-ui-fixes.spec.ts e2e/proof-paths.spec.ts`.
+- **Verificado:** `pnpm check` passou, com 505 testes em core. `pnpm db:test` 1004 de 1004. `pnpm functions:test` 85 de 85, sem `functions serve`. `pnpm e2e` 56 de 56, sem `test.fail` nem `retries`. Mutações, todas pegas e revertidas: em core, `proofFlagsLocked` ignorando a trava, `deleter` ignorando a trava, revisor sem `proof.review` e revisor igual ao autor; na E2E da trava, interruptor da foto destravado, de privada destravado e `deleter` ignorando a trava; tirar o `cancelQueries` (B4) e tirar `proof-current` (B5) fizeram os testes deles falharem.
+- **Não verificado:** nada rodou no projeto hospedado nem no CI. A barreira do servidor (`edit_task`, `can_delete_task`) não foi mutada aqui: é do `banco-de-dados` e coberta por `db:test`. A segunda asserção do teste de B4 roda logo depois de a resposta velha chegar, e pode passar antes de um render atrasado.
+- **Pendências / próximos passos:** B2 é só o link, sem contagem de provas aguardando. `prova-foto` segue com B6 a B8 e o aviso `consentVersion` 2.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:41 (BRT)
+
+- **Branch:** fix/proof-consent-v2-check, criada a partir de feat/phase-3-proof (1e9add4)
+- **Agente(s):** prova-foto
+- **Resumo:** segunda etapa da entrada de 12:16: E2E e telas conferidas no estado integrado, e `ProofQueueBar` removido.
+- **Alterações:**
+  - `ProofQueueBar` saiu de `ProofEntry.tsx` e do index. Na integração, a Equipe ficou com `ProofQueueLink` dentro de `TeamScreen` (ADR-0006), e o link fica bem alinhado à coluna sem moldura extra.
+- **Arquivos/módulos principais:** `packages/features/proof/src/ProofEntry.tsx`, `packages/features/proof/src/index.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`, `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm e2e`, `pnpm db:test`.
+- **Verificado:** `pnpm check` passou. `pnpm e2e` 58 de 58 numa só execução, já sem nenhum `test.fail()`, incluindo os testes novos do aviso, da dobra e da prova de tarefa excluída aprovada pela Equipe. `pnpm db:test` 1004 de 1004. Telas por capturas do Chrome com câmera falsa, em 375x812 e 1280x800, claro e escuro: aviso com as sete frases e 90 e 365 dias; quadrado da câmera e "Tirar foto" inteiros na janela nas duas larguras (400 px de quadrado em 1280x800); "Confira a foto" e revisão com o carimbo inteiro, "Duda" sem corte; revisão com o aviso da web; Equipe com "Revisar fotos" para o dono.
+- **Não verificado:** a linha "Enviada pelo navegador" foi conferida pela E2E, não por captura, porque fica abaixo da dobra. Nada em iOS ou Android. Nada no projeto hospedado nem no CI. `pnpm functions:test` não rodou.
+- **Pendências / próximos passos:** nenhuma minha na prova. Base legal e contato de privacidade seguem com o humano.
+
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:21 (BRT)
 
 - **Branch:** feat/notifications-contracts, criada a partir de feat/phase-3-proof (b88ab87)

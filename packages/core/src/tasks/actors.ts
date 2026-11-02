@@ -17,6 +17,8 @@ export type ActorSubject = {
   /** `tasks.assignee_id`: decides `própria` and the `task.edit_assigned` and `task.delete_assigned` cases. */
   taskAssigneeId: string;
   visibility: TaskVisibility;
+  /** On while a manager's photo rule stands on someone's own task. ADR-0007 section 20. */
+  proofFlagsLocked: boolean;
 };
 
 /**
@@ -25,7 +27,14 @@ export type ActorSubject = {
  */
 export function deriveActors(
   user: ActorUser,
-  { groupId, createdBy, occurrenceAssigneeId, taskAssigneeId, visibility }: ActorSubject,
+  {
+    groupId,
+    createdBy,
+    occurrenceAssigneeId,
+    taskAssigneeId,
+    visibility,
+    proofFlagsLocked,
+  }: ActorSubject,
 ): OccurrenceActor[] {
   const group = groupId === null ? null : { id: groupId };
   // Leaving a group costs the access to its tasks, including the ones the user created.
@@ -42,7 +51,7 @@ export function deriveActors(
   const actors: OccurrenceActor[] = [];
   if (assignee) actors.push('assignee');
   if (own || manages || mayEditAssigned) actors.push('editor');
-  if (own || manages || mayDeleteAssigned) actors.push('deleter');
+  if ((own && !proofFlagsLocked) || manages || mayDeleteAssigned) actors.push('deleter');
   return actors;
 }
 
@@ -98,7 +107,8 @@ export function forgivesOverdue(
 /**
  * `proof_flags_locked` in `edit_task` (ADR-0007 section 8): the photo and the approval switches
  * are for who owns the task (creator and assignee) or has `task.manage_group` on a group task.
- * Someone with only `task.edit_assigned` sees them and cannot change them.
+ * Someone with only `task.edit_assigned` sees them and cannot change them, and neither does the
+ * owner while a manager's rule stands (ADR-0007 section 20).
  */
 export function proofFlagsLocked(
   user: ActorUser,
@@ -107,17 +117,19 @@ export function proofFlagsLocked(
     createdBy,
     assigneeId,
     visibility,
+    proofFlagsLocked: locked,
   }: {
     groupId: string | null;
     createdBy: string | null;
     assigneeId: string;
     visibility: TaskVisibility;
+    proofFlagsLocked: boolean;
   },
 ): boolean {
   const own = createdBy === user.id && assigneeId === user.id;
   const manages =
     groupId !== null && visibility === 'group' && can(user, 'task.manage_group', { id: groupId });
-  return !(own || manages);
+  return !(manages || (own && !locked));
 }
 
 /** Whether the user skips the late window: `task.manage_group` in the task's group. */

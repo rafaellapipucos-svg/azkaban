@@ -8,6 +8,7 @@ import {
   clientOf,
   contains,
   groupWithMember,
+  sendProof,
   signUpWithContext,
   spotOf,
   uniqueTitle,
@@ -207,14 +208,11 @@ test('reopening drops the photo: the link goes, and green takes a new one', asyn
     .order('received_at');
   expect(data!.map(({ superseded_at }) => superseded_at !== null)).toEqual([true, false]);
 
-  // Known bug, item 3 of docs/agentes/handoffs/20261101-2240-qa-testes-para-prova-foto-achados-do-qa.md:
-  // without the reload, the link stays and leads to the photo that no longer counts. Delete `test.fail`
-  // along with the fix.
+  // Without a reload, the link goes away too, instead of leading to the photo that no longer counts
   await memberPage.goto(`/tasks/${occurrenceId}`);
   await expect(button(memberPage, 'Ver a foto da prova')).toBeVisible();
   await button(memberPage, 'Voltar para pendente').click();
   await expect(button(memberPage, 'Tirar a foto para concluir')).toBeVisible();
-  test.fail();
   await expect(button(memberPage, 'Ver a foto da prova')).toHaveCount(0, { timeout: 3_000 });
 });
 
@@ -268,4 +266,41 @@ test('a photo the server really refuses goes back to the camera, and offline it 
   await answered(page.getByText(ACCEPTED)).toBeVisible();
   await page.goto('/');
   await expect(check(page, title, 'Feito')).toBeVisible();
+});
+
+test('a proof of a deleted task is still approved from the queue, and the team view leads there', async ({
+  browser,
+}) => {
+  const { ownerPage, memberPage } = await groupWithMember(browser);
+  const title = uniqueTitle('Excluída depois');
+  await photoTask(ownerPage, title, { approval: true });
+  const spot = await spotOf(title);
+  await sendProof(spot.occurrenceId, spot.assigneeId);
+  const deleted = await clientOf(spot.createdBy).rpc('delete_task', {
+    p_occurrence_id: spot.occurrenceId,
+    p_scope: 'all',
+    p_head_rrule: null,
+  });
+  expect(deleted.error).toBeNull();
+
+  // Only who reviews sees the way in from the team view
+  await memberPage.goto(`/team/${spot.groupId}`);
+  await expect(
+    memberPage
+      .getByRole('heading', { name: 'Equipe', exact: true })
+      .or(memberPage.getByText('Só quem pode ver as tarefas do grupo acessa a equipe.')),
+  ).toBeVisible();
+  await expect(button(memberPage, 'Revisar fotos')).toHaveCount(0);
+  await ownerPage.goto(`/team/${spot.groupId}`);
+  await expect(ownerPage.getByRole('heading', { name: 'Equipe', exact: true })).toBeVisible();
+  await button(ownerPage, 'Revisar fotos').click();
+
+  await ownerPage.getByText(title).click();
+  await button(ownerPage, 'Aprovar').click();
+  await expect(ownerPage.getByText(title)).toHaveCount(0);
+  expect(await statusOf(spot.occurrenceId)).toEqual({
+    status: 'done',
+    proof_review_status: 'approved',
+  });
+  await expect.poll(() => xpOf(spot.occurrenceId)).toBeGreaterThan(0);
 });

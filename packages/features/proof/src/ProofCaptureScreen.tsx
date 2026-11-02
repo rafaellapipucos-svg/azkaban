@@ -27,12 +27,15 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Image, View } from 'react-native';
+import { Image, View, useWindowDimensions } from 'react-native';
 import { proofRecovery } from './recovery';
 import { useProofFlow, type ProofOutcome } from './useProofFlow';
 
 // Square: a taller preview pushes the shutter below the fold of a phone.
 const PHOTO_RATIO = 1;
+// On a wide, short window the column is taller than the screen: the preview takes at most this share
+// of the window's height, so the shutter stays in view at 1280x800. A phone is never limited by it.
+const PREVIEW_MAX_HEIGHT_SHARE = 0.5;
 
 function ConsentStep({ onAccept, onDecline }: { onAccept: () => void; onDecline: () => void }) {
   const { t } = useTranslation('proof');
@@ -43,7 +46,15 @@ function ConsentStep({ onAccept, onDecline }: { onAccept: () => void; onDecline:
         <Body>{t('consent.collected')}</Body>
         <Body>{t('consent.coordinates')}</Body>
         <Body>{t('consent.viewers')}</Body>
-        <Body>{t('consent.retention', { days: proofRules.retentionDays })}</Body>
+        <Body>{t('consent.stamp')}</Body>
+        <Body>{t('consent.thirdParties')}</Body>
+        <Body>
+          {t('consent.retention', {
+            days: proofRules.retentionDays,
+            recordDays: proofRules.recordRetentionDays,
+          })}
+        </Body>
+        <Body>{t('consent.deletion')}</Body>
       </Card>
       <Muted>{t('consent.declineHint')}</Muted>
       <Button label={t('consent.accept')} onPress={onAccept} />
@@ -83,6 +94,7 @@ function CameraStep({
   const [facing, setFacing] = useState<CameraFacing>('back');
   const [photoError, setPhotoError] = useState<PhotoErrorCode | null>(null);
   const [taking, setTaking] = useState(false);
+  const screen = useWindowDimensions();
 
   const take = async () => {
     if (!camera.current || taskTitle === undefined) return;
@@ -126,7 +138,16 @@ function CameraStep({
       <Muted>{t('camera.hint')}</Muted>
       {failure ? <ErrorText>{t(`errors.${failure}`)}</ErrorText> : null}
       {photoError ? <ErrorText>{t(`photo.${photoError}`)}</ErrorText> : null}
-      <View style={{ aspectRatio: PHOTO_RATIO, borderRadius: tokens.radii.lg, overflow: 'hidden' }}>
+      <View
+        style={{
+          width: '100%',
+          maxWidth: Math.round(screen.height * PREVIEW_MAX_HEIGHT_SHARE * PHOTO_RATIO),
+          alignSelf: 'center',
+          aspectRatio: PHOTO_RATIO,
+          borderRadius: tokens.radii.lg,
+          overflow: 'hidden',
+        }}
+      >
         <ProofCamera
           ref={camera}
           facing={facing}
@@ -176,11 +197,8 @@ function ConfirmStep({
         role="img"
         aria-label={t('confirm.image')}
         resizeMode="contain"
-        style={{
-          width: '100%',
-          aspectRatio: photo.width / photo.height,
-          borderRadius: tokens.radii.lg,
-        }}
+        // No rounded corner: it would cut the stamp, which runs to the bottom edge.
+        style={{ width: '100%', aspectRatio: photo.width / photo.height }}
       />
       {!online ? <Muted>{t('confirm.offline')}</Muted> : null}
       {sending ? <Muted role="status">{t('confirm.sending')}</Muted> : null}

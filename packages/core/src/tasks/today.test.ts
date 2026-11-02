@@ -41,6 +41,7 @@ const item = (
     requiresPartialReason: true,
     requiresPhotoProof: false,
     requiresAdminApproval: false,
+    proofFlagsLocked: false,
     ...task,
   },
   ...overrides,

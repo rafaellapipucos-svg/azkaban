@@ -220,8 +220,9 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
     assigneeIds.length === 1 &&
     assigneeIds[0] === user.id &&
     creatorId === user.id;
-  // Someone with only `task.edit_assigned` sees the photo and approval switches and cannot move
-  // them: the database refuses with `proof_flags_locked` (ADR-0007 section 8).
+  // Someone with only `task.edit_assigned`, or the owner of a task a manager locked, sees the photo
+  // and approval switches and cannot move them: the database refuses with `proof_flags_locked`
+  // (ADR-0007 sections 8 and 20).
   const proofLocked =
     editing && existing !== null
       ? proofFlagsLocked(user, {
@@ -229,8 +230,12 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
           createdBy: existing.task.createdBy,
           assigneeId: existing.task.assigneeId,
           visibility: existing.task.visibility,
+          proofFlagsLocked: existing.task.proofFlagsLocked,
         })
       : false;
+  // Nobody takes a locked task to private, not even an admin, so this one does not look at the user.
+  const rulesLocked = editing && existing?.task.proofFlagsLocked === true;
+  const lockedHint = t(rulesLocked ? 'errors.proof_flags_locked' : 'form.proofLocked');
   const approvalOffered = offersAdminApproval(
     { requiresPhotoProof, visibility, assigneeIds },
     { personalContext: context?.groupId === null, editorId: user.id },
@@ -457,8 +462,9 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
       {keepsPrivate ? (
         <SwitchRow
           label={t('form.private')}
-          description={t('form.privateHint')}
+          description={rulesLocked ? lockedHint : t('form.privateHint')}
           value={visibility === 'private'}
+          disabled={rulesLocked}
           onValueChange={(value) => {
             setValue('visibility', value ? 'private' : 'group', { shouldDirty: true });
             if (value) setValue('requiresAdminApproval', false, { shouldDirty: true });
@@ -510,7 +516,7 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
           />
           <SwitchRow
             label={t('form.photoProof')}
-            description={proofLocked ? t('form.proofLocked') : t('form.photoProofHint')}
+            description={proofLocked ? lockedHint : t('form.photoProofHint')}
             value={requiresPhotoProof}
             disabled={proofLocked}
             onValueChange={(value) => {
@@ -522,7 +528,7 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
           {approvalOffered || proofLocked ? (
             <SwitchRow
               label={t('form.adminApproval')}
-              description={proofLocked ? t('form.proofLocked') : t('form.adminApprovalHint')}
+              description={proofLocked ? lockedHint : t('form.adminApprovalHint')}
               value={requiresAdminApproval}
               disabled={proofLocked || !requiresPhotoProof}
               onValueChange={(value) =>
@@ -530,6 +536,7 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
               }
             />
           ) : null}
+          {group && requiresPhotoProof ? <Muted>{t('form.proofLimit')}</Muted> : null}
         </View>
       ) : null}
 

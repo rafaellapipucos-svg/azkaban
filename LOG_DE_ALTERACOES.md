@@ -842,3 +842,29 @@
 - **Verificado:** `pnpm check` passou. `pnpm db:test` 1004 de 1004. `pnpm db:check-permissions` em dia. `pnpm functions:test` 85 de 85, sem `functions serve`. `pnpm e2e` 55 de 55, sendo 2 com `test.fail` de bugs já conhecidos. Com um job de 1 segundo, `cron.job_run_details` mostrou `failed` e `proof_retention_not_configured`. Seis mutações falharam nos testes: ler o corpo todo em `proof-url` (546, com `memory limit reached` no log), limite do corpo deslocado em um byte, sem a regra de `appVersion` (500, depois de gastar o nonce), retorno silencioso sem segredo, exceção no lugar do aviso de atraso e sem esse aviso. Depois de restaurar, os testes voltaram a passar.
 - **Não verificado:** nada rodou no projeto hospedado nem no CI, inclusive a lista de `docs/implantacao.md` e o `ci.yml` novo. Os comandos de deploy e de `pg_graphql` da lista não foram executados. Se `proof_retention_overdue` aparece nos logs do painel hospedado não foi visto. Metade de par substituto foi testada só como recusa, sem reproduzir o erro no Postgres. O aviso não cobre segredo errado nos primeiros 91 dias, e por isso a lista manda conferir a resposta da função.
 - **Pendências / próximos passos:** não há alerta automático: alguém precisa olhar os dois sinais. `materialize-occurrences/index.ts:290` tem o mesmo `req.text()` sem limite que SEG-6 achou, alcançável por qualquer usuário autenticado, e `call_materialize_occurrences` continua silenciosa sem Vault. `CLAUDE.md` ainda diz que `pnpm functions:test` exige `functions serve`, troca que cabe ao orquestrador.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:28 (BRT)
+
+- **Branch:** fix/proof-task-rules-final, a partir do WIP `18ca79f` de fix/proof-task-rules, sobre feat/phase-3-proof (2935b7a)
+- **Agente(s):** tarefas-calendario
+- **Resumo:** Trava das regras de foto, rastro, `proof_visibility_locked`, detalhe defasado (B4), link de revisão na Equipe (B2), aviso da limitação da web (B9) e link da foto depois de reabrir (B5, item 3 do QA). Começou às 00:43 como WIP, interrompido pelo reinício, e foi fechado aqui com as duas falhas da E2E diagnosticadas.
+- **Alterações:**
+  - `packages/contracts/src/tasks.ts`: `proofFlagsLocked` sem `default(false)` e em `OccurrenceListItem.task`.
+  - `packages/core/src/tasks/actors.ts`: `ActorSubject.proofFlagsLocked`, `deleter` e `proofFlagsLocked(...)` conforme o handoff, com testes.
+  - `packages/data/src/tasks/index.ts`: coluna nas duas leituras e `listRuleChanges`.
+  - `TaskFormScreen`: interruptor de privada travado com a tarefa travada, textos de trava e aviso `form.proofLimit`.
+  - `TaskDetailScreen`: bloco "Mudanças nas regras".
+  - `hooks.ts`: `useStatusChange` cancela antes de invalidar, e agora também `proof-current`, a chave de `ProofLink`, sem importar o módulo de prova. `useRefreshTasks` invalida `rule-changes`.
+  - `TeamScreen` aceita `children`, e `team/[groupId].tsx` compõe `ProofQueueLink`.
+  - `tasks.json`: `errors.proof_flags_locked` reescrito, `errors.proof_visibility_locked`, `form.proofLimit` e bloco `rules`.
+  - E2E: teste novo da trava, com "Cancelar esta tarefa" além de "Excluir", e recusa nova em `tasks-proof.spec.ts`. `test.fail()` removido de `tasks-ui-fixes.spec.ts` (B4) e de `proof-paths.spec.ts` (B5).
+- **Arquivos/módulos principais:** `packages/core/src/tasks/actors.ts`, `packages/features/tasks/src`, `packages/data/src/tasks/index.ts`, `packages/i18n/src/pt-BR/tasks.json`, `e2e/`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova. O texto de `form.proofLocked` também mudou, porque "quem criou" deixava de ser verdade. "B9" vem da lista do relatório de QA ao orquestrador, em que B5 a B9 são os itens 3 a 7 do handoff `20261101-2240-qa-testes-para-prova-foto-achados-do-qa.md`: B9 é o item 7, o aviso da limitação da web, e B5 é o item 3.
+- **Causa das duas falhas da E2E do WIP, ambas do teste:**
+  - `tasks-proof.spec.ts:159`: o formulário aberto pelo endereço não tem para onde voltar e vai para Hoje (`goBack` em `TaskFormScreen`), como no resto do app. O trace mostrou `edit_task` com 200 e a tela Hoje. O teste agora espera Hoje.
+  - `tasks-ui-fixes.spec.ts:90`: a asserção final passou em 270 ms. O que falhou foi o callback da rota segurada, ainda em `waitForTimeout(300)` quando o teste acabou. Com `times: 1` a rota sai da lista, então `unrouteAll({ behavior: 'wait' })` não a espera: o teste guarda a promessa do callback, espera por ela e confere de novo que a leitura velha não volta a tela.
+- **Como testar:** `pnpm check`; `pnpm db:start` e `pnpm exec playwright test e2e/tasks-proof.spec.ts e2e/tasks-ui-fixes.spec.ts e2e/proof-paths.spec.ts`.
+- **Verificado:** `pnpm check` passou, com 505 testes em core. `pnpm db:test` 1004 de 1004. `pnpm functions:test` 85 de 85, sem `functions serve`. `pnpm e2e` 56 de 56, sem `test.fail` nem `retries`. Mutações, todas pegas e revertidas: em core, `proofFlagsLocked` ignorando a trava, `deleter` ignorando a trava, revisor sem `proof.review` e revisor igual ao autor; na E2E da trava, interruptor da foto destravado, de privada destravado e `deleter` ignorando a trava; tirar o `cancelQueries` (B4) e tirar `proof-current` (B5) fizeram os testes deles falharem.
+- **Não verificado:** nada rodou no projeto hospedado nem no CI. A barreira do servidor (`edit_task`, `can_delete_task`) não foi mutada aqui: é do `banco-de-dados` e coberta por `db:test`. A segunda asserção do teste de B4 roda logo depois de a resposta velha chegar, e pode passar antes de um render atrasado.
+- **Pendências / próximos passos:** B2 é só o link, sem contagem de provas aguardando. `prova-foto` segue com B6 a B8 e o aviso `consentVersion` 2.

@@ -1130,3 +1130,21 @@
 - **Verificado:** `pnpm check` passou (core 516, contracts 44, platform 38, ui 11, config 7, data 7, app 6, proof 6). `pnpm functions:test` 114 de 114. `pnpm db:test` 1203 de 1203. `pnpm db:check-permissions` em sincronia. `pnpm e2e` 58 de 58. Uma vez, com um par VAPID gerado na hora só no `.env` local (ignorado) e apagado em seguida, a função publicada reivindicou, validou, montou o payload e barrou um host fora da lista com `push_endpoint_not_allowed`, sem requisição de saída; o log dela trouxe só contagens. Mutações, todas pegas e revertidas: checagem de host desligada, host como sufixo sem ponto, 403 apagando a inscrição, 500 apagando, `sent` virando `retry` (reenvio), `maxAttempts` ignorado, redirecionamento seguido, `Retry-After` ignorado, `x-cron-secret` desligado, claim antes da checagem do VAPID, teto do corpo em 64 KiB, `req.text()` de volta, e a migration voltando ao `return` silencioso.
 - **Não verificado:** nenhum envio a um serviço de push real (FCM, Mozilla, Apple, WNS), de propósito; o vetor da RFC e a decifragem do lado do navegador, escrita à parte nos testes, são a evidência. O texto do payload no Deno não foi lido, só que ele foi montado sem erro. Nada no projeto hospedado; o CPU do despacho com lote cheio não foi medido. Hora derivada de UTC menos 3 (PowerShell bloqueado).
 - **Pendências / próximos passos:** `arquiteto`: aceitar ou recusar as diferenças do handoff. `banco-de-dados`: `rls_tasks.test.sql:1052` com descrição que deixou de ser verdade. Implantação: gerar o par VAPID e conferir a chave pública.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 14:18 (BRT)
+
+- **Branch:** chore/security-phase-4, criada a partir de feat/phase-4-notifications (55f87f0)
+- **Agente(s):** revisor-seguranca
+- **Resumo:** Revisão de segurança da Fase 4 (diff `feat/phase-3-proof..feat/phase-4-notifications`), estática, sem PoC de banco: a pilha estava com outro agente e o orquestrador pediu para não usá-la. Um achado médio, oito baixos ou informativos e um risco de produto, em três handoffs.
+- **Alterações:**
+  - Handoffs `20261102-1420-revisor-seguranca-para-{banco-de-dados-notificacoes,notificacoes-whatsapp-service-worker-e-cabecalhos,arquiteto-caminho-interno}`.
+  - SEG4-1 (média): alternar `done` e `pending` gera um `occurrence_resolved` novo por volta para o criador, sem limite (chave pelo id da linha do histórico).
+  - SEG4-2 a SEG4-9 (baixa ou informativo): troca de dono do endpoint sem prova de posse; `proof_in_review` sem `can_view_task_for`; `DELETE` do Realtime para todo assinante; `push_subscriptions` sem retenção; `internalPath` do `sw.js`, do contrato e `safeInternalPath` aceitam tab, LF e CR e resolvem para outra origem; `_headers` sem CSP, `frame-ancestors`, `nosniff` e `Referrer-Policy`; sessão que acaba sem Sair mantém o push.
+  - Risco de produto: título da tarefa na tela bloqueada.
+- **Arquivos/módulos principais:** `docs/agentes/handoffs/`, este LOG
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma
+- **Como testar:** os passos estão em cada handoff.
+- **Verificado:** `pnpm install --frozen-lockfile`, `pnpm check` e `pnpm build:web` passaram; `node --test supabase/functions/dispatch-notifications/push.test.ts` 18 de 18, com o vetor do apêndice A da RFC 8291. PoC no Node: regex de caminho interno com tab, LF e CR resolvendo para `https://evil.com/`; `endpointAllowed` contra maiúsculas, ponto final, portas, userinfo, `%2e`, tab e U+3002 (todos corretos). Busca de segredos em `apps/app/dist`: nenhum. `.env` e `.env.*` ignorados pelo git. Leitura da cifra aes128gcm e do VAPID contra as RFCs 8291 e 8292: conferem.
+- **Não verificado:** nenhum PoC de banco (SEG4-1, SEG4-2, regex do host no Postgres, RLS e Realtime de `notifications` com dois usuários): a pilha chegou a subir e foi parada sem rodar nada, a pedido do orquestrador. Nenhum envio a serviço de push real. Se `router.replace` do expo-router sai da origem com `?next=/%09/evil.com`. Hora derivada de UTC menos 3, porque o PowerShell foi bloqueado.
+- **Pendências / próximos passos:** rodar os PoCs de banco sobre o estado integrado depois do QA. Donos: `banco-de-dados`, `notificacoes-whatsapp`, `arquiteto`.

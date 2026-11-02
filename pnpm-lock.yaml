@@ -262,6 +262,9 @@ importers:
       '@azkaban/feature-groups':
         specifier: workspace:*
         version: link:../../packages/features/groups
+      '@azkaban/feature-notifications':
+        specifier: workspace:*
+        version: link:../../packages/features/notifications
       '@azkaban/feature-proof':
         specifier: workspace:*
         version: link:../../packages/features/proof
@@ -588,7 +591,50 @@ importers:
         specifier: 'catalog:'
         version: 4.6.7
 
-  packages/features/notifications: {}
+  packages/features/notifications:
+    dependencies:
+      '@azkaban/config':
+        specifier: workspace:*
+        version: link:../../config
+      '@azkaban/contracts':
+        specifier: workspace:*
+        version: link:../../contracts
+      '@azkaban/core':
+        specifier: workspace:*
+        version: link:../../core
+      '@azkaban/data':
+        specifier: workspace:*
+        version: link:../../data
+      '@azkaban/i18n':
+        specifier: workspace:*
+        version: link:../../i18n
+      '@azkaban/platform':
+        specifier: workspace:*
+        version: link:../../platform
+      '@azkaban/ui':
+        specifier: workspace:*
+        version: link:../../ui
+      '@hookform/resolvers':
+        specifier: ^7.0.0
+        version: 7.0.0(ajv@8.20.0)(react-hook-form@7.91.0(@types/react@19.3.0)(react@19.3.0))(zod@4.6.7)
+      '@tanstack/react-query':
+        specifier: ^5.105.0
+        version: 5.105.0(@types/react@19.3.0)(react@19.3.0)
+      expo-router:
+        specifier: ^58.0.29
+        version: 58.0.29(37045bb9fa40defd82f02c996263e0e8)
+      react:
+        specifier: 'catalog:'
+        version: 19.3.0
+      react-hook-form:
+        specifier: ^7.91.0
+        version: 7.91.0(@types/react@19.3.0)(react@19.3.0)
+      react-native:
+        specifier: 'catalog:'
+        version: 0.88.1(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.88.1(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1)
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.7
 
   packages/features/proof:
     dependencies:

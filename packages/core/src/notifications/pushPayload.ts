@@ -28,8 +28,8 @@ function clip(text: string, max: number) {
   return `${out}…`;
 }
 
-/** Tap target (ADR-0008, section 8). */
-function pushUrl(source: PushSource, requiresPhoto: boolean) {
+/** Tap target (ADR-0008, section 8), shared by the push and the bell. */
+export function notificationUrl(source: PushSource, requiresPhoto: boolean) {
   if (source.type === 'proof_in_review') return `/proofs/${source.data.proofId}`;
   if (!source.occurrenceId) return '/notifications';
   const task = `/tasks/${source.occurrenceId}`;
@@ -101,7 +101,7 @@ export function buildPushPayload(
     type: source.type,
     title: clip(title, titleMaxLength),
     body: clip(body, bodyMaxLength),
-    url: pushUrl(source, requiresPhoto),
+    url: notificationUrl(source, requiresPhoto),
     // A second delivery of the same notification replaces the first on screen.
     tag: source.id,
   });

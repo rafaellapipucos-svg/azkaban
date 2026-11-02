@@ -16,6 +16,7 @@
     "@azkaban/feature-calendar": "workspace:*",
     "@azkaban/feature-contexts": "workspace:*",
     "@azkaban/feature-groups": "workspace:*",
+    "@azkaban/feature-notifications": "workspace:*",
     "@azkaban/feature-proof": "workspace:*",
     "@azkaban/feature-tasks": "workspace:*",
     "@azkaban/i18n": "workspace:*",

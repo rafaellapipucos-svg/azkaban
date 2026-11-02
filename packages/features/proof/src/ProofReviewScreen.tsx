@@ -199,14 +199,14 @@ export function ProofReviewScreen({ proofId }: { proofId: string }) {
 
   if (detail.isPending) {
     return (
-      <Screen>
+      <Screen title={t('review.title')}>
         <Muted>{t('loading')}</Muted>
       </Screen>
     );
   }
   if (!proof) {
     return (
-      <Screen>
+      <Screen title={t('review.title')}>
         <EmptyState text={t('review.notFound')} />
         <Button variant="secondary" label={t('back')} onPress={goBack} />
       </Screen>
@@ -228,7 +228,7 @@ export function ProofReviewScreen({ proofId }: { proofId: string }) {
     });
 
   return (
-    <Screen>
+    <Screen title={t('review.title')}>
       <Title>{proof.task.title}</Title>
       <View className="items-start" style={{ gap: tokens.spacing[2] }}>
         <StatusBadge

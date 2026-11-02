@@ -1040,3 +1040,20 @@
 - **Verificado:** `pnpm check` passou (core 520, contracts 44, platform 38, ui 11, config 7, data 7, app 6, proof 6). `pnpm build:web` passou. A E2E editada passou no `tsc --strict`.
 - **Não verificado:** a E2E não rodou (pilha local em uso por outro agente), nem a tela no navegador: o cabeçalho de Hoje com o encaixe e o alerta do calendário não foram vistos. A função de F4-8 não estava no ar. Hora derivada de UTC menos 3 (PowerShell bloqueado).
 - **Pendências / próximos passos:** rota de Hoje (`apps/app/app/(app)/(tabs)/index.tsx`) passar `headerRight={<NotificationBell />}`, com `notificacoes-whatsapp` ou o orquestrador. E2E desta entrega na verificação da fase.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 13:43 (BRT)
+
+- **Branch:** feat/proof-screen-titles, criada a partir de feat/phase-4-notifications (59405cc)
+- **Agente(s):** prova-foto
+- **Resumo:** `title` em todo `Screen` de `packages/features/proof`, pelo handoff `20261102-1233-design-system-para-prova-foto-titulo-das-telas`.
+- **Alterações:**
+  - Captura: "Prova por foto" (`proof.screenTitle`, chave nova) nas etapas antes da foto, em expirado e em erro; "Confira a foto" (`confirm.title`) na conferência e no envio; "Foto enviada" (`done.title`) no resultado. Nunca o título da tarefa, que segue só no `Title` da tela.
+  - Fila de revisão: "Fotos para revisar" (`queue.title`).
+  - Revisão de uma prova: "Foto da prova" (`review.title`, que existia sem uso), inclusive nos retornos de carregando e de não encontrada. Nem o título da tarefa nem o nome do autor.
+- **Arquivos/módulos principais:** `packages/features/proof/src/{ProofCaptureScreen,ProofQueueScreen,ProofReviewScreen}.tsx`, `packages/i18n/src/pt-BR/proof.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0008, seção 13.
+- **Como testar:** `pnpm check`, `pnpm build:web`; depois de F4-9, no `pnpm dev` web, `document.title` muda ao abrir cada tela e ao passar da câmera à conferência.
+- **Verificado:** `pnpm check` passou (core 520, contracts 44, platform 38, ui 11, config 7, data 7, app 6, proof 6). `pnpm build:web` passou.
+- **Não verificado:** nada no navegador: sem o adapter de F4-9 o `title` é ignorado, e a pilha local estava em uso por outro agente. E2E fica para a verificação da fase. Hora derivada de UTC menos 3 (PowerShell bloqueado).
+- **Pendências / próximos passos:** nenhuma deste agente.

@@ -40,7 +40,7 @@ export function ProofQueueScreen({ groupId }: { groupId: string }) {
       : (members.data?.find(({ userId }) => userId === id)?.displayName ?? t('review.someone'));
 
   return (
-    <Screen>
+    <Screen title={t('queue.title')}>
       <Title>{t('queue.title')}</Title>
       {ready && !allowed ? <Muted>{t('queue.forbidden')}</Muted> : null}
       {queue.isError ? (

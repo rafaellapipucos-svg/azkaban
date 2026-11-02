@@ -25,6 +25,10 @@ describe('proofUploadMetaSchema', () => {
     );
   });
 
+  it.each(['1.0\u0000', '1.0\ud800', 'versão'])('refuses %j as an app version', (appVersion) => {
+    expect(proofUploadMetaSchema.safeParse({ ...meta, appVersion }).success).toBe(false);
+  });
+
   it('refuses coordinates that do not exist', () => {
     const location = { lat: 91, lng: 0, accuracyM: 10 };
     expect(proofUploadMetaSchema.safeParse({ ...meta, location }).success).toBe(false);

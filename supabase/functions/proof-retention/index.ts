@@ -2,7 +2,8 @@
 // no row points to. Called by the cron job `proof-retention` with `x-cron-secret`, like
 // materialize-occurrences. Every step is safe to repeat, and a run that dies halfway leaves the rest
 // to the next one: the object is removed before its row is marked, so a proof whose mark was lost is
-// due again, and removing an object that is already gone is not an error.
+// due again, and removing an object that is already gone is not an error. A row outlives its photo
+// until `recordRetentionDays` (section 20, SEG-5).
 import { proofDefaults } from '@azkaban/config';
 import { responder, sameSecret, serviceClient } from '../_shared/http.ts';
 
@@ -77,14 +78,25 @@ Deno.serve(async (req) => {
       await admin.rpc('delete_stale_proof_challenges'),
     ) as number;
 
+    // 5. Rows past their own term. Only a row without a photo qualifies, so this never touches Storage.
+    const records = check(
+      'records',
+      await admin.rpc('delete_expired_proof_records', { p_limit: limit }),
+    ) as number;
+
     // Counts only: no path, name or id.
     const totals = {
       photosRemoved: paths.length,
       proofsMarked: marked,
       orphansRemoved: orphans.length,
       challengesDeleted: challenges,
+      recordsDeleted: records,
       // A full batch means there may be more, and the next run takes it.
-      moreDue: due.length === limit || marked < due.length || orphans.length === limit,
+      moreDue:
+        due.length === limit ||
+        marked < due.length ||
+        orphans.length === limit ||
+        records === limit,
     };
     console.log(
       JSON.stringify({

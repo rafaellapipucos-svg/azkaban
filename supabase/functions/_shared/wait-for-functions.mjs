@@ -1,7 +1,7 @@
 // Runs before the integration tests of the functions (`pnpm functions:test`). The local Edge Runtime
 // recycles idle workers, and a request that lands on one that is going away gets a 502. Calling the
 // preflight of each function until it answers boots a fresh worker, so the first real request of a
-// test does not pay for it. Mirrors the wait loop of the CI workflow, for every function.
+// test does not pay for it.
 const api = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54421';
 const names = ['materialize-occurrences', 'proof-validate', 'proof-url', 'proof-retention'];
 
@@ -17,9 +17,7 @@ for (const name of names) {
     await new Promise((resolve) => setTimeout(resolve, 2000));
   }
   if (status < 200 || status >= 300) {
-    console.error(
-      `${name} does not answer (last status ${status}). Is "supabase functions serve" running?`,
-    );
+    console.error(`${name} does not answer (last status ${status}). Did "pnpm db:start" finish?`);
     process.exit(1);
   }
 }

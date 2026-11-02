@@ -14,7 +14,7 @@ import { admin, ANON, API, options } from '../supabase/functions/_shared/proof-k
 const JWT_SECRET =
   process.env.SUPABASE_JWT_SECRET ?? 'super-secret-jwt-token-with-at-least-32-characters-long';
 // `proofRules.consentVersion` of @azkaban/config.
-const CONSENT_VERSION = 1;
+const CONSENT_VERSION = 2;
 
 export const PHOTO = 'Pedir uma foto para concluir';
 export const APPROVAL = 'Um administrador aprova a foto';

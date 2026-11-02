@@ -242,13 +242,27 @@ isOneToOne: false
                   }
                   Relationships: [
                     {
-      foreignKeyName: "proof_challenges_occurrence_id_fkey"
-      columns: ["occurrence_id"]
-isOneToOne: false
-      referencedRelation: "task_occurrences"
-      referencedColumns: ["id"]
-    },{
       foreignKeyName: "proof_challenges_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"proof_consents": {
+                  Row: {
+                    "accepted_at": string,"user_id": string,"version": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "accepted_at"?: string,"user_id": string,"version": number
+                  }
+                  Update: {
+                    "accepted_at"?: string,"user_id"?: string,"version"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "proof_consents_user_id_fkey"
       columns: ["user_id"]
 isOneToOne: false
       referencedRelation: "profiles"
@@ -351,6 +365,32 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"task_rule_changes": {
+                  Row: {
+                    "changed_at": string,"changed_by": string | null,"field": string,"from_value": string,"id": string,"task_id": string,"to_value": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "changed_at"?: string,"changed_by"?: string | null,"field": string,"from_value": string,"id"?: string,"task_id": string,"to_value": string
+                  }
+                  Update: {
+                    "changed_at"?: string,"changed_by"?: string | null,"field"?: string,"from_value"?: string,"id"?: string,"task_id"?: string,"to_value"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "task_rule_changes_changed_by_fkey"
+      columns: ["changed_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "task_rule_changes_task_id_fkey"
+      columns: ["task_id"]
+isOneToOne: false
+      referencedRelation: "tasks"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"task_status_history": {
                   Row: {
                     "changed_at": string,"changed_by": string | null,"from_status": Database["public"]['Enums']["occurrence_status"],"id": string,"occurrence_id": string,"proof_review_status": Database["public"]['Enums']["proof_review_status"] | null,"reason": string | null,"to_status": Database["public"]['Enums']["occurrence_status"]
@@ -379,14 +419,14 @@ isOneToOne: false
                   ]
                 },"tasks": {
                   Row: {
-                    "archived_at": string | null,"assignee_id": string,"context_id": string,"created_at": string,"created_by": string | null,"difficulty": Database["public"]['Enums']["task_difficulty"],"due_at": string | null,"duration_min": number | null,"exdates": (string)[],"group_id": string | null,"id": string,"materialized_until": string | null,"notes": string | null,"parent_task_id": string | null,"priority": Database["public"]['Enums']["task_priority"],"reminders": NonNullable<Json>,"requires_admin_approval": boolean,"requires_partial_reason": boolean,"requires_photo_proof": boolean,"rrule": string | null,"schedule_type": Database["public"]['Enums']["schedule_type"],"start_at": string | null,"timezone": string,"title": string,"visibility": Database["public"]['Enums']["task_visibility"],"can_view_task": boolean | null
+                    "archived_at": string | null,"assignee_id": string,"context_id": string,"created_at": string,"created_by": string | null,"difficulty": Database["public"]['Enums']["task_difficulty"],"due_at": string | null,"duration_min": number | null,"exdates": (string)[],"group_id": string | null,"id": string,"materialized_until": string | null,"notes": string | null,"parent_task_id": string | null,"priority": Database["public"]['Enums']["task_priority"],"proof_flags_locked": boolean,"reminders": NonNullable<Json>,"requires_admin_approval": boolean,"requires_partial_reason": boolean,"requires_photo_proof": boolean,"rrule": string | null,"schedule_type": Database["public"]['Enums']["schedule_type"],"start_at": string | null,"timezone": string,"title": string,"visibility": Database["public"]['Enums']["task_visibility"],"can_view_task": boolean | null
                   }
                   ComputedFields: "can_view_task"
                   Insert: {
-                    "archived_at"?: string | null,"assignee_id": string,"context_id": string,"created_at"?: string,"created_by"?: string | null,"difficulty": Database["public"]['Enums']["task_difficulty"],"due_at"?: string | null,"duration_min"?: number | null,"exdates"?: (string)[],"group_id"?: string | null,"id"?: string,"materialized_until"?: string | null,"notes"?: string | null,"parent_task_id"?: string | null,"priority": Database["public"]['Enums']["task_priority"],"reminders": NonNullable<Json>,"requires_admin_approval": boolean,"requires_partial_reason": boolean,"requires_photo_proof": boolean,"rrule"?: string | null,"schedule_type": Database["public"]['Enums']["schedule_type"],"start_at"?: string | null,"timezone": string,"title": string,"visibility": Database["public"]['Enums']["task_visibility"]
+                    "archived_at"?: string | null,"assignee_id": string,"context_id": string,"created_at"?: string,"created_by"?: string | null,"difficulty": Database["public"]['Enums']["task_difficulty"],"due_at"?: string | null,"duration_min"?: number | null,"exdates"?: (string)[],"group_id"?: string | null,"id"?: string,"materialized_until"?: string | null,"notes"?: string | null,"parent_task_id"?: string | null,"priority": Database["public"]['Enums']["task_priority"],"proof_flags_locked"?: boolean,"reminders": NonNullable<Json>,"requires_admin_approval": boolean,"requires_partial_reason": boolean,"requires_photo_proof": boolean,"rrule"?: string | null,"schedule_type": Database["public"]['Enums']["schedule_type"],"start_at"?: string | null,"timezone": string,"title": string,"visibility": Database["public"]['Enums']["task_visibility"]
                   }
                   Update: {
-                    "archived_at"?: string | null,"assignee_id"?: string,"context_id"?: string,"created_at"?: string,"created_by"?: string | null,"difficulty"?: Database["public"]['Enums']["task_difficulty"],"due_at"?: string | null,"duration_min"?: number | null,"exdates"?: (string)[],"group_id"?: string | null,"id"?: string,"materialized_until"?: string | null,"notes"?: string | null,"parent_task_id"?: string | null,"priority"?: Database["public"]['Enums']["task_priority"],"reminders"?: NonNullable<Json>,"requires_admin_approval"?: boolean,"requires_partial_reason"?: boolean,"requires_photo_proof"?: boolean,"rrule"?: string | null,"schedule_type"?: Database["public"]['Enums']["schedule_type"],"start_at"?: string | null,"timezone"?: string,"title"?: string,"visibility"?: Database["public"]['Enums']["task_visibility"]
+                    "archived_at"?: string | null,"assignee_id"?: string,"context_id"?: string,"created_at"?: string,"created_by"?: string | null,"difficulty"?: Database["public"]['Enums']["task_difficulty"],"due_at"?: string | null,"duration_min"?: number | null,"exdates"?: (string)[],"group_id"?: string | null,"id"?: string,"materialized_until"?: string | null,"notes"?: string | null,"parent_task_id"?: string | null,"priority"?: Database["public"]['Enums']["task_priority"],"proof_flags_locked"?: boolean,"reminders"?: NonNullable<Json>,"requires_admin_approval"?: boolean,"requires_partial_reason"?: boolean,"requires_photo_proof"?: boolean,"rrule"?: string | null,"schedule_type"?: Database["public"]['Enums']["schedule_type"],"start_at"?: string | null,"timezone"?: string,"title"?: string,"visibility"?: Database["public"]['Enums']["task_visibility"]
                   }
                   Relationships: [
                     {
@@ -490,6 +530,9 @@ isOneToOne: false
                            },
 "commit_proof":
 { Args: { "p_accuracy_m": number,"p_app_version": string,"p_captured_at_device": string,"p_distance_m": number,"p_flags": (string)[],"p_height_px": number,"p_nonce": string,"p_platform": string,"p_sha256": string,"p_size_bytes": number,"p_storage_path": string,"p_user_agent": string,"p_user_id": string,"p_width_px": number }; Returns: Json
+                           },
+"delete_expired_proof_records":
+{ Args: { "p_limit": number }; Returns: number
                            },
 "delete_stale_proof_challenges":
 { Args: Record<PropertyKey, never>; Returns: number

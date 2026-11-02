@@ -6,3 +6,4 @@ export * from './recurrence';
 export * from './tasks';
 export * from './occurrence-transitions';
 export * from './proof';
+export * from './notifications';

@@ -236,7 +236,7 @@ Fora da regra, de propósito: cancelar e criar outra tarefa, ou duplicar. Cancel
 
 ### 13. Pendências para a Fase 4
 
-Decisão do orquestrador: o contrato e a config ficam como estão até lá.
+Decisão do orquestrador: o contrato e a config ficam como estão até lá. Resolvidas no [ADR-0008](0008-notificacoes-push-pwa-vermelho-automatico.md), seção 12.
 
 - `materializeResponseSchema` ganha `failed` e `deferred`. Até lá, a função devolve só `inserted`, com status 200 mesmo se uma tarefa falhou, então a tela não sabe da falha nem do que ficou para a próxima execução.
 - `taskDefaults.materializationPastDays` substitui a constante local `PAST_DAYS` da função.

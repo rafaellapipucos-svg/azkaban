@@ -23,3 +23,20 @@ describe('parseClientEnv', () => {
     ).toThrow();
   });
 });
+
+describe('EXPO_PUBLIC_VAPID_PUBLIC_KEY', () => {
+  const key = `B${'a'.repeat(86)}`;
+  const vapid = (value: string) =>
+    parseClientEnv({ ...valid, EXPO_PUBLIC_VAPID_PUBLIC_KEY: value }).EXPO_PUBLIC_VAPID_PUBLIC_KEY;
+
+  it('is optional, and an empty value counts as absent', () => {
+    expect(parseClientEnv(valid).EXPO_PUBLIC_VAPID_PUBLIC_KEY).toBeUndefined();
+    expect(vapid('')).toBeUndefined();
+    expect(vapid(key)).toBe(key);
+  });
+
+  // A VAPID private key is 43 characters: pasting it here must fail, never ship.
+  it.each(['a'.repeat(43), `${key}=`, `A${'a'.repeat(86)}`])('refuses %s', (value) => {
+    expect(() => vapid(value)).toThrow();
+  });
+});

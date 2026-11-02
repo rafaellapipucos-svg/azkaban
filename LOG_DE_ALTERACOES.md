@@ -852,3 +852,25 @@
 - **Verificado:** estado lido do git às 11:57: árvore limpa, HEAD `2935b7a`, `fix/proof-task-rules` em `18ca79f` (WIP, não integrado).
 - **Não verificado:** nenhuma suíte rodou nesta entrada. A Fase 3 não foi verificada no estado integrado e não tem push.
 - **Pendências / próximos passos:** as da seção 3 do handoff.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:21 (BRT)
+
+- **Branch:** feat/notifications-contracts, criada a partir de feat/phase-3-proof (b88ab87)
+- **Agente(s):** arquiteto
+- **Resumo:** abre a Fase 4. ADR-0008 decide notificações (sino, outbox, preferências, horário de silêncio, Web Push com VAPID, PWA e service worker, iPhone), o job de vermelho automático, o encaixe do WhatsApp da Fase 5, a resposta da materialização (F4-8) e a casca web (F4-9). Contratos e regras publicados; nenhuma migration, função ou tela.
+- **Alterações:**
+  - `docs/adr/0008-notificacoes-push-pwa-vermelho-automatico.md`: novo.
+  - `packages/contracts/src/notifications.ts` e `notifications.test.ts`: tipos, canais, preferências, horário de silêncio, item do sino por tipo, inscrição e aparelho de push, payload do push com teto de bytes e caminho interno, código `push_endpoint_not_allowed`.
+  - `packages/contracts/src/tasks.ts`: `materializeResponseSchema` ganha `failed` e `deferred`, com padrão 0 só para ler uma função antiga.
+  - `packages/config/src/notifications.ts`: `notificationRules` (espelho previsto em `app_settings.notification_rules`) e `notificationDefaults`.
+  - `packages/config/src/tasks.ts`: `taskRules.autoMissJob`, `taskDefaults.materializationPastDays` e `materializeMaxFollowUps`.
+  - `packages/config/src/env.ts`: `EXPO_PUBLIC_VAPID_PUBLIC_KEY` opcional, vazio conta como ausente; as chaves obrigatórias continuam exigidas pelo tipo.
+  - ADR-0005, seção 13, aponta para o ADR-0008; ADR-0006 registra `anchor` e `BackHeader`; `docs/arquitetura.md` ganha a seção Notificações.
+  - Cinco handoffs `20261102-1220-arquiteto-para-*`.
+- **Arquivos/módulos principais:** `docs/adr/0008-*`, `packages/contracts/src/notifications.ts`, `packages/config/src/notifications.ts`
+- **Migrations:** nenhuma. Especificadas para `banco-de-dados`.
+- **Decisões/ADRs:** ADR-0008. O sino é a linha de `notifications`, sem título, lido pela RLS; canais externos por outbox única por notificação e canal. Lembretes por varredura SQL a cada minuto, não gravados com antecedência. Silêncio no despacho, no fuso do perfil, com exceção para lembrete de tarefa marcada dentro da janela. Endpoint de push só em hosts da lista. 403 do push não apaga a inscrição. Vermelho automático em SQL, por `auto_miss_at`, com carência de 60 minutos depois de mudar o status; F4-6 passa a `banco-de-dados`. `failed` e `deferred` com status 200. Manifest e `index.html` próprios em `apps/app/public`, `theme-color` por `media`, título por `Screen.title` e `role="main"`.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou. Testes de `packages/contracts` (44, 17 novos) e `packages/config` (7, 4 novos).
+- **Não verificado:** nada rodou na pilha. Que o Expo 58 use `apps/app/public/index.html` como modelo em `output: 'single'` foi lido no código do CLI, sem build. Que o Chrome não exija `fetch` no service worker para instalar não foi conferido. Hosts de push da lista vêm de conhecimento, não de teste com cada navegador. `pnpm db:check-permissions` vai acusar `task_rules` até a migration de F4-1.
+- **Pendências / próximos passos:** `banco-de-dados` (F4-1 e F4-6) primeiro; `backend-funcoes` F4-8 já, F4-2 depois de F4-1; `notificacoes-whatsapp` core, i18n e F4-9 já, o resto depois de F4-1; `tarefas-calendario` e `design-system` nos encaixes. Orquestrador: F4-6 muda de dono no QUADRO; pedir a `auth-grupos` o `PushSetupCard` no onboarding. Humano: os sete padrões da seção 16 do ADR-0008.

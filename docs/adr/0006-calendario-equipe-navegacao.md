@@ -56,6 +56,7 @@ Isto substitui o paliativo do ADR-0004, em que as áreas viviam como chips na te
 - Grupos sai da barra e entra em Perfil.
 - Equipe fica na página do grupo, só para quem tem `task.view_group`.
 - Como features não se importam, as rotas compõem as entradas: `ProfileScreen` e `GroupDetailScreen` recebem `children`, e a rota passa o link da outra feature.
+- Uma tela de pilha aberta por endereço, como a de uma notificação, tem as abas por baixo (`unstable_settings = { anchor: '(tabs)' }`) e o cabeçalho próprio `BackHeader`, com "Voltar" de 44 px e sem título vazio. Documento, título por tela e marcos de página estão no [ADR-0008](0008-notificacoes-push-pwa-vermelho-automatico.md), seção 13.
 
 ## Alternativas
 

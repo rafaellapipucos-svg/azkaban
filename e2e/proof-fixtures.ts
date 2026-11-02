@@ -189,6 +189,28 @@ export async function reviewProof(
   assert.ifError(error);
 }
 
+/**
+ * pg_cron runs `auto_miss_occurrences` every 5 minutes in the local stack too, and
+ * `notifications-jobs.spec.ts` calls it directly: either turns a past pending occurrence red in the
+ * middle of a test that needs it pending. This gives the signed-in user's past pending occurrences
+ * the job's reopen grace (`taskRules.autoMissJob.reopenGraceMinutes`). Call it right after creating them.
+ */
+export async function shieldFromAutoMiss(page: Page) {
+  const { origins } = await page.context().storageState();
+  const session = origins
+    .flatMap((o) => o.localStorage)
+    .find(({ name }) => /^sb-.+-auth-token$/.test(name));
+  assert.ok(session, 'no session in the page');
+  const userId = JSON.parse(session.value).user.id as string;
+  const { error } = await admin
+    .from('task_occurrences')
+    .update({ status_changed_at: new Date().toISOString() })
+    .eq('assignee_id', userId)
+    .eq('status', 'pending')
+    .lte('auto_miss_at', new Date().toISOString());
+  assert.ifError(error);
+}
+
 export async function currentProofId(occurrenceId: string): Promise<string> {
   const { data, error } = await admin
     .from('task_occurrences')

@@ -3,6 +3,7 @@
     "take": "Tirar a foto para concluir",
     "offline": "Sem conexão, não dá para enviar a foto. A prova é validada na hora, então ela não fica guardada para depois."
   },
+  "screenTitle": "Prova por foto",
   "loading": "Carregando…",
   "back": "Voltar à tarefa",
   "retry": "Tentar de novo",

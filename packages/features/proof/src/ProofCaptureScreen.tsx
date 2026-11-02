@@ -249,8 +249,15 @@ export function ProofCaptureScreen({ occurrenceId }: { occurrenceId: string }) {
 
   // A photo already taken waits on its screen. Everything before it needs the connection.
   const before = !['confirm', 'sending', 'done', 'stopped', 'expired'].includes(stage.name);
+  // Never the task's title: the document title lands in the browser history.
+  const screenTitle =
+    stage.name === 'confirm' || stage.name === 'sending'
+      ? t('confirm.title')
+      : stage.name === 'done'
+        ? t('done.title')
+        : t('screenTitle');
   return (
-    <Screen>
+    <Screen title={screenTitle}>
       <Title>{taskTitle ?? t('loading')}</Title>
       {before && !online ? (
         <>

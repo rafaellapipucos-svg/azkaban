@@ -25,7 +25,7 @@ import {
 } from '@azkaban/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { tasksConfig } from './config';
 import { useNow } from './hooks';
@@ -166,9 +166,10 @@ function MemberCard({
 
 /**
  * The team view of a group: each member's week, day by day, and their completion rate. Only for
- * people with `task.view_group` in that group; the database refuses everyone else too.
+ * people with `task.view_group` in that group; the database refuses everyone else too. `children`
+ * are entry points of other modules, composed by the route (ADR-0006).
  */
-export function TeamScreen({ groupId }: { groupId: string }) {
+export function TeamScreen({ groupId, children }: { groupId: string; children?: ReactNode }) {
   const { t, i18n } = useTranslation('tasks');
   const router = useRouter();
   const now = useNow();
@@ -226,6 +227,7 @@ export function TeamScreen({ groupId }: { groupId: string }) {
         <Title>{t('team.title')}</Title>
         <Muted>{group.name}</Muted>
       </View>
+      {children}
 
       <View style={{ gap: tokens.spacing[2] }} className="flex-row items-center">
         <IconButton

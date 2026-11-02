@@ -874,6 +874,28 @@
 - **Não verificado:** **E2E pendente**, nem executada, porque a pilha local estava em uso por outro agente. Telas não conferidas em 375px e 1280px, claro e escuro. Nada em iOS ou Android, inclusive as cores do carimbo nativo.
 - **Pendências / próximos passos:** rodar `pnpm e2e` e conferir as telas quando a pilha liberar. Item 3 do QA (`proof-current` em `useStatusChange`) e a parte do formulário do item 7 com `tarefas-calendario`, no handoff `20261102-1215-prova-foto-para-tarefas-calendario-achados-do-qa`. A versão 2 do banco já está na base, então até esta branch entrar o app mostra o aviso velho a quem aceita a versão 2.
 
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:21 (BRT)
+
+- **Branch:** feat/notifications-contracts, criada a partir de feat/phase-3-proof (b88ab87)
+- **Agente(s):** arquiteto
+- **Resumo:** abre a Fase 4. ADR-0008 decide notificações (sino, outbox, preferências, horário de silêncio, Web Push com VAPID, PWA e service worker, iPhone), o job de vermelho automático, o encaixe do WhatsApp da Fase 5, a resposta da materialização (F4-8) e a casca web (F4-9). Contratos e regras publicados; nenhuma migration, função ou tela.
+- **Alterações:**
+  - `docs/adr/0008-notificacoes-push-pwa-vermelho-automatico.md`: novo.
+  - `packages/contracts/src/notifications.ts` e `notifications.test.ts`: tipos, canais, preferências, horário de silêncio, item do sino por tipo, inscrição e aparelho de push, payload do push com teto de bytes e caminho interno, código `push_endpoint_not_allowed`.
+  - `packages/contracts/src/tasks.ts`: `materializeResponseSchema` ganha `failed` e `deferred`, com padrão 0 só para ler uma função antiga.
+  - `packages/config/src/notifications.ts`: `notificationRules` (espelho previsto em `app_settings.notification_rules`) e `notificationDefaults`.
+  - `packages/config/src/tasks.ts`: `taskRules.autoMissJob`, `taskDefaults.materializationPastDays` e `materializeMaxFollowUps`.
+  - `packages/config/src/env.ts`: `EXPO_PUBLIC_VAPID_PUBLIC_KEY` opcional, vazio conta como ausente; as chaves obrigatórias continuam exigidas pelo tipo.
+  - ADR-0005, seção 13, aponta para o ADR-0008; ADR-0006 registra `anchor` e `BackHeader`; `docs/arquitetura.md` ganha a seção Notificações.
+  - Cinco handoffs `20261102-1220-arquiteto-para-*`.
+- **Arquivos/módulos principais:** `docs/adr/0008-*`, `packages/contracts/src/notifications.ts`, `packages/config/src/notifications.ts`
+- **Migrations:** nenhuma. Especificadas para `banco-de-dados`.
+- **Decisões/ADRs:** ADR-0008. O sino é a linha de `notifications`, sem título, lido pela RLS; canais externos por outbox única por notificação e canal. Lembretes por varredura SQL a cada minuto, não gravados com antecedência. Silêncio no despacho, no fuso do perfil, com exceção para lembrete de tarefa marcada dentro da janela. Endpoint de push só em hosts da lista. 403 do push não apaga a inscrição. Vermelho automático em SQL, por `auto_miss_at`, com carência de 60 minutos depois de mudar o status; F4-6 passa a `banco-de-dados`. `failed` e `deferred` com status 200. Manifest e `index.html` próprios em `apps/app/public`, `theme-color` por `media`, título por `Screen.title` e `role="main"`.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou. Testes de `packages/contracts` (44, 17 novos) e `packages/config` (7, 4 novos).
+- **Não verificado:** nada rodou na pilha. Que o Expo 58 use `apps/app/public/index.html` como modelo em `output: 'single'` foi lido no código do CLI, sem build. Que o Chrome não exija `fetch` no service worker para instalar não foi conferido. Hosts de push da lista vêm de conhecimento, não de teste com cada navegador. `pnpm db:check-permissions` vai acusar `task_rules` até a migration de F4-1.
+- **Pendências / próximos passos:** `banco-de-dados` (F4-1 e F4-6) primeiro; `backend-funcoes` F4-8 já, F4-2 depois de F4-1; `notificacoes-whatsapp` core, i18n e F4-9 já, o resto depois de F4-1; `tarefas-calendario` e `design-system` nos encaixes. Orquestrador: F4-6 muda de dono no QUADRO; pedir a `auth-grupos` o `PushSetupCard` no onboarding. Humano: os sete padrões da seção 16 do ADR-0008.
+
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:28 (BRT)
 
 - **Branch:** fix/proof-task-rules-final, a partir do WIP `18ca79f` de fix/proof-task-rules, sobre feat/phase-3-proof (2935b7a)
@@ -899,43 +921,6 @@
 - **Verificado:** `pnpm check` passou, com 505 testes em core. `pnpm db:test` 1004 de 1004. `pnpm functions:test` 85 de 85, sem `functions serve`. `pnpm e2e` 56 de 56, sem `test.fail` nem `retries`. Mutações, todas pegas e revertidas: em core, `proofFlagsLocked` ignorando a trava, `deleter` ignorando a trava, revisor sem `proof.review` e revisor igual ao autor; na E2E da trava, interruptor da foto destravado, de privada destravado e `deleter` ignorando a trava; tirar o `cancelQueries` (B4) e tirar `proof-current` (B5) fizeram os testes deles falharem.
 - **Não verificado:** nada rodou no projeto hospedado nem no CI. A barreira do servidor (`edit_task`, `can_delete_task`) não foi mutada aqui: é do `banco-de-dados` e coberta por `db:test`. A segunda asserção do teste de B4 roda logo depois de a resposta velha chegar, e pode passar antes de um render atrasado.
 - **Pendências / próximos passos:** B2 é só o link, sem contagem de provas aguardando. `prova-foto` segue com B6 a B8 e o aviso `consentVersion` 2.
-
-### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:41 (BRT)
-
-- **Branch:** fix/proof-consent-v2-check, criada a partir de feat/phase-3-proof (1e9add4)
-- **Agente(s):** prova-foto
-- **Resumo:** segunda etapa da entrada de 12:16: E2E e telas conferidas no estado integrado, e `ProofQueueBar` removido.
-- **Alterações:**
-  - `ProofQueueBar` saiu de `ProofEntry.tsx` e do index. Na integração, a Equipe ficou com `ProofQueueLink` dentro de `TeamScreen` (ADR-0006), e o link fica bem alinhado à coluna sem moldura extra.
-- **Arquivos/módulos principais:** `packages/features/proof/src/ProofEntry.tsx`, `packages/features/proof/src/index.ts`
-- **Migrations:** nenhuma
-- **Decisões/ADRs:** nenhuma.
-- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`, `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm e2e`, `pnpm db:test`.
-- **Verificado:** `pnpm check` passou. `pnpm e2e` 58 de 58 numa só execução, já sem nenhum `test.fail()`, incluindo os testes novos do aviso, da dobra e da prova de tarefa excluída aprovada pela Equipe. `pnpm db:test` 1004 de 1004. Telas por capturas do Chrome com câmera falsa, em 375x812 e 1280x800, claro e escuro: aviso com as sete frases e 90 e 365 dias; quadrado da câmera e "Tirar foto" inteiros na janela nas duas larguras (400 px de quadrado em 1280x800); "Confira a foto" e revisão com o carimbo inteiro, "Duda" sem corte; revisão com o aviso da web; Equipe com "Revisar fotos" para o dono.
-- **Não verificado:** a linha "Enviada pelo navegador" foi conferida pela E2E, não por captura, porque fica abaixo da dobra. Nada em iOS ou Android. Nada no projeto hospedado nem no CI. `pnpm functions:test` não rodou.
-- **Pendências / próximos passos:** nenhuma minha na prova. Base legal e contato de privacidade seguem com o humano.
-
-### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:21 (BRT)
-
-- **Branch:** feat/notifications-contracts, criada a partir de feat/phase-3-proof (b88ab87)
-- **Agente(s):** arquiteto
-- **Resumo:** abre a Fase 4. ADR-0008 decide notificações (sino, outbox, preferências, horário de silêncio, Web Push com VAPID, PWA e service worker, iPhone), o job de vermelho automático, o encaixe do WhatsApp da Fase 5, a resposta da materialização (F4-8) e a casca web (F4-9). Contratos e regras publicados; nenhuma migration, função ou tela.
-- **Alterações:**
-  - `docs/adr/0008-notificacoes-push-pwa-vermelho-automatico.md`: novo.
-  - `packages/contracts/src/notifications.ts` e `notifications.test.ts`: tipos, canais, preferências, horário de silêncio, item do sino por tipo, inscrição e aparelho de push, payload do push com teto de bytes e caminho interno, código `push_endpoint_not_allowed`.
-  - `packages/contracts/src/tasks.ts`: `materializeResponseSchema` ganha `failed` e `deferred`, com padrão 0 só para ler uma função antiga.
-  - `packages/config/src/notifications.ts`: `notificationRules` (espelho previsto em `app_settings.notification_rules`) e `notificationDefaults`.
-  - `packages/config/src/tasks.ts`: `taskRules.autoMissJob`, `taskDefaults.materializationPastDays` e `materializeMaxFollowUps`.
-  - `packages/config/src/env.ts`: `EXPO_PUBLIC_VAPID_PUBLIC_KEY` opcional, vazio conta como ausente; as chaves obrigatórias continuam exigidas pelo tipo.
-  - ADR-0005, seção 13, aponta para o ADR-0008; ADR-0006 registra `anchor` e `BackHeader`; `docs/arquitetura.md` ganha a seção Notificações.
-  - Cinco handoffs `20261102-1220-arquiteto-para-*`.
-- **Arquivos/módulos principais:** `docs/adr/0008-*`, `packages/contracts/src/notifications.ts`, `packages/config/src/notifications.ts`
-- **Migrations:** nenhuma. Especificadas para `banco-de-dados`.
-- **Decisões/ADRs:** ADR-0008. O sino é a linha de `notifications`, sem título, lido pela RLS; canais externos por outbox única por notificação e canal. Lembretes por varredura SQL a cada minuto, não gravados com antecedência. Silêncio no despacho, no fuso do perfil, com exceção para lembrete de tarefa marcada dentro da janela. Endpoint de push só em hosts da lista. 403 do push não apaga a inscrição. Vermelho automático em SQL, por `auto_miss_at`, com carência de 60 minutos depois de mudar o status; F4-6 passa a `banco-de-dados`. `failed` e `deferred` com status 200. Manifest e `index.html` próprios em `apps/app/public`, `theme-color` por `media`, título por `Screen.title` e `role="main"`.
-- **Como testar:** `pnpm check`.
-- **Verificado:** `pnpm check` passou. Testes de `packages/contracts` (44, 17 novos) e `packages/config` (7, 4 novos).
-- **Não verificado:** nada rodou na pilha. Que o Expo 58 use `apps/app/public/index.html` como modelo em `output: 'single'` foi lido no código do CLI, sem build. Que o Chrome não exija `fetch` no service worker para instalar não foi conferido. Hosts de push da lista vêm de conhecimento, não de teste com cada navegador. `pnpm db:check-permissions` vai acusar `task_rules` até a migration de F4-1.
-- **Pendências / próximos passos:** `banco-de-dados` (F4-1 e F4-6) primeiro; `backend-funcoes` F4-8 já, F4-2 depois de F4-1; `notificacoes-whatsapp` core, i18n e F4-9 já, o resto depois de F4-1; `tarefas-calendario` e `design-system` nos encaixes. Orquestrador: F4-6 muda de dono no QUADRO; pedir a `auth-grupos` o `PushSetupCard` no onboarding. Humano: os sete padrões da seção 16 do ADR-0008.
 
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:34 (BRT)
 
@@ -976,6 +961,21 @@
 - **Verificado:** `pnpm check` passou: core 511 (11 novos de `buildPushPayload`), app 6 (novos), contracts 44, platform 38, config 7, ui 7, data 7, proof 6. `pnpm build:web`: `dist/index.html` saiu do modelo próprio, com `lang="pt-BR"`, título `Azkaban`, as duas `theme-color`, manifest e `apple-touch-icon`, e o Expo acrescentou favicon, CSS e scripts; `sw.js`, manifest, ícones, `_headers` e `_redirects` saíram iguais na raiz de `dist`. Uma mutação (não mostrar nada sem payload legível) foi pega pelo teste do `sw.js`.
 - **Não verificado:** nada no navegador: manifest sem erro e instalável no DevTools, `theme-color` na barra, `sw.js` registrado (o registro é de F4-4), `document.title` mudando por tela (nenhuma tela passa `title` ainda; depende de `Screen.title` de `design-system`), e se o Chrome aceita instalar sem `fetch`. Netlify não foi exercitado. A pilha Supabase e a E2E não rodaram, por ordem do orquestrador.
 - **Pendências / próximos passos:** F4-3, F4-4, F4-5 e F4-7 depois de F4-1. `design-system`: `Screen` chama `useDocumentTitle(title)` de `@azkaban/platform`, que exige estar dentro de um navegador do expo-router. `backend-funcoes`: o `t` passado a `buildPushPayload` precisa seguir o plural do i18next (`count` com `_one`/`_other`) no namespace `notifications`. O nome do app se repete no manifest e no `sw.js`, além do `app.config.ts`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:41 (BRT)
+
+- **Branch:** fix/proof-consent-v2-check, criada a partir de feat/phase-3-proof (1e9add4)
+- **Agente(s):** prova-foto
+- **Resumo:** segunda etapa da entrada de 12:16: E2E e telas conferidas no estado integrado, e `ProofQueueBar` removido.
+- **Alterações:**
+  - `ProofQueueBar` saiu de `ProofEntry.tsx` e do index. Na integração, a Equipe ficou com `ProofQueueLink` dentro de `TeamScreen` (ADR-0006), e o link fica bem alinhado à coluna sem moldura extra.
+- **Arquivos/módulos principais:** `packages/features/proof/src/ProofEntry.tsx`, `packages/features/proof/src/index.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`, `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm e2e`, `pnpm db:test`.
+- **Verificado:** `pnpm check` passou. `pnpm e2e` 58 de 58 numa só execução, já sem nenhum `test.fail()`, incluindo os testes novos do aviso, da dobra e da prova de tarefa excluída aprovada pela Equipe. `pnpm db:test` 1004 de 1004. Telas por capturas do Chrome com câmera falsa, em 375x812 e 1280x800, claro e escuro: aviso com as sete frases e 90 e 365 dias; quadrado da câmera e "Tirar foto" inteiros na janela nas duas larguras (400 px de quadrado em 1280x800); "Confira a foto" e revisão com o carimbo inteiro, "Duda" sem corte; revisão com o aviso da web; Equipe com "Revisar fotos" para o dono.
+- **Não verificado:** a linha "Enviada pelo navegador" foi conferida pela E2E, não por captura, porque fica abaixo da dobra. Nada em iOS ou Android. Nada no projeto hospedado nem no CI. `pnpm functions:test` não rodou.
+- **Pendências / próximos passos:** nenhuma minha na prova. Base legal e contato de privacidade seguem com o humano.
 
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:43 (BRT)
 

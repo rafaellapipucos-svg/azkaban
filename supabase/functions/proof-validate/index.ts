@@ -14,7 +14,7 @@ import {
 } from '@azkaban/contracts';
 import { z } from 'zod';
 import { responder, serviceClient, signedInUser } from '../_shared/http.ts';
-import { readLimited } from './body.ts';
+import { readLimited } from '../_shared/body.ts';
 import { clockMismatch, inRange, inspectJpeg, judgeLocation, toHex } from './checks.ts';
 
 const BUCKET = 'task-proofs';

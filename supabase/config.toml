@@ -405,6 +405,10 @@ verify_jwt = true
 [functions.proof-retention]
 verify_jwt = false
 
+# Notifications (ADR-0008). Cron only, with `x-cron-secret`, like proof-retention.
+[functions.dispatch-notifications]
+verify_jwt = false
+
 # Off: it costs about 600 MB, and its vector container restarted in a loop. Function logs do not depend
 # on it: `docker logs supabase_edge_runtime_azkaban`.
 [analytics]

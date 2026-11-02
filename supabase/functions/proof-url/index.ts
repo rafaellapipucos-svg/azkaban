@@ -7,7 +7,7 @@ import { proofDefaults, proofRules } from '@azkaban/config';
 import { proofUrlInputSchema, proofUrlSchema, type ProofErrorCode } from '@azkaban/contracts';
 import { createClient } from '@supabase/supabase-js';
 import { clientOptions, responder, serviceClient, signedInUser } from '../_shared/http.ts';
-import { readLimited } from '../proof-validate/body.ts';
+import { readLimited } from '../_shared/body.ts';
 
 const BUCKET = 'task-proofs';
 const MAX_BODY_BYTES = 1024;

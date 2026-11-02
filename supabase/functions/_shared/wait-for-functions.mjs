@@ -3,7 +3,13 @@
 // preflight of each function until it answers boots a fresh worker, so the first real request of a
 // test does not pay for it.
 const api = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54421';
-const names = ['materialize-occurrences', 'proof-validate', 'proof-url', 'proof-retention'];
+const names = [
+  'materialize-occurrences',
+  'proof-validate',
+  'proof-url',
+  'proof-retention',
+  'dispatch-notifications',
+];
 
 for (const name of names) {
   let status = 0;

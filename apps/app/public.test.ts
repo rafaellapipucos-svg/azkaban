@@ -27,6 +27,18 @@ describe('public files', () => {
     expect(manifest.background_color).toBe(background);
     expect(manifest.theme_color).toBe(background);
   });
+
+  it('send the security headers on every route (ADR-0008, section 17)', () => {
+    const blocks = file('_headers')
+      .replace(/\r/g, '')
+      .split(/\n(?=\S)/);
+    const all = blocks.find((block) => block.startsWith('/*\n'));
+    expect(all).toContain(
+      "  Content-Security-Policy: frame-ancestors 'none'; object-src 'none'; base-uri 'self'",
+    );
+    expect(all).toContain('  X-Content-Type-Options: nosniff');
+    expect(all).toContain('  Referrer-Policy: strict-origin-when-cross-origin');
+  });
 });
 
 type Listener = (event: Record<string, unknown>) => void;
@@ -90,6 +102,26 @@ describe('sw.js', () => {
       }),
     ]);
     expect(calls[1]?.[1]).toMatchObject({ data: { url: '/' } });
+  });
+
+  it('opens only a path of its own origin, even one the URL parser would rewrite', async () => {
+    const worker = loadWorker();
+    const urls = [
+      '/\t/evil.com',
+      '/\n/evil.com',
+      '/\r/evil.com',
+      '//evil.com',
+      '/\\evil.com',
+      `/${'a'.repeat(200)}`,
+      '/tasks/1/proof',
+    ];
+    for (const url of urls) {
+      await worker.fire('push', pushOf({ v: 1, title: 'x', url }));
+    }
+    const opened = (worker.self.registration.showNotification.mock.calls as unknown[][]).map(
+      (call) => (call[1] as { data: { url: string } }).data.url,
+    );
+    expect(opened).toEqual(['/', '/', '/', '/', '/', '/', '/tasks/1/proof']);
   });
 
   it('always shows something, even for a payload it cannot read', async () => {

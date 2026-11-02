@@ -1,4 +1,4 @@
-export { forgetThisDevice } from './device';
+export { forgetThisDevice, stopPushWhenSignedOut } from './device';
 export { NotificationBell } from './NotificationBell';
 export { NotificationPreferencesScreen } from './NotificationPreferencesScreen';
 export { NotificationsScreen } from './NotificationsScreen';

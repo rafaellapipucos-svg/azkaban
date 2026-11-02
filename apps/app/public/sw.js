@@ -5,9 +5,19 @@
 // Shown only when a payload cannot be read. Repeats the provisional name of manifest.webmanifest.
 const appName = 'Azkaban';
 
-// Same rule as `safeInternalPath` in core: a path of the app, never another origin.
-const internalPath = (path) =>
-  typeof path === 'string' && /^\/[^/\\][^\\]*$/.test(path) && path.length <= 200 ? path : '/';
+// Same rule as `internalPathSchema` in the contracts, and then the same origin once resolved: the URL
+// parser drops tab and line breaks, so a rule on the text alone is not enough (ADR-0008, section 17).
+function internalPath(path) {
+  if (
+    typeof path !== 'string' ||
+    path.length > 200 ||
+    !/^\/[^/\\\p{Cc}][^\\\p{Cc}]*$/u.test(path)
+  ) {
+    return '/';
+  }
+  const url = new URL(path, self.location.origin);
+  return url.origin === self.location.origin ? url.pathname + url.search + url.hash : '/';
+}
 
 function read(data) {
   try {

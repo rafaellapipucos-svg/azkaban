@@ -1,4 +1,4 @@
-import { notificationErrorCode, notificationsRepository } from '@azkaban/data';
+import { authRepository, notificationErrorCode, notificationsRepository } from '@azkaban/data';
 import {
   currentPushSubscription,
   storage,
@@ -75,6 +75,23 @@ export async function syncThisDevice(userId: string, vapidPublicKey: string) {
   if (!subscription) return;
   const deviceId = await notificationsRepository.registerDevice(subscription);
   if (deviceId !== device.deviceId) await remember({ userId, deviceId });
+}
+
+/**
+ * Call once at start. A session that ends without the Sign out button (expired, revoked elsewhere,
+ * storage cleared) stops push here too (ADR-0008, section 17, SEG4-8). Without a session the row
+ * stays, but the endpoint dies: the push service answers 410 and the dispatch deletes it.
+ */
+export function stopPushWhenSignedOut() {
+  return authRepository.onSessionChange((session) => {
+    if (session) return;
+    // No Supabase call in here: one inside onAuthStateChange can wait on the auth lock forever.
+    void (async () => {
+      if (!(await read())) return;
+      await unsubscribePush().catch(() => undefined);
+      await clear();
+    })().catch(() => undefined);
+  });
 }
 
 /** Stops push in this browser and deletes its row. Call it before signing out, with the session alive. */

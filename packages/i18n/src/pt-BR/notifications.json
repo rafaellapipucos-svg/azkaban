@@ -48,7 +48,13 @@
     "title": "Avisos",
     "empty": "Nenhum aviso por aqui.",
     "markAll": "Marcar todos como lidos",
-    "unread": "Não lido"
+    "unread": "Não lido",
+    "load": "Não deu para carregar os avisos.",
+    "loading": "Carregando…",
+    "retry": "Tentar de novo"
+  },
+  "toast": {
+    "dismiss": "Fechar aviso"
   },
   "types": {
     "task_reminder": "Lembretes das suas tarefas",
@@ -69,14 +75,25 @@
       "hint": "Nesse horário o aparelho não toca. Lembrete de tarefa marcada para dentro do silêncio toca mesmo assim.",
       "start": "Começa às",
       "end": "Termina às",
-      "none": "Sem horário de silêncio"
+      "none": "Sem horário de silêncio",
+      "timezone": "No fuso do seu perfil ({{timezone}}).",
+      "same": "O começo e o fim precisam ser diferentes.",
+      "time": "Use o formato 22:00.",
+      "save": "Salvar horário",
+      "saved": "Horário salvo."
     },
+    "load": "Não deu para carregar as preferências.",
+    "saveFailed": "Não deu para salvar. Tente de novo.",
     "devices": {
       "title": "Aparelhos que recebem",
       "empty": "Nenhum aparelho recebe notificações ainda.",
       "unknown": "Aparelho sem nome",
       "remove": "Parar de receber neste aparelho",
-      "lastSuccess": "Último aviso em {{date}}"
+      "lastSuccess": "Último aviso em {{date}}",
+      "thisDevice": "Este aparelho",
+      "name": "{{browser}} · {{system}}",
+      "added": "Ativado em {{date}}",
+      "removeFailed": "Não deu para remover. Tente de novo."
     }
   },
   "setup": {
@@ -86,6 +103,7 @@
     "enabled": "Este aparelho recebe notificações.",
     "denied": "As notificações estão bloqueadas. Libere nas configurações do navegador ou do aparelho.",
     "unsupported": "Este navegador não recebe notificações. O sino continua funcionando.",
+    "failed": "Não deu para ativar agora. Tente de novo.",
     "ios": {
       "title": "No iPhone e no iPad",
       "steps": "Toque em Compartilhar, depois em \"Adicionar à Tela de Início\". Abra o app pelo ícone novo e ative as notificações por lá.",

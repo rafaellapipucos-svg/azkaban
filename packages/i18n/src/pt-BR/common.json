@@ -1,4 +1,5 @@
 {
+  "documentTitle": "{{screen}} · {{app}}",
   "status": {
     "pending": "Pendente",
     "done": "Feito",

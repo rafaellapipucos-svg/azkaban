@@ -96,7 +96,12 @@ export {
   type DaySummary,
   type DayTimeline,
 } from './tasks/calendarDay';
-export { materializationNeed, type MaterializeNeed } from './tasks/calendarMaterialize';
+export {
+  materializationNeed,
+  materializeWithFollowUps,
+  type MaterializeCounts,
+  type MaterializeNeed,
+} from './tasks/calendarMaterialize';
 export {
   dayTone,
   teamOverview,

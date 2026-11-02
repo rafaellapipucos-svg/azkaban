@@ -4,6 +4,7 @@
     "home": "Doméstico"
   },
   "list": {
+    "title": "Contextos",
     "areaLabel": "Área",
     "contextLabel": "Contexto",
     "all": "Todos",

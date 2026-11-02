@@ -203,10 +203,10 @@ export function TeamScreen({ groupId, children }: { groupId: string; children?: 
     [overview.data, members.data, today],
   );
 
-  if (!ready) return <Screen>{null}</Screen>;
+  if (!ready) return <Screen title={t('team.title')}>{null}</Screen>;
   if (!allowed) {
     return (
-      <Screen>
+      <Screen title={t('team.title')}>
         <EmptyState text={t('team.forbidden')} />
       </Screen>
     );
@@ -222,7 +222,7 @@ export function TeamScreen({ groupId, children }: { groupId: string; children?: 
     });
 
   return (
-    <Screen>
+    <Screen title={t('team.title')}>
       <View>
         <Title>{t('team.title')}</Title>
         <Muted>{group.name}</Muted>

@@ -1,5 +1,5 @@
 import { taskDefaults } from '@azkaban/config';
-import { dayRange, materializationNeed } from '@azkaban/core';
+import { dayRange, materializationNeed, materializeWithFollowUps } from '@azkaban/core';
 import { tasksRepository } from '@azkaban/data';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
@@ -67,8 +67,10 @@ export function useCalendarOccurrences({
 
 /**
  * Browsing past the window the daily job keeps asks the Edge Function for more occurrences, once
- * per range, and reloads the calendar if it created any. A failure changes nothing on screen: the
- * calendar shows what exists. `capped` tells the screen the view reaches past what can be asked.
+ * per range, calling again while it defers work (ADR-0008, section 12), and reloads the calendar if
+ * it created any. A failed call changes nothing on screen: the calendar shows what exists. Tasks the
+ * function answers as `failed` set `failed`, for the screen to offer `retry`. `capped` tells the
+ * screen the view reaches past what can be asked.
  */
 export function useMaterializeAhead({
   last,
@@ -89,16 +91,24 @@ export function useMaterializeAhead({
     windowDays: taskDefaults.materializationWindowDays,
     maxDays: taskDefaults.onDemandMaxDays,
   });
-  useQuery({
+  const query = useQuery({
     queryKey: ['materialize', need.until],
     queryFn: async () => {
-      const inserted = await tasksRepository.materializeUntil(need.until!);
-      if (inserted > 0) await queryClient.invalidateQueries({ queryKey: ['occurrences'] });
-      return inserted;
+      const result = await materializeWithFollowUps(
+        () => tasksRepository.materializeUntil(need.until!),
+        taskDefaults.materializeMaxFollowUps,
+      );
+      if (result.inserted > 0) await queryClient.invalidateQueries({ queryKey: ['occurrences'] });
+      return result;
     },
     enabled: enabled && need.until !== null,
     staleTime: Infinity,
     retry: false,
   });
-  return need;
+  return {
+    ...need,
+    failed: need.until !== null && (query.data?.failed ?? 0) > 0,
+    retrying: query.isFetching,
+    retry: () => query.refetch(),
+  };
 }

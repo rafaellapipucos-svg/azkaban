@@ -22,7 +22,7 @@ export function AreasScreen() {
   const visible = areaContexts.filter(({ id }) => contextId === ALL || id === contextId);
 
   return (
-    <Screen>
+    <Screen title={t('list.title')}>
       <ChipRow label={t('list.areaLabel')}>
         {areas.data?.map((item) => (
           <Chip

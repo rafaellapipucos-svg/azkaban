@@ -37,3 +37,28 @@ export function materializationNeed({
   const reach = capped ? limitDate : lastDate;
   return { until: dayRange(timezone, reach, reach).to, limitDate, capped };
 }
+
+export type MaterializeCounts = { inserted: number; failed: number; deferred: number };
+
+/**
+ * Calls the materialization again with the same arguments while it answers `deferred > 0` (tasks
+ * left over by its CPU budget), at most `maxFollowUps` more times; the daily job does the rest.
+ * ADR-0008, section 12. `inserted` adds up, `deferred` is the last answer's. `failed` is the largest
+ * seen: a call repeats the tasks that failed before, so adding would count them twice, and the last
+ * answer alone could hide them behind a deferral. The screen only asks whether it is above zero.
+ */
+export async function materializeWithFollowUps(
+  call: () => Promise<MaterializeCounts>,
+  maxFollowUps: number,
+): Promise<MaterializeCounts> {
+  let total = await call();
+  for (let i = 0; i < maxFollowUps && total.deferred > 0; i++) {
+    const next = await call();
+    total = {
+      inserted: total.inserted + next.inserted,
+      failed: Math.max(total.failed, next.failed),
+      deferred: next.deferred,
+    };
+  }
+  return total;
+}

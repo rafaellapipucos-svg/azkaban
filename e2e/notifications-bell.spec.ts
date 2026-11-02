@@ -53,7 +53,9 @@ test('a photo to review rings the admin bell live, opens the review and clears i
   // Realtime: no reload, in both tabs, with a short notice that does not block the screen
   await expect(bell(ownerPage, 1)).toBeVisible();
   await expect(bell(secondTab, 1)).toBeVisible();
-  await expect(ownerPage.getByRole('status').getByText('Foto para revisar')).toBeVisible();
+  await expect(
+    ownerPage.getByTestId('notification-toast').getByText('Foto para revisar'),
+  ).toBeVisible();
   const box = await bell(ownerPage, 1).boundingBox();
   expect(box?.width).toBeGreaterThanOrEqual(44);
   expect(box?.height).toBeGreaterThanOrEqual(44);

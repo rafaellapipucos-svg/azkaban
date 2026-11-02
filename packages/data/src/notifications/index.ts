@@ -8,14 +8,22 @@ import {
   type NotificationItem,
   type NotificationPreference,
   type NotificationType,
+  type OccurrenceStatus,
   type PushDevice,
   type PushSubscriptionInput,
   type QuietHours,
 } from '@azkaban/contracts';
 import { currentUserId, db } from '../client';
 
-/** A line of the bell, and whether its task asks for a photo, which picks the tap target. */
-export type BellItem = NotificationItem & { requiresPhoto: boolean };
+/**
+ * A line of the bell, and whether its task asks for a photo, which picks the tap target. The
+ * occurrence's `overdueAt` and status, read now, say until when a red can still be done.
+ */
+export type BellItem = NotificationItem & {
+  requiresPhoto: boolean;
+  overdueAt: string | null;
+  occurrenceStatus: OccurrenceStatus | null;
+};
 
 /** The RPC raises its code as the message. Anything else, `invalid_push_subscription` included, is generic. */
 export function notificationErrorCode(error: unknown): NotificationErrorCode | null {
@@ -27,7 +35,7 @@ export function notificationErrorCode(error: unknown): NotificationErrorCode | n
 
 // The title comes through RLS: an occurrence or task the user no longer sees embeds as null.
 const bellColumns =
-  'id, type, occurrence_id, data, created_at, read_at, task_occurrences(tasks(title, requires_photo_proof))';
+  'id, type, occurrence_id, data, created_at, read_at, task_occurrences(overdue_at, status, tasks(title, requires_photo_proof))';
 // `push_subscriptions` has grants by column: `select *` fails, and the endpoint never leaves.
 const deviceColumns = 'id, user_agent, created_at, last_success_at';
 
@@ -38,12 +46,17 @@ type BellRow = {
   data: unknown;
   created_at: string;
   read_at: string | null;
-  task_occurrences: { tasks: { title: string; requires_photo_proof: boolean } | null } | null;
+  task_occurrences: {
+    overdue_at: string;
+    status: OccurrenceStatus;
+    tasks: { title: string; requires_photo_proof: boolean } | null;
+  } | null;
 };
 
 // A row the client cannot read (a type from a newer server) is left out instead of failing the list.
 function toBellItem(row: BellRow): BellItem | null {
-  const task = row.task_occurrences?.tasks ?? null;
+  const occurrence = row.task_occurrences;
+  const task = occurrence?.tasks ?? null;
   const parsed = notificationItemSchema.safeParse({
     id: row.id,
     type: row.type,
@@ -54,7 +67,12 @@ function toBellItem(row: BellRow): BellItem | null {
     taskTitle: task?.title ?? null,
   });
   return parsed.success
-    ? { ...parsed.data, requiresPhoto: task?.requires_photo_proof ?? false }
+    ? {
+        ...parsed.data,
+        requiresPhoto: task?.requires_photo_proof ?? false,
+        overdueAt: occurrence?.overdue_at ?? null,
+        occurrenceStatus: occurrence?.status ?? null,
+      }
     : null;
 }
 

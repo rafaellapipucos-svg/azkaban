@@ -1,6 +1,6 @@
 import { pushPayloadMaxBytes, pushPayloadSchema } from '@azkaban/contracts';
 import { describe, expect, it } from 'vitest';
-import { buildPushPayload, type PushSource, type Translate } from './pushPayload';
+import { buildPushPayload, missedLateUntil, type PushSource, type Translate } from './pushPayload';
 
 const id = '11111111-1111-4111-8111-111111111111';
 const occurrenceId = '22222222-2222-4222-8222-222222222222';
@@ -148,5 +148,32 @@ describe('buildPushPayload', () => {
       expect(payload.body.length).toBeLessThanOrEqual(300);
       expect(bytes(payload)).toBeLessThanOrEqual(pushPayloadMaxBytes);
     }
+  });
+});
+
+describe('missedLateUntil', () => {
+  const overdueAt = '2026-11-02T03:00:00.000Z';
+  const red = (byUserId: string | null, occurrenceStatus: 'missed' | 'done' = 'missed') => ({
+    id,
+    type: 'occurrence_missed' as const,
+    occurrenceId,
+    taskTitle: 'Academia',
+    data: { byUserId },
+    overdueAt,
+    occurrenceStatus,
+  });
+  const now = new Date('2026-11-03T12:00:00.000Z');
+
+  it('is the end of the late window for an automatic red still missed', () => {
+    expect(missedLateUntil(red(null), 72, now)?.toISOString()).toBe('2026-11-05T03:00:00.000Z');
+  });
+
+  it('is null when a person marked it, it was resolved since, or the window closed', () => {
+    expect(missedLateUntil(red(userId), 72, now)).toBeNull();
+    expect(missedLateUntil(red(null, 'done'), 72, now)).toBeNull();
+    expect(missedLateUntil(red(null), 72, new Date('2026-11-05T03:00:00.001Z'))).toBeNull();
+    expect(
+      missedLateUntil({ ...reminder(10), overdueAt, occurrenceStatus: 'missed' }, 72, now),
+    ).toBeNull();
   });
 });

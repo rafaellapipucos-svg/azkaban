@@ -1,4 +1,5 @@
-import { buildPushPayload, notificationUrl, type Translate } from '@azkaban/core';
+import { taskRules } from '@azkaban/config';
+import { buildPushPayload, missedLateUntil, notificationUrl, type Translate } from '@azkaban/core';
 import { notificationsRepository, useCurrentUser, type BellItem } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -17,16 +18,20 @@ export function useUnreadCount() {
 
 /**
  * Title and body of a line, the same as the push says, through `buildPushPayload`. A task the user
- * no longer sees gets the generic text.
+ * no longer sees gets the generic text. An automatic red adds until when it can still be done.
  */
 export function useItemText() {
   const { t } = useTranslation('notifications');
+  const when = useWhenText();
   return useCallback(
     (item: BellItem) => {
       const translate: Translate = (key, values) => t(key, values);
-      return buildPushPayload(item, item.requiresPhoto, translate);
+      const { title, body } = buildPushPayload(item, item.requiresPhoto, translate);
+      const until = missedLateUntil(item, taskRules.lateCompletionWindowHours, new Date());
+      if (!until) return { title, body };
+      return { title, body: `${body} ${t('lateUntil', { when: when(until.toISOString()) })}` };
     },
-    [t],
+    [t, when],
   );
 }
 

@@ -914,3 +914,19 @@
 - **Verificado:** `pnpm check` passou. `pnpm e2e` 58 de 58 numa só execução, já sem nenhum `test.fail()`, incluindo os testes novos do aviso, da dobra e da prova de tarefa excluída aprovada pela Equipe. `pnpm db:test` 1004 de 1004. Telas por capturas do Chrome com câmera falsa, em 375x812 e 1280x800, claro e escuro: aviso com as sete frases e 90 e 365 dias; quadrado da câmera e "Tirar foto" inteiros na janela nas duas larguras (400 px de quadrado em 1280x800); "Confira a foto" e revisão com o carimbo inteiro, "Duda" sem corte; revisão com o aviso da web; Equipe com "Revisar fotos" para o dono.
 - **Não verificado:** a linha "Enviada pelo navegador" foi conferida pela E2E, não por captura, porque fica abaixo da dobra. Nada em iOS ou Android. Nada no projeto hospedado nem no CI. `pnpm functions:test` não rodou.
 - **Pendências / próximos passos:** nenhuma minha na prova. Base legal e contato de privacidade seguem com o humano.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:54 (BRT)
+
+- **Branch:** feat/phase-3-proof
+- **Agente(s):** orquestrador
+- **Resumo:** fechamento da Fase 3. Integradas `fix/proof-task-rules-final` (tarefas-calendario), `fix/proof-consent-v2` e `fix/proof-consent-v2-check` (prova-foto), com a verificação final em banco limpo toda verde.
+- **Alterações:**
+  - Integrações `52ae23d`, `1e9add4` e `b6587cc`. Na rota da Equipe, os dois agentes tinham feito o mesmo link de revisão (B2): ficou o de `TeamScreen` com `children` (ADR-0006), e o `ProofQueueBar` sem uso foi apagado pelo próprio prova-foto.
+  - `CLAUDE.md`: `pnpm functions:test` exige `pnpm db:start`, não `supabase functions serve` (autorizado pelo humano, `b88ab87`).
+  - `docs/agentes/QUADRO.md`: Fase 3 feita.
+- **Migrations:** nenhuma nesta entrada.
+- **Decisões/ADRs:** nenhuma nova. Pendências humanas do ADR-0007, seção 20, seguem abertas (base legal, 365 dias, contato de privacidade, riscos aceitos).
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`; `pnpm install`, `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`, `pnpm exec turbo run typecheck test --force`, `pnpm lint`, `pnpm boundaries`, `pnpm build:web`, `pnpm functions:test`, `pnpm e2e`.
+- **Verificado:** no checkout principal, em `b6587cc`, depois de `db reset`: `db:test` 1004 de 1004; `db:check-permissions` em dia; `turbo run typecheck test --force` 24 de 24 tarefas (core 505, platform 38, contracts 27, ui 7, data 7, feature-proof 6, config 3); `lint` e `boundaries` limpos; `build:web` ok; `functions:test` 85 de 85, sem `functions serve`; `pnpm e2e` 58 de 58 duas vezes seguidas (2,6 e 2,5 min), sem `test.fail()` nem `retries`; `db:test` 1004 de 1004 de novo depois da E2E, sem reset. Varredura de segredos no diff `feat/phase-2-tasks..b6587cc` (229 arquivos): só as chaves públicas de demonstração da pilha local (`iss: supabase-demo`) e o `CRON_SECRET` de demonstração do `.env.example`.
+- **Não verificado:** CI (a E2E com Chrome e câmera falsa nunca rodou no `ubuntu-latest`), projeto hospedado, iOS e Android. Tamanho de foto real.
+- **Pendências / próximos passos:** push de `feat/phase-3-proof` e PR para `feat/phase-2-tasks`. Humano: base legal para funcionários (bloqueia uso real), 365 dias do registro, contato de privacidade, custo de storage, rotação da senha do banco hospedado, riscos aceitos da seção 20. Os worktrees integrados seguem no disco: a remoção foi negada pelas permissões desta sessão.

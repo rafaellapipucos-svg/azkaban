@@ -1058,6 +1058,21 @@
 - **Não verificado:** nada no navegador: sem o adapter de F4-9 o `title` é ignorado, e a pilha local estava em uso por outro agente. E2E fica para a verificação da fase. Hora derivada de UTC menos 3 (PowerShell bloqueado).
 - **Pendências / próximos passos:** nenhuma deste agente.
 
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 13:45 (BRT)
+
+- **Branch:** `feat/auth-screen-titles` (a partir de `feat/phase-4-notifications`)
+- **Agente(s):** auth-grupos
+- **Resumo:** Todas as telas de `feature-auth` e `feature-groups` passam `title` ao `Screen`, inclusive carregando e erro, atendendo ao handoff 20261102-1233 do design-system.
+- **Alterações:**
+  - Boas-vindas, Entrar, Criar conta, Seu perfil, Grupos, Novo grupo e Convite (os três retornos de `JoinGroupScreen`) reaproveitam a chave do título visível; Boas-vindas ganhou `welcome.screenTitle`, porque o título visível é um slogan.
+  - Detalhe do grupo usa o nome do grupo; enquanto carrega, `detail.title` ("Grupo"). Nenhum e-mail ou nome de pessoa vai para o título.
+  - O link mágico é um botão da tela Entrar, sem tela própria.
+- **Arquivos/módulos principais:** `packages/features/auth/src/*Screen.tsx`, `packages/features/groups/src/*Screen.tsx`, `packages/i18n/src/pt-BR/{auth,groups}.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0008, seção 13
+- **Como testar:** `pnpm check`; no `pnpm dev` web, `/welcome`, `/sign-in`, `/sign-up` e `/join/<código>` sem login mostram "<tela> · Azkaban" (conferido com Playwright headless). Hora do título em UTC menos 3, porque o PowerShell foi bloqueado.
+- **Pendências / próximos passos:** telas com login (perfil, grupos, detalhe) só conferidas por typecheck; E2E na verificação da fase. `PushSetupCard` no onboarding fica para depois.
+
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-02 13:46 (BRT)
 
 - **Branch:** feat/notifications-ui, criada a partir de feat/phase-4-notifications (f767a20)

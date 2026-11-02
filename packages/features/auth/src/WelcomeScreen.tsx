@@ -7,7 +7,7 @@ export function WelcomeScreen({ appName }: { appName: string }) {
   const { t } = useTranslation('auth');
   const router = useRouter();
   return (
-    <Screen>
+    <Screen title={t('welcome.screenTitle')}>
       <View className="flex-1 items-center justify-center gap-4">
         <Mascot mood="happy" size={160} />
         <Text className="font-heavy text-md text-primary dark:text-primary-light">{appName}</Text>

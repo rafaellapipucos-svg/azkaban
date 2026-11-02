@@ -32,7 +32,7 @@ export function SignInScreen() {
   });
 
   return (
-    <Screen>
+    <Screen title={t('signIn.title')}>
       <View className="items-center">
         <Mascot mood="happy" />
       </View>

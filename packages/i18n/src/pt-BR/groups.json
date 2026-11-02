@@ -20,6 +20,7 @@
     "submit": "Criar grupo"
   },
   "detail": {
+    "title": "Grupo",
     "members": "Membros",
     "you": "você",
     "rename": "Salvar nome",

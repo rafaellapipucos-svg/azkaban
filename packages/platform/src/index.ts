@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import { setStringAsync } from 'expo-clipboard';
 import { createURL } from 'expo-linking';
 import { Platform } from 'react-native';
@@ -15,7 +16,7 @@ export type {
   ProofCameraHandle,
   ProofCameraProps,
 } from './ProofCamera';
-export { PhotoError, photoLimits } from './photo';
+export { PhotoError, photoDataUri, photoLimits } from './photo';
 export type { PhotoErrorCode, PhotoLimits, ProofPhoto, ProofStamp } from './photo';
 export { sha256Hex } from './sha256';
 export { getLocationPermission, readLocation } from './geolocation';
@@ -27,10 +28,13 @@ export type {
 } from './geolocation';
 
 export { activateOnSpace, useRestoreFocus, type SpaceActivation } from './keyboard';
+export { useOnline } from './network';
 
 export const storage = AsyncStorage;
 
 export const isWeb = Platform.OS === 'web';
+
+export const appVersion = Constants.expoConfig?.version ?? '0.0.0';
 
 export const copyToClipboard = (text: string) => setStringAsync(text);
 

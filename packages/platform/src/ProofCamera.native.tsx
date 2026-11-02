@@ -1,4 +1,5 @@
 import { Camera, CameraView } from 'expo-camera';
+import { File } from 'expo-file-system';
 import { useEffect, useImperativeHandle, useRef, useState, type ComponentRef } from 'react';
 import { Image, PixelRatio, StyleSheet, Text, View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
@@ -15,6 +16,15 @@ import { sha256Hex } from './sha256';
 import { stampLines, stampMetrics } from './stamp';
 
 declare const atob: (data: string) => string; // Hermes has it; the shared tsconfig has no DOM lib
+
+/** expo-camera always writes the raw photo to the cache. Losing this race must not cost the proof. */
+function discardRawPhoto(uri: string) {
+  try {
+    new File(uri).delete();
+  } catch {
+    // The system owns the cache: the file goes with it.
+  }
+}
 
 function decodeBase64(base64: string): Uint8Array {
   const binary = atob(base64);
@@ -82,14 +92,15 @@ export function ProofCamera({ facing, label, onStatusChange, ref }: ProofCameraP
       capture: async (stamp: ProofStamp) => {
         if (!ready.current || !camera.current || busy.current) throw new PhotoError('not_ready');
         busy.current = true;
+        let rawUri: string | undefined;
         try {
           const capturedAt = new Date();
-          // expo-camera writes the raw photo to the app cache. Nothing reads it again after this call.
           const picture = await camera.current.takePictureAsync({
             quality: 1,
             exif: false,
             shutterSound: false,
           });
+          rawUri = picture.uri;
           const lines = stampLines({ ...stamp, capturedAt });
           return await new Promise<ProofPhoto>((resolve, reject) =>
             setStage({
@@ -104,6 +115,7 @@ export function ProofCamera({ facing, label, onStatusChange, ref }: ProofCameraP
         } finally {
           setStage(null);
           busy.current = false;
+          if (rawUri) discardRawPhoto(rawUri);
         }
       },
     }),

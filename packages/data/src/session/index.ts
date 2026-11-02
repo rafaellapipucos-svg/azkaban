@@ -21,6 +21,7 @@ export function useCurrentUser() {
   );
   return {
     user,
+    displayName: profile.data?.displayName ?? '',
     groups: groups.data ?? [],
     timezone: profile.data?.timezone ?? defaults.timezone,
     ready: profile.isSuccess && groups.isSuccess,

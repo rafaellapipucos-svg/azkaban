@@ -5,6 +5,7 @@ import {
   compressionPlan,
   encodeWithinLimits,
   fitLongEdge,
+  photoDataUri,
   photoLimits,
   readJpegSize,
   type PhotoLimits,
@@ -134,5 +135,15 @@ describe('encodeWithinLimits', () => {
       code: 'encode_failed',
     });
     await expect(run(() => jpeg(4000, 3000))).rejects.toMatchObject({ code: 'encode_failed' });
+  });
+});
+
+describe('photoDataUri', () => {
+  it('keeps every byte of a photo larger than one encoding piece', () => {
+    const bytes = Uint8Array.from({ length: 100_000 }, (_, i) => i % 256);
+    const uri = photoDataUri({ bytes, mimeType: 'image/jpeg' });
+    expect(uri.startsWith('data:image/jpeg;base64,')).toBe(true);
+    const decoded = Uint8Array.from(atob(uri.split(',')[1]!), (char) => char.charCodeAt(0));
+    expect(decoded).toEqual(bytes);
   });
 });

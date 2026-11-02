@@ -29,6 +29,7 @@ const STATUS: Record<ProofErrorCode, number> = {
   challenge_invalid: 409,
   challenge_used: 409,
   challenge_expired: 410,
+  upload_timeout: 408,
   late_window_expired: 409,
   occurrence_not_open: 409,
   proof_not_required: 409,
@@ -131,12 +132,7 @@ Deno.serve(async (req) => {
       proofDefaults.uploadTimeoutSeconds * 1000,
     );
     if (read.kind === 'too_large') return refuse('body', 'proof_too_large');
-    if (read.kind === 'timeout') {
-      console.error(
-        JSON.stringify({ event: 'proof_refused', stage: 'body', code: 'upload_timeout' }),
-      );
-      return reply(408, { error: 'upload_timeout' });
-    }
+    if (read.kind === 'timeout') return refuse('body', 'upload_timeout');
     if (read.kind === 'aborted') {
       console.error(
         JSON.stringify({ event: 'proof_refused', stage: 'body', code: 'invalid_request' }),

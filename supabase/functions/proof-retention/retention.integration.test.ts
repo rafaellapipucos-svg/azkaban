@@ -19,6 +19,7 @@ import {
   occurrenceRow,
   proofsOf,
   sql,
+  sqlMessages,
   upload,
   type Group,
   type Person,
@@ -46,6 +47,7 @@ const nothing = {
   proofsMarked: 0,
   orphansRemoved: 0,
   challengesDeleted: 0,
+  recordsDeleted: 0,
   moreDue: false,
 };
 
@@ -268,5 +270,75 @@ describe('proof-retention', () => {
     assert.equal(exist(recent), '1');
     assert.equal(exist(used.nonce), '1', 'the challenge of a proof is its evidence');
     assert.deepEqual(await run(), { status: 200, body: nothing });
+  });
+
+  test('a row without a photo goes after a year; a younger one stays, and a photo that old is removed first', async () => {
+    const gone = await prove();
+    const young = await prove();
+    const late = await prove({ approval: true });
+    backdateProof(gone.proofId, '91 days');
+    backdateProof(young.proofId, '91 days');
+    assert.deepEqual(await run(), {
+      status: 200,
+      body: { ...nothing, photosRemoved: 2, proofsMarked: 2 },
+    });
+    backdateProof(gone.proofId, '275 days');
+    backdateProof(young.proofId, '273 days');
+    backdateProof(late.proofId, '366 days');
+
+    assert.deepEqual(await run(), {
+      status: 200,
+      body: { ...nothing, photosRemoved: 1, proofsMarked: 1, recordsDeleted: 2 },
+    });
+    assert.deepEqual(await proofsOf(gone.occurrenceId), []);
+    const left = await occurrenceRow(gone.occurrenceId);
+    assert.equal(left.status, 'done');
+    assert.equal(left.current_proof_id, null);
+
+    const [row] = await proofsOf(young.occurrenceId);
+    assert.ok(row.photo_deleted_at);
+
+    // The ordinary retention came first: the object is gone and the wait for an admin paid its XP.
+    assert.equal(await exists(late.occurrenceId, late.nonce), false);
+    assert.deepEqual(await proofsOf(late.occurrenceId), []);
+    assert.equal(xp(late.occurrenceId), '1');
+
+    assert.deepEqual(await run(), { status: 200, body: nothing });
+  });
+
+  describe('the cron call does not fail in silence (SEG-4)', () => {
+    const call = 'select public.call_proof_retention()';
+    const url = `select vault.create_secret('http://example.invalid/proof-retention', 'proof_retention_url');`;
+    const secret = `select vault.create_secret('local-secret', 'cron_secret');`;
+    // In a transaction that rolls back: the secrets do not stay, and the queued call never leaves.
+    const configured = (then: string) => `begin; ${url} ${secret} ${then}; rollback;`;
+    const queued = 'select count(*) from net.http_request_queue';
+
+    test('without a Vault secret the run fails by name, so cron shows it, and nothing is called', () => {
+      const before = sql(queued);
+      for (const attempt of [call, `begin; ${url} ${call}; rollback;`]) {
+        assert.match(sqlMessages(attempt), /ERROR: +proof_retention_not_configured/);
+      }
+      assert.equal(sqlMessages(configured(call)), '');
+      assert.deepEqual(sql(queued), before);
+    });
+
+    test('with the secrets the call is queued, and a photo a day late warns without stopping it', async () => {
+      const [before] = sql(queued);
+      const count = () => sql(configured(`${call}; ${queued}`)).at(-1);
+      const waited = String(Number(before) + 1);
+      assert.equal(count(), waited);
+
+      const late = await prove();
+      backdateProof(late.proofId, '90 days 12 hours');
+      assert.equal(sqlMessages(configured(call)), '', 'inside the day of tolerance');
+
+      backdateProof(late.proofId, '1 day');
+      assert.match(sqlMessages(configured(call)), /WARNING: +proof_retention_overdue/);
+      assert.equal(count(), waited);
+
+      assert.equal((await run()).status, 200);
+      assert.equal(sqlMessages(configured(call)), '', 'the next run cleared it');
+    });
   });
 });

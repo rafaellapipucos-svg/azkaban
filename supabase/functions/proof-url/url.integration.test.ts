@@ -193,6 +193,37 @@ describe('proof-url', () => {
     assert.equal((await ask(author, { proofId })).status, 200);
   });
 
+  test('the limit of the body is 1 KiB: exactly that passes, one byte more does not', async () => {
+    const padded = (size: number) => JSON.stringify({ proofId }).padEnd(size, ' ');
+    assert.equal((await ask(author, padded(1024))).status, 200);
+    assert.deepEqual(await ask(author, padded(1025)), {
+      status: 400,
+      body: { error: 'invalid_request' },
+    });
+  });
+
+  test('a body of 400 MiB stops at the limit, and the worker survives it', async () => {
+    const mebibyte = new Uint8Array(1024 * 1024).fill(0x20);
+    let left = 400;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (left === 0) controller.close();
+        else controller.enqueue(mebibyte);
+        left -= 1;
+      },
+    });
+    const response = await fetch(URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...author.bearer },
+      body,
+      // @ts-expect-error Node's fetch needs this for a stream body.
+      duplex: 'half',
+    });
+    // Reading it all first answers 546: the worker runs out of memory.
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: 'invalid_request' });
+  });
+
   test('only POST and OPTIONS', async () => {
     const get = await fetch(URL, { method: 'GET', headers: author.bearer });
     assert.equal(get.status, 405);

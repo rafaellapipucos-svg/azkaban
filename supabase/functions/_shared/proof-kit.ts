@@ -1,12 +1,10 @@
 // Fixtures of the integration tests of the proof functions. Test code only: no function imports it.
 //
-//   pnpm db:start     (or: pnpm exec supabase start)
-//   cp supabase/functions/.env.example supabase/functions/.env     # once; ignored by git
-//   pnpm exec supabase functions serve                             # leave it running
-//   pnpm functions:test                                            # another terminal
+//   cp supabase/functions/.env.example supabase/functions/.env     # once, before the stack starts
+//   pnpm db:start                                                  # the stack serves the functions
+//   pnpm functions:test
 //
-// Do not edit files under supabase/functions while `functions serve` runs: it restarts the runtime and
-// the next call gets a 502. A few tests need `docker exec` into the local database container
+// A few tests need `docker exec` into the local database container
 // (DB_CONTAINER, default supabase_db_azkaban) for what the API cannot do, such as backdating a row
 // that a trigger protects.
 //
@@ -14,7 +12,7 @@
 // secrets. Users get a token minted with that secret, which skips the sign-in rate limit of Auth
 // (30 per 5 minutes per IP) that a test per user would hit; one test per file signs in for real.
 import assert from 'node:assert/strict';
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
@@ -49,32 +47,35 @@ async function toReply(response: Response): Promise<Reply> {
 // ---------------------------------------------------------------------------------------- database
 
 const DB_CONTAINER = process.env.DB_CONTAINER ?? 'supabase_db_azkaban';
+const psql = (statement: string) => [
+  'exec',
+  '-i',
+  DB_CONTAINER,
+  'psql',
+  '-U',
+  'postgres',
+  '-v',
+  'ON_ERROR_STOP=1',
+  '-tA',
+  '-c',
+  statement,
+];
+
 /** One statement (or several, in one transaction) as the database owner. Returns the first column of each row. */
 export function sql(statement: string): string[] {
-  const out = execFileSync(
-    'docker',
-    [
-      'exec',
-      '-i',
-      DB_CONTAINER,
-      'psql',
-      '-U',
-      'postgres',
-      '-v',
-      'ON_ERROR_STOP=1',
-      '-tA',
-      '-c',
-      statement,
-    ],
-    { stdio: 'pipe' },
-  ).toString();
+  const out = execFileSync('docker', psql(statement), { stdio: 'pipe' }).toString();
   return out
     .split('\n')
     .map((line) => line.trim())
     .filter(
-      (line) => line !== '' && !/^(UPDATE|INSERT|DELETE|ALTER|SET|BEGIN|COMMIT)\b/.test(line),
+      (line) =>
+        line !== '' && !/^(UPDATE|INSERT|DELETE|ALTER|SET|BEGIN|COMMIT|ROLLBACK)\b/.test(line),
     );
 }
+
+/** The errors and warnings of a statement, which is what a cron run would leave in the logs. */
+export const sqlMessages = (statement: string) =>
+  spawnSync('docker', psql(statement)).stderr.toString();
 
 /** Backdates a proof past retention. A trigger forbids changing `received_at`, service role included, so it is switched off for this one statement. */
 export function backdateProof(proofId: string, interval: string) {
@@ -202,7 +203,7 @@ export async function newAuthor(
     .insert({ group_id: group.id, user_id: author.id, role: 'member' });
   assert.ifError(joined.error);
   if (consent) {
-    const accepted = await author.client.rpc('record_proof_consent', { p_version: 1 });
+    const accepted = await author.client.rpc('record_proof_consent', { p_version: 2 });
     assert.ifError(accepted.error);
   }
   return author;

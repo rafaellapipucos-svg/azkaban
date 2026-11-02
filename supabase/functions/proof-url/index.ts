@@ -3,13 +3,14 @@
 // rule of who may see a photo is the database's (`can_view_proof`, as the row policy of task_proofs):
 // this function reads the row with the user's own JWT, and only if the row comes back does the service
 // role sign. The URL works for anyone who holds it until it expires, hence the short life.
-import { proofRules } from '@azkaban/config';
+import { proofDefaults, proofRules } from '@azkaban/config';
 import { proofUrlInputSchema, proofUrlSchema, type ProofErrorCode } from '@azkaban/contracts';
 import { createClient } from '@supabase/supabase-js';
 import { clientOptions, responder, serviceClient, signedInUser } from '../_shared/http.ts';
+import { readLimited } from '../proof-validate/body.ts';
 
 const BUCKET = 'task-proofs';
-const MAX_BODY_CHARS = 1024;
+const MAX_BODY_BYTES = 1024;
 
 const reply = responder();
 
@@ -28,12 +29,16 @@ Deno.serve(async (req) => {
     const user = await signedInUser(admin, authorization);
     if (!user) return reply(401, { error: 'unauthorized' });
 
-    // The input is one id: a body of any size beyond that is not this function's business.
-    const text = await req.text();
+    // The input is one id: the read stops at the limit, so a huge body never reaches the memory.
+    const read = await readLimited(
+      req.body,
+      MAX_BODY_BYTES,
+      proofDefaults.uploadTimeoutSeconds * 1000,
+    );
+    if (read.kind !== 'ok') return reply(400, { error: 'invalid_request' });
     let raw: unknown;
     try {
-      if (text.length > MAX_BODY_CHARS) throw new Error();
-      raw = JSON.parse(text);
+      raw = JSON.parse(new TextDecoder().decode(read.bytes));
     } catch {
       return reply(400, { error: 'invalid_request' });
     }

@@ -40,7 +40,13 @@ export const proofUploadMetaSchema = z.object({
   /** Null when the context has none, or when the user refused or the device could not read it. */
   location: proofLocationSchema.nullable(),
   platform: proofPlatformSchema,
-  appVersion: z.string().trim().min(1).max(40),
+  /** Printable ASCII: a NUL would pass as text and only fail in Postgres, after the nonce is spent. */
+  appVersion: z
+    .string()
+    .trim()
+    .min(1)
+    .max(40)
+    .regex(/^[\x20-\x7e]+$/),
 });
 export type ProofUploadMeta = z.infer<typeof proofUploadMetaSchema>;
 

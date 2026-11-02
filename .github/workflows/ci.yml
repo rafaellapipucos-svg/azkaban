@@ -43,20 +43,11 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The stack serves the functions, and reads this file when it starts.
+      - run: cp supabase/functions/.env.example supabase/functions/.env
       - run: pnpm db:start
       - run: pnpm db:test
       - run: pnpm db:check-permissions
-      - run: cp supabase/functions/.env.example supabase/functions/.env
-      - run: nohup pnpm exec supabase functions serve > /tmp/functions.log 2>&1 &
-      - name: Wait for the function
-        run: |
-          for attempt in $(seq 1 30); do
-            status=$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS http://127.0.0.1:54421/functions/v1/materialize-occurrences)
-            case "$status" in 2*) exit 0 ;; esac
-            sleep 2
-          done
-          cat /tmp/functions.log
-          exit 1
       - run: pnpm functions:test
       # `chrome`: the fake camera of the proof specs needs a real Chrome, not the headless shell.
       - run: pnpm exec playwright install --with-deps chromium chrome

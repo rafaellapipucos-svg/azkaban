@@ -292,7 +292,7 @@ describe('proof-validate', () => {
       await assertUntouched(occurrenceId);
 
       // After the acceptance the same user gets one and finishes.
-      assert.ifError((await author.client.rpc('record_proof_consent', { p_version: 1 })).error);
+      assert.ifError((await author.client.rpc('record_proof_consent', { p_version: 2 })).error);
       const nonce = await challenge(author, occurrenceId);
       assert.equal((await upload(author, nonce, photo())).status, 200);
     });
@@ -364,6 +364,12 @@ describe('proof-validate', () => {
         'platform unknown': encodeURIComponent(JSON.stringify({ ...good, platform: 'desktop' })),
         'text of 41 characters': encodeURIComponent(
           JSON.stringify({ ...good, appVersion: 'v'.repeat(41) }),
+        ),
+        'a NUL in the text, which the database refuses': encodeURIComponent(
+          JSON.stringify({ ...good, appVersion: '1.0\u0000' }),
+        ),
+        'half a surrogate pair in the text': encodeURIComponent(
+          JSON.stringify({ ...good, appVersion: '1.0\ud800' }),
         ),
         'latitude out of range': encodeURIComponent(
           JSON.stringify({ ...good, location: { lat: 91, lng: 0, accuracyM: 5 } }),

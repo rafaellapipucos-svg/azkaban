@@ -1270,3 +1270,20 @@
 - **Verificado:** `pnpm check` passou (683 testes de unidade, core 544); `pnpm build:web` passou.
 - **Não verificado:** nenhuma E2E rodou (a pilha estava com o `banco-de-dados`), nem o aviso foi visto no navegador. Leitor de tela real não foi usado. Se um rótulo de aba quebrar em duas linhas, a barra passa de 64 px e o aviso pode encostar na faixa do "Nova tarefa" (o QA mediu 64 px a 320). Hora derivada de UTC menos 3 (PowerShell bloqueado).
 - **Pendências / próximos passos:** prazo no push, conforme o handoff.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 15:05 (BRT)
+
+- **Branch:** feat/phase-4-notifications
+- **Agente(s):** orquestrador
+- **Resumo:** pausa pedida pelo humano no meio da Fase 4. Integrado tudo o que os agentes entregaram, com o handoff de retomada escrito. Só a branch `fix/notifications-db-security` (SEG4-1, 2, 3 e 5) ficou de fora, ainda em trabalho.
+- **Alterações:**
+  - Integrações de `336f35d` a `754e02e`: ADR-0008, banco, despacho, sino, push, preferências, casca PWA, títulos, QA e revisão de segurança, com as correções de cliente.
+  - `docs/agentes/handoffs/20261102-1505-orquestrador-para-nova-sessao.md`: estado, ordem do que falta e perguntas ao humano.
+  - `docs/agentes/ferramentas/log-merge.cjs` (resolve conflito do LOG ordenando as entradas por data) e `verificar-fase.sh` (verificação final de fase).
+  - `docs/agentes/QUADRO.md`: F4-1 em andamento, por causa das correções de banco; os demais itens da Fase 4 em revisão.
+- **Migrations:** nenhuma nesta entrada.
+- **Decisões/ADRs:** o prazo do vermelho no push fica para o ADR da Fase 5 (F5-1). `PushSetupCard` no onboarding vai para o backlog.
+- **Como testar:** `pnpm install --frozen-lockfile` e `pnpm check` no estado integrado.
+- **Verificado:** `pnpm check` em `754e02e`: 17 de 17 tarefas e 9 de 9 suítes. Em `feat/phase-3-proof` (PR #4), o CI passou com E2E 58 de 58, `db:test` 1004 e funções 85.
+- **Não verificado:** a verificação final da Fase 4 não rodou. A E2E das correções QA4-1 a QA4-4 e de SEG4-6 a 8 não rodou. `db:check-permissions` falha até o espelho de `notification_rules` entrar.
+- **Pendências / próximos passos:** as da seção 3 do handoff 1505.

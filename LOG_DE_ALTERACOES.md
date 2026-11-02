@@ -993,3 +993,30 @@
 - **Verificado:** `pnpm check` passou: core 511, contracts 44, platform 38, ui 11, config 7, data 7, app 6, proof 6. `pnpm build:web` exportou `dist`. Com Playwright contra `pnpm dev`: `/design-system` dá "Design system · Azkaban"; `/nao-existe`, "Página não encontrada · Azkaban"; "Ir para Hoje" leva a `/welcome` e o título volta a "Azkaban"; `/welcome` -> `/design-system` -> voltar -> avançar alterna os dois títulos. Um `main` visível em todas; ao empilhar `/sign-up` sobre `/welcome` há dois `main` no DOM, o de baixo com `display: none`, fora da árvore de acessibilidade. Sem erros de página.
 - **Não verificado:** as telas autenticadas: troca de título entre abas, a `TabBar` real com o marco `navigation` a 320 px e telas empilhadas sobre as abas. A pilha Supabase não foi usada, por ordem do orquestrador; a E2E da fase cobre. Hora derivada de UTC menos 3 (PowerShell bloqueado), igual ao relógio local do vitest.
 - **Pendências / próximos passos:** o título de cada tela de feature fica com os donos (handoffs já abertos); hoje `welcome`, `sign-in`, `sign-up` e as abas mostram só "Azkaban".
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 13:28 (BRT)
+
+- **Branch:** feat/notifications-db, criada a partir de feat/phase-4-notifications (7737487)
+- **Agente(s):** banco-de-dados
+- **Resumo:** F4-1 e F4-6 no banco (ADR-0008): espelhos, enums, silêncio no perfil, sino, preferências, inscrições de push com a lista de hosts, outbox idempotente, avisos por trigger em qualquer caminho, varredura de lembretes, claim e report do despacho, limpeza de 30 dias, cron do despacho e o vermelho automático.
+- **Alterações:**
+  - 14 migrations `20261102130000` a `20261102131300`, uma por item do handoff `20261102-1220-arquiteto-para-banco-de-dados-notificacoes`.
+  - `supabase/tests/rls_notifications.test.sql`: 199 asserções novas. `rls_proof.test.sql`: `register_push_subscription` na lista de funções abertas a `authenticated`.
+  - `scripts/check-permission-mirror.mjs`: seção `notification_rules`, pedida no mesmo handoff.
+  - `packages/data/src/database.types.ts`: gerado.
+  - Handoffs `20261102-1325-banco-de-dados-para-{backend-funcoes-despacho,notificacoes-whatsapp-sino-e-push}`.
+- **Arquivos/módulos principais:** `supabase/migrations/2026110213*`, `supabase/tests/rls_notifications.test.sql`
+- **Migrations:** `notification_rules`, `notification_enums`, `profile_quiet_hours`, `notifications`, `notification_preferences`, `push_subscriptions`, `notification_outbox`, `enqueue_notification`, `status_notifications`, `due_reminders`, `notification_dispatch`, `notification_retention`, `dispatch_notifications_cron`, `auto_miss_occurrences`.
+- **Decisões/ADRs:** padrões reversíveis onde o ADR não decide:
+  - o trigger dos avisos fica em `task_status_history` (after insert), não em `task_occurrences`: toda mudança de status grava uma linha ali, e o id dela é a chave; de `task_occurrences` não se distingue `done → pending → done` na mesma transação;
+  - contestação para `missed` avisa só `proof_disputed`, sem `occurrence_missed`; desfazer a contestação é aprovação e não avisa ninguém;
+  - `occurrence_resolved` para `missed` não sai quando o criador é o responsável, que já recebeu o vermelho;
+  - o acesso por usuário (`can_view_task_for`) espelha `can_view_task`, então o criador membro atual recebe mesmo sem `task.view_group`;
+  - a exceção do silêncio vale quando a âncora do lembrete cai antes do fim da janela atual (dentro dela ou já passada);
+  - o claim também cancela um `proof_in_review` cuja foto já não espera revisão (`resolved`), e usa o fuso padrão quando o do perfil é inválido, para uma linha não travar a fila;
+  - uma linha em `sending` guarda o fim da concessão também em `next_attempt_at`, e um índice serve fila e concessões vencidas;
+  - a varredura de lembretes lê o índice de pendentes por `auto_miss_at` (a âncora nunca passa dele) e limita o início a 30 dias à frente; o teto e a saída estão no comentário da migration. Não medi com volume.
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`, `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`.
+- **Verificado:** `pnpm check` passou (core 516, contracts 44, platform 38, ui 11, config 7, data 7, app 6, proof 6). `pnpm db:test` 1203 de 1203. `pnpm db:check-permissions` com `Notification rules in sync` e `Task rules in sync`. `pnpm e2e` 58 de 58. `pnpm functions:test` 74 de 85: as 11 falhas são de `materialize-occurrences`, que agora responde `failed: 0, deferred: 0` pelo padrão do contrato de F4-8, e os testes esperam só `inserted`; nada do banco. Mutações pegas: host como sufixo sem ponto, sem checagem de host, parser de host frouxo, sem exceção de silêncio, sem carência, sem filtro de arquivada, sem filtro de ex-membro, `overdue_at` no lugar de `auto_miss_at`, sem exclusão do ator no vermelho e na resolução, sem exclusão de autor e ator no "em análise", sem checagem de membro por usuário, preferência ignorada, replay que reaproveita a linha do sino, sem `unique` da outbox, sem acesso no claim, sem janela da varredura, e as políticas de `select` do sino e das inscrições e de `update` do sino e das preferências trocadas por `true`. Sobreviventes, equivalentes na matriz atual: só a exclusão do autor (o ator do commit é sempre o autor) e `proof.review` trocado por outra chave que só owner e admin têm.
+- **Não verificado:** nada no projeto hospedado. O Realtime entregando a linha a um cliente não foi exercitado, só a publicação. A varredura de lembretes e o vermelho automático rodaram por chamada direta, não pelo pg_cron; localmente, o cron `dispatch-notifications` falha a cada minuto sem Vault, de propósito. Hora derivada de UTC menos 3 (PowerShell bloqueado).
+- **Pendências / próximos passos:** `backend-funcoes`: `dispatch-notifications` e os testes de F4-8. `notificacoes-whatsapp`: sino, preferências, silêncio e push no cliente. Orquestrador: F4-6 muda de dono no QUADRO. Humano: os padrões acima e os da seção 16 do ADR-0008.

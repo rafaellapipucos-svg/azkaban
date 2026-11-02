@@ -641,7 +641,7 @@ select is(
   (select string_agg(proname, ',' order by proname collate "C") from (
     select distinct p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and has_function_privilege('authenticated', p.oid, 'execute')) s),
-  'accept_invite,can_delete_task,can_edit_task,can_review_proof,can_view_proof,can_view_task,delete_task,edit_task,generate_invite_code,get_invite_preview,group_member_profiles,has_permission,is_group_member,is_valid_rrule,is_valid_timezone,issue_proof_challenge,record_proof_consent,review_proof,set_member_role,set_occurrence_status,team_overview,transfer_group_ownership',
+  'accept_invite,can_delete_task,can_edit_task,can_review_proof,can_view_proof,can_view_task,delete_task,edit_task,generate_invite_code,get_invite_preview,group_member_profiles,has_permission,is_group_member,is_valid_rrule,is_valid_timezone,issue_proof_challenge,record_proof_consent,register_push_subscription,review_proof,set_member_role,set_occurrence_status,team_overview,transfer_group_ownership',
   'the functions open to authenticated are exactly the intended ones');
 
 -- 30. The client does not read or write the challenges

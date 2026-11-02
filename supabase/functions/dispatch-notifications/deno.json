@@ -1,0 +1,10 @@
+{
+  "imports": {
+    "@azkaban/core": "../../../packages/core/src/notifications/pushPayload.ts",
+    "@azkaban/contracts": "../../../packages/contracts/src/notifications.ts",
+    "@azkaban/config": "../../../packages/config/src/notifications.ts",
+    "../../../packages/contracts/src/common": "../../../packages/contracts/src/common.ts",
+    "zod": "npm:zod@4.6.7",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.118.0"
+  }
+}

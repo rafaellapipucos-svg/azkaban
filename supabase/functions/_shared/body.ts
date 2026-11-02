@@ -1,5 +1,5 @@
 // Reads a request body without ever holding more than the limit (ADR-0007, section 3, step 4). No
-// imports, so Node runs the unit tests (body.test.ts). `req.arrayBuffer()` would buffer all of it before
+// imports, so Node runs the unit tests (proof-validate/checks.test.ts). `req.arrayBuffer()` would buffer all of it before
 // the limit could say no, and Content-Length is a claim: it can be absent, or lie.
 
 export type BodyResult =

@@ -29,7 +29,7 @@ export function SignUpScreen() {
   });
 
   return (
-    <Screen>
+    <Screen title={t('signUp.title')}>
       <View className="items-center">
         <Mascot mood="celebrating" />
       </View>

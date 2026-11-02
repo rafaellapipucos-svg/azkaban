@@ -92,7 +92,7 @@ export function GroupDetailScreen({
     ({ isError }) => isError,
   );
 
-  if (!group) return <Screen>{null}</Screen>;
+  if (!group) return <Screen title={t('detail.title')}>{null}</Screen>;
 
   const renderActions = (member: GroupMember) => {
     const actions = memberActions(user, scope, {
@@ -128,7 +128,7 @@ export function GroupDetailScreen({
   };
 
   return (
-    <Screen>
+    <Screen title={group.name}>
       {can(user, 'group.update', scope) ? (
         <>
           <FormTextField

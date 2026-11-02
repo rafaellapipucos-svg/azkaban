@@ -31,7 +31,7 @@ export function ProfileScreen({ children }: { children?: ReactNode }) {
   });
 
   return (
-    <Screen>
+    <Screen title={t('profile.title')}>
       <View className="items-center">
         <Mascot mood="happy" />
       </View>

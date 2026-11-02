@@ -51,8 +51,9 @@ const rules: XpRules = {
   status: { done: 10, done_late: 5, partial: 3, missed: 0 },
   difficultyWeight: { easy: 1, medium: 2, hard: 3 },
 };
+const late = { lateCompletionWindowHours: 72, canManageGroup: () => false };
 const plan = (items: OccurrenceListItem[]) =>
-  planToday(items, { now, timezone: SP, dueSoonDays: 7 });
+  planToday(items, { now, timezone: SP, dueSoonDays: 7, ...late });
 
 describe('localDayRange', () => {
   it('spans the local day, not the UTC day', () => {
@@ -146,7 +147,7 @@ describe('planToday', () => {
     );
     expect(plan([far]).soon).toEqual([]);
     expect(
-      planToday([far], { now, timezone: SP, dueSoonDays: 30 }).soon.map(({ id }) => id),
+      planToday([far], { now, timezone: SP, dueSoonDays: 30, ...late }).soon.map(({ id }) => id),
     ).toEqual(['far']);
   });
 
@@ -191,7 +192,7 @@ describe('planArea', () => {
         item('gone', { status: 'cancelled' }),
         item('later-early', { scheduledStart: '2026-11-06T12:00:00.000Z' }),
       ],
-      { now, timezone: SP },
+      { now, timezone: SP, ...late },
     );
     expect(result.overdue.map(({ id }) => id)).toEqual(['old']);
     expect(result.days.map(({ date, items }) => [date, items.map(({ id }) => id)])).toEqual([
@@ -210,7 +211,7 @@ describe('planArea', () => {
       },
       { scheduleType: 'deadline' },
     );
-    expect(planArea([due], { now, timezone: SP }).days.map(({ date }) => date)).toEqual([
+    expect(planArea([due], { now, timezone: SP, ...late }).days.map(({ date }) => date)).toEqual([
       '2026-11-07',
     ]);
   });
@@ -279,7 +280,7 @@ describe('an overdue occurrence that was moved to another day (ADR-0005 section 
   });
 
   it('shows once in the area tab, among the overdue and not again on its new day', () => {
-    const result = planArea([moved, movedToday, moved, movedToday], { now, timezone: SP });
+    const result = planArea([moved, movedToday, moved, movedToday], { now, timezone: SP, ...late });
     expect(result.overdue.map(({ id }) => id)).toEqual(['moved-today', 'moved']);
     expect(result.days).toEqual([]);
   });
@@ -288,5 +289,54 @@ describe('an overdue occurrence that was moved to another day (ADR-0005 section 
     const days = buildDays([moved, moved], { timezone: SP });
     expect(days.get('2026-11-05')?.items.map(({ id }) => id)).toEqual(['moved']);
     expect(days.size).toBe(1);
+  });
+});
+
+describe('a red one the job left inside the late window (QA4-1, ADR-0005 section 1)', () => {
+  // Yesterday's task, red since the end of yesterday; the 72 hours end on 2026-11-07 03:00Z.
+  const overdueAt = '2026-11-04T03:00:00.000Z';
+  const end = Date.parse('2026-11-07T03:00:00.000Z');
+  const red = item('red', {
+    status: 'missed',
+    scheduledStart: '2026-11-03T15:00:00.000Z',
+    scheduledDue: '2026-11-03T15:00:00.000Z',
+    overdueAt,
+  });
+  const at = (ms: number, canManageGroup = false) => ({
+    now: new Date(ms),
+    timezone: SP,
+    dueSoonDays: 7,
+    lateCompletionWindowHours: 72,
+    canManageGroup: () => canManageGroup,
+  });
+  const ids = (list: OccurrenceListItem[]) => list.map(({ id }) => id);
+
+  it.each([
+    ['at overdueAt, still on time', Date.parse(overdueAt), []],
+    ['just after overdueAt', Date.parse(overdueAt) + 1, ['red']],
+    ['at the last instant of the window', end, ['red']],
+    ['one millisecond after the window', end + 1, []],
+  ])('%s', (_, ms, want) => {
+    expect(ids(planToday([red], at(ms)).overdue)).toEqual(want);
+    expect(ids(planArea([red], at(ms)).overdue)).toEqual(want);
+  });
+
+  it('leaves both lists once the window closes', () => {
+    expect(planToday([red], at(end + 1))).toMatchObject({ today: [], soon: [] });
+    expect(planArea([red], at(end + 1)).days).toEqual([]);
+  });
+
+  it('has no window for whoever manages the group of the task', () => {
+    const groupRed = { ...red, task: { ...red.task, groupId: 'g' } };
+    const manages = { ...at(end + 1), canManageGroup: (groupId: string | null) => groupId === 'g' };
+    expect(ids(planToday([groupRed], manages).overdue)).toEqual(['red']);
+    expect(ids(planArea([groupRed], manages).overdue)).toEqual(['red']);
+    expect(ids(planToday([red], manages).overdue)).toEqual([]);
+    expect(ids(planToday([groupRed], at(end + 1, false)).overdue)).toEqual([]);
+  });
+
+  it('stays on its day when it went red before overdueAt', () => {
+    const early = item('early', { status: 'missed' });
+    expect(planToday([early], at(now.getTime()))).toMatchObject({ overdue: [], today: [early] });
   });
 });

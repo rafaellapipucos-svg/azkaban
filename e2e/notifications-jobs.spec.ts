@@ -242,9 +242,8 @@ test('the red-by-default job marks what passed its day, leaves the exclusions al
   expect(await xpOf(red.occurrenceId)).toEqual([{ amount: 5, reason: 'occurrence_done_late' }]);
 });
 
-// Known bug, handoff 20261102-1440-qa-testes-para-tarefas-calendario-vermelho-some-de-hoje: Hoje lists
-// as overdue only what is still pending, so once the job turns it red, an occurrence still inside the
-// 72 hours of the late window leaves Hoje, and the person can only find it in the calendar.
+// QA4-1: once the job turns it red, an occurrence still inside the 72 hours of the late window stays
+// among the overdue on Hoje.
 test('a task the job turned red, still inside the late window, stays on Hoje', async ({ page }) => {
   const me = await signedUp(page);
   const red = await oneOff({
@@ -259,10 +258,7 @@ test('a task the job turned red, still inside the late window, stays on Hoje', a
 
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
-  test.fail();
-  await expect(check(page, red.title, 'Não feito').locator('visible=true')).toBeVisible({
-    timeout: 5_000,
-  });
+  await expect(check(page, red.title, 'Não feito').locator('visible=true')).toBeVisible();
 });
 
 test('a reminder that is due rings the bell once, and not for a done or archived task', async ({

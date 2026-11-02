@@ -22,9 +22,27 @@ export function isLateWindowOpen(
 }
 
 /**
- * Until the automatic-missed job exists (F4-6), a pending occurrence past `overdueAt` is shown as
- * overdue by the client.
+ * A pending occurrence past `overdueAt`. The automatic-missed job (F4-6) turns it red a few minutes
+ * later; `isStillResolvable` covers it from then on.
  */
 export function isOverdue(occurrence: Pick<Occurrence, 'status' | 'overdueAt'>, now: Date) {
   return occurrence.status === 'pending' && isLate(occurrence.overdueAt, now);
 }
+
+/**
+ * Red, past `overdueAt` and still resolvable by the viewer: inside the late window, or with no
+ * window for whoever has `task.manage_group` (ADR-0005 section 1). Same rule as `checkTransition`.
+ */
+export function isStillResolvable(
+  occurrence: Pick<Occurrence, 'status' | 'overdueAt'>,
+  now: Date,
+  { lateCompletionWindowHours, canManageGroup }: LateRules,
+) {
+  return (
+    occurrence.status === 'missed' &&
+    isLate(occurrence.overdueAt, now) &&
+    (canManageGroup || isLateWindowOpen(occurrence.overdueAt, lateCompletionWindowHours, now))
+  );
+}
+
+export type LateRules = { lateCompletionWindowHours: number; canManageGroup: boolean };

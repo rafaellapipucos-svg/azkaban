@@ -1,4 +1,5 @@
-import { can, localDateOf, planArea } from '@azkaban/core';
+import { taskRules } from '@azkaban/config';
+import { can, canManageGroupTask, localDateOf, planArea } from '@azkaban/core';
 import { contextsRepository, useCurrentUser } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import {
@@ -56,9 +57,14 @@ export function AreaScreen({ areaKey, onProof }: { areaKey: string; onProof?: Pr
           (item) =>
             item.areaId === area?.id && (contextId === ALL || item.task.contextId === contextId),
         ),
-        { now, timezone },
+        {
+          now,
+          timezone,
+          lateCompletionWindowHours: taskRules.lateCompletionWindowHours,
+          canManageGroup: (groupId) => canManageGroupTask(user, groupId),
+        },
       ),
-    [items, area?.id, contextId, now, timezone],
+    [items, area?.id, contextId, now, timezone, user],
   );
 
   // The name while the areas load, from the key the route already has.

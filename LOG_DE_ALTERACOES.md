@@ -1233,3 +1233,21 @@
 - **Verificado:** `pnpm check` passou (core 526, platform 46, contracts 44, ui 11, config 7, data 7, app 6, proof 6). `pnpm db:test` 1203 de 1203. `pnpm functions:test` 114 de 114. `pnpm e2e` duas vezes: sem chave VAPID, 65 passaram, 2 pulados (os de push) e 1 falhou (`calendar.spec.ts:229`, a corrida corrigida acima); com uma chave pública gerada em memória e passada só ao processo, 67 passaram e 1 pulado (o "sem chave"), sem `retries`. Depois da última mudança no ajudante, `tasks-late-and-count` e `tasks-proof` de novo: 12 de 12. Percurso com Playwright a 320, 375 e 1280 px, claro e escuro: sino de 44×44 com "Avisos, N não lidos"; aviso ao vivo em `role="status"`; lista; preferências e silêncio sem chave; alerta de materialização com `failed` e "Tentar de novo"; vermelho no dia do calendário; um `main` por tela; `navigation` "Navegação principal" com cinco `tab` de 64 px de altura e nenhum rótulo cortado (a 320 px: 44, 68, 80, 81 e 46 px); sem rolagem lateral; nenhum alvo abaixo de 44 px nas telas medidas; título "<tela> · Azkaban" em todas as 15 rotas abertas; Tab chega ao sino primeiro, com contorno de foco, e Enter abre `/notifications`.
 - **Não verificado:** push real, registro do `sw.js`, manifest instalável e `theme-color` na barra; iPhone, Android e leitor de tela. Cartão de push com chave só pela E2E, sem captura. Sem mutação: a lógica do job é do banco e já foi mutada pelo `banco-de-dados`. A Equipe, a revisão de prova e as telas sem login não entraram no percurso de títulos. A janela entre criar a tarefa e chamar `shieldFromAutoMiss` continua existindo, mas é de milissegundos. Nada no projeto hospedado nem no CI. Hora derivada de UTC menos 3 (PowerShell bloqueado).
 - **Pendências / próximos passos:** QA4-1 e QA4-2 antes de fechar a fase. Seguem abertos de antes: `PushSetupCard` no onboarding (7.7 do prompt mestre), SEG4-1 a SEG4-9, e a E2E do resumo diário, que é da Fase 5.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 14:48 (BRT)
+
+- **Branch:** fix/today-auto-missed, a partir de `feat/phase-4-notifications` (`a6c1a32`)
+- **Agente(s):** tarefas-calendario
+- **Resumo:** QA4-1 corrigido. A ocorrência que o job deixou vermelha continua em "Atrasadas" de Hoje e da aba da área enquanto ainda pode ser concluída, e sai quando a janela fecha.
+- **Alterações:**
+  - `isStillResolvable` (core): `missed`, depois de `overdueAt` e dentro da janela de atraso, ou sem janela para quem tem `task.manage_group`, a mesma regra de `checkTransition`. Vale para toda `missed`, não só a do job.
+  - `planToday` e `planArea` recebem `lateCompletionWindowHours` e `canManageGroup(groupId)` e põem em "Atrasadas" a pendente atrasada ou a vermelha que ainda dá para resolver. As telas passam `taskRules` e `canManageGroupTask`.
+  - `listOverdue` (data) traz `pending` e `missed` passadas de `overdueAt`, as 100 mais novas; o corte pela janela fica no core, porque depende de quem olha.
+  - Comentários "até o job existir" atualizados. E2E: o `test.fail()` do QA4-1 saiu de `e2e/notifications-jobs.spec.ts`.
+- **Arquivos/módulos principais:** `packages/core/src/tasks/{late,today}.ts` e testes, `packages/data/src/tasks/index.ts`, `packages/features/tasks/src/{TodayScreen,AreaScreen}.tsx`, `e2e/notifications-jobs.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0005 seção 1 sem mudança: a lista segue a janela que a transição já aplica.
+- **Como testar:** `pnpm check`; E2E `pnpm exec playwright test e2e/notifications-jobs.spec.ts` com a pilha local.
+- **Verificado:** `pnpm check` (core 554 testes) e `pnpm build:web` passam.
+- **Não verificado:** a E2E não rodou (a pilha estava com o `banco-de-dados`). Hora em BRT derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Pendências / próximos passos:** quem tem `task.manage_group` vê suas vermelhas em "Atrasadas" sem prazo, até o limite de 100 da consulta.

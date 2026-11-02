@@ -1095,3 +1095,18 @@
 - **Verificado:** `pnpm check` passou: core 522 (6 novos de `deviceLabel`), platform 46 (8 novos de `push.web`), contracts 44, ui 11, config 7, data 7, app 6, proof 6. `pnpm build:web` exportou `dist`. As specs novas passam no `tsc` estrito isolado (os únicos erros são de `proof-kit.ts`, que já existiam com essa configuração avulsa).
 - **Não verificado:** a E2E não rodou, por ordem do orquestrador (pilha em uso). Nada no navegador: sino ao vivo, aviso, telas a 375 e 1280 px, claro e escuro, registro do `sw.js`, permissão e inscrição reais, push real, iPhone. O encaixe do sino em Hoje é provisório. Hora derivada de UTC menos 3 (PowerShell bloqueado).
 - **Pendências / próximos passos:** rodar a E2E e conferir as telas quando a pilha estiver livre. `auth-grupos`: `forgetThisDevice` antes de sair (handoff). Integração: trocar a sobreposição de Hoje pelo encaixe de `TodayScreen`. Verificação manual do push no Android, desktop e iPhone pela Tela de Início.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 13:49 (BRT)
+
+- **Branch:** `feat/auth-push-hooks` (a partir de `feat/phase-4-notifications`)
+- **Agente(s):** auth-grupos
+- **Resumo:** Ao sair da conta, o app esquece este aparelho para push antes do `signOut`, atendendo ao handoff 20261102-1344 do notificacoes-whatsapp.
+- **Alterações:**
+  - `ProfileScreen` aceita `onBeforeSignOut?: () => Promise<void>` e o espera dentro do `mutationFn`, antes de `authRepository.signOut`, com a sessão ainda viva (RLS). Falha é engolida e a espera tem teto de 5 s, então a saída nunca trava.
+  - A rota `apps/app/app/(app)/(tabs)/profile.tsx` passa `forgetThisDevice` de `@azkaban/feature-notifications`.
+  - Encaixe do `PushSetupCard` no onboarding: não feito. O onboarding de hoje só tem telas sem sessão (boas-vindas, entrar, criar conta), e o cartão precisa de usuário (`useCurrentUser` e RLS de `push_subscriptions`). Ele segue em Perfil > Notificações.
+- **Arquivos/módulos principais:** `packages/features/auth/src/ProfileScreen.tsx`, `apps/app/app/(app)/(tabs)/profile.tsx`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0008, seção 3
+- **Como testar:** `pnpm check`; `e2e/accounts.spec.ts` ("sign up, sign out and sign back in") cobre a saída com o gancho sem push ativo. Com push real: ativar em Perfil > Notificações, sair e conferir que `push_subscriptions` não tem a linha. Hora do título em UTC menos 3, porque o PowerShell foi bloqueado.
+- **Pendências / próximos passos:** sem E2E da linha apagada ao sair, porque o Playwright não obtém inscrição de push real. Um passo de onboarding com sessão (permitir notificações, instalar PWA) fica para quando for planejado.

@@ -187,6 +187,84 @@ isOneToOne: false
       referencedColumns: ["key"]
     }
                   ]
+                },"notification_outbox": {
+                  Row: {
+                    "attempts": number,"channel": Database["public"]['Enums']["delivery_channel"],"created_at": string,"id": string,"last_error": string | null,"locked_until": string | null,"next_attempt_at": string,"notification_id": string,"scheduled_for": string,"sent_at": string | null,"status": Database["public"]['Enums']["notification_outbox_status"],"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "attempts"?: number,"channel": Database["public"]['Enums']["delivery_channel"],"created_at"?: string,"id"?: string,"last_error"?: string | null,"locked_until"?: string | null,"next_attempt_at": string,"notification_id": string,"scheduled_for": string,"sent_at"?: string | null,"status"?: Database["public"]['Enums']["notification_outbox_status"],"user_id": string
+                  }
+                  Update: {
+                    "attempts"?: number,"channel"?: Database["public"]['Enums']["delivery_channel"],"created_at"?: string,"id"?: string,"last_error"?: string | null,"locked_until"?: string | null,"next_attempt_at"?: string,"notification_id"?: string,"scheduled_for"?: string,"sent_at"?: string | null,"status"?: Database["public"]['Enums']["notification_outbox_status"],"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "notification_outbox_notification_id_fkey"
+      columns: ["notification_id"]
+isOneToOne: false
+      referencedRelation: "notifications"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "notification_outbox_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"notification_preferences": {
+                  Row: {
+                    "channel": Database["public"]['Enums']["delivery_channel"],"enabled": boolean,"type": Database["public"]['Enums']["notification_type"],"updated_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "channel": Database["public"]['Enums']["delivery_channel"],"enabled": boolean,"type": Database["public"]['Enums']["notification_type"],"updated_at"?: string,"user_id"?: string
+                  }
+                  Update: {
+                    "channel"?: Database["public"]['Enums']["delivery_channel"],"enabled"?: boolean,"type"?: Database["public"]['Enums']["notification_type"],"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "notification_preferences_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"notifications": {
+                  Row: {
+                    "created_at": string,"data": NonNullable<Json>,"dedupe_key": string,"group_id": string | null,"id": string,"occurrence_id": string | null,"read_at": string | null,"type": Database["public"]['Enums']["notification_type"],"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"data"?: NonNullable<Json>,"dedupe_key": string,"group_id"?: string | null,"id"?: string,"occurrence_id"?: string | null,"read_at"?: string | null,"type": Database["public"]['Enums']["notification_type"],"user_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"data"?: NonNullable<Json>,"dedupe_key"?: string,"group_id"?: string | null,"id"?: string,"occurrence_id"?: string | null,"read_at"?: string | null,"type"?: Database["public"]['Enums']["notification_type"],"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "notifications_group_id_fkey"
+      columns: ["group_id"]
+isOneToOne: false
+      referencedRelation: "groups"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "notifications_occurrence_id_fkey"
+      columns: ["occurrence_id"]
+isOneToOne: false
+      referencedRelation: "task_occurrences"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "notifications_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"occurrence_transitions": {
                   Row: {
                     "actor": Database["public"]['Enums']["occurrence_actor"],"from_status": Database["public"]['Enums']["occurrence_status"],"to_status": Database["public"]['Enums']["occurrence_status"]
@@ -217,14 +295,14 @@ isOneToOne: false
                   ]
                 },"profiles": {
                   Row: {
-                    "created_at": string,"display_name": string,"id": string,"locale": string,"proof_consent_at": string | null,"proof_consent_version": number | null,"timezone": string,"updated_at": string
+                    "created_at": string,"display_name": string,"id": string,"locale": string,"proof_consent_at": string | null,"proof_consent_version": number | null,"quiet_hours_end": string | null,"quiet_hours_start": string | null,"timezone": string,"updated_at": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"display_name": string,"id": string,"locale"?: string,"proof_consent_at"?: string | null,"proof_consent_version"?: number | null,"timezone"?: string,"updated_at"?: string
+                    "created_at"?: string,"display_name": string,"id": string,"locale"?: string,"proof_consent_at"?: string | null,"proof_consent_version"?: number | null,"quiet_hours_end"?: string | null,"quiet_hours_start"?: string | null,"timezone"?: string,"updated_at"?: string
                   }
                   Update: {
-                    "created_at"?: string,"display_name"?: string,"id"?: string,"locale"?: string,"proof_consent_at"?: string | null,"proof_consent_version"?: number | null,"timezone"?: string,"updated_at"?: string
+                    "created_at"?: string,"display_name"?: string,"id"?: string,"locale"?: string,"proof_consent_at"?: string | null,"proof_consent_version"?: number | null,"quiet_hours_end"?: string | null,"quiet_hours_start"?: string | null,"timezone"?: string,"updated_at"?: string
                   }
                   Relationships: [
                     
@@ -263,6 +341,26 @@ isOneToOne: false
                   Relationships: [
                     {
       foreignKeyName: "proof_consents_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"push_subscriptions": {
+                  Row: {
+                    "auth": string,"created_at": string,"endpoint": string,"id": string,"last_success_at": string | null,"p256dh": string,"user_agent": string | null,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "auth": string,"created_at"?: string,"endpoint": string,"id"?: string,"last_success_at"?: string | null,"p256dh": string,"user_agent"?: string | null,"user_id": string
+                  }
+                  Update: {
+                    "auth"?: string,"created_at"?: string,"endpoint"?: string,"id"?: string,"last_success_at"?: string | null,"p256dh"?: string,"user_agent"?: string | null,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "push_subscriptions_user_id_fkey"
       columns: ["user_id"]
 isOneToOne: false
       referencedRelation: "profiles"
@@ -502,6 +600,12 @@ isOneToOne: false
             "accept_invite":
 { Args: { "invite_code": string }; Returns: string
                            },
+"auto_miss_occurrences":
+{ Args: Record<PropertyKey, never>; Returns: number
+                           },
+"call_dispatch_notifications":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
 "call_materialize_occurrences":
 { Args: Record<PropertyKey, never>; Returns: undefined
                            },
@@ -514,6 +618,9 @@ isOneToOne: false
 "can_edit_task":
 { Args: { "p_task_id": string }; Returns: boolean
                            },
+"can_receive_notification":
+{ Args: { "p_occurrence_id": string,"p_type": Database["public"]['Enums']["notification_type"],"p_user": string }; Returns: boolean
+                           },
 "can_review_proof":
 { Args: { "p_author_id": string,"p_occurrence_id": string }; Returns: boolean
                            },
@@ -525,11 +632,20 @@ isOneToOne: false
                            } |
 { Args: { "p_task_id": string }; Returns: boolean
                            },
+"can_view_task_for":
+{ Args: { "p_task": Omit<Database["public"]['Tables']["tasks"]['Row'], Database["public"]['Tables']["tasks"]['ComputedFields']>,"p_user": string }; Returns: boolean
+                           },
+"claim_notification_batch":
+{ Args: { "p_lease_seconds": number,"p_limit": number,"p_max_delay_hours": number }; Returns: Json
+                           },
 "claim_proof_challenge":
 { Args: { "p_nonce": string,"p_user_id": string }; Returns: Json
                            },
 "commit_proof":
 { Args: { "p_accuracy_m": number,"p_app_version": string,"p_captured_at_device": string,"p_distance_m": number,"p_flags": (string)[],"p_height_px": number,"p_nonce": string,"p_platform": string,"p_sha256": string,"p_size_bytes": number,"p_storage_path": string,"p_user_agent": string,"p_user_id": string,"p_width_px": number }; Returns: Json
+                           },
+"delete_expired_notifications":
+{ Args: Record<PropertyKey, never>; Returns: number
                            },
 "delete_expired_proof_records":
 { Args: { "p_limit": number }; Returns: number
@@ -542,6 +658,12 @@ isOneToOne: false
                            },
 "edit_task":
 { Args: { "p_head_rrule": string,"p_occurrence_id": string,"p_rrule": string,"p_scope": Database["public"]['Enums']["task_edit_scope"],"p_task": Json }; Returns: (string)[]
+                           },
+"enqueue_due_reminders":
+{ Args: Record<PropertyKey, never>; Returns: number
+                           },
+"enqueue_notification":
+{ Args: { "p_data": Json,"p_event_key": string,"p_group_id": string,"p_occurrence_id": string,"p_scheduled_for"?: string,"p_type": Database["public"]['Enums']["notification_type"],"p_user": string }; Returns: string
                            },
 "exclude_kept_days":
 { Args: { "p_task_id": string }; Returns: undefined
@@ -562,6 +684,9 @@ isOneToOne: false
 "has_permission":
 { Args: { "permission": string,"target_group_id": string }; Returns: boolean
                            },
+"is_allowed_push_endpoint":
+{ Args: { "p_endpoint": string }; Returns: boolean
+                           },
 "is_group_member":
 { Args: { "target_group_id": string }; Returns: boolean
                            },
@@ -576,6 +701,9 @@ isOneToOne: false
                            },
 "mark_proof_photo_deleted":
 { Args: { "p_proof_id": string }; Returns: undefined
+                           },
+"notification_rules":
+{ Args: Record<PropertyKey, never>; Returns: Json
                            },
 "occurrence_award_xp":
 { Args: { "p_occ": Omit<Database["public"]['Tables']["task_occurrences"]['Row'], Database["public"]['Tables']["task_occurrences"]['ComputedFields']> }; Returns: undefined
@@ -607,8 +735,20 @@ isOneToOne: false
               "proof_id": string,"storage_path": string
             }[]
                            },
+"push_endpoint_host":
+{ Args: { "p_endpoint": string }; Returns: string
+                           },
+"quiet_hours_end_at":
+{ Args: { "p_at": string,"p_end": string,"p_start": string,"p_timezone": string }; Returns: string
+                           },
 "record_proof_consent":
 { Args: { "p_version": number }; Returns: undefined
+                           },
+"register_push_subscription":
+{ Args: { "p_auth": string,"p_endpoint": string,"p_p256dh": string,"p_user_agent": string }; Returns: string
+                           },
+"report_notification_results":
+{ Args: { "p_results": Json }; Returns: number
                            },
 "review_proof":
 { Args: { "p_decision": string,"p_note": string,"p_proof_id": string,"p_to_status": Database["public"]['Enums']["occurrence_status"] }; Returns: {
@@ -672,7 +812,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "group_role": "owner"|"admin"|"member","occurrence_actor": "assignee"|"editor"|"deleter"|"system"|"reviewer","occurrence_status": "pending"|"done"|"partial"|"missed"|"cancelled","proof_review_status": "unreviewed"|"in_review"|"approved"|"disputed","schedule_type": "timed"|"all_day"|"deadline","task_difficulty": "easy"|"medium"|"hard","task_edit_scope": "this"|"this_and_following"|"all","task_priority": "low"|"normal"|"high","task_visibility": "group"|"private"
+            "delivery_channel": "web_push"|"whatsapp","group_role": "owner"|"admin"|"member","notification_outbox_status": "pending"|"sending"|"sent"|"failed"|"cancelled"|"expired","notification_type": "task_reminder"|"occurrence_missed"|"occurrence_resolved"|"proof_in_review"|"proof_disputed","occurrence_actor": "assignee"|"editor"|"deleter"|"system"|"reviewer","occurrence_status": "pending"|"done"|"partial"|"missed"|"cancelled","proof_review_status": "unreviewed"|"in_review"|"approved"|"disputed","schedule_type": "timed"|"all_day"|"deadline","task_difficulty": "easy"|"medium"|"hard","task_edit_scope": "this"|"this_and_following"|"all","task_priority": "low"|"normal"|"high","task_visibility": "group"|"private"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -792,7 +932,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "group_role": ["owner", "admin", "member"],"occurrence_actor": ["assignee", "editor", "deleter", "system", "reviewer"],"occurrence_status": ["pending", "done", "partial", "missed", "cancelled"],"proof_review_status": ["unreviewed", "in_review", "approved", "disputed"],"schedule_type": ["timed", "all_day", "deadline"],"task_difficulty": ["easy", "medium", "hard"],"task_edit_scope": ["this", "this_and_following", "all"],"task_priority": ["low", "normal", "high"],"task_visibility": ["group", "private"]
+            "delivery_channel": ["web_push", "whatsapp"],"group_role": ["owner", "admin", "member"],"notification_outbox_status": ["pending", "sending", "sent", "failed", "cancelled", "expired"],"notification_type": ["task_reminder", "occurrence_missed", "occurrence_resolved", "proof_in_review", "proof_disputed"],"occurrence_actor": ["assignee", "editor", "deleter", "system", "reviewer"],"occurrence_status": ["pending", "done", "partial", "missed", "cancelled"],"proof_review_status": ["unreviewed", "in_review", "approved", "disputed"],"schedule_type": ["timed", "all_day", "deadline"],"task_difficulty": ["easy", "medium", "hard"],"task_edit_scope": ["this", "this_and_following", "all"],"task_priority": ["low", "normal", "high"],"task_visibility": ["group", "private"]
           }
         }
 } as const

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, type Browser, type Page } from '@playwright/test';
 
-// Needs `pnpm db:start` and `pnpm exec supabase functions serve` (repeating tasks are materialized
+// Needs `pnpm db:start`, which serves the functions too (repeating tasks are materialized
 // by the Edge Function). Accounts are unique per run and exist only in the local database.
 const newUser = (name: string) => ({
   name,

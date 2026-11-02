@@ -58,5 +58,6 @@ jobs:
           cat /tmp/functions.log
           exit 1
       - run: pnpm functions:test
-      - run: pnpm exec playwright install --with-deps chromium
+      # `chrome`: the fake camera of the proof specs needs a real Chrome, not the headless shell.
+      - run: pnpm exec playwright install --with-deps chromium chrome
       - run: pnpm e2e

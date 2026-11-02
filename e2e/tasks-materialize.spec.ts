@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
 
-// Needs `pnpm db:start` and `pnpm exec supabase functions serve`. Saving a repeating task must not
+// Needs `pnpm db:start`, which serves the functions too. Saving a repeating task must not
 // wait for the Edge Function (4 to 14 s measured), and a failure of it must be visible.
 const button = (page: Page, name: string) =>
   page.getByRole('button', { name, exact: true }).locator('visible=true');

@@ -18,7 +18,7 @@
     "db:check-permissions": "node scripts/check-permission-mirror.mjs",
     "test": "turbo run test",
     "check": "pnpm lint && pnpm boundaries && pnpm typecheck && pnpm test",
-    "e2e": "playwright test",
+    "e2e": "node supabase/functions/_shared/wait-for-functions.mjs && playwright test",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",

@@ -17,7 +17,7 @@ import {
 } from './proof-fixtures';
 
 // The real road: Chromium's fake camera, `proof-validate` and `proof-url` in the local stack. Needs
-// `pnpm db:start` and `pnpm exec supabase functions serve`. Where a failure cannot be caused for real,
+// `pnpm db:start`, which serves the functions too. Where a failure cannot be caused for real,
 // only the answer of the server is replaced, and the rest of the flow still runs.
 // The headless shell Playwright uses by default answers `getUserMedia` with NotSupportedError, so this
 // file runs on the installed Chrome. Without the software GL of `--use-angle`, the fake track ends at
@@ -35,6 +35,9 @@ const IN_REVIEW =
 
 // React Native Web draws an image twice: the box and a transparent <img> with the same name.
 const preview = (page: Page) => page.getByRole('img', { name: PREVIEW }).first();
+// A request can wait 16 s for a worker of the local runtime that is retiring, longer than the 15 s of
+// the config. What is under test is the answer, not how long it took.
+const answered = expect.configure({ timeout: 30_000 });
 const allowCamera = (page: Page) => page.context().grantPermissions(['camera']);
 
 async function photoTask(
@@ -72,7 +75,7 @@ async function sendPhoto(page: Page, occurrenceId: string, confirmation: string)
   await button(page, 'Tirar a foto para concluir').click();
   await takePhoto(page);
   await button(page, 'Enviar foto').click();
-  await expect(page.getByText(confirmation)).toBeVisible();
+  await answered(page.getByText(confirmation)).toBeVisible();
 }
 
 const proofRows = async (occurrenceId: string) => {
@@ -125,7 +128,7 @@ test('a photo goes from the check to green through proof-validate, and the notic
   expect(await statusOf(occurrenceId)).toMatchObject({ status: 'pending' });
   await button(page, 'Enviar foto').click();
   expect((await answer).status()).toBe(200);
-  await expect(page.getByText(ACCEPTED)).toBeVisible();
+  await answered(page.getByText(ACCEPTED)).toBeVisible();
 
   // The list follows without a reload
   await button(page, 'Voltar à tarefa').click();
@@ -207,7 +210,7 @@ test('a photo left too long is thrown away, and the next one takes a new challen
   await button(page, 'Tirar outra foto').click();
   await takePhoto(page);
   await button(page, 'Enviar foto').click();
-  await expect(page.getByText(ACCEPTED)).toBeVisible();
+  await answered(page.getByText(ACCEPTED)).toBeVisible();
   expect(challenges).toBe(2);
 });
 
@@ -231,7 +234,7 @@ test('an answer lost after the commit is a success, not an error and not a secon
   await acceptNotice(page);
   await takePhoto(page);
   await button(page, 'Enviar foto').click();
-  await expect(page.getByText(ACCEPTED)).toBeVisible();
+  await answered(page.getByText(ACCEPTED)).toBeVisible();
   await expect(page.getByRole('alert')).toHaveCount(0);
   expect(reached).toBe(1);
   expect(await proofRows(occurrenceId)).toHaveLength(1);
@@ -261,7 +264,7 @@ test('a request that never arrived keeps the photo, and it goes again with a new
 
   await page.unroute('**/functions/v1/proof-validate');
   await button(page, 'Enviar foto').click();
-  await expect(page.getByText(ACCEPTED)).toBeVisible();
+  await answered(page.getByText(ACCEPTED)).toBeVisible();
   expect(challenges).toBe(2);
   expect(await proofRows(occurrenceId)).toHaveLength(1);
 });
@@ -421,7 +424,7 @@ test('the location is asked only where the context has one, and refusing it does
   await button(memberPage, 'Usar minha localização').click();
   await takePhoto(memberPage);
   await button(memberPage, 'Enviar foto').click();
-  await expect(memberPage.getByText(ACCEPTED)).toBeVisible();
+  await answered(memberPage.getByText(ACCEPTED)).toBeVisible();
   await expect(memberPage.getByText('Sem localização')).toBeVisible();
   expect(await proofRows(a.occurrenceId)).toMatchObject([{ flags: ['location_missing'] }]);
 
@@ -432,7 +435,7 @@ test('the location is asked only where the context has one, and refusing it does
   await memberPage.goto(`/tasks/${b.occurrenceId}/proof`);
   await takePhoto(memberPage);
   await button(memberPage, 'Enviar foto').click();
-  await expect(memberPage.getByText(ACCEPTED)).toBeVisible();
+  await answered(memberPage.getByText(ACCEPTED)).toBeVisible();
   await expect(memberPage.getByText('Fora do raio do local')).toBeVisible();
   const stored = await admin
     .from('task_proofs')
@@ -466,7 +469,7 @@ test('an approval waits in review, and the admin approves, contests and undoes i
   await acceptNotice(memberPage);
   await takePhoto(memberPage);
   await button(memberPage, 'Enviar foto').click();
-  await expect(memberPage.getByText(IN_REVIEW)).toBeVisible();
+  await answered(memberPage.getByText(IN_REVIEW)).toBeVisible();
   await expect(memberPage.getByText('Em análise', { exact: true })).toBeVisible();
   await button(memberPage, 'Voltar à tarefa').click();
   await memberPage.goto('/');
@@ -573,7 +576,7 @@ test('an admin who is the author reviews nothing, and a deleted photo leaves the
   await acceptNotice(page);
   await takePhoto(page);
   await button(page, 'Enviar foto').click();
-  await expect(page.getByText(ACCEPTED)).toBeVisible();
+  await answered(page.getByText(ACCEPTED)).toBeVisible();
 
   const [row] = await proofRows(occurrenceId);
   await page.goto(`/proofs/${row!.id}`);

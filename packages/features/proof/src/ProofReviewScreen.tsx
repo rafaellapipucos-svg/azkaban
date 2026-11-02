@@ -75,11 +75,8 @@ function ProofImage({ proof }: { proof: ProofReviewItem }) {
       aria-label={t('review.image', { task: proof.task.title })}
       resizeMode="contain"
       onError={() => setBroken(true)}
-      style={{
-        width: '100%',
-        aspectRatio: proof.widthPx / proof.heightPx,
-        borderRadius: tokens.radii.lg,
-      }}
+      // No rounded corner: it would cut the stamp, which runs to the bottom edge.
+      style={{ width: '100%', aspectRatio: proof.widthPx / proof.heightPx }}
     />
   );
 }
@@ -154,9 +151,14 @@ function ServerRecord({ proof, authorName }: { proof: ProofReviewItem; authorNam
         </Body>
       ))}
       <Muted>
-        {proof.platform
-          ? t('review.device', { platform: proof.platform, version: proof.appVersion ?? '?' })
-          : t('review.deviceUnknown')}
+        {proof.platform === null
+          ? t('review.deviceUnknown')
+          : proof.appVersion === null
+            ? t('review.deviceNoVersion', { platform: t(`review.platform.${proof.platform}`) })
+            : t('review.device', {
+                platform: t(`review.platform.${proof.platform}`),
+                version: proof.appVersion,
+              })}
       </Muted>
       {proof.userAgent ? (
         <Muted className="text-sm">{t('review.userAgent', { value: proof.userAgent })}</Muted>
@@ -239,6 +241,7 @@ export function ProofReviewScreen({ proofId }: { proofId: string }) {
       </View>
       <ProofImage proof={proof} />
       <Muted>{t('review.stampNote')}</Muted>
+      {proof.platform === 'web' ? <Muted>{t('review.webLimit')}</Muted> : null}
       <ServerRecord proof={proof} authorName={authorName} />
 
       {review.isError ? (

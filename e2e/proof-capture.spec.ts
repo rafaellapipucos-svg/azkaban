@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { proofRules } from '../packages/config/src/proof';
 import { admin } from '../supabase/functions/_shared/proof-kit';
 import {
   APPROVAL,
@@ -58,6 +59,20 @@ async function photoTask(
   await expect(page.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
 }
 
+/** Every point of ADR-0007, section 14, with the numbers of the config. */
+async function expectNotice(page: Page) {
+  for (const sentence of [
+    'Suas coordenadas não são guardadas.',
+    'Quem vê: você e os administradores do grupo, nunca os colegas. Em tarefa privada, só você.',
+    'A foto leva carimbados o seu nome, o título da tarefa e o horário.',
+    'Evite mostrar outras pessoas na foto. Se alguém aparecer, quem revisa também vê.',
+    `A foto é apagada depois de ${proofRules.retentionDays} dias. O registro sem a imagem, com horários e marcas de local, é apagado depois de ${proofRules.recordRetentionDays} dias.`,
+    'Para pedir a exclusão antes do prazo, fale com o dono do grupo.',
+  ]) {
+    await expect(page.getByText(sentence, { exact: true })).toBeVisible();
+  }
+}
+
 async function acceptNotice(page: Page) {
   await expect(page.getByRole('heading', { name: CONSENT })).toBeVisible();
   await button(page, 'Aceitar e continuar').click();
@@ -113,8 +128,7 @@ test('a photo goes from the check to green through proof-validate, and the notic
   // Refusing the notice sends nothing and leaves the yellow and the red open
   await check(page, title, 'Pendente').click();
   await expect(page.getByRole('heading', { name: CONSENT })).toBeVisible();
-  await expect(page.getByText('Suas coordenadas não são guardadas.')).toBeVisible();
-  await expect(page.getByText(/depois de 90 dias/)).toBeVisible();
+  await expectNotice(page);
   await expect(page.locator('video')).toHaveCount(0);
   await button(page, 'Agora não').click();
   await expect(check(page, title, 'Pendente')).toBeVisible();
@@ -155,15 +169,24 @@ test('a photo goes from the check to green through proof-validate, and the notic
   await expect(button(page, 'Tirar foto')).toBeVisible();
   await expect(page.getByRole('heading', { name: CONSENT })).toHaveCount(0);
 
-  // A new version of the notice brings it back
+  // Whoever accepted an older version reads the new one before the next photo
   const raised = await admin
     .from('profiles')
-    .update({ proof_consent_version: null, proof_consent_at: null })
+    .update({ proof_consent_version: proofRules.consentVersion - 1 })
     .eq('id', assigneeId);
   expect(raised.error).toBeNull();
   await page.goto('/');
   await check(page, second, 'Pendente').click();
   await expect(page.getByRole('heading', { name: CONSENT })).toBeVisible();
+  await expectNotice(page);
+  await button(page, 'Aceitar e continuar').click();
+  await expect(button(page, 'Tirar foto')).toBeVisible();
+  const accepted = await admin
+    .from('profiles')
+    .select('proof_consent_version')
+    .eq('id', assigneeId)
+    .single();
+  expect(accepted.data?.proof_consent_version).toBe(proofRules.consentVersion);
 });
 
 test('refusing the camera shows the way to the yellow and the red', async ({ page }) => {
@@ -176,6 +199,26 @@ test('refusing the camera shows the way to the yellow and the red', async ({ pag
   await expect(contains(page, /você ainda pode marcar Tentei ou Não fiz/)).toBeVisible();
   await page.goto(`/tasks/${(await spotOf(title)).occurrenceId}`);
   await expect(button(page, 'Não fiz')).toBeVisible();
+});
+
+test('the whole preview and the shutter fit the screen of a phone and of a laptop', async ({
+  page,
+}) => {
+  await allowCamera(page);
+  await signUpWithContext(page, 'Dobra');
+  const title = uniqueTitle('Mesa arrumada');
+  await photoTask(page, title);
+  await check(page, title, 'Pendente').click();
+  await acceptNotice(page);
+  for (const size of [
+    { width: 375, height: 812 },
+    { width: 1280, height: 800 },
+  ]) {
+    await page.setViewportSize(size);
+    await expect(button(page, 'Tirar foto')).toBeEnabled();
+    await expect(page.locator('video')).toBeInViewport({ ratio: 1 });
+    await expect(button(page, 'Tirar foto')).toBeInViewport({ ratio: 1 });
+  }
 });
 
 test('a photo left too long is thrown away, and the next one takes a new challenge', async ({
@@ -506,6 +549,8 @@ test('an approval waits in review, and the admin approves, contests and undoes i
   ).toBeVisible();
   await expect(ownerPage.getByText(/Recebida em/)).toBeVisible();
   await expect(ownerPage.getByText('Enviada por Duda')).toBeVisible();
+  await expect(ownerPage.getByText(/^Enviada pelo navegador, versão \S+$/)).toBeVisible();
+  await expect(ownerPage.getByText(/na web não dá para garantir/)).toBeVisible();
   await expect(ownerPage.getByText(/O carimbo na foto é só um desenho/)).toBeVisible();
   await expect.poll(() => photos).toBe(1);
   expect(urlRequests).toBe(1);

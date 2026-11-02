@@ -53,6 +53,7 @@
     "loading": "Carregando…",
     "retry": "Tentar de novo"
   },
+  "lateUntil": "Ainda dá para concluir até {{when}}.",
   "toast": {
     "dismiss": "Fechar aviso"
   },

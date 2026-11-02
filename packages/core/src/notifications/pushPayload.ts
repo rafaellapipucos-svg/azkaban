@@ -1,4 +1,10 @@
-import { pushPayloadSchema, type NotificationItem, type PushPayload } from '@azkaban/contracts';
+import {
+  pushPayloadSchema,
+  type NotificationItem,
+  type OccurrenceStatus,
+  type PushPayload,
+} from '@azkaban/contracts';
+import { lateWindowEnd } from '../tasks/late';
 
 /**
  * i18next semantics, namespace `notifications`: `count` picks the plural form. The dispatcher passes
@@ -105,4 +111,20 @@ export function buildPushPayload(
     // A second delivery of the same notification replaces the first on screen.
     tag: source.id,
   });
+}
+
+/**
+ * Until when an automatic red can still be done (ADR-0008, section 10): the end of the late window,
+ * from the occurrence as it is now, so a reschedule moves it. Null once it was resolved or the
+ * window closed. The push does not say it yet: the claim does not send `overdueAt`.
+ */
+export function missedLateUntil(
+  source: PushSource & { overdueAt: string | null; occurrenceStatus: OccurrenceStatus | null },
+  lateCompletionWindowHours: number,
+  now: Date,
+): Date | null {
+  if (source.type !== 'occurrence_missed' || source.data.byUserId) return null;
+  if (source.occurrenceStatus !== 'missed' || !source.overdueAt) return null;
+  const end = lateWindowEnd(source.overdueAt, lateCompletionWindowHours);
+  return end.getTime() >= now.getTime() ? end : null;
 }

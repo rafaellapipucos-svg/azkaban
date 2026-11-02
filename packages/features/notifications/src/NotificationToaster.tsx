@@ -3,14 +3,16 @@ import { useTranslation } from '@azkaban/i18n';
 import { Body, IconButton, Muted, tokens } from '@azkaban/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
+import { useSegments } from 'expo-router';
 import { Pressable, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { notificationsConfig } from './config';
 import { syncThisDevice } from './device';
 import { bellKey, useItemText, useOpenItem } from './hooks';
 
 /**
  * Mounted once in the signed-in shell. Listens to the bell by Realtime: an insert shows a short
- * notice that does not block the screen, and any change refreshes the count, also across tabs. With
+ * notice at the bottom that covers no control, and any change refreshes the count, also across tabs. With
  * a public key, it registers this browser's subscription again on open (ADR-0008, section 9).
  */
 export function NotificationToaster({ vapidPublicKey }: { vapidPublicKey?: string }) {
@@ -20,6 +22,8 @@ export function NotificationToaster({ vapidPublicKey }: { vapidPublicKey?: strin
   const [shown, setShown] = useState<BellItem | null>(null);
   const text = useItemText();
   const open = useOpenItem();
+  const insets = useSafeAreaInsets();
+  const inTabs = (useSegments() as string[]).includes('(tabs)');
 
   useEffect(() => {
     if (!user.id) return;
@@ -43,33 +47,50 @@ export function NotificationToaster({ vapidPublicKey }: { vapidPublicKey?: strin
     return () => clearTimeout(id);
   }, [shown]);
 
-  if (!shown) return null;
-  const { title, body } = text(shown);
+  const content = shown ? text(shown) : null;
+  // Down at the bottom, clear of the header ("Voltar", the bell) and, on a tab, of the tab bar and
+  // of the lane of the "Nova tarefa" button above it.
+  const bottom =
+    insets.bottom +
+    tokens.spacing[4] +
+    (inTabs ? tokens.layout.tabBarHeight + tokens.sizes.fab + tokens.spacing[2] : 0);
+  // The live region stays mounted and empty, and only its content changes: a region inserted with
+  // its text already in it is often not read by screen readers.
   return (
     <View
-      pointerEvents="box-none"
-      style={{ position: 'absolute', top: tokens.spacing[4], left: 0, right: 0 }}
+      style={{ pointerEvents: 'box-none', position: 'absolute', bottom, left: 0, right: 0 }}
       className="items-center px-4"
     >
       <View
         role="status"
         aria-live="polite"
-        style={{ width: '100%', maxWidth: tokens.layout.maxContentWidth, gap: tokens.spacing[2] }}
-        className="flex-row items-center rounded-lg border-2 border-border bg-surface p-3 shadow-md dark:border-border-dark dark:bg-surface-dark"
+        testID="notification-toast"
+        style={{
+          pointerEvents: 'box-none',
+          width: '100%',
+          maxWidth: tokens.layout.maxContentWidth,
+        }}
       >
-        <Pressable
-          role="button"
-          onPress={() => {
-            setShown(null);
-            open(shown);
-          }}
-          style={{ minHeight: tokens.sizes.touch }}
-          className="flex-1 justify-center active:opacity-70"
-        >
-          <Body className="font-heavy">{title}</Body>
-          {body ? <Muted>{body}</Muted> : null}
-        </Pressable>
-        <IconButton icon="✕" label={t('toast.dismiss')} onPress={() => setShown(null)} />
+        {shown && content ? (
+          <View
+            style={{ gap: tokens.spacing[2] }}
+            className="flex-row items-center rounded-lg border-2 border-border bg-surface p-3 shadow-md dark:border-border-dark dark:bg-surface-dark"
+          >
+            <Pressable
+              role="button"
+              onPress={() => {
+                setShown(null);
+                open(shown);
+              }}
+              style={{ minHeight: tokens.sizes.touch }}
+              className="flex-1 justify-center active:opacity-70"
+            >
+              <Body className="font-heavy">{content.title}</Body>
+              {content.body ? <Muted>{content.body}</Muted> : null}
+            </Pressable>
+            <IconButton icon="✕" label={t('toast.dismiss')} onPress={() => setShown(null)} />
+          </View>
+        ) : null}
       </View>
     </View>
   );

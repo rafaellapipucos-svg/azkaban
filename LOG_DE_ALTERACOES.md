@@ -1251,3 +1251,22 @@
 - **Verificado:** `pnpm check` (core 554 testes) e `pnpm build:web` passam.
 - **Não verificado:** a E2E não rodou (a pilha estava com o `banco-de-dados`). Hora em BRT derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
 - **Pendências / próximos passos:** quem tem `task.manage_group` vê suas vermelhas em "Atrasadas" sem prazo, até o limite de 100 da consulta.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 14:51 (BRT)
+
+- **Branch:** fix/notifications-toast, criada a partir de feat/phase-4-notifications (a6c1a32)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** QA4-2, QA4-3 e QA4-4 do handoff `20261102-1440-qa-testes-para-notificacoes-whatsapp-aviso-ao-vivo`. O aviso ao vivo desceu para baixo e não cobre mais "Voltar", o sino, "Nova tarefa" nem a barra de abas; a região `role="status"` fica sempre montada; o vermelho automático diz até quando ainda dá para concluir, no sino e no aviso ao vivo.
+- **Alterações:**
+  - `NotificationToaster`: ancorado embaixo, com a área segura. Numa aba, fica acima da barra (`layout.tabBarHeight`) e da faixa do botão "Nova tarefa" (`sizes.fab`); fora das abas (`useSegments` sem `(tabs)`), a `spacing[4]` do fim. A `View role="status" aria-live="polite"` (`testID="notification-toast"`) é montada sempre, vazia, com `pointerEvents: 'box-none'`; só o cartão entra e sai. Nova dependência `react-native-safe-area-context` no pacote (a mesma versão do `ui`).
+  - `packages/data/src/notifications`: o embed do sino lê também `task_occurrences(overdue_at, status)`; `BellItem` ganha `overdueAt` e `occurrenceStatus`. Tipo local do repositório, sem mudança de contrato.
+  - `packages/core/src/notifications/pushPayload.ts`: `missedLateUntil(source, horas, agora)` devolve o fim da janela de atraso de um vermelho automático ainda `missed`, ou nulo (marcado por alguém, resolvido depois, janela fechada, outro tipo). Dois testes novos.
+  - `hooks.ts` (`useItemText`): acrescenta "Ainda dá para concluir até {{when}}." (`notifications.lateUntil`), com dia, mês e hora no fuso do perfil.
+  - E2E (não executadas): teste novo em `notifications-jobs.spec.ts` que, a 320, 375 e 1280 px, toca um lembrete em Hoje e confere com `elementFromPoint` que o sino e "Nova tarefa" seguem com o toque e que o aviso acaba acima do `tablist`; abre a tarefa pelo aviso, toca outro aviso e confere "Voltar" com `elementFromPoint` e o clique voltando a Hoje; e prova que a região existe vazia antes do primeiro aviso, esvazia depois de `toastMs` e é o mesmo nó do começo ao fim. O teste do vermelho espera o prazo no aviso e na lista. `getByRole('status')` virou `getByTestId('notification-toast')` nos dois arquivos.
+- **Arquivos/módulos principais:** `packages/features/notifications/src/{NotificationToaster.tsx,hooks.ts}`, `packages/data/src/notifications/index.ts`, `packages/core/src/notifications/pushPayload.ts`, `packages/i18n/src/pt-BR/notifications.json`, `e2e/notifications-{jobs,bell}.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** o prazo do vermelho sai do cliente com o que o embed já pode ler, então acompanha um reagendamento. O push não o traz: `claim_notification_batch` não devolve `overdue_at`. Handoff `20261102-1451-notificacoes-whatsapp-para-arquiteto-banco-de-dados-prazo-no-push` para decidir entre o claim devolver o campo ou corrigir o ADR-0008, seção 10.
+- **Como testar:** `pnpm check`, `pnpm build:web`; com a pilha, `pnpm exec playwright test e2e/notifications-jobs.spec.ts e2e/notifications-bell.spec.ts`.
+- **Verificado:** `pnpm check` passou (683 testes de unidade, core 544); `pnpm build:web` passou.
+- **Não verificado:** nenhuma E2E rodou (a pilha estava com o `banco-de-dados`), nem o aviso foi visto no navegador. Leitor de tela real não foi usado. Se um rótulo de aba quebrar em duas linhas, a barra passa de 64 px e o aviso pode encostar na faixa do "Nova tarefa" (o QA mediu 64 px a 320). Hora derivada de UTC menos 3 (PowerShell bloqueado).
+- **Pendências / próximos passos:** prazo no push, conforme o handoff.

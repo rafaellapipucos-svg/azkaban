@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import {
   admin,
   cleanUp,
@@ -25,6 +25,20 @@ const bell = (page: Page, unread: number) =>
   page.getByRole('button', {
     name: unread === 0 ? 'Avisos' : `Avisos, ${unread} ${unread === 1 ? 'não lido' : 'não lidos'}`,
     exact: true,
+  });
+
+/** The live notice. Its `role="status"` region is always mounted; only the content changes. */
+const toastOf = (page: Page) => page.getByTestId('notification-toast');
+
+/** The center of `target` hits `target` itself, and not a notice drawn over it. */
+const uncovered = (target: Locator) =>
+  target.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const hit = element.ownerDocument.elementFromPoint(
+      box.x + box.width / 2,
+      box.y + box.height / 2,
+    );
+    return hit !== null && element.contains(hit);
   });
 
 /** Signed up through the screens, with a personal context. Returns the ids. */
@@ -219,12 +233,20 @@ test('the red-by-default job marks what passed its day, leaves the exclusions al
   expect(await noticesOf(group.owner.id, theirs.occurrenceId)).toEqual([]);
   expect(await noticesOf(leaver.id, orphan.occurrenceId)).toEqual([]);
 
-  // Live in the open app, and in the list with the text of an automatic red
+  // Live in the open app, and in the list with the text of an automatic red and until when it
+  // can still be done (ADR-0008, section 10)
   await expect(bell(page, 1)).toBeVisible();
-  await expect(page.getByRole('status').getByText('Tarefa não feita')).toBeVisible();
+  const toast = toastOf(page);
+  await expect(toast.getByText('Tarefa não feita')).toBeVisible();
+  await expect(toast.getByText(/Ainda dá para concluir até /)).toBeVisible();
+  await toast.getByRole('button', { name: 'Fechar aviso' }).click();
   await bell(page, 1).click();
   await expect(
-    page.getByText(`${red.title} passou do prazo e ficou como não feita.`),
+    page.getByText(
+      new RegExp(
+        `^${red.title} passou do prazo e ficou como não feita\\. Ainda dá para concluir até `,
+      ),
+    ),
   ).toBeVisible();
 
   // The calendar shows it red on its day
@@ -296,10 +318,68 @@ test('a reminder that is due rings the bell once, and not for a done or archived
   expect(await noticesOf(me.id, archived.occurrenceId)).toEqual([]);
 
   await expect(bell(page, 1)).toBeVisible();
-  await expect(page.getByRole('status').getByText('Daqui a 10 minutos.')).toBeVisible();
+  await expect(toastOf(page).getByText('Daqui a 10 minutos.')).toBeVisible();
   await bell(page, 1).click();
   await page.getByText(due.title, { exact: true }).locator('visible=true').first().click();
   await expect(page).toHaveURL(new RegExp(`/tasks/${due.occurrenceId}$`));
   await page.goto('/');
   await expect(bell(page, 0)).toBeVisible();
+});
+
+// QA4-2 and QA4-3, handoff 20261102-1440-qa-testes-para-notificacoes-whatsapp-aviso-ao-vivo.
+test('the live notice covers neither "Voltar", the bell, "Nova tarefa" nor the tab bar, at 320, 375 and 1280 px', async ({
+  page,
+}) => {
+  test.slow();
+  const me = await signedUp(page);
+  const toast = toastOf(page);
+  // The live region is there, empty, before any notice, so a screen reader hears what comes in
+  await expect(toast).toHaveAttribute('role', 'status');
+  await expect(toast).toHaveAttribute('aria-live', 'polite');
+  await expect(toast).toBeEmpty();
+  const region = await toast.elementHandle();
+  await expect(bell(page, 0)).toBeVisible();
+
+  /** A reminder due now for me: the notice comes in live with its title. */
+  const ring = async () => {
+    const task = await oneOff({
+      contextId: me.contextId,
+      createdBy: me.id,
+      assigneeId: me.id,
+      startAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+      reminders: [10],
+      visibility: 'private',
+    });
+    expect((await admin.rpc('enqueue_due_reminders')).error).toBeNull();
+    await expect(toast.getByText(task.title, { exact: true })).toBeVisible();
+    return task;
+  };
+
+  for (const width of [320, 375, 1280]) {
+    await page.setViewportSize({ width, height: 720 });
+
+    // On Hoje: the bell and "Nova tarefa" still take the tap, and the notice sits above the tabs
+    const first = await ring();
+    expect(await uncovered(page.getByRole('button', { name: /^Avisos/ }))).toBe(true);
+    expect(await uncovered(button(page, 'Nova tarefa'))).toBe(true);
+    const card = (await toast.boundingBox())!;
+    const tabs = (await page.getByRole('tablist').boundingBox())!;
+    expect(card.y + card.height).toBeLessThanOrEqual(tabs.y);
+
+    // A tap on the notice opens its task, inside the app
+    await toast.getByText(first.title, { exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`/tasks/${first.occurrenceId}$`));
+
+    // On the task: "Voltar" still takes the tap while the next notice is up, and goes back
+    await ring();
+    const back = button(page, 'Voltar');
+    expect(await uncovered(back)).toBe(true);
+    await back.click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
+  }
+
+  // Gone after toastMs, the region empties and stays: the same node from the start
+  await expect(toast).toBeEmpty();
+  expect(await toast.evaluate((element, first) => element === first, region)).toBe(true);
 });

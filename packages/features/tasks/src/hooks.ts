@@ -190,12 +190,21 @@ export function useStatusChange() {
       }
       setError(taskErrorCode(failure) ?? 'generic');
     },
+    // Invalidating alone is not enough: a first read still in flight has no data to replace, so the
+    // refetch would join it, get the state from before the save and clear the invalid mark.
+    // `proof-current` is the photo module's key, not imported: reopening a task drops its photo.
     onSettled: (_data, _failure, input) =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['occurrences'] }),
-        queryClient.invalidateQueries({ queryKey: ['occurrence', input.occurrenceId] }),
-        queryClient.invalidateQueries({ queryKey: ['history', input.occurrenceId] }),
-      ]),
+      Promise.all(
+        [
+          ['occurrences'],
+          ['occurrence', input.occurrenceId],
+          ['history', input.occurrenceId],
+          ['proof-current', input.occurrenceId],
+        ].map(async (queryKey) => {
+          await queryClient.cancelQueries({ queryKey });
+          await queryClient.invalidateQueries({ queryKey });
+        }),
+      ),
   });
 
   const change = useCallback(

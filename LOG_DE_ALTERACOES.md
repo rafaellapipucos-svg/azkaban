@@ -914,3 +914,20 @@
 - **Verificado:** `pnpm check` passou: core 511 (11 novos de `buildPushPayload`), app 6 (novos), contracts 44, platform 38, config 7, ui 7, data 7, proof 6. `pnpm build:web`: `dist/index.html` saiu do modelo próprio, com `lang="pt-BR"`, título `Azkaban`, as duas `theme-color`, manifest e `apple-touch-icon`, e o Expo acrescentou favicon, CSS e scripts; `sw.js`, manifest, ícones, `_headers` e `_redirects` saíram iguais na raiz de `dist`. Uma mutação (não mostrar nada sem payload legível) foi pega pelo teste do `sw.js`.
 - **Não verificado:** nada no navegador: manifest sem erro e instalável no DevTools, `theme-color` na barra, `sw.js` registrado (o registro é de F4-4), `document.title` mudando por tela (nenhuma tela passa `title` ainda; depende de `Screen.title` de `design-system`), e se o Chrome aceita instalar sem `fetch`. Netlify não foi exercitado. A pilha Supabase e a E2E não rodaram, por ordem do orquestrador.
 - **Pendências / próximos passos:** F4-3, F4-4, F4-5 e F4-7 depois de F4-1. `design-system`: `Screen` chama `useDocumentTitle(title)` de `@azkaban/platform`, que exige estar dentro de um navegador do expo-router. `backend-funcoes`: o `t` passado a `buildPushPayload` precisa seguir o plural do i18next (`count` com `_one`/`_other`) no namespace `notifications`. O nome do app se repete no manifest e no `sw.js`, além do `app.config.ts`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:43 (BRT)
+
+- **Branch:** feat/ui-shell-wiring (a partir de `feat/phase-4-notifications`, `cfd192c`)
+- **Agente(s):** design-system, também como delegado do orquestrador para a casca (`apps/app/src`)
+- **Resumo:** `Screen` passa a chamar `useDocumentTitle(title)` (F4-9); a barra de abas da casca usa o `TabBar` de `@azkaban/ui`, com o marco `navigation`; a tela de página não encontrada ganha título.
+- **Alterações:**
+  - `packages/ui/src/Layout.tsx`: o comentário `pending F4-9` virou `useDocumentTitle(title)`.
+  - `apps/app/src/AppTabBar.tsx`: o `View role="tablist"` e o `map` deram lugar a `<TabBar items={...} />`; `useSafeAreaInsets` e `tokens` saíram dali. `MaterializeStatus` continua acima, fora da navegação.
+  - `apps/app/app/+not-found.tsx`: `Screen` com `title={t('notFound.title')}`.
+- **Arquivos/módulos principais:** `packages/ui/src/Layout.tsx`, `apps/app/src/AppTabBar.tsx`, `apps/app/app/+not-found.tsx`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0008, seção 13. `packages/platform/src/documentTitle.web.ts` não foi alterado: todo `Screen` do app é uma rota dentro de um `Stack` do expo-router, nenhum teste renderiza `Screen` e os testes de `packages/ui` resolvem a versão sem `.web`. O nome do app vem de `app.config.ts`, então o `document.title` do módulo nunca é lido.
+- **Como testar:** `pnpm check`; `pnpm build:web`; `pnpm dev` e abrir `/design-system`, um endereço inexistente e `/welcome`.
+- **Verificado:** `pnpm check` passou: core 511, contracts 44, platform 38, ui 11, config 7, data 7, app 6, proof 6. `pnpm build:web` exportou `dist`. Com Playwright contra `pnpm dev`: `/design-system` dá "Design system · Azkaban"; `/nao-existe`, "Página não encontrada · Azkaban"; "Ir para Hoje" leva a `/welcome` e o título volta a "Azkaban"; `/welcome` -> `/design-system` -> voltar -> avançar alterna os dois títulos. Um `main` visível em todas; ao empilhar `/sign-up` sobre `/welcome` há dois `main` no DOM, o de baixo com `display: none`, fora da árvore de acessibilidade. Sem erros de página.
+- **Não verificado:** as telas autenticadas: troca de título entre abas, a `TabBar` real com o marco `navigation` a 320 px e telas empilhadas sobre as abas. A pilha Supabase não foi usada, por ordem do orquestrador; a E2E da fase cobre. Hora derivada de UTC menos 3 (PowerShell bloqueado), igual ao relógio local do vitest.
+- **Pendências / próximos passos:** o título de cada tela de feature fica com os donos (handoffs já abertos); hoje `welcome`, `sign-in`, `sign-up` e as abas mostram só "Azkaban".

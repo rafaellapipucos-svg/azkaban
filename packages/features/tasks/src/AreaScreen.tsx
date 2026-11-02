@@ -61,7 +61,15 @@ export function AreaScreen({ areaKey, onProof }: { areaKey: string; onProof?: Pr
     [items, area?.id, contextId, now, timezone],
   );
 
-  if (!area) return <Screen>{null}</Screen>;
+  // The name while the areas load, from the key the route already has.
+  if (!area) {
+    return (
+      <Screen title={t(`areas.${areaKey}`, { ns: 'contexts', defaultValue: '' }) || undefined}>
+        {null}
+      </Screen>
+    );
+  }
+  const areaName = t(area.i18nKey, { ns: 'contexts' });
 
   const today = localDateOf(timezone, now.getTime());
   const actions = {
@@ -93,8 +101,8 @@ export function AreaScreen({ areaKey, onProof }: { areaKey: string; onProof?: Pr
 
   return (
     <View className="flex-1">
-      <Screen>
-        <Title>{`${area.icon} ${t(area.i18nKey, { ns: 'contexts' })}`}</Title>
+      <Screen title={areaName}>
+        <Title>{`${area.icon} ${areaName}`}</Title>
 
         {areaContexts.length > 0 ? (
           <ChipRow label={t('area.contextLabel')}>

@@ -132,6 +132,7 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
   const [more, setMore] = useState(false);
 
   const editing = occurrenceId !== undefined;
+  const title = editing ? t('form.editTitle') : t('form.newTitle');
   const sourceId = occurrenceId ?? duplicateOf;
   const source = useQuery({
     queryKey: ['occurrence', sourceId],
@@ -296,7 +297,7 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
 
   if (editing && existing && !canEdit) {
     return (
-      <Screen>
+      <Screen title={title}>
         <EmptyState text={t('form.cannotEdit')} />
         <Button variant="secondary" label={t('actions.back')} onPress={goBack} />
       </Screen>
@@ -304,14 +305,14 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
   }
   if (!initial) {
     return (
-      <Screen>
+      <Screen title={title}>
         <Muted>{t('loading')}</Muted>
       </Screen>
     );
   }
   if (list.length === 0) {
     return (
-      <Screen>
+      <Screen title={title}>
         <EmptyState text={t('today.noContext')}>
           <Button label={t('today.newContext')} onPress={() => router.replace('/contexts/new')} />
         </EmptyState>
@@ -340,10 +341,8 @@ export function TaskFormScreen({ occurrenceId, scope: scopeParam, duplicateOf, p
   const failure = save.error
     ? t(formErrorKey(save.error) ?? errorKey(taskErrorCode(save.error)))
     : null;
-  const title = editing ? t('form.editTitle') : t('form.newTitle');
-
   return (
-    <Screen>
+    <Screen title={title}>
       <Title>{title}</Title>
       {editing ? <Muted>{t(`form.scope.${scope}`)}</Muted> : null}
 

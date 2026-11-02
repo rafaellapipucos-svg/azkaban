@@ -32,6 +32,21 @@ async function saveDailyTask(page: Page, title: string) {
   await button(page, 'Salvar').click();
 }
 
+/** Answers for the function, as F4-8 does, without running it. Cross-origin, so with CORS. */
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+async function answer(page: Page, body: object, onCall?: () => void) {
+  await page.route(FUNCTION, (route) => {
+    if (route.request().method() === 'OPTIONS')
+      return route.fulfill({ status: 204, headers: CORS });
+    onCall?.();
+    return route.fulfill({ json: body, headers: CORS });
+  });
+}
+
 const rows = (page: Page, title: string) =>
   page.getByRole('checkbox', { name: new RegExp(`^${title}:`) }).locator('visible=true');
 
@@ -92,4 +107,39 @@ test('reloading while the function runs does not lose the days of the task', asy
   await expect(hoje(page)).toBeVisible({ timeout: 4_000 });
   await page.reload();
   await expect(rows(page, 'Caminhada').first()).toBeVisible();
+});
+
+// ADR-0008, section 12: an answer with `deferred > 0` is called again, at most
+// `taskDefaults.materializeMaxFollowUps` (2) more times, without telling the person.
+test('a deferred answer is asked again up to the limit, silently', async ({ page }) => {
+  await signUpWithContext(page, 'Adiada');
+  let calls = 0;
+  await answer(page, { inserted: 0, failed: 0, deferred: 1 }, () => {
+    calls += 1;
+  });
+
+  await saveDailyTask(page, 'Alongamento');
+  await expect(hoje(page)).toBeVisible({ timeout: 4_000 });
+  await expect.poll(() => calls).toBe(3);
+  await expect(page.getByText('Criando as repetições da tarefa...')).toHaveCount(0);
+  await expect(page.getByRole('alert').filter({ hasText: 'repetições' })).toHaveCount(0);
+  expect(calls).toBe(3);
+});
+
+test('tasks the function answers as failed show the alert, and the retry fixes them', async ({
+  page,
+}) => {
+  await signUpWithContext(page, 'Parcial');
+  // Status 200 with `failed`: a partial result, not a failed call.
+  await answer(page, { inserted: 0, failed: 1, deferred: 0 });
+
+  await saveDailyTask(page, 'Meditação');
+  await expect(hoje(page)).toBeVisible({ timeout: 4_000 });
+  const alert = page.getByRole('alert').filter({ hasText: 'repetições ainda não apareceram' });
+  await expect(alert).toBeVisible();
+
+  await page.unroute(FUNCTION);
+  await alert.getByRole('button', { name: 'Tentar de novo', exact: true }).click();
+  await expect(rows(page, 'Meditação').first()).toBeVisible();
+  await expect(alert).toHaveCount(0);
 });

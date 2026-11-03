@@ -32,6 +32,8 @@ const itemSchema = z.object({
   occurrenceId: z.guid().nullable(),
   locale: z.string(),
   taskTitle: z.string().nullable(),
+  /** BL-32: `push_hide_content` on a `web_push` row. The claim already sent `taskTitle` null. */
+  hideContent: z.boolean(),
   requiresPhotoProof: z.boolean(),
   attempts: z.int().min(1),
   scheduledFor: z.string(),

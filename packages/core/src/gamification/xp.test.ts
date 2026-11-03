@@ -84,6 +84,19 @@ describe('capRoom (ADR-0010 section 2)', () => {
     ).toBe(30);
   });
 
+  it('never goes past the cap when XP from another day is undone today', () => {
+    expect(capRoom([{ reason: 'occurrence_reverted', amount: -300 }], CAP)).toBe(CAP);
+    expect(
+      capRoom(
+        [
+          { reason: 'occurrence_done', amount: 100 },
+          { reason: 'occurrence_reverted', amount: -300 },
+        ],
+        CAP,
+      ),
+    ).toBe(CAP);
+  });
+
   it('counts every capped reason and only those', () => {
     for (const reason of xpEventReasonSchema.options) {
       const counted = (cappedXpEventReasons as readonly string[]).includes(reason);

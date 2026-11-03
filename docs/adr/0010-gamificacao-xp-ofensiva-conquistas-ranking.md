@@ -27,7 +27,7 @@ Este ADR decide o que `gamificacao`, `banco-de-dados` e `design-system` precisam
 
 - `xp_events` ganha `local_date date`, com `check` de que é preenchida exatamente nos dois motivos de dia perfeito. O `check` de `reason` ganha os quatro motivos novos de uma vez, para a Fase 7 não precisar mexer nele.
 - **Bônus de prova:** concedido em `occurrence_award_xp`, depois do base, quando `status = 'done'` e há prova corrente. `in_review` continua sem XP nenhum até aprovar, então o bônus vem junto do base na aprovação ou na retenção (ADR-0007, seção 11). Vale também para `done` atrasado. Contestar compensa os dois pelo saldo da ocorrência, sem código novo, como o ADR-0007 previu.
-- **Nível não é guardado.** É função pura de `total_xp` e da curva de `gamificationDefaults.level`: de `n` para `n + 1` são `round(firstLevelXp × growth^(n − 1))` pontos, e o nível 1 começa em 0. Nenhum SQL lê o nível, então a curva não tem espelho, e mudá-la vale para todos na hora, sem migration. Com os padrões, o nível 10 pede 2.580 pontos.
+- **Nível não é guardado.** É função pura de `total_xp` e da curva de `gamificationDefaults.level`: de `n` para `n + 1` são `round(firstLevelXp × growth^(n − 1))` pontos, e o nível 1 começa em 0. Nenhum SQL lê o nível, então a curva não tem espelho, e mudá-la vale para todos na hora, sem migration. Com os padrões, os passos são 100, 125, 156, 195, 244, 305, 381, 477 e 596, e o nível 10 começa em 2.579 pontos. Cada passo é arredondado sozinho; 2.580 seria a soma sem arredondar.
 - Reabrir pode baixar o nível, porque o total baixa. É o mesmo saldo honesto do ADR-0005.
 - `packages/core` calcula os mesmos valores só para mostrar, como já faz `occurrenceXp`.
 
@@ -36,8 +36,9 @@ Este ADR decide o que `gamificacao`, `banco-de-dados` e `design-system` precisam
 O ADR-0005 (seção 11) deixou para esta fase: quem cria tarefas, inclusive futuras, e as conclui na hora ganha XP sem limite. Bloquear a conclusão antecipada não fecha o furo, porque reagendar para hoje é permitido e trapaça e uso legítimo ("lavei o carro um dia antes") têm a mesma forma. A defesa é um **teto diário**:
 
 - `gamificationRules.xp.dailyCap` (300): o saldo dos motivos de `cappedXpEventReasons` (todos, menos os dois de dia perfeito) que um usuário soma no **dia local do perfil em que o evento é gravado** não passa do teto.
-- Em `occurrence_award_xp`, depois da compensação: `espaço = max(0, teto − saldo do dia)`. O base recebe `min(base, espaço)`, e o bônus de prova, o que sobrar. Valor zero não gera evento, regra que já existe.
+- Em `occurrence_award_xp`, depois da compensação: `espaço = min(teto, max(0, teto − saldo do dia))`. O base recebe `min(base, espaço)`, e o bônus de prova, o que sobrar. Valor zero não gera evento, regra que já existe.
 - Compensar libera espaço no mesmo dia. Isso não abre brecha: reconcluir só devolve o que a ocorrência vale, e a média por dia fica no teto.
+- **O espaço nunca passa do teto.** Reabrir hoje 300 pontos de ontem deixa o saldo de hoje em −300; sem o `min`, o espaço viraria 600. O teto existe contra farm, e uma compensação de outro dia não vira crédito para hoje. `capRoom`, de `packages/core`, e o banco usam a mesma fórmula.
 - Duas transições do mesmo usuário ao mesmo tempo passariam juntas pelo teto. `occurrence_award_xp` toma `pg_advisory_xact_lock` por usuário antes de somar.
 - O dia perfeito fica fora do teto: é um por dia e já tem valor fixo.
 - A Fase 7 herda o teto para `shopping_completed`, salvo decisão em contrário no ADR-0011.
@@ -174,6 +175,7 @@ Definidas em `achievements` por seed, legíveis por todo usuário autenticado. C
 
 - **Quem dispara:** um `CelebrationHost` da feature `gamification`, montado pela rota no layout do app, como o `NotificationToaster`. Ele assina pelo Realtime os `insert` em `xp_events` e `user_achievements` do próprio usuário (RLS), relê `user_stats` uma vez por rajada, e `packages/core` decide o que comemorar comparando antes e depois. Assim vale para qualquer caminho: Hoje, calendário, detalhe, prova aprovada mais tarde. A feature `tasks` não importa `gamification`.
 - O toque já tem retorno imediato no `TaskCheck`, de `tasks`. A comemoração chega logo depois, com o evento.
+- **Conclusão com o teto atingido:** vale zero, nenhum evento é gravado (seção 2), e o `CelebrationHost` não comemora. O `TaskCheck` ainda dá o retorno imediato, e a tela mostra que o teto foi atingido. Consequência aceita: inventar outro gatilho faria `tasks` conhecer `gamification`, ou comemoraria um XP que não existe.
 - **Tipos** (`celebrationKindSchema`): `occurrence_partial` (mascote feliz, sem confete: a honestidade também conta), `occurrence_done` (confete curto e mascote comemorando), `streak_milestone` (em `gamificationDefaults.streakMilestones`), `perfect_day` (tela inteira de dia perfeito, pelo evento `perfect_day`), `level_up` e `achievement`. Juntos, mostra o maior e lista os outros.
 - Subir de nível de novo depois de reabrir não comemora outra vez: o aparelho guarda o maior nível já comemorado.
 - **Reduzir movimento** (`useReducedMotion`, de `packages/ui`): sem confete e sem animação do mascote; o texto e o mascote parado continuam.

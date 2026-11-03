@@ -2011,3 +2011,23 @@
 - **Verificado:** em `c1c109a` (antes da correção do teste do seed): install, `db:start`, `db reset`, `db:test` (1556), `db:check-permissions`, `turbo typecheck test --force`, lint, `boundaries`, `build:web`, `functions:test`, E2E duas vezes com 73 ok, 0 falhas e 1 pulado (o "sem chave VAPID"). O `db:test` depois da E2E falhou só no teste 4 de `rls_shopping` (exigia 44 itens exatos, e a E2E salva um item no catálogo); corrigido em `fix/shopping-seed-test`, que passou em banco limpo e com a sobra simulada. Varredura de segredos no diff `feat/phase-5-whatsapp..`: nada.
 - **Não verificado:** o `db:test` depois de uma E2E real com o teste novo (fica para a verificação da integração das Fases 6 e 7); Realtime de compras só pela E2E; Share nativo, Safari, iOS e Android; projeto hospedado; CI do PR.
 - **Pendências / próximos passos:** PR para `feat/phase-5-whatsapp`; F7-5 depois da Fase 6; perguntas ao humano da seção 15 do ADR-0011.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:58 (BRT)
+
+- **Branch:** docs/phase-8-adr, criada a partir de feat/phase-7-shopping (d02fc82)
+- **Agente(s):** arquiteto
+- **Resumo:** ADR-0012 da Fase 8 (LGPD, limites de uso, fila offline e polimento), com contratos, config e um handoff por agente, para a fase correr em paralelo. Trata as tabelas da Fase 6 como existentes. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `docs/adr/0012-polimento-lgpd-limites-offline.md`: exportar (Edge Function `account-export`, JSON por `accountExportSchema`, 25 seções de todas as fases, fotos por URL assinada de 1 hora, o que fica de fora e por quê); excluir (`account-delete`, login recente por `amr`, grupo com outros membros bloqueia, grupo só da pessoa sai junto, objetos e provas dela antes de `auth.admin.deleteUser`, o que cascateia e o que fica sem nome, `account_deletions`); revogar o aceite da prova com marca própria; tela de transparência com os itens dos ADRs 0005 a 0011; retenção consolidada; limites do GoTrue no painel e `consume_rate_limit` no Postgres (janela fixa, `PT429`); fila offline pelo TanStack Query com mutações persistidas, só status e itens de compras, `requestId` no stepper e `processed_requests`; escopo e critérios de F8-1, F8-6 e F8-7 (o que dá sem conta paga e o que é do humano); opções de hospedagem sem custo; backlog; faixas de versão das migrations.
+  - Achado: as Fases 6 e 7 usam os mesmos prefixos de migration (`20261103170000` a `20261103180300`). Decisão na seção 14: renomear as da Fase 7 antes do merge.
+  - `packages/contracts/src/privacy.ts` (novo, com teste): seções e envelope da exportação, pedido, prévia, resultado e erros da exclusão. `common.ts`: `rateLimitedErrorCode`. `shopping.ts`: `requestId` opcional no stepper, com teste.
+  - `packages/config/src/limits.ts` (novo, com teste): `rateLimitRules` (espelho `rate_limit_rules`), `offlineDefaults`, `privacyDefaults`.
+  - `docs/arquitetura.md`: seção de privacidade, limites e fila offline. `docs/implantacao.md`: valores de Auth de produção, nunca `supabase config push`, SMTP próprio.
+  - Handoffs `20261103-0456-arquiteto-para-*` para `banco-de-dados`, `backend-funcoes`, `auth-grupos`, `tarefas-calendario`, `compras`, `design-system`, `notificacoes-whatsapp` e `qa-testes`.
+- **Arquivos/módulos principais:** `docs/adr/0012-*.md`, `packages/contracts/src/{privacy,common,shopping}*.ts`, `packages/config/src/limits*.ts`, `docs/arquitetura.md`, `docs/implantacao.md`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** ADR-0012.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (lint, boundaries, typecheck de todos os pacotes, testes; contracts 134, config 22; `functions:imports` 8 de 8). Testes de `data`, `feature-shopping` e `core` forçados sem cache: 11, 16 e 630.
+- **Não verificado:** que o CLI recusa as versões repetidas das Fases 6 e 7 (dedução pela regra de versão do CLI; ninguém rodou a base integrada); `amr` com `timestamp` no GoTrue local; `PT429` virando 429 no PostgREST local; os limites e as regras do servidor de e-mail embutido e os preços de Expo, Google, Apple, Netlify e Cloudflare, que são de memória e o ADR manda conferir; `auth.audit_log_entries`. Sem mutação.
+- **Pendências / próximos passos:** `banco-de-dados` renomeia as migrations da Fase 7 na integração e depois as faixas da seção 14; `gamificationRules.closeJob.batchSize` para 64 na config depois da integração (arquiteto); `pnpm db:check-permissions` acusa `rate_limit_rules` até a migration; perguntas da seção 17 ao humano.

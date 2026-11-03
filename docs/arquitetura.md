@@ -120,6 +120,15 @@ Regras completas no [ADR-0011](adr/0011-lista-de-compras.md).
 - O vínculo com tarefa é só navegação. O XP de compra é um trigger ao finalizar, com limites contra repetição, e entra depois da Fase 6.
 - `shoppingRules`, as categorias, as unidades e o seed têm espelho no banco, conferido por `pnpm db:check-permissions`.
 
+## Privacidade, limites e fila offline
+
+Regras completas no [ADR-0012](adr/0012-polimento-lgpd-limites-offline.md).
+
+- "Exportar meus dados" e "excluir minha conta" são as Edge Functions `account-export` e `account-delete`, com o JWT do usuário e service role por dentro, porque a RLS esconde parte do que é da pessoa e o Storage e o Auth não se alcançam por SQL. As funções SQL que elas chamam só aceitam `service_role`.
+- A exportação é um JSON (`accountExportSchema`), com as fotos por URL assinada de 1 hora, e não é guardada. A exclusão exige login recente, bloqueia enquanto a pessoa for dona de grupo com outros membros, remove os objetos e as provas dela antes de `auth.admin.deleteUser` e deixa só um registro com o UUID em `account_deletions`.
+- Limites de uso por usuário: `consume_rate_limit`, janela fixa em `rate_limit_counters`, chamada de dentro das RPCs e triggers, com `rate_limited` (`PT429`, HTTP 429). `rateLimitRules` tem espelho em `app_settings`, chave `rate_limit_rules`. OTP e senha ficam com os limites do GoTrue, configurados no painel.
+- A fila offline é o TanStack Query: mutações pausadas e persistidas com o `storage` de `packages/platform`. Só status de ocorrência e as ações de item de compras entram; ids e `requestId` nascem no cliente, e `processed_requests` aplica cada `requestId` do stepper uma vez.
+
 ## Banco
 
 Desenvolvimento em Supabase local (`pnpm db:start`, exige Docker), nas portas 544xx para conviver com outros projetos locais: `apps/app/.env.development.local` aponta o `pnpm dev` para ele. O projeto hospedado recebe migrations por `supabase db push --db-url "$SUPABASE_DB_URL"`, e só após revisão.

@@ -1,0 +1,8 @@
+node_modules
+.expo
+dist
+.turbo
+pnpm-lock.yaml
+supabase/.temp
+docs/PROMPT_MESTRE.md
+apps/app/tsconfig.json

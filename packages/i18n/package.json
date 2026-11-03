@@ -1,0 +1,17 @@
+{
+  "name": "@azkaban/i18n",
+  "version": "0.0.0",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@azkaban/config": "workspace:*",
+    "i18next": "catalog:",
+    "react-i18next": "catalog:",
+    "react": "catalog:"
+  }
+}

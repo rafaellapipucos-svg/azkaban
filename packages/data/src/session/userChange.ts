@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { refreshRolesOnForbidden } from './forbidden';
 
 /** True when the cache was filled for someone else: the user left (`null`) or another one came in. */
 export function cacheBelongsToAnother(previous: string | null, next: string | null) {
@@ -12,10 +13,12 @@ export function cacheBelongsToAnother(previous: string | null, next: string | nu
  * under the client with it: every screen mounts again on the empty cache, so none draws, or
  * writes to the device, the last account's data (SEG8-2P-2). It runs in the render, before any
  * child; an effect would run after theirs. Mutations stay: the offline queue takes its own out of
- * memory. Mount once, in the root layout, with the app's client.
+ * memory. Also keeps the roles current: a server refusal reads them again (`refreshRolesOnForbidden`).
+ * Mount once, in the root layout, with the app's client.
  */
 export function useClearCacheOnUserChange(client: QueryClient, userId: string | null) {
   const [seen, setSeen] = useState({ userId, generation: 0 });
+  useEffect(() => refreshRolesOnForbidden(client), [client]);
   if (seen.userId === userId) return seen.generation;
   const changed = cacheBelongsToAnother(seen.userId, userId);
   // ponytail: a side effect in the render, but idempotent; React's "state from the last render".

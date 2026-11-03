@@ -71,10 +71,10 @@ select vault.create_secret('<valor>', '<nome>');
 Pelo CLI, com o Docker ligado, sem `--use-api`. O pacote de `materialize-occurrences` tem 15 MB, e o limite é de 20 MB pelo CLI, contra 5 MB no empacotamento pelo servidor (Dashboard, Management API e `--use-api`).
 
 ```bash
-pnpm exec supabase functions deploy materialize-occurrences proof-validate proof-url proof-retention dispatch-notifications phone-verification whatsapp-webhook --project-ref <ref>
+pnpm exec supabase functions deploy materialize-occurrences proof-validate proof-url proof-retention dispatch-notifications phone-verification whatsapp-webhook account-export account-delete --project-ref <ref>
 ```
 
-`verify_jwt` vem de `supabase/config.toml`: ligado em `proof-validate`, `proof-url` e `phone-verification`, desligado nas três de cron, que usam `x-cron-secret`, e em `whatsapp-webhook`, que confere a assinatura `X-Hub-Signature-256` com `WHATSAPP_APP_SECRET`.
+`verify_jwt` vem de `supabase/config.toml`: ligado em `proof-validate`, `proof-url`, `phone-verification`, `account-export` e `account-delete`, desligado nas três de cron, que usam `x-cron-secret`, e em `whatsapp-webhook`, que confere a assinatura `X-Hub-Signature-256` com `WHATSAPP_APP_SECRET`.
 
 URL do webhook, para o App Dashboard da Meta: `https://<ref>.supabase.co/functions/v1/whatsapp-webhook`, com o mesmo `WHATSAPP_VERIFY_TOKEN` e o campo `messages` assinado. Só quando o humano ligar a Meta (abaixo).
 

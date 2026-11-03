@@ -2411,25 +2411,6 @@
 - **Não verificado:** E2E, `functions:test` e `build:web` no merge de teste; projeto hospedado.
 - **Pendências / próximos passos:** a integração de verdade das Fases 6 e 7 (orquestrador), com 12 arquivos em conflito, todos de manter os dois lados; depois, F7-5.
 
-### Claude de Rafaell Bezerra Saraiva — 2026-11-03 05:15 (BRT)
-
-- **Branch:** fix/celebration-pointer-events, criada a partir de feat/phase-6-gamification (c999726)
-- **Agente(s):** gamificacao
-- **Resumo:** QA6C-1 e QA6C-3 do handoff `20261103-0453-qa-testes-para-gamificacao-cartao-bloqueia-a-tela`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
-- **Alterações:**
-  - QA6C-1: o invólucro do cartão usa a prop `pointerEvents="box-none"`. O react-native-web 0.21 descarta `pointerEvents` de estilos inline (só a prop e o `StyleSheet.create` geram a classe), então o invólucro, da tela toda, ficava com `pointer-events: auto`. Com a correção, `elementFromPoint(20, 60)` devolve o cabeçalho.
-  - E2E de QA6C-1 sem `test.fail()`, e o toque agora vai ao botão "Nova tarefa": a tarefa que o teste tocava fica embaixo do próprio cartão no Pixel 7 (cartão de y 294 a 545, check em y 459), o que é esperado.
-  - QA6C-3: `mergeCelebrations` em core junta ao cartão aberto uma rajada que chega até `joinMs` (3 s, `gamificationUi`) depois de ele abrir, sem repetir e na ordem de `celebrationsFor`; depois disso, a próxima tarefa ganha cartão próprio. `burstMs` ficou em 600 ms.
-  - QA6C-2: sem mudança, por decisão do orquestrador (a conquista no teto é comemorada); a E2E do teto já espera isso.
-  - Handoff `20261103-0515-gamificacao-para-design-system-pointer-events-na-web`: `Fab` e `NotificationToaster` têm o mesmo `pointerEvents` no estilo, sem efeito na web.
-- **Arquivos/módulos principais:** `packages/features/gamification/src/{CelebrationHost.tsx,config.ts}`, `packages/core/src/gamification/celebrations{,.test}.ts`, `packages/core/src/index.ts` (uma exportação), `e2e/gamification.spec.ts`, o handoff acima
-- **Migrations:** nenhuma
-- **Decisões/ADRs:** nenhuma
-- **Como testar:** `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm exec playwright test e2e/gamification.spec.ts --project=app`, `pnpm exec playwright test e2e/notifications-jobs.spec.ts --project=jobs --no-deps`.
-- **Verificado:** `gamification.spec.ts` 5 de 5 (na primeira rodada, antes de ajustar o teste de QA6C-1, o do teto falhou uma vez, com o cartão de "Primeira tarefa" e "Tarefa concluída!" vindo das linhas semeadas antes do `reload`; não se repetiu); `notifications-jobs.spec.ts` 4 de 4; `pnpm e2e` completo uma vez, com chave VAPID gerada em memória: 75 ok, 0 falhas, 1 pulado (o "sem chave VAPID"); `pnpm check` passou (17 de 17 e 10 de 10; core 694). Pilha A parada com `supabase stop`.
-- **Não verificado:** a junção de QA6C-3 com rajadas reais separadas (só o teste de unidade de `mergeCelebrations`; o atraso não se reproduz); nativo (a prop é a forma do RN também); Safari, iPhone; projeto hospedado. Sem mutação.
-- **Pendências / próximos passos:** o handoff acima ao `design-system`; o `arquiteto` alinhar o texto do ADR-0010 sobre o teto (QA6C-2).
-
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 05:36 (BRT)
 
 - **Branch:** feat/rate-limits-db, criada a partir de feat/phase-8-polish (d738264)
@@ -2449,23 +2430,6 @@
 - **Verificado:** na pilha B, `db reset` limpo; `pnpm db:test` 10 arquivos, 1776 testes, PASS; `db:check-permissions` em sincronia no `supabase_db_azkaban-b`, com `rate_limit_rules`; `pnpm db:types`; `pnpm check` passou (17 de 17 e 11 de 11; `functions:imports` 8 de 8). Mutações, aplicadas por `psql` e desfeitas: sem o trigger de tarefas, 6 falhas; `set_occurrence_status` sem o limite, 7; `create_shopping_list` sem o limite, 5; sem o trigger de convites, 5; prévia sem o limite, 3; `grant` de `consume_rate_limit` a `authenticated`, 2; stepper ignorando o id, 9. Concorrência em duas sessões `psql` com dados confirmados (depois apagados pelo `db reset`): a segunda chamada com o mesmo `requestId` esperou 16 s pela primeira e devolveu 2, não 3; a quarta exportação simultânea levou `PT429` e o contador ficou em 3.
 - **Não verificado:** o HTTP 429 do PostgREST (a pilha B não tem PostgREST); E2E e `functions:test`; o projeto hospedado. Na concorrência, a segunda sessão esperou pelo `for update` da lista antes de chegar à chave de `processed_requests`, então a serialização só pela chave primária não foi isolada.
 - **Pendências / próximos passos:** `compras` manda `p_request_id`; `backend-funcoes` chama `consume_rate_limit(user, 'data_export')` na exportação; os módulos mapeiam `PT429`; F8-3 na faixa `20261104120000`+.
-
-### Claude de Rafaell Bezerra Saraiva — 2026-11-03 05:55 (BRT)
-
-- **Branch:** fix/achievement-celebration-flake, criada a partir de feat/phase-6-gamification (0166cae)
-- **Agente(s):** gamificacao
-- **Resumo:** causa da intermitência de `e2e/gamification.spec.ts:53` (a conquista que não aparecia), corrigida no produto. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
-- **Alterações:**
-  - Causa, com registro temporário no console (já removido): o canal fica `SUBSCRIBED` logo, mas o servidor só ouve as tabelas depois da mensagem `system` `postgres_changes`/`ok` ("Subscribed to PostgreSQL"), que com o Realtime frio veio até 2,4 s depois. Num lote de 4 workers logo após o `db reset`, 3 rodadas concluíram a tarefa antes dela e não receberam nenhuma linha, nem o evento de XP. O "+10 XP" e o anel vêm da consulta, não do Realtime. Não era a assinatura depois do render, nem o cartão fechando, nem o `joinMs`.
-  - `gamificationRepository.subscribe`: guarda uma marca na chamada (o `created_at` do evento mais novo e as conquistas já concedidas) e, a cada `system` `ok` (a primeira e depois de uma reconexão), relê os eventos posteriores e as conquistas novas e os entrega pelo mesmo `onRow`. Cada linha é entregue uma vez só, por id do evento ou chave da conquista. Nada é entregue depois do `unsubscribe`. O `CelebrationHost` não mudou.
-  - Handoff `20261103-0554-gamificacao-para-notificacoes-whatsapp-realtime-antes-de-ouvir`: o `subscribe` de notificações tem o mesmo intervalo.
-- **Arquivos/módulos principais:** `packages/data/src/gamification/index.ts`, o handoff acima
-- **Migrations:** nenhuma
-- **Decisões/ADRs:** nenhuma
-- **Como testar:** `pnpm db:start`, `pnpm exec supabase db reset` e, logo depois, `pnpm exec playwright test e2e/gamification.spec.ts --project=app --repeat-each=8 --workers=4`.
-- **Verificado:** antes da correção, logo após o `db reset`, 38 ok e 2 falhas, depois 37 ok e 3 falhas; todas no `:53`, todas com a conclusão antes do `system` `ok`. Depois da correção, duas vezes logo após o `db reset`: 40 de 40, e 40 de 40. `pnpm e2e` completo uma vez, com chave VAPID gerada em memória: 75 ok, 0 falhas, 1 pulado. `pnpm check` passou (17 de 17 e 10 de 10; core 694, data 7). Pilha A parada com `supabase stop`.
-- **Não verificado:** a reconexão real (o código relê a cada `ok`, mas não derrubei a rede); o Realtime hospedado; nativo. Não há teste de unidade do `subscribe`, que precisaria simular o cliente do Supabase; a prova é a E2E repetida. Sem mutação.
-- **Pendências / próximos passos:** o handoff acima ao `notificacoes-whatsapp`.
 
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:01 (BRT)
 
@@ -2528,6 +2492,42 @@
 - **Não verificado:** nenhuma E2E rodou (a pilha A estava ocupada); a causa da falha "a reminder that is due rings the bell once…" não foi confirmada. Hora derivada de UTC menos 3 (o PowerShell foi barrado no worktree).
 - **Pendências / próximos passos:** rodar as E2E acima com o Realtime frio.
 
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 05:15 (BRT)
+
+- **Branch:** fix/celebration-pointer-events, criada a partir de feat/phase-6-gamification (c999726)
+- **Agente(s):** gamificacao
+- **Resumo:** QA6C-1 e QA6C-3 do handoff `20261103-0453-qa-testes-para-gamificacao-cartao-bloqueia-a-tela`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - QA6C-1: o invólucro do cartão usa a prop `pointerEvents="box-none"`. O react-native-web 0.21 descarta `pointerEvents` de estilos inline (só a prop e o `StyleSheet.create` geram a classe), então o invólucro, da tela toda, ficava com `pointer-events: auto`. Com a correção, `elementFromPoint(20, 60)` devolve o cabeçalho.
+  - E2E de QA6C-1 sem `test.fail()`, e o toque agora vai ao botão "Nova tarefa": a tarefa que o teste tocava fica embaixo do próprio cartão no Pixel 7 (cartão de y 294 a 545, check em y 459), o que é esperado.
+  - QA6C-3: `mergeCelebrations` em core junta ao cartão aberto uma rajada que chega até `joinMs` (3 s, `gamificationUi`) depois de ele abrir, sem repetir e na ordem de `celebrationsFor`; depois disso, a próxima tarefa ganha cartão próprio. `burstMs` ficou em 600 ms.
+  - QA6C-2: sem mudança, por decisão do orquestrador (a conquista no teto é comemorada); a E2E do teto já espera isso.
+  - Handoff `20261103-0515-gamificacao-para-design-system-pointer-events-na-web`: `Fab` e `NotificationToaster` têm o mesmo `pointerEvents` no estilo, sem efeito na web.
+- **Arquivos/módulos principais:** `packages/features/gamification/src/{CelebrationHost.tsx,config.ts}`, `packages/core/src/gamification/celebrations{,.test}.ts`, `packages/core/src/index.ts` (uma exportação), `e2e/gamification.spec.ts`, o handoff acima
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma
+- **Como testar:** `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm exec playwright test e2e/gamification.spec.ts --project=app`, `pnpm exec playwright test e2e/notifications-jobs.spec.ts --project=jobs --no-deps`.
+- **Verificado:** `gamification.spec.ts` 5 de 5 (na primeira rodada, antes de ajustar o teste de QA6C-1, o do teto falhou uma vez, com o cartão de "Primeira tarefa" e "Tarefa concluída!" vindo das linhas semeadas antes do `reload`; não se repetiu); `notifications-jobs.spec.ts` 4 de 4; `pnpm e2e` completo uma vez, com chave VAPID gerada em memória: 75 ok, 0 falhas, 1 pulado (o "sem chave VAPID"); `pnpm check` passou (17 de 17 e 10 de 10; core 694). Pilha A parada com `supabase stop`.
+- **Não verificado:** a junção de QA6C-3 com rajadas reais separadas (só o teste de unidade de `mergeCelebrations`; o atraso não se reproduz); nativo (a prop é a forma do RN também); Safari, iPhone; projeto hospedado. Sem mutação.
+- **Pendências / próximos passos:** o handoff acima ao `design-system`; o `arquiteto` alinhar o texto do ADR-0010 sobre o teto (QA6C-2).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 05:55 (BRT)
+
+- **Branch:** fix/achievement-celebration-flake, criada a partir de feat/phase-6-gamification (0166cae)
+- **Agente(s):** gamificacao
+- **Resumo:** causa da intermitência de `e2e/gamification.spec.ts:53` (a conquista que não aparecia), corrigida no produto. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Causa, com registro temporário no console (já removido): o canal fica `SUBSCRIBED` logo, mas o servidor só ouve as tabelas depois da mensagem `system` `postgres_changes`/`ok` ("Subscribed to PostgreSQL"), que com o Realtime frio veio até 2,4 s depois. Num lote de 4 workers logo após o `db reset`, 3 rodadas concluíram a tarefa antes dela e não receberam nenhuma linha, nem o evento de XP. O "+10 XP" e o anel vêm da consulta, não do Realtime. Não era a assinatura depois do render, nem o cartão fechando, nem o `joinMs`.
+  - `gamificationRepository.subscribe`: guarda uma marca na chamada (o `created_at` do evento mais novo e as conquistas já concedidas) e, a cada `system` `ok` (a primeira e depois de uma reconexão), relê os eventos posteriores e as conquistas novas e os entrega pelo mesmo `onRow`. Cada linha é entregue uma vez só, por id do evento ou chave da conquista. Nada é entregue depois do `unsubscribe`. O `CelebrationHost` não mudou.
+  - Handoff `20261103-0554-gamificacao-para-notificacoes-whatsapp-realtime-antes-de-ouvir`: o `subscribe` de notificações tem o mesmo intervalo.
+- **Arquivos/módulos principais:** `packages/data/src/gamification/index.ts`, o handoff acima
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma
+- **Como testar:** `pnpm db:start`, `pnpm exec supabase db reset` e, logo depois, `pnpm exec playwright test e2e/gamification.spec.ts --project=app --repeat-each=8 --workers=4`.
+- **Verificado:** antes da correção, logo após o `db reset`, 38 ok e 2 falhas, depois 37 ok e 3 falhas; todas no `:53`, todas com a conclusão antes do `system` `ok`. Depois da correção, duas vezes logo após o `db reset`: 40 de 40, e 40 de 40. `pnpm e2e` completo uma vez, com chave VAPID gerada em memória: 75 ok, 0 falhas, 1 pulado. `pnpm check` passou (17 de 17 e 10 de 10; core 694, data 7). Pilha A parada com `supabase stop`.
+- **Não verificado:** a reconexão real (o código relê a cada `ok`, mas não derrubei a rede); o Realtime hospedado; nativo. Não há teste de unidade do `subscribe`, que precisaria simular o cliente do Supabase; a prova é a E2E repetida. Sem mutação.
+- **Pendências / próximos passos:** o handoff acima ao `notificacoes-whatsapp`.
+
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:12 (BRT)
 
 - **Branch:** feat/phase-6-gamification
@@ -2542,3 +2542,22 @@
 - **Verificado:** em `1c19c3b`, `verificar-fase.sh`: install, `db:start`, `db reset`, `db:test` 1520 de 1520 antes e depois da E2E, `db:check-permissions`, `turbo typecheck test --force` (core 694, contracts 104, platform 49, ui 31, config 15, gamification 15, notifications 17, app 8, data 7, proof 6), lint, `boundaries`, `build:web`, `functions:test` 178 de 178; E2E: a segunda rodada 75 ok, 0 falhas, 1 pulado; a primeira teve 1 falha fora da fase, `proof-capture.spec.ts:119`, com 503 do Edge Runtime local em `proof-validate` sob carga (outra pilha e vários agentes na máquina), a mesma instabilidade de ambiente conhecida das fases anteriores; a spec passou em todas as verificações das Fases 3 a 7 e na segunda rodada. Varredura de segredos no diff `feat/phase-5-whatsapp..`: nada.
 - **Não verificado:** som e vibração em aparelho, leitor de tela real, Safari e iPhone, projeto hospedado, CI do PR.
 - **Pendências / próximos passos:** PR para `feat/phase-5-whatsapp`; a Fase 8 já está em `feat/phase-8-polish` (Fases 6 e 7 integradas com as migrations da 7 renumeradas); investigar na Fase 8 se o cliente deve tentar de novo num 503 de função fria; F7-5 sobre a base integrada.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:17 (BRT)
+
+- **Branch:** feat/account-functions, criada a partir de feat/phase-8-polish (ed828f3)
+- **Agente(s):** backend-funcoes
+- **Resumo:** F8-3b do ADR-0012, seções 2 e 3: as Edge Functions `account-export` e `account-delete`, sobre as funções SQL do `banco-de-dados` (handoff `20261103-0600`). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `_shared/account.ts` (novo): `handleExport` e `handleDelete`, com o cliente de serviço como argumento (as duas funções são uma linha cada). Exportação: usuário pelo Auth (`signedInUser`), `consume_rate_limit(user, 'data_export')` (`PT429` vira 429 `rate_limited` com `retryAfterSeconds` do `hint`), `export_user_data`, `createSignedUrls` em lotes de 1000 com `exportPhotoUrlTtlSeconds` gravadas em `photo_url` pela chave de `photoPaths` (objeto que sumiu no meio fica `null`), `accountExportSchema`, `Content-Disposition: attachment` (`azkaban-dados-AAAA-MM-DD.json`, data de São Paulo) e `Cache-Control: no-store`. Exclusão: corpo de até 1 KiB por `readLimited` e `accountDeleteRequestSchema`; login recente pelo maior `timestamp` de `amr` (sem ele, `reauth_required`; a prévia também pede); `dryRun` responde `account_deletion_preview`; senão `begin_account_deletion`, `remove` em lotes somando o que o Storage disse, `finish_account_deletion`, `auth.admin.deleteUser` (404 é corrida, segue) e `complete_account_deletion`; `owns_groups` de `begin` ou de `finish` vira 409 com a prévia do `details`; falha no meio, 500 `delete_failed`. Log só com evento, etapa, código e contagens.
+  - `account-export/` e `account-delete/` (novos): `index.ts` e `deno.json`. `verify_jwt = true` das duas em `supabase/config.toml`; deploy e `verify_jwt` em `docs/implantacao.md`; as duas em `wait-for-functions.mjs`.
+  - `proof-kit.ts`: `mint(sub, claims)` exportado e `refreshToken` na pessoa que entrou de verdade.
+  - Testes: `_shared/account.test.ts` (Node, sem pilha, 15), `account-export/export.integration.test.ts` e `account-delete/delete.integration.test.ts`, os três no `functions:test`.
+  - Handoff `20261103-0617-backend-funcoes-para-auth-grupos-exportar-e-excluir-conta`.
+- **Arquivos/módulos principais:** `supabase/functions/_shared/{account,account.test,proof-kit,wait-for-functions}.*`, `supabase/functions/account-{export,delete}/`, `supabase/config.toml`, `docs/implantacao.md`, `package.json` (`functions:test`)
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** sem `amr` com `timestamp`, recusa (`reauth_required`) em vez do recuo a `auth.sessions.created_at` do ADR: `auth` não está na API e o recuo pediria uma RPC nova; custa só um login. A prévia também pede login recente, para a tela mandar entrar antes da confirmação. Falha de `complete_account_deletion` depois de `deleteUser` vai para o log e a resposta continua `{ deleted: true }`: a conta já saiu, e repetir só daria 401 (a linha de auditoria fica aberta).
+- **Como testar:** `pnpm check`; `node --test supabase/functions/_shared/account.test.ts`; com a pilha, `pnpm functions:test`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 11 de 11; `functions:imports` 10 de 10, com as duas funções novas); `account.test.ts` 15 de 15. Mutações nos handlers, por script, 11 de 11 mortas: `signedInUser` aceitando `getUser` com erro, exportação sem a checagem do usuário nulo, `amr` sempre recente, segundos lidos como ms, `<` no lugar de `<=`, primeiro `timestamp` no lugar do maior, prévia sem a checagem, ação `task_create` no lugar de `data_export`, `PT429` tratado como falha, erro do limite ignorado, `hint` ignorado.
+- **Não verificado:** os dois testes de integração não rodaram (sem pilha, por decisão do orquestrador): que o GoTrue local traz `timestamp` em `amr` e o mantém no refresh (o teste confere), o formato real de `auth.audit_log_entries` depois de `deleteUser`, as URLs assinadas servindo a foto, o 429 real e a conta apagada de fato; o boot das funções no Edge Runtime (só o `import-maps`); o projeto hospedado.
+- **Pendências / próximos passos:** rodar `pnpm functions:test` com a pilha; `auth-grupos` faz as telas (handoff acima).

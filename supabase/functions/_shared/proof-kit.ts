@@ -100,13 +100,27 @@ export const PAID_WITH_PROOF = `occurrence_done=${taskRules.xp.status.done * tas
 
 // ----------------------------------------------------------------------------------------- people
 
-export type Person = { id: string; client: SupabaseClient; bearer: Record<string, string> };
+export type Person = {
+  id: string;
+  client: SupabaseClient;
+  bearer: Record<string, string>;
+  /** Only after a real sign-in. */
+  refreshToken?: string;
+};
 
 const b64 = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
-function mint(sub: string): string {
+/** A token for `sub` with the local JWT secret. `claims` adds to or replaces the defaults (`amr`, say). */
+export function mint(sub: string, claims: Record<string, unknown> = {}): string {
   const now = Math.floor(Date.now() / 1000);
   const head = b64({ alg: 'HS256', typ: 'JWT' });
-  const body = b64({ sub, role: 'authenticated', aud: 'authenticated', iat: now, exp: now + 3600 });
+  const body = b64({
+    sub,
+    role: 'authenticated',
+    aud: 'authenticated',
+    iat: now,
+    exp: now + 3600,
+    ...claims,
+  });
   const sig = createHmac('sha256', JWT_SECRET).update(`${head}.${body}`).digest('base64url');
   return `${head}.${body}.${sig}`;
 }
@@ -125,6 +139,7 @@ export async function newPerson(name: string, signIn = false): Promise<Person> {
   assert.ifError(error);
   created.push(data.user!.id);
   let token = mint(data.user!.id);
+  let refreshToken: string | undefined;
   if (signIn) {
     const session = await createClient(API, ANON, options).auth.signInWithPassword({
       email,
@@ -132,12 +147,13 @@ export async function newPerson(name: string, signIn = false): Promise<Person> {
     });
     assert.ifError(session.error);
     token = session.data.session!.access_token;
+    refreshToken = session.data.session!.refresh_token;
   }
   const client = createClient(API, ANON, {
     ...options,
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
-  return { id: data.user!.id, client, bearer: { authorization: `Bearer ${token}` } };
+  return { id: data.user!.id, client, bearer: { authorization: `Bearer ${token}` }, refreshToken };
 }
 
 // ------------------------------------------------------------------------------------------ group

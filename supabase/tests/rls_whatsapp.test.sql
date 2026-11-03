@@ -576,10 +576,10 @@ $$;
 select is(pg_temp.titles('today'), 'Today,Today later', 'today: pending of the day, by start; not done, archived or someone else''s');
 select is(pg_temp.titles('overdue'), 'Late pending,Red in window', 'overdue: pending past due, and red still inside the late window');
 select is(pg_temp.titles('deadlines'), 'Deadline soon', 'deadlines: within deadline_days');
-select is(pg_temp.src() - 'today' - 'overdue' - 'deadlines',
+select is(pg_temp.src() - 'today' - 'overdue' - 'deadlines' - 'streak',
   jsonb_build_object('localDate', pg_temp.gt('ld'), 'timezone', 'America/Sao_Paulo', 'deadlineDays', 7,
-    'totals', jsonb_build_object('today', 2, 'overdue', 2, 'deadlines', 1), 'streak', null),
-  'with the date, the zone, the window and the totals');
+    'totals', jsonb_build_object('today', 2, 'overdue', 2, 'deadlines', 1)),
+  'with the date, the zone, the window and the totals (the streak is in rls_gamification)');
 select is(pg_temp.src() -> 'deadlines' -> 0,
   (select jsonb_build_object('occurrenceId', o.id, 'title', 'Deadline soon', 'areaI18nKey', 'areas.home', 'contextName', 'Casa A',
     'scheduleType', 'deadline', 'startAt', o.scheduled_start, 'dueAt', o.scheduled_due)

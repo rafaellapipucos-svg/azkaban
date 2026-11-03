@@ -17,7 +17,8 @@ type Props = {
 // The grid is seven equal columns that share the width of the screen: at 375px each cell is about
 // 45px, so it keeps the 44px touch target without scrolling sideways. Each cell draws the day
 // number, the count, one marker per status present (a symbol, not just a color) and a star when
-// the day is perfect. The spoken label says the same in words.
+// the day is perfect. The spoken label says the same in words. A day of the next or previous month
+// has a dashed border and a muted number, not a lower opacity: half opacity left it at 3.3:1.
 export function MonthView({ date, today, days, weekStartsOn, onSelect }: Props) {
   const { t, i18n } = useTranslation('calendar');
   const weeks = monthGrid(monthOf(date), weekStartsOn);
@@ -60,7 +61,7 @@ export function MonthView({ date, today, days, weekStartsOn, onSelect }: Props) 
                     : info?.perfect
                       ? 'border-done'
                       : 'border-border dark:border-border-dark'
-                } ${cell.inMonth ? '' : 'opacity-50'}`}
+                } ${cell.inMonth ? '' : 'border-dashed'}`}
               >
                 <View className="flex-row items-center justify-between">
                   <View
@@ -71,7 +72,11 @@ export function MonthView({ date, today, days, weekStartsOn, onSelect }: Props) 
                   >
                     <Text
                       className={`font-heavy text-sm ${
-                        isToday ? 'text-onPrimary' : 'text-text dark:text-text-dark'
+                        isToday
+                          ? 'text-onPrimary'
+                          : cell.inMonth
+                            ? 'text-text dark:text-text-dark'
+                            : 'text-muted dark:text-muted-dark'
                       }`}
                     >
                       {Number(cell.date.slice(8, 10))}

@@ -2,7 +2,11 @@
 // checkout: the `project_id` names the Docker containers and the `port` of `[api]` is the gateway. A
 // checkout switched to the second stack (docs/agentes/ferramentas/pilha-b.sh) therefore reaches only
 // that stack, with nothing exported. SUPABASE_URL, COMPOSE_PROJECT and DB_CONTAINER still win.
-import { readFileSync } from 'node:fs';
+//
+// No `import.meta` here: Playwright compiles the e2e specs, and this file through proof-kit.ts, to
+// CommonJS, where it does not exist. The config is found from the working directory instead.
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 
 /** @param {string} toml @param {Record<string, string | undefined>} env */
 export function stackFrom(toml, env) {
@@ -21,7 +25,16 @@ export function stackFrom(toml, env) {
   };
 }
 
+/** supabase/config.toml of the nearest folder, from `from` up. @param {string} from */
+export function findConfig(from) {
+  for (let dir = from; ; dir = dirname(dir)) {
+    const file = join(dir, 'supabase', 'config.toml');
+    if (existsSync(file)) return file;
+    if (dirname(dir) === dir) throw new Error(`no supabase/config.toml in ${from} or above`);
+  }
+}
+
 export const { apiUrl, project, dbContainer } = stackFrom(
-  readFileSync(new URL('../../config.toml', import.meta.url), 'utf8'),
+  readFileSync(findConfig(process.cwd()), 'utf8'),
   process.env,
 );

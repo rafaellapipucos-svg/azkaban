@@ -1710,3 +1710,19 @@
   - `phone-verification`, `whatsapp-webhook` e o despacho: os resultados estão no handoff do `backend-funcoes`. O log do Edge Runtime não tem telefone, código, `wa_id` nem texto.
 - **Não verificado:** E2E (proibida na pilha B), `db:test` e `functions:test` completos, navegador, Meta real e projeto hospedado. SEG5-2, SEG5-3 e SEG5-6 não foram reabertos (em andamento), mas o estado integrado do webhook responde 500 a elemento inválido, registrado no handoff.
 - **Pendências / próximos passos:** SEG5-9 com o `banco-de-dados`, SEG5-10 com o `backend-funcoes`. Pilha B parada, `config.toml` restaurado.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:41 (BRT)
+
+- **Branch:** fix/local-stack-cjs, criada a partir de feat/phase-5-whatsapp (`24f76cd`)
+- **Agente(s):** backend-funcoes
+- **Resumo:** `pnpm e2e` voltou a carregar as specs. O Playwright compila as specs, e com elas `proof-kit.ts` e `local-stack.mjs`, para CommonJS, onde o `import.meta` que achava o `config.toml` não existe: 0 testes em 0 arquivos. Agora `local-stack.mjs` acha `supabase/config.toml` subindo a partir de `process.cwd()`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `findConfig(from)` em `local-stack.mjs`, sem `import.meta`; o ambiente vence o config e um config sem as chaves continua lançando erro.
+  - Teste novo: o config é achado a partir de uma pasta interna e da raiz do checkout.
+- **Arquivos/módulos principais:** `supabase/functions/_shared/local-stack.mjs`, `supabase/functions/_shared/local-stack.test.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. Os comandos precisam rodar de dentro do checkout, como já fazem todos os scripts do `package.json`.
+- **Como testar:** `node --test supabase/functions/_shared/local-stack.test.ts`, `pnpm exec playwright test --list`, `pnpm functions:test` e `pnpm e2e`, na pilha A.
+- **Verificado (pilha A, banco limpo):** antes, `playwright test --list` dava o `SyntaxError` e 0 testes; depois, 71 testes em 18 arquivos. `local-stack.test.ts`: 7 de 7. `pnpm functions:test`: 178 de 178. `pnpm e2e` com uma chave VAPID gerada em memória: 70 passaram, 1 pulado (o que só roda sem a chave). `pnpm check` passa.
+- **Não verificado:** CI, pilha B e projeto hospedado.
+- **Pendências / próximos passos:** nenhuma. Pilha A parada.

@@ -35,8 +35,8 @@ Este ADR decide o que `gamificacao`, `banco-de-dados` e `design-system` precisam
 
 O ADR-0005 (seção 11) deixou para esta fase: quem cria tarefas, inclusive futuras, e as conclui na hora ganha XP sem limite. Bloquear a conclusão antecipada não fecha o furo, porque reagendar para hoje é permitido e trapaça e uso legítimo ("lavei o carro um dia antes") têm a mesma forma. A defesa é um **teto diário**:
 
-- `gamificationRules.xp.dailyCap` (300): o saldo dos motivos de `cappedXpEventReasons` (todos, menos os dois de dia perfeito) que um usuário soma no **dia local do perfil em que o evento é gravado** não passa do teto.
-- **Saldo do dia por ocorrência, com piso zero** (atualizado em 2026-11-03): os eventos com teto gravados hoje são agrupados por `coalesce(occurrence_id, id do evento)`, cada grupo é somado, e o saldo do dia é `Σ max(0, saldo do grupo)`.
+- `gamificationRules.xp.dailyCap` (300): o saldo dos motivos de `cappedXpEventReasons` (todos, menos os dois de dia perfeito) que um usuário soma nas **últimas `capWindowHours` (24) antes do evento**, janela móvel e sem fuso, não passa do teto (atualizado na seção 14, SEG6-1; antes era o dia local do perfil).
+- **Saldo da janela por ocorrência e grupo, com piso zero** (atualizado em 2026-11-03, seção 14, SEG6-3): os eventos com teto gravados na janela são agrupados por `(coalesce(occurrence_id, id do evento), group_id)`, cada par é somado, e o saldo é `Σ max(0, saldo do par)`. "Hoje", nos itens abaixo, é a janela.
 - Em `occurrence_award_xp`, depois da compensação: `espaço = min(teto, max(0, teto − saldo do dia))`. O base recebe `min(base, espaço)`, e o bônus de prova, o que sobrar. Valor zero não gera evento, regra que já existe.
 - Reabrir algo concluído hoje libera o espaço dele, porque a ocorrência volta a zero. Isso não abre brecha: reconcluir só devolve o que a ocorrência vale, e a média por dia fica no teto.
 - **Uma compensação de outro dia não vira crédito para hoje.** A soma simples falhava: reabrir hoje 300 pontos de ontem deixa a soma de hoje em −300, e cada uma de 21 conclusões difíceis (30 cada) cabia no espaço, gravando 600 pontos de conclusões no dia. O `min` só limitava uma conclusão, não o dia. Com o piso por ocorrência, os grupos das ocorrências reabertas valem 0, e as conclusões novas param em 300: a 11ª não grava nada. A mutação com a soma simples no pgTAP do `banco-de-dados` dá 600.
@@ -59,6 +59,8 @@ O que mais impede farmar:
 | Ranking inflado                         | Teto diário, só XP de tarefas `group` do grupo, e o admin vê tudo na Equipe. Tarefa privada grava `group_id` nulo (ADR-0005) |
 | Ofensiva com uma tarefa trivial por dia | Aceito. É da natureza da ofensiva, e só engana a própria pessoa                                                              |
 | Trocar o fuso do perfil                 | `last_closed_date` só avança, então nenhum dia fecha duas vezes. Pular para a frente fecha dias vazios, que não contam       |
+| Trocar o fuso para reabrir o teto       | Janela móvel de 24 h, sem fuso, e `profiles.timezone` só com nomes de `pg_timezone_names` (seção 14, SEG6-1)                 |
+| Ocorrência no passado distante          | Piso da história: nada antes da criação do perfil − 1 nem de 400 dias atrás (seção 14, SEG6-2)                               |
 
 ### 3. Meta diária e ofensiva
 
@@ -152,8 +154,8 @@ Definidas em `achievements` por seed, legíveis por todo usuário autenticado. C
 ### 6. Ranking
 
 - **Desligado ou ligado por grupo** em `groups.settings.rankingEnabled` (`groupSettingsSchema`), que quem tem `group.update` já edita. Ausente vale o padrão do tipo: `family` ligado, `company` e `other` desligados, e um tipo desconhecido desligado. O banco ganha um `check` de que a chave, se existe, é booleana.
-- **RPC `group_ranking(p_group_id, p_week_start, p_timezone)`**, `security definer`, para `authenticated`. Exige ser membro atual (`forbidden`) e o ranking ligado (`ranking_disabled`). A semana é `[p_week_start, + 7 dias)` no fuso pedido, como `team_overview`. O cliente manda o início da semana de `gamificationDefaults.rankingWeekStartsOn` no fuso do perfil.
-- **Soma:** `xp_events` com `group_id` do grupo e `created_at` na semana, por membro atual. Devolve só quem tem saldo positivo, com `rank()`. Ex-membros saem.
+- **RPC `group_ranking(p_group_id, p_week_start)`**, `security definer`, para `authenticated`. Exige ser membro atual (`forbidden`) e o ranking ligado (`ranking_disabled`). A semana é `[p_week_start, + 7 dias)` no fuso do perfil de quem chama, lido no servidor, alinhada a `gamificationRules.ranking.weekStartsOn` e entre as últimas `maxWeeks` (2). A soma não começa antes de o ranking ser ligado nem de quem chama entrar no grupo (seção 14, SEG6-4; antes o fuso e a semana vinham livres do cliente).
+- **Soma:** `xp_events` com `group_id` do grupo e `created_at` na semana, a partir de `greatest(início da semana, groups.ranking_enabled_at, joined_at de quem chama)`, por membro atual. Devolve só quem tem saldo positivo, com `rank()`. Ex-membros saem.
 - O XP do ranking é o de tarefas `group` daquele grupo. Tarefas privadas, dia perfeito e o XP de outros grupos ficam de fora.
 - Sem ligas entre grupos. "Ligas semanais" da seção 7.11 é o ranking da semana dentro do grupo.
 - Índice `xp_events (group_id, created_at)`.
@@ -171,7 +173,7 @@ Definidas em `achievements` por seed, legíveis por todo usuário autenticado. C
 - Nível, ofensiva e conquistas misturam tarefas pessoais e de outros grupos, então mostrá-los a um grupo vazaria a vida fora dele (ADR-0003). Por isso o ranking não os traz.
 - O admin já vê o status das tarefas `group` na Equipe. O XP não acrescenta nada que ele precise, e fica fora.
 - **Grupos de empresa:** ranking desligado por padrão. Ligar é escolha de quem administra. A tela de transparência para funcionários de F8-3 precisa dizer que, ligado, os colegas veem o nome e o XP semanal.
-- **LGPD:** exportar e excluir a conta, em F8-3, cobrem `xp_events`, `user_stats`, `user_day_stats` e `user_achievements`. A cascata por `user_id` já apaga.
+- **LGPD:** exportar e excluir a conta, em F8-3, cobrem `xp_events`, `user_stats`, `user_day_stats` e `user_achievements`. A cascata por `user_id` já apaga. Retenção e o texto da tela de transparência: seção 14.
 - O som e a vibração são preferência do aparelho, sem dado no servidor.
 
 ### 8. Comemorações
@@ -203,7 +205,7 @@ O anel de Hoje passa a mostrar a meta da seção 3: as ocorrências cujo dia é 
 
 ### 11. Recálculo e implantação
 
-- `recompute_user_gamification(user)`, só `service_role`: `total_xp` pela soma de `xp_events`; `refresh_user_day` de cada dia desde a primeira ocorrência, no máximo 400 dias; e `refold_streak` desde o primeiro. Não reescreve eventos; só concilia o dia perfeito, que é idempotente.
+- `recompute_user_gamification(user)`, só `service_role`: `total_xp` pela soma de `xp_events`; `refresh_user_day` de cada dia desde a primeira ocorrência, sem passar do piso de `historyDays` (400) nem da criação do perfil − 1 (seção 14, SEG6-2); e `refold_streak` desde o primeiro. Não reescreve eventos; só concilia o dia perfeito, que é idempotente.
 - **Backfill:** a migration que cria as tabelas roda o recálculo de todos os perfis, com `last_closed_date` em ontem. Quem já tinha dias perfeitos recebe o bônus deles; a ofensiva nasce da história.
 - Mudar `taskRules.xp` ou `gamificationRules.xp` não muda eventos antigos. Os eventos são história; o recálculo é dos totais.
 - Mudar `goal` ou `streak` muda o que o próximo `refresh_user_day` ou o recálculo produz.
@@ -237,6 +239,56 @@ Todos são valores em config, seed ou uma linha de matriz, e voltam atrás sem p
 8. **Som** desligado e **vibração** ligada por padrão.
 9. **Conquistas** da seção 5, e "semana perfeita" como sete dias perfeitos seguidos, sem contar os vazios.
 10. **Reduzir movimento** não desliga som nem vibração (seção 8).
+11. **Janela móvel de 24 h** para o teto, no lugar do dia local (seção 14, SEG6-1).
+12. **Histórico de 400 dias** para contar, dobrar e recalcular (SEG6-2).
+13. **Ranking** só com a semana corrente e a anterior, e só desde que foi ligado e desde que a pessoa entrou no grupo (SEG6-4).
+14. **Risco aceito** do `DELETE` de `user_achievements` pelo Realtime (SEG6-6).
+15. **Retenção** dos dados de gamificação enquanto a conta existir, sem poda de `user_day_stats` (seção 14, LGPD).
+
+### 14. Revisão de segurança da Fase 6
+
+Decisões de 2026-11-03 sobre a primeira passada do `revisor-seguranca` (handoffs `20261103-0350-revisor-seguranca-para-arquiteto-gamificacao` e `20261103-0350-revisor-seguranca-para-banco-de-dados-gamificacao`). Onde divergir das seções anteriores, vale esta; as seções 2, 6, 7 e 11 já apontam para cá.
+
+**SEG6-1 (média): trocar o fuso reabria o teto.** O teto começava na meia-noite do fuso atual do perfil, que o próprio usuário grava. O PoC somou 10.500 pontos em 24 h trocando entre 35 zonas.
+
+- **Decisão: janela móvel.** O teto vale para os eventos com teto gravados nas últimas `gamificationRules.xp.capWindowHours` (24) antes do evento, `created_at >= now() − 24 h`, sem fuso. Em qualquer intervalo de 24 h o saldo líquido fica no teto. Fecha a classe inteira (fuso, horário de verão, strings POSIX) sem coluna nova; o lock por usuário não muda.
+- Por que não as outras: congelar o fuso do teto por dia pede estado em `user_stats` e uma regra de `least` que a tela teria de imitar; limitar a troca de fuso pune quem viaja e não fecha as strings POSIX.
+- Consequência para o usuário: quem bateu o teto às 22h volta a ter espaço a partir das 22h do dia seguinte, à medida que os eventos saem da janela, e não à meia-noite. A tela fala em "últimas 24 horas".
+- Dia perfeito, ofensiva e `last_closed_date` continuam por dia local do perfil.
+- **`profiles.timezone`** passa a ser validado contra `pg_timezone_names` num trigger de `insert` e de `update of timezone`, com `invalid_timezone` (22023). Corta as strings POSIX, que o Postgres aceita em `at time zone`, também nos dias e no fechamento. A migration troca antes as linhas inválidas pelo padrão do perfil. O cliente já valida pelo `Intl` (`timezoneSchema`), então o erro não ganha código de contrato.
+- Residual aceito: trocar o fuso ainda remaneja ocorrências entre dias locais e pode render um bônus de dia perfeito a mais. O bônus tem `group_id` nulo, não entra no ranking e só engana a própria pessoa, como a ofensiva trivial.
+
+**SEG6-2 (média): ocorrência no passado distante.** Uma ocorrência de 2000 fazia o trigger e o vermelho automático dobrarem milhares de dias por linha.
+
+- **Piso da história**, confirmado: `greatest(dia local da criação do perfil − 1, hoje local − gamificationRules.historyDays)`, com `historyDays` 400, o mesmo horizonte que o recálculo já usava, agora em config.
+- `refresh_user_day_counts`, o trigger de status, o início de `refold_streak` e o recálculo ignoram dias antes do piso: nenhuma linha em `user_day_stats` e nenhum evento.
+- **`perfect_day` só a partir do dia local da criação do perfil.** O "− 1" do piso existe para que uma troca de fuso para oeste não deixe o primeiro dia de fora; esse dia conta, mas não rende bônus.
+- **Uma dobra por usuário por comando.** Com o piso, um lote de 500 linhas do vermelho automático de uma mesma pessoa ainda faria 500 dobras de até 400 dias. O trigger passa a agrupar por comando: um `refresh` por (usuário, dia) e uma dobra por usuário a partir do menor dia tocado (trigger `for each statement` com tabela de transição, ou equivalente que o `banco-de-dados` escolher). O lote fica em no máximo uma dobra de 400 linhas por pessoa.
+- O piso de `start_at` relativo a `now()` na criação de tarefas não é necessário com isso, e fica de fora.
+
+**SEG6-3 (baixa): o saldo agrupa por `(ocorrência, grupo)`.** Reconcluir num grupo o XP privado de outro dia fechava a ocorrência em zero e não consumia o teto, mas entrava no ranking. O saldo da janela agrupa por `(coalesce(occurrence_id, id), group_id)`, com piso zero em cada par: o par privado reaberto vale 0, e o `+30` do grupo consome o teto. `capRoom` faz o mesmo com `occurrenceId ?? id` e `groupId`.
+
+**SEG6-4 (baixa): o ranking aceitava qualquer semana e qualquer fuso.**
+
+- **Assinatura `group_ranking(p_group_id uuid, p_week_start date)`.** A de três argumentos sai. O fuso é o do perfil de quem chama, lido no servidor.
+- `p_week_start` precisa cair em `gamificationRules.ranking.weekStartsOn` (`extract(dow)`, 0 é domingo, como `WeekStart` do core) e ficar entre o início da semana corrente menos `7 × (maxWeeks − 1)` dias e o início da semana corrente, no fuso de quem chama. Fora disso, `invalid_argument` (22023), sem código de contrato: a tela nunca pede outra semana.
+- **`maxWeeks` 2:** a semana corrente e a anterior, para a segunda-feira ainda mostrar a semana que fechou. `rankingWeekStartsOn` sai de `gamificationDefaults` para `gamificationRules.ranking.weekStartsOn`, porque o servidor passa a conferir; o nome antigo aponta para o novo até a feature trocar.
+- **Nada antes de o ranking ser ligado.** Coluna `groups.ranking_enabled_at timestamptz`, fora do `grant update` do cliente, escrita só por trigger `before insert or update` em `groups`: vira `now()` quando o ranking efetivo (a chave ou o padrão do tipo, por `group_ranking_enabled`) passa de desligado para ligado, inclusive no `insert`; vira nulo quando desliga; e não muda nos outros casos. Não fica em `settings` porque `settings` é gravável por quem tem `group.update`, e o servidor teria de apagar o que o cliente mandasse. O cliente não lê a coluna, e o contrato não muda por ela.
+- **Nada antes de quem chama entrar.** A soma começa em `greatest(início da semana, ranking_enabled_at, joined_at de quem chama)`. Quem entra numa empresa não vê o XP dos colegas de antes de entrar; a semana dele começa vazia.
+- **Grupos `family`** nascem ligados, então `ranking_enabled_at` é a criação do grupo e nada muda para eles. Na migration, os grupos já ligados, pela chave ou pelo padrão, recebem `now()`: perde-se só o ranking da semana em curso, e nada antes da produção.
+- Residual aceito: as bordas da semana seguem o fuso de quem chama, e trocar o próprio fuso desloca a janela em até 26 h em cada ponta. Por diferença, um membro ainda tira o XP dos colegas nessas bordas, só nas duas semanas permitidas e mexendo nos próprios dias. Se isso pesar, o caminho é um fuso por grupo.
+- **Contrato:** `groupRankingInputSchema` perde `timezone` junto com a troca do repositório, pelo `gamificacao`, para o build não quebrar entre os dois passos. A migration do banco e essa troca entram juntas na integração.
+
+**SEG6-5 (baixa): direção confirmada.** `close_gamification_days` passa a `for no key update of p skip locked`, com um bloco `begin ... exception when others then raise warning` por perfil, que não avança o `last_closed_date` de quem falhou. É implementação do `banco-de-dados`; nenhuma regra muda.
+
+**SEG6-6 (informativo): risco aceito, como o SEG4-4 (ADR-0008).** Na exclusão de uma conta, o `DELETE` em cascata de `user_achievements` vai pelo Realtime a todo assinante, sem RLS, com a chave `(user_id, achievement_key)`. Quem recebe fica sabendo um id e quais conquistas ele tinha; nada de nome, tarefa ou grupo. Aceito por ora. Caminho, se o humano não aceitar ou a carga pesar: (1) chave substituta `id` em `user_achievements`, com `unique (user_id, achievement_key)`, que reduz o vazamento ao id opaco, como em `xp_events`; (2) a comemoração por Broadcast num canal privado por usuário, que também tira a checagem de RLS de cada `insert` para cada assinante nas rajadas do fechamento e do recálculo. Até lá, a carga do Realtime fica em observação.
+
+**LGPD, para F8-3.**
+
+- **Exportar:** as linhas da pessoa em `xp_events`, `user_stats`, `user_day_stats` e `user_achievements`. O ranking não entra: é derivado do XP de outros.
+- **Excluir:** a cascata por `user_id` já apaga as quatro.
+- **Retenção:** as quatro ficam enquanto a conta existir. `xp_events` é a fonte do total e não pode ser podado sem mudar o nível. `user_day_stats` antes do piso de `historyDays` deixa de ser lido e pode ser podado em F8-3, se o humano preferir (seção 13, item 15).
+- **Tela de transparência** para funcionários precisa dizer: (a) com o ranking ligado, os colegas do grupo veem o nome e o XP semanal das tarefas daquele grupo, e quem administra pode ligar a qualquer momento; (b) o ranking conta só a partir de quando foi ligado e de quando a pessoa entrou, e mostra só a semana corrente e a anterior; (c) `user_day_stats` guarda, por dia, quantas tarefas a pessoa planejou, concluiu e perdeu, visível só para ela; (d) nível, ofensiva, total e conquistas não aparecem para ninguém, nem para quem administra.
 
 ## Alternativas
 
@@ -259,7 +311,7 @@ Todos são valores em config, seed ou uma linha de matriz, e voltam atrás sem p
 
 - Mudar `gamificationRules` exige uma migration, e `pnpm db:check-permissions` passa a comparar `gamification_rules`. **Até F6-2 entrar, ele acusa a chave ausente.**
 - `xpEventSchema` ganha `localDate` e quatro motivos. Nenhum código lia o schema antes desta fase.
-- `occurrence_award_xp` passa a depender do fuso do perfil e de um lock por usuário.
+- `occurrence_award_xp` passa a depender de um lock por usuário. Desde a seção 14, o teto não depende do fuso.
 - O resumo diário passa a ler `user_stats`, e o claim, a contar as ocorrências de hoje.
 - Uma ofensiva pode subir ou cair dias depois, quando uma conclusão atrasada ou uma contestação refaz um dia passado.
 - Um dia perfeito pode perder o bônus no fechamento, se uma ocorrência nova entrar naquele dia depois da comemoração.

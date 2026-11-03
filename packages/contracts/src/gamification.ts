@@ -83,7 +83,12 @@ export const userAchievementSchema = z.object({
 });
 export type UserAchievement = z.infer<typeof userAchievementSchema>;
 
-/** Arguments of the RPC `group_ranking`. The week is `[weekStart, weekStart + 7 days)` in `timezone`. */
+/**
+ * Arguments of the RPC `group_ranking`. The week is `[weekStart, weekStart + 7 days)` in the caller's
+ * profile zone, read by the server. `weekStart` falls on `gamificationRules.ranking.weekStartsOn` and
+ * is one of the last `ranking.maxWeeks` weeks (ADR-0010, SEG6-4). `timezone` goes away with the RPC's
+ * `p_timezone`: `gamificacao` removes it here together with the repository.
+ */
 export const groupRankingInputSchema = z.object({
   groupId: idSchema,
   weekStart: localDateSchema,

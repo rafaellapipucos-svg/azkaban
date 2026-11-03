@@ -10,8 +10,12 @@ test('the push step shows once after the first sign-in, and "Agora não" goes to
   page,
 }) => {
   test.skip(!process.env.EXPO_PUBLIC_VAPID_PUBLIC_KEY, 'push is hidden without a VAPID key');
-  // Headless Chromium answers 'denied' until granted, and the step is not offered then.
-  await page.context().grantPermissions(['notifications']);
+  // Playwright's headless shell keeps `Notification.permission` at 'denied' even after
+  // `grantPermissions` (only `permissions.query` turns 'granted'), and the step is not offered on
+  // 'denied'. A real browser that never asked says 'default'.
+  await page.addInitScript(() =>
+    Object.defineProperty(Notification, 'permission', { get: () => 'default' }),
+  );
   await signUp(page, newUser(`Ana${randomUUID().slice(0, 6)}`));
   await expect(page).toHaveURL(/\/push-setup$/);
   await expect(

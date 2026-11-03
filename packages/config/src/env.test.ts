@@ -73,4 +73,15 @@ describe('parseWhatsAppEnv', () => {
     expect(() => parseWhatsAppEnv({ WHATSAPP_PROVIDER: 'twilio' })).toThrow();
     expect(() => parseWhatsAppEnv({ WHATSAPP_APP_SECRET: 'short' })).toThrow();
   });
+
+  // The .env.example values are public; only the local stack, with `console`, may use them.
+  it.each(['WHATSAPP_APP_SECRET', 'WHATSAPP_VERIFY_TOKEN'] as const)(
+    'refuses meta with the local demo %s',
+    (key) => {
+      expect(() => parseWhatsAppEnv({ ...meta, [key]: 'local-demo-whatsapp-secret' })).toThrow();
+      expect(parseWhatsAppEnv({ [key]: 'local-demo-whatsapp-secret' })[key]).toBe(
+        'local-demo-whatsapp-secret',
+      );
+    },
+  );
 });

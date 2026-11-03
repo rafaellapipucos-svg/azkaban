@@ -5,6 +5,13 @@ import { z } from 'zod';
 const blank = (value: unknown) => (value === '' ? undefined : value);
 const secret = z.preprocess(blank, z.string().min(16).optional());
 
+// The `local-demo-*` values of the .env.example are public: with them, anyone signs a webhook and
+// sends a stop for a known number. `meta` refuses them (ADR-0009, section 18, SEG5-8).
+const realSecret = z
+  .string()
+  .min(16)
+  .refine((value) => !value.startsWith('local-demo-'), 'a local demo value');
+
 const shared = {
   /** App secret of the Meta app: the key of `X-Hub-Signature-256`. Without it, the webhook answers 500. */
   WHATSAPP_APP_SECRET: secret,
@@ -18,8 +25,8 @@ const whatsappEnvSchema = z.discriminatedUnion('WHATSAPP_PROVIDER', [
   z.object({
     WHATSAPP_PROVIDER: z.literal('meta'),
     ...shared,
-    WHATSAPP_APP_SECRET: z.string().min(16),
-    WHATSAPP_VERIFY_TOKEN: z.string().min(16),
+    WHATSAPP_APP_SECRET: realSecret,
+    WHATSAPP_VERIFY_TOKEN: realSecret,
     /** System user token with `whatsapp_business_messaging`. Never logged. */
     WHATSAPP_ACCESS_TOKEN: z.string().min(32),
     WHATSAPP_PHONE_NUMBER_ID: z.string().regex(/^\d{5,20}$/),

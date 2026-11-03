@@ -1581,3 +1581,23 @@
 - **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9 tarefas; `functions:imports` 8 de 8). Mutação: sem a chave de `tasks/late` no `deno.json` do despacho, `pnpm check` falha em "dispatch-notifications: every runtime import resolves through deno.json" (7 de 8), desfeita. O script do espelho imprimiu `Container: supabase_db_azkaban`, e `Container: x` com `DB_CONTAINER=x`. A primeira execução achou a pilha A de pé e fez os `select` de leitura (matriz em dia, 23 linhas); nada foi escrito.
 - **Não verificado:** o hook de pre-commit não roda o `check` (só `lint-staged`), então a guarda pega no CI e no `pnpm check`, não no commit. O texto da implantação não foi executado contra o projeto hospedado.
 - **Pendências / próximos passos:** nenhuma minha.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:07 (BRT)
+
+- **Branch:** docs/whatsapp-deploy, com `feat/phase-5-whatsapp` mesclada (5ed013c)
+- **Agente(s):** arquiteto
+- **Resumo:** Decisões sobre a primeira passada da revisão de segurança da Fase 5 (handoff `20261103-0158-revisor-seguranca-para-arquiteto-whatsapp`), no ADR-0009, seção 18, com a parte de contrato e config feita e um handoff para cada dono. Hora derivada de UTC menos 3.
+- **Alterações:**
+  - `packages/contracts/src/whatsapp.ts`: `whatsappWebhookStatusSchema` e `whatsappWebhookMessageSchema` exportados, e `whatsappWebhookSchema` com `statuses` e `messages` como `unknown[]` (SEG5-3). `whatsappTextParamSchema` recusa U+202A a U+202E e U+2066 a U+2069 (SEG5-6). `phone_country_not_allowed` em `whatsappErrorCodeSchema` (SEG5-5).
+  - `packages/config/src/whatsapp.ts`: `verification.maxSendsPerDay = 200` e `verification.allowedCountryCodes = ['55']` (SEG5-5), padrões a confirmar pelo humano.
+  - `packages/config/src/whatsapp-env.ts`: com `meta`, `WHATSAPP_APP_SECRET` e `WHATSAPP_VERIFY_TOKEN` que começam com `local-demo-` são recusados (SEG5-8).
+  - ADR-0009: seção 18 nova com SEG5-1 a SEG5-8. O PARAR busca só pelo número atual, com a regra do nono dígito. O PARAR com caractere invisível passa a parar. O limite por número sobrevive à exclusão. O teto global e a lista de países ficaram como padrão. A URL no resumo é aceita e registrada, sem controle bidirecional. O aviso v1 muda sem `v2`. As seções 3, 4, 7, 11, 13 e 16 (itens 13 e 14) remetem para ela.
+  - Handoffs `20261103-0206-arquiteto-para-{backend-funcoes,banco-de-dados,notificacoes-whatsapp}-seguranca-whatsapp`.
+  - Merge de `feat/phase-5-whatsapp`, com o conflito do LOG resolvido mantendo as duas entradas em ordem de data.
+- **Arquivos/módulos principais:** `packages/contracts/src/whatsapp.ts` e o teste, `packages/config/src/{whatsapp.ts,whatsapp-env.ts,env.test.ts}`, `docs/adr/0009-whatsapp-verificacao-opt-in-resumo-diario.md`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma; a do espelho é do `banco-de-dados`.
+- **Decisões/ADRs:** ADR-0009, seção 18.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9 tarefas; `functions:imports` 8 de 8). Contratos: 92 testes, com 3 novos (lote com um elemento inválido, dois controles bidirecionais). Config: o teste novo de `local-demo-` com `meta`, e a aceitação com `console`.
+- **Não verificado:** nada com a pilha. `pnpm db:check-permissions` vai acusar `whatsapp_rules` até a migration. O `whatsapp-webhook` ainda lê os elementos sem validá-los, até o `backend-funcoes` seguir o handoff. Até o `notificacoes-whatsapp` mudar `cleanParam`, um título com RLO faz o resumo falhar com `send_error`.
+- **Pendências / próximos passos:** os três handoffs. Para o humano: SEG5-5 (países e teto), a URL do SEG5-6 e o texto do aviso.

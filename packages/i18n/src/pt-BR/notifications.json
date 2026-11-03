@@ -1,6 +1,10 @@
 {
   "push": {
     "genericTask": "Uma tarefa",
+    "hidden": {
+      "title": "Novo aviso",
+      "body": "Abra o app para ver."
+    },
     "lead": {
       "minutes_one": "{{count}} minuto",
       "minutes_other": "{{count}} minutos",

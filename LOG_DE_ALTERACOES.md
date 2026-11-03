@@ -3916,3 +3916,20 @@
 - **Verificado:** na pilha B, depois de `db reset`: `db:test` 1990/1990 em 15 arquivos (14 novos em `rls_achievements_key`, 19 em `rls_push_hide_content`); `db:check-permissions` em dia; `db:types` regenerado. Mutação aplicada à mão no banco da B: `replica identity full` e a volta da chave `(user_id, achievement_key)` derrubam 3 de 14 cada; inverter a condição do `taskTitle` no claim derruba 2 de 19; `default true` com `grant update` para `anon` derruba 6; abrir `profiles_select_own` e `profiles_update_own` derruba 3. Banco recriado depois. `pnpm check` passou.
 - **Não verificado:** `pnpm functions:test` (pedia a pilha B de funções; o `itemSchema` do despacho não é `strict` e descarta a chave nova); o payload real do Realtime, verificado pelo catálogo (colunas da identidade de réplica) e não por decodificação lógica; E2E; hospedado. A troca da chave primária reescreve `user_achievements` com lock exclusivo (a tabela é pequena). Hora pelo UTC−3 (PowerShell barrado).
 - **Pendências / próximos passos:** handoffs para `backend-funcoes` (render neutro) e `notificacoes-whatsapp` (interruptor); notas nos ADRs pelo `arquiteto`; QUADRO pelo orquestrador.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 17:38 (BRT)
+
+- **Branch:** feat/push-hide-content-functions (a partir de `feat/launch-decisions`, `b13d956`)
+- **Agente(s):** backend-funcoes
+- **Resumo:** dois handoffs. BL-32: com `push_hide_content` ligado, o push sai com título e corpo neutros no web e no nativo. Zero no plural também nos textos das Edge Functions.
+- **Alterações:**
+  - BL-32: `itemSchema` (`items.ts`) e `OutboundMessage` (`dispatch.ts`) ganham `hideContent: boolean`, obrigatório (a migration `20261106100100` precisa ir antes da função no deploy, como sempre). Novo `hidden.ts` com `withHiddenContent`: com `true`, troca `title` e `body` por `push.hidden.title` e `.body` no idioma do perfil e mantém `v`, `notificationId`, `type`, `url` e `tag`. O `payload()` do `index.ts` aplica depois do `buildPushPayload`, e o `render` (Web Push) e o `renderNative` (Expo) saem dele, então valem os dois. `packages/core` não mudou.
+  - Chaves `push.hidden.title` ("Novo aviso") e `push.hidden.body` ("Abra o app para ver.") em `packages/i18n/src/pt-BR/notifications.json`, pedido do orquestrador (o arquivo é do `notificacoes-whatsapp`). Não há pasta `en`.
+  - Zero no plural: `makeTranslate` procura `${key}_zero` antes das formas de `Intl.PluralRules` quando `count === 0`, como o i18next.
+- **Arquivos/módulos principais:** `supabase/functions/dispatch-notifications/hidden.ts`, `index.ts`, `items.ts`, `dispatch.ts`, `translate.ts`, `push.test.ts`, `packages/i18n/src/pt-BR/notifications.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** decisões do humano no BL-32 e no zero no plural (ADR-0012, seção 17, item 10). Nenhum ADR editado.
+- **Como testar:** `node --test supabase/functions/dispatch-notifications/push.test.ts`; ou, com a pilha, `pnpm functions:test`.
+- **Verificado:** `push.test.ts` 31/31 no Node (3 novos: zero no plural; `hideContent` ligado e desligado, cada um mandando a um navegador e a um aparelho, com o corpo do Web Push decifrado e a mensagem do Expo capturada). Na pilha A, depois de `supabase db reset` (com as migrations `20261106100000`/`100100`) e `NATIVE_PUSH_PROVIDER=fake`: `pnpm functions:test` 228/228. `pnpm check` passou (turbo 14/14, `functions:imports` 20/20).
+- **Não verificado:** o `index.ts` real com `hideContent` ligado (localmente sem VAPID o push espera, e o Node não importa `buildPushPayload` nem `nativePushMessageSchema`; o teste repete o mapeamento do `renderNative`); Expo e navegador de verdade; hospedado. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** handoffs de origem atendidos (`20261103-1726-banco-de-dados-para-backend-funcoes-push-generico.md`, `20261103-1722-compras-para-backend-funcoes-zero-no-plural-nas-funcoes.md`). Interruptor na tela é do `notificacoes-whatsapp`. Nota no ADR-0008 §16 item 8 pelo `arquiteto`.

@@ -327,6 +327,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"processed_requests": {
+                  Row: {
+                    "created_at": string,"request_id": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"request_id": string,"user_id": string
+                  }
+                  Update: {
+                    "created_at"?: string,"request_id"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "processed_requests_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"profiles": {
                   Row: {
                     "created_at": string,"daily_summary_deadline_days": number,"daily_summary_enabled": boolean,"daily_summary_include_overdue": boolean,"daily_summary_last_date": string | null,"daily_summary_skip_empty": boolean,"daily_summary_time": string,"display_name": string,"id": string,"locale": string,"phone_e164": string | null,"phone_verified_at": string | null,"proof_consent_at": string | null,"proof_consent_version": number | null,"quiet_hours_end": string | null,"quiet_hours_start": string | null,"timezone": string,"updated_at": string,"whatsapp_opt_in_at": string | null,"whatsapp_opt_in_version": number | null,"whatsapp_opt_out_at": string | null,"whatsapp_opt_out_source": string | null,"is_whatsapp_ready": boolean | null
@@ -395,6 +415,26 @@ isOneToOne: false
                   Relationships: [
                     {
       foreignKeyName: "push_subscriptions_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"rate_limit_counters": {
+                  Row: {
+                    "action": string,"hits": number,"user_id": string,"window_start": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "action": string,"hits": number,"user_id": string,"window_start": string
+                  }
+                  Update: {
+                    "action"?: string,"hits"?: number,"user_id"?: string,"window_start"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "rate_limit_counters_user_id_fkey"
       columns: ["user_id"]
 isOneToOne: false
       referencedRelation: "profiles"
@@ -863,7 +903,7 @@ isOneToOne: false
 { Args: { "invite_code": string }; Returns: string
                            },
 "add_catalog_item_to_list":
-{ Args: { "p_catalog_item_id": string,"p_delta": number,"p_list_id": string }; Returns: {
+{ Args: { "p_catalog_item_id": string,"p_delta": number,"p_list_id": string,"p_request_id"?: string }; Returns: {
               "added_at": string,
 "added_by": string | null,
 "catalog_item_id": string | null,
@@ -885,7 +925,7 @@ isOneToOne: false
         isSetofReturn: false
       } },
 "adjust_shopping_item_quantity":
-{ Args: { "p_delta": number,"p_item_id": string }; Returns: {
+{ Args: { "p_delta": number,"p_item_id": string,"p_request_id"?: string }; Returns: {
               "added_at": string,
 "added_by": string | null,
 "catalog_item_id": string | null,
@@ -980,6 +1020,9 @@ isOneToOne: false
       } },
 "confirm_phone_verification":
 { Args: { "p_code": string }; Returns: Json
+                           },
+"consume_rate_limit":
+{ Args: { "p_action": string,"p_user": string }; Returns: undefined
                            },
 "create_shopping_list":
 { Args: { "p_from_list_id"?: string,"p_group_id": string,"p_id": string,"p_name": string }; Returns: {

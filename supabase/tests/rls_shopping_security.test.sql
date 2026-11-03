@@ -96,6 +96,12 @@ create trigger poke after insert on pg_temp.poke for each row execute function p
 select is((select (value ->> 'maxOpenListsPerScope')::int from public.app_settings where key = 'shopping_rules'), 50,
   'the cap mirrors shoppingRules.maxOpenListsPerScope');
 
+-- The cap needs more creations than the hourly rate limit (ADR-0012, section 4) lets one person make;
+-- raised in this transaction only. rls_rate_limits.test.sql tests the limit itself.
+update public.app_settings
+set value = jsonb_set(value, '{actions,shopping_list_create,limit}', '1000')
+where key = 'rate_limit_rules';
+
 select pg_temp.login(pg_temp.u('d'));
 select pg_temp.sv('g49', pg_temp.lists(49, pg_temp.grp('a'))::text);
 select lives_ok($$select public.create_shopping_list(null, '$$ || pg_temp.grp('a') || $$', 'Lista 50', null)$$,

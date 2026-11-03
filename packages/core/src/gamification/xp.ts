@@ -35,16 +35,23 @@ const capped = new Set<string>(cappedXpEventReasons);
 
 /**
  * Room left under the daily cap (ADR-0010 section 2), from the events written today in the local
- * day of the profile: `max(0, cap − balance of the capped reasons)`. A compensation written today
- * frees room today, even for XP from another day, as the database counts it, but never past the
- * cap: an earlier day's XP undone today is not credit. 0 means the cap was reached.
+ * day of the profile, the same rule the database applies in `occurrence_award_xp`: the capped
+ * reasons are summed per occurrence (the event itself when it has none), each occurrence counts
+ * at no less than zero, and the room is `min(cap, max(0, cap − balance))`. Undoing XP earned today
+ * frees its room; undoing XP from another day is not credit today. 0 means the cap was reached.
  */
 export function capRoom(
-  eventsToday: readonly Pick<XpEvent, 'reason' | 'amount'>[],
+  eventsToday: readonly Pick<XpEvent, 'id' | 'occurrenceId' | 'reason' | 'amount'>[],
   dailyCap: number,
 ): number {
+  const net = new Map<string, number>();
+  for (const { id, occurrenceId, reason, amount } of eventsToday) {
+    if (!capped.has(reason)) continue;
+    const key = occurrenceId ?? id;
+    net.set(key, (net.get(key) ?? 0) + amount);
+  }
   let balance = 0;
-  for (const { reason, amount } of eventsToday) if (capped.has(reason)) balance += amount;
+  for (const value of net.values()) balance += Math.max(0, value);
   return Math.min(dailyCap, Math.max(0, dailyCap - balance));
 }
 

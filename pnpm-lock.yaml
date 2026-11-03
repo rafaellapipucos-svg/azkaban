@@ -259,6 +259,9 @@ importers:
       '@azkaban/feature-contexts':
         specifier: workspace:*
         version: link:../../packages/features/contexts
+      '@azkaban/feature-gamification':
+        specifier: workspace:*
+        version: link:../../packages/features/gamification
       '@azkaban/feature-groups':
         specifier: workspace:*
         version: link:../../packages/features/groups

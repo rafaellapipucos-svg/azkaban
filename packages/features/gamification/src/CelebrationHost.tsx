@@ -9,7 +9,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { gamificationUi } from './config';
-import { gamificationKey, useCelebrationPrefs } from './hooks';
+import { gamificationKey, statsQuery, useCelebrationPrefs } from './hooks';
 import { celebrationFeedback, readCelebratedLevel, rememberCelebratedLevel } from './preferences';
 import { gamificationSource as source, type GamificationRow } from './source';
 
@@ -45,8 +45,9 @@ export function CelebrationHost() {
     let timer: ReturnType<typeof setTimeout> | undefined;
     // Bursts are handled one after the other, each against the stats the one before left. Null when
     // the first read failed: that burst then compares with itself and celebrates only its own rows.
-    let before: Promise<Stats | null> = source
-      .getStats()
+    // The baseline rides on the StreakChip's request in flight (QA8-3); `flush` reads the server.
+    let before: Promise<Stats | null> = queryClient
+      .fetchQuery(statsQuery)
       .then(async (row) => {
         const stats = statsOf(row);
         // A device that never celebrated starts at the current level, so a reopen and redo on a

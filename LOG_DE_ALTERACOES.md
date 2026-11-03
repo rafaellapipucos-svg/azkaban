@@ -2939,3 +2939,16 @@
 - **Verificado:** `pnpm check` passou (`functions:imports` 10 de 10; rodado duas vezes, a segunda só para ler o código de saída, 0). A origem de cada uma das 17 chamadas foi lida no código (`useCurrentUser`, `useOccurrenceLists`, `AppTabBar`, `StreakChip`, `CelebrationHost`, `NotificationBell`, `NotificationToaster`) e soma 17, como a medida.
 - **Não verificado:** nenhuma E2E nem pilha; `expo serve` servindo o `dist` com as rotas de `output: 'single'`; que o refetch das linhas é a causa da segunda leitura de `profiles` e `groups` (só pela leitura do código); o projeto hospedado.
 - **Pendências / próximos passos:** os três handoffs. A variável da `webServer` em `playwright.config.ts` fica com o `qa-testes`, com revisão do arquiteto no PR.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:21 (BRT)
+
+- **Branch:** `perf/celebration-stats-cache` (base `feat/phase-8-polish`)
+- **Agente(s):** gamificacao
+- **Resumo:** QA8-3, handoff `20261103-0815-arquiteto-para-gamificacao-estatisticas-pelo-cache`. O ponto de partida (`before`) do `CelebrationHost` lê `user_stats` com `queryClient.fetchQuery(statsQuery)`, na mesma chave do `StreakChip`, e pega carona na requisição em voo. A leitura depois de cada rajada (`flush`) continua indo ao servidor; marco e `catchUp` intocados.
+- **Arquivos/módulos principais:** `packages/features/gamification/src/hooks.ts` (`statsQuery`, usado por `useProgress` e pelo host, para a chave não divergir), `packages/features/gamification/src/CelebrationHost.tsx`.
+- **Migrations:** nenhuma
+- **Como testar:** `pnpm check`. Na pilha A, `pnpm exec playwright test e2e/performance.spec.ts e2e/gamification.spec.ts --project=app`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 12 de 12; `functions:imports` 10 de 10).
+- **Não verificado:** E2E e pilha (sem pilha nesta tarefa); que `user_stats` sai uma vez ao abrir Hoje. Sem teste de unidade: o pacote não tem ambiente de componente, e a chave única vem do objeto compartilhado.
+- **Hora:** o PowerShell foi barrado no worktree; a hora é UTC menos 3.
+- **Pendências / próximos passos:** a E2E acima na pilha A.

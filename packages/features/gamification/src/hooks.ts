@@ -10,6 +10,9 @@ import { gamificationSource as source } from './source';
 /** Every key of the feature starts with this, so a burst refreshes all of it at once. */
 export const gamificationKey = ['gamification'] as const;
 
+/** The one `user_stats` query: the StreakChip and the CelebrationHost baseline share it (QA8-3). */
+export const statsQuery = { queryKey: [...gamificationKey, 'stats'], queryFn: source.getStats };
+
 export function useToday() {
   const { timezone } = useCurrentUser();
   return localDateOf(timezone, Date.now());
@@ -17,7 +20,7 @@ export function useToday() {
 
 /** `user_stats` with the level derived from it. A missing row is all zero. */
 export function useProgress() {
-  const query = useQuery({ queryKey: [...gamificationKey, 'stats'], queryFn: source.getStats });
+  const query = useQuery(statsQuery);
   const stats = query.data ?? null;
   const totalXp = stats?.totalXp ?? 0;
   return {

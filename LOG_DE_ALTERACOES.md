@@ -1308,3 +1308,18 @@
 - **Verificado:** `pnpm check` em `754e02e`: 17 de 17 tarefas e 9 de 9 suítes. Em `feat/phase-3-proof` (PR #4), o CI passou com E2E 58 de 58, `db:test` 1004 e funções 85.
 - **Não verificado:** a verificação final da Fase 4 não rodou. A E2E das correções QA4-1 a QA4-4 e de SEG4-6 a 8 não rodou. `db:check-permissions` falha até o espelho de `notification_rules` entrar.
 - **Pendências / próximos passos:** as da seção 3 do handoff 1505.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 00:30 (BRT)
+
+- **Branch:** fix/dispatch-import-map (base `e54968d`)
+- **Agente(s):** backend-funcoes
+- **Resumo:** `dispatch-notifications` não subia no Edge Runtime local (preflight 503, `Module not found .../packages/core/src/tasks/late`). A correção do QA4-4 fez `pushPayload.ts` importar `../tasks/late` sem extensão, e o import map da função não mapeava esse caminho.
+- **Alterações:**
+  - `supabase/functions/dispatch-notifications/deno.json`: chave relativa `../../../packages/core/src/tasks/late` para o `.ts`, como `materialize-occurrences` faz com `recurrence/zone`. `late.ts` só tem `import type` de `@azkaban/contracts`, que some em tempo de execução.
+  - `supabase/functions/_shared/wait-for-functions.mjs`: a mensagem de falha aponta para o log do contêiner quando a função não sobe.
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma. A CLI monta no contêiner só os arquivos do import map, e só no `db:start`; depois de mudar um `deno.json` é preciso `supabase stop` e `db:start` (um `docker restart` não basta). Não há Deno no host, e um teste do grafo antes da pilha exigiria um script novo no `pnpm check`, fora do meu escopo; `pnpm functions:test` já pega o erro.
+- **Como testar:** `pnpm db:start`, `curl -X OPTIONS http://127.0.0.1:54421/functions/v1/dispatch-notifications` deve dar 204; `pnpm functions:test`.
+- **Verificado:** antes, 503 com o erro de boot no log; depois, 204 e nenhum `boot error` no log. `pnpm functions:test`: 114 de 114, 27 suítes. `pnpm check`: 17 de 17 tarefas e 9 de 9 suítes.
+- **Não verificado:** E2E (fica com o orquestrador). Hora tirada de UTC menos 3, porque o PowerShell foi bloqueado.
+- **Pendências / próximos passos:** nenhuma desta correção.

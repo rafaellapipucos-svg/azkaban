@@ -50,6 +50,13 @@ export const privacyDefaults = {
   deletionLogRetentionDays: 365,
 } as const;
 
+/** Who answers for the data, for the privacy policy and the transparency text (BL-27, LGPD). */
+export const privacyController = {
+  name: 'Rafaell Bezerra Saraiva',
+  /** The person in charge of the data (encarregado). */
+  contactEmail: 'privacidade@tabolao.com',
+} as const;
+
 /**
  * Mirrored in public.app_settings under the key `privacy_rules` (ADR-0012, section 3, SEG8-2P-3), so
  * changing a value here needs a migration too.

@@ -112,6 +112,10 @@
       "title": "Compras",
       "text": "Nas listas do grupo, os membros veem quem adicionou e quem marcou cada item. Suas listas pessoais ninguém vê."
     },
+    "controller": {
+      "text": "Quem responde pelos dados: {{name}}, pessoa física, como controlador. Dúvidas, pedidos e reclamações vão para o encarregado, pelo e-mail {{email}}.",
+      "legalBasis": "Em grupos de trabalho, os seus dados são tratados com base no consentimento: você escolhe entrar, aceita o aviso antes de enviar foto, pode revogar o aceite e sair do grupo quando quiser."
+    },
     "deletion": {
       "title": "Se você excluir a conta",
       "text": "Suas tarefas são apagadas, inclusive as do grupo, com o histórico. Ficam, sem o seu nome, as tarefas que você criou para outras pessoas, as revisões de foto que fez e os itens das listas do grupo."

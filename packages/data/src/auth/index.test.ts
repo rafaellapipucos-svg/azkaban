@@ -1,8 +1,9 @@
 import { defaults } from '@azkaban/config';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { saved, auth } = vi.hoisted(() => ({
+const { saved, auth, platform } = vi.hoisted(() => ({
   saved: new Map<string, string>(),
+  platform: { isWeb: false },
   auth: {
     getSession: vi.fn(),
     setSession: vi.fn(async () => ({ error: null })),
@@ -11,8 +12,11 @@ const { saved, auth } = vi.hoisted(() => ({
 }));
 
 vi.mock('@azkaban/platform', () => ({
-  isWeb: false,
-  createAppLink: (path: string) => `azkaban://${path}`,
+  get isWeb() {
+    return platform.isWeb;
+  },
+  createAppLink: (path: string) =>
+    platform.isWeb ? `https://app.test${path}` : `azkaban://${path}`,
   storage: {
     getItem: async (key: string) => saved.get(key) ?? null,
     setItem: async (key: string, value: string) => void saved.set(key, value),
@@ -21,11 +25,12 @@ vi.mock('@azkaban/platform', () => ({
 }));
 vi.mock('../client', () => ({ db: () => ({ auth }) }));
 
-const { authRepository, linkNotRequested } = await import('./index');
+const { authRepository, linkNotRequested, linkOtherAccount } = await import('./index');
 
 declare const btoa: (data: string) => string;
 const jwt = (sub: string) => `h.${btoa(JSON.stringify({ sub })).replace(/=+$/, '')}.s`;
-const link = (sub: string) => `azkaban:///tasks#access_token=${jwt(sub)}&refresh_token=r1`;
+const link = (sub: string, root = 'azkaban:///') =>
+  `${root}tasks#access_token=${jwt(sub)}&refresh_token=r1`;
 const signedInAs = (id: string | null) =>
   auth.getSession.mockResolvedValue({
     data: { session: id ? { user: { id } } : null },
@@ -36,6 +41,7 @@ const requestLink = () => authRepository.sendMagicLink({ email: 'a@b.co' }, 'azk
 beforeEach(() => {
   vi.useFakeTimers();
   saved.clear();
+  platform.isWeb = false;
   auth.setSession.mockClear();
   signedInAs(null);
 });
@@ -45,7 +51,7 @@ describe('setSessionFromLink (BL23-2)', () => {
   it('never swaps an active session for another account, even after a request here', async () => {
     signedInAs('victim');
     await requestLink();
-    expect(await authRepository.setSessionFromLink(link('attacker'))).toBe('/tasks');
+    expect(await authRepository.setSessionFromLink(link('attacker'))).toBe(linkOtherAccount);
     expect(auth.setSession).not.toHaveBeenCalled();
   });
 
@@ -78,5 +84,29 @@ describe('setSessionFromLink (BL23-2)', () => {
     await requestLink();
     expect(await authRepository.setSessionFromLink(link('me'))).toBe('/tasks');
     expect(auth.setSession).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("setSessionFromLink on the web (BL-38, option A')", () => {
+  const webLink = (sub: string) => link(sub, 'https://app.test/');
+  beforeEach(() => {
+    platform.isWeb = true;
+  });
+
+  it('takes the session with none active, with no request marker', async () => {
+    expect(await authRepository.setSessionFromLink(webLink('me'))).toBe('/tasks');
+    expect(auth.setSession).toHaveBeenCalledWith({ access_token: jwt('me'), refresh_token: 'r1' });
+  });
+
+  it('takes the session of the same account: the reauthentication link', async () => {
+    signedInAs('me');
+    expect(await authRepository.setSessionFromLink(webLink('me'))).toBe('/tasks');
+    expect(auth.setSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('never swaps an active session for another account', async () => {
+    signedInAs('victim');
+    expect(await authRepository.setSessionFromLink(webLink('attacker'))).toBe(linkOtherAccount);
+    expect(auth.setSession).not.toHaveBeenCalled();
   });
 });

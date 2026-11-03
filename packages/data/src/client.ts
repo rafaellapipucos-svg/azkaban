@@ -1,5 +1,5 @@
 import { defaults } from '@azkaban/config';
-import { isWeb, storage } from '@azkaban/platform';
+import { storage } from '@azkaban/platform';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from './database.types';
 
@@ -53,7 +53,9 @@ export function functionRetryFetch(
 export function initData(url: string, publishableKey: string) {
   apiUrl = url;
   client = createClient<Database>(url, publishableKey, {
-    auth: { storage, detectSessionInUrl: isWeb },
+    // BL-38: never reads a sign-in link itself, the web neither. `authRepository.setSessionFromLink`
+    // does, so a link never swaps another account's active session.
+    auth: { storage, detectSessionInUrl: false },
     global: { fetch: functionRetryFetch(url) },
   });
 }

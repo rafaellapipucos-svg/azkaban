@@ -4,6 +4,7 @@ import {
   defineOfflineAction,
   discardOfflineQueue,
   isTransientFailure,
+  offlineMutationDefaults,
   readOfflineDiscards,
   startOfflineQueue,
 } from './index';
@@ -16,6 +17,10 @@ vi.mock('@azkaban/platform', () => ({
     setItem: async (key: string, value: string) => {
       disk.set(key, value);
     },
+    removeItem: async (key: string) => {
+      disk.delete(key);
+    },
+    getAllKeys: async () => [...disk.keys()],
   },
 }));
 
@@ -44,7 +49,7 @@ const networkFailure = () => ({ message: 'TypeError: Failed to fetch', code: '' 
 
 const stops: (() => void)[] = [];
 function start(userId: string) {
-  const client = new QueryClient();
+  const client = new QueryClient({ defaultOptions: { mutations: offlineMutationDefaults } });
   client.mount(); // what QueryClientProvider does: resume when the connection returns
   stops.push(() => client.unmount(), startOfflineQueue(client, userId));
   return client;
@@ -151,6 +156,41 @@ describe('the offline queue', () => {
     await vi.waitFor(() => expect(discardsOf().slice(seen)).toMatchObject([{ reason: 'invalid' }]));
     await pause(20);
     expect(runs).toEqual([]);
+  });
+
+  it('clears the queue another account left past maxAgeHours, and keeps a recent one', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-03T12:00:00Z'));
+    tap(start('u1'), 'old');
+    await vi.waitFor(() => expect(savedFor('u1')).toContain('"n":"old"'));
+    stops.splice(0).forEach((stop) => stop());
+    vi.setSystemTime(new Date('2026-11-04T11:00:00Z'));
+    tap(start('u3'), 'recent');
+    await vi.waitFor(() => expect(savedFor('u3')).toContain('"n":"recent"'));
+    stops.splice(0).forEach((stop) => stop());
+    disk.set('azkaban.offline-queue.u4', '{"buster":"1"}');
+    disk.set('unrelated', 'kept');
+
+    vi.setSystemTime(new Date('2026-11-04T12:00:01Z'));
+    start('u2');
+    await vi.waitFor(() => expect(disk.has('azkaban.offline-queue.u1')).toBe(false));
+    await vi.waitFor(() => expect(disk.has('azkaban.offline-queue.u4')).toBe(false));
+    expect(savedFor('u3')).toContain('"n":"recent"');
+    expect(disk.get('unrelated')).toBe('kept');
+  });
+
+  it('fails a change outside the queue at once without a connection, and queues an action', async () => {
+    const client = start('u1');
+    await expect(
+      new MutationObserver(client, {
+        mutationFn: () => Promise.reject(new TypeError('Failed to fetch')),
+      }).mutate(),
+    ).rejects.toThrow('Failed to fetch');
+    tap(client, 'queued');
+    await vi.waitFor(() => expect(savedFor('u1')).toContain('"n":"queued"'));
+    expect(client.getMutationCache().findAll({ predicate: (m) => m.state.isPaused })).toHaveLength(
+      1,
+    );
   });
 
   it('discards the whole queue from memory and from the disk', async () => {

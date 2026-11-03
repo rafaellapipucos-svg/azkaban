@@ -3951,3 +3951,19 @@
 - **Verificado:** `push.test.ts` 31/31 no Node (3 novos: zero no plural; `hideContent` ligado e desligado, cada um mandando a um navegador e a um aparelho, com o corpo do Web Push decifrado e a mensagem do Expo capturada). Na pilha A, depois de `supabase db reset` (com as migrations `20261106100000`/`100100`) e `NATIVE_PUSH_PROVIDER=fake`: `pnpm functions:test` 228/228. `pnpm check` passou (turbo 14/14, `functions:imports` 20/20).
 - **Não verificado:** o `index.ts` real com `hideContent` ligado (localmente sem VAPID o push espera, e o Node não importa `buildPushPayload` nem `nativePushMessageSchema`; o teste repete o mapeamento do `renderNative`); Expo e navegador de verdade; hospedado. Hora pelo UTC−3 (PowerShell barrado).
 - **Pendências / próximos passos:** handoffs de origem atendidos (`20261103-1726-banco-de-dados-para-backend-funcoes-push-generico.md`, `20261103-1722-compras-para-backend-funcoes-zero-no-plural-nas-funcoes.md`). Interruptor na tela é do `notificacoes-whatsapp`. Nota no ADR-0008 §16 item 8 pelo `arquiteto`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 18:05 (BRT)
+
+- **Branch:** fix/expo-sdk-patches (a partir de `feat/launch-decisions`, `451c471`)
+- **Agente(s):** arquiteto
+- **Resumo:** `pnpm expo:doctor` (BL-21) quebrava sem mudança no repo: a checagem de versões comparava com a tabela que a Expo publica online, e os patches do SDK 58 de hoje (`expo` 58.0.23, `react-native-safe-area-context` 5.11.1 e mais 6) a mudaram. Agora ela compara com a tabela do SDK instalado. As versões não subiram nesta entrada.
+- **Alterações:**
+  - `scripts/check-expo-doctor.mjs` roda o doctor com `EXPO_OFFLINE=1`. O doctor chama `expo install --check` com o nosso ambiente, e offline o CLI lê `node_modules/expo/bundledNativeModules.json`, fixado pelo lockfile. O mesmo commit dá o mesmo resultado amanhã. Duplicados e versões fora do SDK instalado continuam falhando. Patch novo da Expo vira atualização deliberada.
+  - Bump não feito: `expo` 58.0.23 saiu às 17:06 UTC de hoje. O pnpm 12 só o instalou porque adicionou 24 pacotes da Expo, com horas de vida, ao `minimumReleaseAgeExclude` do `pnpm-workspace.yaml`, contornando a quarentena padrão de 1 dia contra release comprometida. Revertido. Com a checagem determinística, o doctor passa nas versões atuais (`expo` 58.0.22 e as correspondentes). O bump fica para depois de 2026-11-04 14:10 (BRT), sem exceções: `npx expo install --fix` em `apps/app` e as mesmas versões em `packages/platform`, `packages/ui` e `packages/features/*` (`expo-router`, `expo-constants`, `expo-linking`, `expo-notifications`, `react-native-safe-area-context`).
+- **Arquivos/módulos principais:** `scripts/check-expo-doctor.mjs`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** checagem de versões do doctor contra o SDK instalado, não contra a tabela online. Bump de patch da Expo só depois da quarentena do pnpm, sem `minimumReleaseAgeExclude`. Registrado aqui e no comentário do script, sem ADR.
+- **Como testar:** `pnpm expo:doctor`.
+- **Verificado:** `pnpm expo:doctor` 20/20. Teste negativo: com `react-native-safe-area-context` trocado para `~5.11.1` no `bundledNativeModules.json` local, a checagem falhou (`expected ~5.11.1, found 5.10.1`), o que prova que ela lê a tabela local; arquivo restaurado. `pnpm check` passou. `pnpm install --frozen-lockfile` sem mudança; lockfile intacto.
+- **Não verificado:** `pnpm build:web` e `pnpm bundle:size` (sem mudança de dependência nem de código do app); o CI no GitHub. A checagem de nomes de módulos nativos do doctor ainda busca a lista na Expo, mas só nomes, não versões. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** bump do patch do SDK 58 depois da quarentena, numa branch própria, com `pnpm install --frozen-lockfile`, `pnpm check`, `pnpm build:web`, `pnpm bundle:size` e `pnpm expo:doctor`.

@@ -3206,3 +3206,21 @@
 - **Verificado:** cada item de "fazer agora" conferido por `grep` no código de `c74cce6` (ex.: sem `setSessionFromLink`, sem `expo-haptics` nem NetInfo nos `package.json`, `InvitesSection` com erro genérico, `enqueue_daily_summaries()` = 4 em `rls_whatsapp`, nenhuma Edge Function devolve 503). `pnpm check` passou.
 - **Não verificado:** a corrida de `accept_invite` com `transfer_group_ownership` (é o BL-13); tamanhos são estimativa. O QUADRO é do orquestrador; editado por pedido dele.
 - **Pendências / próximos passos:** onda 0 (BL-1 a BL-4, arquiteto); respostas do humano para BL-24 a BL-37.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:05 (BRT)
+
+- **Branch:** feat/native-session-deep-link, criada a partir de feat/backlog-after-phase-8 (3e48b9e)
+- **Agente(s):** auth-grupos
+- **Resumo:** BL-7 (handoff 0650 do deep link de sessão): no nativo, o link mágico agora inicia a sessão e leva ao caminho do link. No web nada muda. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/data/src/auth/link.ts`: `parseSessionLink(url, appRoot)`, puro. Só aceita URL que começa com `createAppLink('/')` do app (`azkaban:///` no build, `exp://.../--/` no Expo Go); outro esquema ou host dá `null`. Lê `access_token` e `refresh_token` do fragmento (link do app sem os dois dá `null`, o roteador cuida) e `error_description` do fragmento ou da query. O caminho passa por `internalPathSchema`; fora dele vira `/`. Parâmetros lidos à mão, sem `URLSearchParams` (o do React Native é incompleto).
+  - `packages/data/src/auth/index.ts`: `authRepository.setSessionFromLink(url)` chama `auth.setSession` e devolve o caminho, ou `null` se não for link de sessão; link vencido ou usado lança com a descrição do GoTrue.
+  - `packages/features/auth/src/useSessionFromLink.ts` (exportado no `index.ts`): só fora do web (`isWeb` de `packages/platform`), `Linking.getInitialURL` mais o evento `url` do React Native (o mesmo que `useURL` do `expo-linking` faz, sem dependência nova nem mudança no `pnpm-lock.yaml`); navega com `router.replace(safeInternalPath(path) ?? '/')` só quando o layout já renderiza o navegador (`ready`), porque navegar antes lança no expo-router.
+  - `apps/app/app/_layout.tsx`: uma linha, `useSessionFromLink(fontsLoaded && !loading)`. `useClearCacheOnUserChange` e o `key` do `Stack` intactos.
+- **Arquivos/módulos principais:** `packages/data/src/auth`, `packages/features/auth/src/useSessionFromLink.ts`, `apps/app/app/_layout.tsx`.
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova; segue ADR-0004 e ADR-0012 §11. Contratos: nenhum alterado (usa `internalPathSchema`).
+- **Como testar:** `pnpm check` (inclui `packages/data/src/auth/link.test.ts`: link válido, sem token ou com um só, esquema e host estranhos, caminho externo `//evil.com` e `/\evil.com`, link vencido, raiz do Expo Go). No aparelho: APK de teste, pedir o link mágico e abrir pelo e-mail.
+- **Verificado:** `pnpm check` verde (lint, fronteiras, typecheck, unidade; `@azkaban/data` 53 testes, 6 novos).
+- **Não verificado:** nativo real (sem build; precisa de conta Expo), E2E (é o BL-22), `azkaban://**` em `additional_redirect_urls` do projeto hospedado (humano).
+- **Pendências / próximos passos:** mensagem de "link vencido" na tela de entrar no nativo (hoje o erro é engolido e o usuário fica deslogado onde o link abriu); testar no APK.

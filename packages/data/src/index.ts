@@ -13,3 +13,9 @@ export {
 } from './proof';
 export { useCurrentUser } from './session';
 export { notificationErrorCode, notificationsRepository, type BellItem } from './notifications';
+export {
+  gamificationRepository,
+  RankingError,
+  type GamificationRow,
+  type XpEventItem,
+} from './gamification';

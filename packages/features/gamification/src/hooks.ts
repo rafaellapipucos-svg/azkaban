@@ -1,5 +1,12 @@
 import { gamificationDefaults, gamificationRules } from '@azkaban/config';
-import { addDays, capRoom, levelForXp, localDateOf, startOfWeek } from '@azkaban/core';
+import {
+  addDays,
+  capRoom,
+  levelForXp,
+  localDateOf,
+  startOfWeek,
+  zonedInstant,
+} from '@azkaban/core';
 import { useCurrentUser } from '@azkaban/data';
 import { canPlayTone, canVibrate } from '@azkaban/platform';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -54,10 +61,12 @@ export function useAchievements() {
 
 /** Whether today's capped XP reached `dailyCap` (ADR-0010, section 2). */
 export function useCapReached() {
+  const { timezone } = useCurrentUser();
   const today = useToday();
   const events = useQuery({
-    queryKey: [...gamificationKey, 'events', today],
-    queryFn: () => source.listEventsOn(today),
+    queryKey: [...gamificationKey, 'events', today, timezone],
+    // The start of today in the profile's zone, where the database starts counting.
+    queryFn: () => source.listCapEventsSince(zonedInstant(timezone, today, '00:00')),
   });
   return events.data ? capRoom(events.data, gamificationRules.xp.dailyCap) === 0 : false;
 }

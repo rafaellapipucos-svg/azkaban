@@ -1,4 +1,4 @@
-import { cappedXpEventReasons, xpEventReasonSchema } from '@azkaban/contracts';
+import { cappedXpEventReasons, xpEventReasonSchema, type XpEventReason } from '@azkaban/contracts';
 import { describe, expect, it } from 'vitest';
 import type { XpRules } from '../tasks/xp';
 import { applyCap, capRoom, occurrenceXpWithBonus } from './xp';
@@ -49,58 +49,79 @@ describe('occurrenceXpWithBonus (ADR-0010 section 1)', () => {
 });
 
 describe('capRoom (ADR-0010 section 2)', () => {
+  let seq = 0;
+  // An event written today; `occ` null is an event without occurrence, counted on its own.
+  const ev = (reason: XpEventReason, amount: number, occ: string | null = `occ-${++seq}`) => ({
+    id: `event-${++seq}`,
+    occurrenceId: occ,
+    reason,
+    amount,
+  });
+
   it('is the whole cap with nothing today', () => {
     expect(capRoom([], CAP)).toBe(CAP);
   });
 
   it('is zero exactly at the cap, and never negative past it', () => {
-    expect(capRoom([{ reason: 'occurrence_done', amount: 300 }], CAP)).toBe(0);
-    expect(capRoom([{ reason: 'occurrence_done', amount: 299 }], CAP)).toBe(1);
-    expect(capRoom([{ reason: 'occurrence_done', amount: 330 }], CAP)).toBe(0);
+    expect(capRoom([ev('occurrence_done', 300)], CAP)).toBe(0);
+    expect(capRoom([ev('occurrence_done', 299)], CAP)).toBe(1);
+    expect(capRoom([ev('occurrence_done', 200), ev('occurrence_done', 130)], CAP)).toBe(0);
   });
 
   it('leaves the perfect day out', () => {
-    expect(
-      capRoom(
-        [
-          { reason: 'occurrence_done', amount: 280 },
-          { reason: 'perfect_day', amount: 20 },
-          { reason: 'perfect_day_reverted', amount: -20 },
-        ],
-        CAP,
-      ),
-    ).toBe(20);
+    const day = [ev('perfect_day', 20, null), ev('perfect_day_reverted', -20, null)];
+    expect(capRoom([ev('occurrence_done', 280), ...day], CAP)).toBe(20);
   });
 
-  it('frees room with a compensation written today', () => {
+  it('counts an event without occurrence on its own', () => {
     expect(
-      capRoom(
-        [
-          { reason: 'occurrence_done', amount: 300 },
-          { reason: 'occurrence_reverted', amount: -30 },
-        ],
-        CAP,
-      ),
-    ).toBe(30);
+      capRoom([ev('shopping_completed', 10, null), ev('shopping_completed', 10, null)], CAP),
+    ).toBe(280);
   });
 
-  it('never goes past the cap when XP from another day is undone today', () => {
-    expect(capRoom([{ reason: 'occurrence_reverted', amount: -300 }], CAP)).toBe(CAP);
-    expect(
-      capRoom(
-        [
-          { reason: 'occurrence_done', amount: 100 },
-          { reason: 'occurrence_reverted', amount: -300 },
-        ],
-        CAP,
-      ),
-    ).toBe(CAP);
+  it('frees room when something done today is undone today', () => {
+    const done = [ev('occurrence_done', 270), ev('occurrence_done', 30, 'A')];
+    expect(capRoom([...done, ev('occurrence_reverted', -30, 'A')], CAP)).toBe(30);
+  });
+
+  it('gives no credit for XP from another day undone today (handoff 0328)', () => {
+    // A was +300 yesterday, outside these events; reopened today it nets -300, floored at zero.
+    expect(capRoom([ev('occurrence_reverted', -300, 'A')], CAP)).toBe(CAP);
+    const b = ev('occurrence_done', 30, 'B');
+    expect(capRoom([ev('occurrence_reverted', -300, 'A'), b], CAP)).toBe(270);
+    const c = ev('occurrence_done', 100);
+    expect(capRoom([c, ev('occurrence_reverted', -300, 'A')], CAP)).toBe(200);
+  });
+
+  it('writes at most the cap after reopening 300 from yesterday and finishing 21 hard ones', () => {
+    // The architect's case: a hard done is worth 30; the database writes min(30, room) each time.
+    const events = [ev('occurrence_reverted', -300, 'A')];
+    let written = 0;
+    for (let i = 0; i < 21; i++) {
+      const amount = Math.min(30, capRoom(events, CAP));
+      if (amount > 0) events.push(ev('occurrence_done', amount));
+      written += amount;
+    }
+    expect(written).toBe(CAP);
+    expect(capRoom(events, CAP)).toBe(0);
+  });
+
+  it('does not charge today for redoing what was undone today from another day', () => {
+    // A was +300 yesterday, reopened and done again today: A nets zero, the room stays whole.
+    const events = [ev('occurrence_reverted', -300, 'A'), ev('occurrence_done', 300, 'A')];
+    expect(capRoom(events, CAP)).toBe(CAP);
+  });
+
+  it('sums the proof bonus with its occurrence', () => {
+    const events = [ev('occurrence_done', 20, 'A'), ev('proof_bonus', 5, 'A')];
+    expect(capRoom(events, CAP)).toBe(275);
+    expect(capRoom([...events, ev('occurrence_reverted', -25, 'A')], CAP)).toBe(CAP);
   });
 
   it('counts every capped reason and only those', () => {
     for (const reason of xpEventReasonSchema.options) {
       const counted = (cappedXpEventReasons as readonly string[]).includes(reason);
-      expect(capRoom([{ reason, amount: 10 }], CAP)).toBe(counted ? 290 : 300);
+      expect(capRoom([ev(reason, 10)], CAP)).toBe(counted ? 290 : 300);
     }
   });
 });
@@ -121,11 +142,14 @@ describe('applyCap', () => {
   });
 
   it('closes mass XP: a day of many tasks stops at the cap', () => {
-    const events: { reason: 'occurrence_done' | 'proof_bonus'; amount: number }[] = [];
+    const events: { id: string; occurrenceId: string; reason: XpEventReason; amount: number }[] =
+      [];
     for (let i = 0; i < 40; i += 1) {
+      const occ = (reason: XpEventReason, amount: number) =>
+        events.push({ id: `${events.length}`, occurrenceId: `occ-${i}`, reason, amount });
       const granted = applyCap({ base: 30, proofBonus: 5 }, capRoom(events, CAP));
-      if (granted.base) events.push({ reason: 'occurrence_done', amount: granted.base });
-      if (granted.proofBonus) events.push({ reason: 'proof_bonus', amount: granted.proofBonus });
+      if (granted.base) occ('occurrence_done', granted.base);
+      if (granted.proofBonus) occ('proof_bonus', granted.proofBonus);
     }
     expect(events.reduce((sum, { amount }) => sum + amount, 0)).toBe(CAP);
   });

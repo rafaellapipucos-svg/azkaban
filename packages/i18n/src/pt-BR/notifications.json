@@ -137,7 +137,14 @@
         "deadlines": "nenhum"
       },
       "overdueOff": "não incluídas",
-      "footer": "Os detalhes estão no app."
+      "footer": "Os detalhes estão no app.",
+      "streak": {
+        "days_one": "Ofensiva de {{count}} dia.",
+        "days_other": "Ofensiva de {{count}} dias.",
+        "start": "Comece uma ofensiva hoje.",
+        "goal_one": "Meta de hoje: {{count}} tarefa.",
+        "goal_other": "Meta de hoje: {{count}} tarefas."
+      }
     },
     "stopReply": "Pronto, você não vai mais receber mensagens do Azkaban por aqui. Para voltar, ative o WhatsApp de novo no app.",
     "consent": {

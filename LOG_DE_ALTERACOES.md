@@ -1914,3 +1914,20 @@
 - **Verificado:** `pnpm check` passou.
 - **Não verificado:** nada de código; o `capRoom` do core está sendo ajustado pelo `gamificacao` em outra branch, e a migration do banco não foi relida contra o texto.
 - **Pendências / próximos passos:** confirmar com o humano o item 10 da seção 13.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:40 (BRT)
+
+- **Branch:** feat/summary-streak-footer, criada a partir de feat/phase-6-gamification (29bcc26)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** O rodapé do resumo diário mostra a ofensiva e a meta de hoje (ADR-0010, seção 9; handoffs `20261103-0235-arquiteto-para-notificacoes-whatsapp-ofensiva-no-resumo` e `20261103-0328-banco-de-dados-para-notificacoes-whatsapp-ofensiva-no-claim`). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `buildDailySummary`: `footer` vem de `footer(streak, t)`. `streak` nulo: o fecho neutro de antes. `current > 0`: "Ofensiva de N dias."; `current = 0`: "Comece uma ofensiva hoje."; depois, "Meta de hoje: N tarefas." quando `goalToday` não é nulo nem 0. Cada pedaço é um `t` com um só `count`, dentro do `t` curto do despacho; `clip` no orçamento do `footer` e `cleanParam` como os outros parâmetros.
+  - `notifications.json`: `whatsapp.summary.streak.{days,goal}_{one,other}` e `whatsapp.summary.streak.start`.
+  - Testes: sete casos de rodapé (nulo, com ofensiva, singular, sem meta, ofensiva 0 com e sem meta, meta 0) e o orçamento.
+- **Arquivos/módulos principais:** `packages/core/src/notifications/whatsapp.ts`, `packages/core/src/notifications/whatsapp.test.ts`, `packages/i18n/src/pt-BR/notifications.json`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** `goalToday = 0` (só sairia de uma meta de 0%) é lido como sem meta, para não escrever "0 tarefa". Template `daily_summary_v1` sem mudança; nenhum import novo no grafo do despacho.
+- **Como testar:** `pnpm --filter @azkaban/core exec vitest run src/notifications/whatsapp.test.ts`; `pnpm check`.
+- **Verificado:** `whatsapp.test.ts` 53 testes; `pnpm check` passou (core 684 testes; `functions:imports` 8 de 8).
+- **Não verificado:** `pnpm functions:test`, E2E `e2e/whatsapp.spec.ts` com perfil de ofensiva conhecida (sem pilha), mensagem real na Meta.
+- **Pendências / próximos passos:** os comentários de `dailySummarySourceSchema.streak` e `dailySummaryRenderSchema.footer` em `packages/contracts` ainda dizem "até a Fase 6" (`arquiteto`).

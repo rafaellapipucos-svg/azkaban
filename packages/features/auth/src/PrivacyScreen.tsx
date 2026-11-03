@@ -25,6 +25,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
 import { afterReauth, deleteStep } from './deleteStep';
+import { failureKey } from './failureKey';
 import { useSession } from './useSession';
 
 type T = ReturnType<typeof useTranslation>['t'];
@@ -241,7 +242,9 @@ function DeleteSection() {
             autoComplete="current-password"
             secureTextEntry
           />
-          {reauth.isError ? <ErrorText>{t('privacy.delete.reauthInvalid')}</ErrorText> : null}
+          {reauth.isError ? (
+            <ErrorText>{t(failureKey(reauth.error, 'privacy.delete.reauthInvalid'))}</ErrorText>
+          ) : null}
           <Button
             variant="danger"
             label={t(
@@ -262,7 +265,9 @@ function DeleteSection() {
           {magicLink.isSuccess ? (
             <Body role="status">{t('privacy.delete.reauthMagicLinkSent')}</Body>
           ) : null}
-          {magicLink.isError ? <ErrorText>{t('errors.generic')}</ErrorText> : null}
+          {magicLink.isError ? (
+            <ErrorText>{t(failureKey(magicLink.error, 'errors.generic'))}</ErrorText>
+          ) : null}
         </>
       ) : step === 'error' ? (
         <>

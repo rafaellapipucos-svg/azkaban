@@ -3810,3 +3810,20 @@
 - **Verificado:** `pnpm check` passou.
 - **Não verificado:** o passo no CI (sem push, sem PR de rascunho). Fixar as actions por SHA fica para uma mudança do workflow inteiro. Hora pelo UTC−3 (PowerShell barrado).
 - **Pendências / próximos passos:** o PR de rascunho do "Como testar".
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 17:30 (BRT)
+
+- **Branch:** feat/decisions-db (a partir de `feat/launch-decisions` = `main`, `33132dc`)
+- **Agente(s):** banco-de-dados
+- **Resumo:** as duas decisões do humano para o banco. BL-33: SEG6-6 corrigido, com chave substituta em `user_achievements`, e o `DELETE` do Realtime passa a levar só um id opaco. BL-32: preferência `profiles.push_hide_content` (desligada por padrão), entregue ao despacho pelo claim.
+- **Alterações:**
+  - BL-33: `user_achievements` ganha `id uuid` como chave primária, `unique (user_id, achievement_key)` e `replica identity default` explícita. RLS, grants (só `select` para `authenticated`), a concessão única de `grant_achievements`, a cascata e a publicação no Realtime continuam iguais. O cliente de gamificação não muda: ele escuta o `INSERT` e lê `achievement_key`, e o `select('*')` de `listGranted` ignora o `id`. Por isso não há handoff para `gamificacao`. A exportação passa a trazer o `id` em `achievements` (`to_jsonb`).
+  - BL-32: coluna `push_hide_content boolean not null default false` com `grant update` do dono, pelo mesmo caminho do horário de silêncio. `claim_notification_batch` ganha `hideContent` em cada item (verdadeiro só no canal `web_push` com a flag ligada), e nesse caso `taskTitle` já sai nulo, então um despacho que ainda não conhece a flag cai no "tarefa" genérico do `buildPushPayload`. No WhatsApp o item não muda.
+  - Testes antigos ajustados à chave nova do item e à coluna gravável (`rls_notifications` e `rls_whatsapp`).
+- **Arquivos/módulos principais:** `supabase/migrations/20261105140000_user_achievements_surrogate_key.sql`, `supabase/migrations/20261106100000_profile_push_hide_content.sql`, `supabase/migrations/20261106100100_claim_push_hide_content.sql`, `supabase/tests/rls_achievements_key.test.sql`, `supabase/tests/rls_push_hide_content.test.sql`, `supabase/tests/rls_notifications.test.sql`, `supabase/tests/rls_whatsapp.test.sql`, `packages/data/src/database.types.ts`, dois handoffs.
+- **Migrations:** `20261105140000`, `20261106100000`, `20261106100100`
+- **Decisões/ADRs:** decisões do humano no BL-32 (sim, desligado por padrão) e no BL-33 (corrigir). ADR-0010 §14 (SEG6-6) e ADR-0008 §16 item 8 / §17 precisam de nota do `arquiteto`.
+- **Como testar:** `sh docs/agentes/ferramentas/pilha-b.sh db`, depois `sh docs/agentes/ferramentas/pilha-b.sh run pnpm exec supabase db reset`, `... run pnpm db:test` e `... run pnpm db:check-permissions`.
+- **Verificado:** na pilha B, depois de `db reset`: `db:test` 1990/1990 em 15 arquivos (14 novos em `rls_achievements_key`, 19 em `rls_push_hide_content`); `db:check-permissions` em dia; `db:types` regenerado. Mutação aplicada à mão no banco da B: `replica identity full` e a volta da chave `(user_id, achievement_key)` derrubam 3 de 14 cada; inverter a condição do `taskTitle` no claim derruba 2 de 19; `default true` com `grant update` para `anon` derruba 6; abrir `profiles_select_own` e `profiles_update_own` derruba 3. Banco recriado depois. `pnpm check` passou.
+- **Não verificado:** `pnpm functions:test` (pedia a pilha B de funções; o `itemSchema` do despacho não é `strict` e descarta a chave nova); o payload real do Realtime, verificado pelo catálogo (colunas da identidade de réplica) e não por decodificação lógica; E2E; hospedado. A troca da chave primária reescreve `user_achievements` com lock exclusivo (a tabela é pequena). Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** handoffs para `backend-funcoes` (render neutro) e `notificacoes-whatsapp` (interruptor); notas nos ADRs pelo `arquiteto`; QUADRO pelo orquestrador.

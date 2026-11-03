@@ -192,8 +192,8 @@ select is(
   (select string_agg(attname, ',' order by attname) from pg_attribute
     where attrelid = 'public.profiles'::regclass and attnum > 0 and not attisdropped
       and has_column_privilege('authenticated', 'public.profiles', attname, 'UPDATE')),
-  'daily_summary_deadline_days,daily_summary_enabled,daily_summary_include_overdue,daily_summary_skip_empty,daily_summary_time,display_name,locale,quiet_hours_end,quiet_hours_start,timezone',
-  'of the new columns, the user writes only the five summary preferences');
+  'daily_summary_deadline_days,daily_summary_enabled,daily_summary_include_overdue,daily_summary_skip_empty,daily_summary_time,display_name,locale,push_hide_content,quiet_hours_end,quiet_hours_start,timezone',
+  'of the new columns, the user writes only the five summary preferences (and push_hide_content, BL-32)');
 
 select pg_temp.login(pg_temp.u('d'));
 select throws_ok($$select * from public.phone_verifications$$, '42501', 'permission denied for table phone_verifications', 'a user reads no code');
@@ -646,7 +646,7 @@ select is(pg_temp.item('wa', 'w1') -> 'phone', '"+5511999990001"'::jsonb, 'a Wha
 select is(pg_temp.item('wa', 'w1') -> 'summary', pg_temp.src(), 'and the source, read at send time');
 select is(pg_temp.item('wa', 'w1') - 'subscriptions' - 'outboxId' - 'notificationId' - 'scheduledFor' - 'summary' - 'data',
   '{"channel": "whatsapp", "type": "daily_summary", "occurrenceId": null, "locale": "pt-BR", "timezone": "America/Sao_Paulo",
-    "taskTitle": null, "requiresPhotoProof": false, "overdueAt": null, "occurrenceStatus": null, "attempts": 1, "phone": "+5511999990001"}'::jsonb,
+    "taskTitle": null, "hideContent": false, "requiresPhotoProof": false, "overdueAt": null, "occurrenceStatus": null, "attempts": 1, "phone": "+5511999990001"}'::jsonb,
   'with no occurrence, no title and no deadline');
 select is(pg_temp.item('wa', 'w3') ->> 'timezone', 'America/Sao_Paulo', 'a zone the app cannot read falls back to the default');
 select is(pg_temp.item('wa', 'w3') -> 'summary' -> 'totals', '{"today": 0, "overdue": 0, "deadlines": 0}'::jsonb, 'and the empty source goes as it is');

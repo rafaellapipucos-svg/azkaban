@@ -553,7 +553,7 @@ select is((select jsonb_array_length(r -> 'items') from claim1), 3, 'three rows 
 select is(
   (select i - 'subscriptions' - 'outboxId' - 'notificationId' - 'scheduledFor' from claim1, jsonb_array_elements(r -> 'items') i where i ->> 'outboxId' = pg_temp.g('x5')::text),
   jsonb_build_object('channel', 'web_push', 'type', 'task_reminder', 'data', pg_temp.rem(30), 'occurrenceId', pg_temp.g('r1'),
-    'locale', 'pt-BR', 'taskTitle', 'R1 soon', 'requiresPhotoProof', false, 'attempts', 1,
+    'locale', 'pt-BR', 'taskTitle', 'R1 soon', 'hideContent', false, 'requiresPhotoProof', false, 'attempts', 1,
     'timezone', 'America/Sao_Paulo', 'occurrenceStatus', 'pending', 'phone', null, 'summary', null,
     'overdueAt', (select overdue_at from public.task_occurrences where id = pg_temp.g('r1'))),
   'an item has what the function needs to build the message, with the deadline of the red (ADR-0009, section 9)');

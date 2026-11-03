@@ -771,14 +771,14 @@ isOneToOne: false
                   ]
                 },"user_achievements": {
                   Row: {
-                    "achievement_key": string,"granted_at": string,"user_id": string
+                    "achievement_key": string,"granted_at": string,"id": string,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "achievement_key": string,"granted_at"?: string,"user_id": string
+                    "achievement_key": string,"granted_at"?: string,"id"?: string,"user_id": string
                   }
                   Update: {
-                    "achievement_key"?: string,"granted_at"?: string,"user_id"?: string
+                    "achievement_key"?: string,"granted_at"?: string,"id"?: string,"user_id"?: string
                   }
                   Relationships: [
                     {

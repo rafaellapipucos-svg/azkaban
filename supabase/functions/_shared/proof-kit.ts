@@ -16,6 +16,7 @@ import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { gamificationRules } from '../../../packages/config/src/gamification.ts';
+import { proofRules } from '../../../packages/config/src/proof.ts';
 import { taskRules } from '../../../packages/config/src/tasks.ts';
 import { apiUrl, dbContainer, project } from './local-stack.mjs';
 
@@ -231,7 +232,9 @@ export async function newAuthor(
     .insert({ group_id: group.id, user_id: author.id, role: 'member' });
   assert.ifError(joined.error);
   if (consent) {
-    const accepted = await author.client.rpc('record_proof_consent', { p_version: 2 });
+    const accepted = await author.client.rpc('record_proof_consent', {
+      p_version: proofRules.consentVersion,
+    });
     assert.ifError(accepted.error);
   }
   return author;

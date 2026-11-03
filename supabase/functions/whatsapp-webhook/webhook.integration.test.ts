@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import { createHmac, randomUUID } from 'node:crypto';
 import { after, describe, test } from 'node:test';
+import { whatsappRules } from '../../../packages/config/src/whatsapp.ts';
 import { admin, cleanUp, functionUrl, newPerson } from '../_shared/proof-kit.ts';
 
 const URL = functionUrl('whatsapp-webhook');
@@ -59,7 +60,7 @@ async function readyPerson(name: string) {
       phone_e164: phone,
       phone_verified_at: now,
       whatsapp_opt_in_at: now,
-      whatsapp_opt_in_version: 1,
+      whatsapp_opt_in_version: whatsappRules.consentVersion,
     })
     .eq('id', person.id);
   assert.ifError(error);

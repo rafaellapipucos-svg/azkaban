@@ -2003,3 +2003,25 @@
 - **Verificado:** `pnpm check` passou (17 de 17; core 688 testes; `functions:imports` 8 de 8).
 - **Não verificado:** `pnpm db:check-permissions` (sem pilha); ele acusa as quatro chaves novas até a migration do banco.
 - **Pendências / próximos passos:** migrations do `banco-de-dados` e a troca de `capRoom`, `useCapReached` e do repositório do ranking pelo `gamificacao`, integradas juntas; o humano confirma os itens 11 a 15.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:21 (BRT)
+
+- **Branch:** fix/gamification-db-security, criada a partir de feat/phase-6-gamification (6bb8f33)
+- **Agente(s):** banco-de-dados
+- **Resumo:** correções de banco da revisão de segurança da Fase 6 (ADR-0010, seção 14), SEG6-1 a SEG6-5 e a nota de tarefas arquivadas, com os cinco PoCs do revisor como testes. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - SEG6-1: teto em janela móvel de `xp.capWindowHours` (24 h), sem fuso; `profiles.timezone` validado por trigger com `is_valid_timezone`, `invalid_timezone` (22023), depois de devolver as linhas inválidas ao padrão.
+  - SEG6-2: piso `gamification_history_floor` (criação local − 1 ou hoje − `historyDays`) na contagem, na dobra e no recálculo; `perfect_day` só desde o dia local da criação; o trigger de status passa a `for each statement` com tabelas de transição: um `refresh` por (usuário, dia) e uma dobra por usuário a partir do menor dia. `refresh_user_day` saiu (só o trigger antigo chamava).
+  - SEG6-3: saldo da janela por `(coalesce(occurrence_id, id), group_id)`.
+  - SEG6-4: `group_ranking(p_group_id, p_week_start)`, fuso de quem chama, semana alinhada a `ranking.weekStartsOn` e só as últimas `ranking.maxWeeks`; `groups.ranking_enabled_at` escrita só por trigger, com backfill `now()` nos grupos ligados; soma desde `greatest(semana, ranking_enabled_at, joined_at)`.
+  - SEG6-5: `close_gamification_days` com `for no key update of p skip locked` e um subbloco com `exception` por perfil, que não avança `last_closed_date` de quem falhou.
+  - `user_day_counts` ignora tarefas arquivadas, como Hoje e o resumo diário.
+  - Espelho de `gamification_rules` com `xp.capWindowHours`, `ranking.weekStartsOn`, `ranking.maxWeeks` e `historyDays`.
+  - Testes: `rls_gamification_security.test.sql` (46); `rls_gamification.test.sql` ajustado ao piso (perfis com a criação recuada) e ao ranking novo; `rls_whatsapp.test.sql` desliga o trigger novo para simular um fuso antigo inválido.
+- **Arquivos/módulos principais:** `supabase/migrations/20261103180000..180600`, `supabase/tests/rls_gamification_security.test.sql`, `supabase/tests/rls_gamification.test.sql`, `supabase/tests/rls_whatsapp.test.sql`, `packages/data/src/database.types.ts` (gerado), handoff `20261103-0421-banco-de-dados-para-gamificacao-seguranca-gamificacao`
+- **Migrations:** `20261103180000_gamification_rules_security`, `20261103180100_profile_timezone_valid`, `20261103180200_occurrence_award_xp_rolling_window`, `20261103180300_gamification_history_floor`, `20261103180400_user_day_counts_archived`, `20261103180500_group_ranking_since_enabled`, `20261103180600_close_gamification_days_skip_locked`
+- **Decisões/ADRs:** nenhuma nova; implementa a seção 14 do ADR-0010.
+- **Como testar:** `bash docs/agentes/ferramentas/pilha-b.sh db`, `pnpm exec supabase db reset`, `pnpm db:test`, `bash docs/agentes/ferramentas/pilha-b.sh run pnpm db:check-permissions`.
+- **Verificado:** na pilha B, `pnpm db:test` 7 arquivos, 1520 testes, todos passando; `pnpm db:check-permissions` em sincronia (contêiner `supabase_db_azkaban-b`, regras de gamificação incluídas); `pnpm check` passou. PoC 2: `auto_miss_occurrences` com 500 ocorrências de 2000 a 2025 de uma pessoa levou 338 a 444 ms, sem nenhuma linha em `user_day_stats` (teto do teste: 5 s). Mutações, cada uma derrubando o seu teste: janela pelo fuso (1 falha), sem validação de fuso (3), sem piso (4), saldo sem `group_id` (2), ranking sem `ranking_enabled_at` (1), sem `joined_at` (1), e `for update` no lugar de `for no key update` (1, lido por `pgrowlocks`).
+- **Não verificado:** a espera real entre duas sessões do PoC 5 (o teste lê o modo do lock por `pgrowlocks` numa sessão só); o tempo do código antigo no PoC 2 (sem piso, mas já com uma dobra por comando, foram 979 ms); se o `Intl` aceita zonas que `pg_timezone_names` recusa (o inverso o `db:check-permissions` já confere); E2E e Edge Functions; o projeto hospedado.
+- **Pendências / próximos passos:** integrar junto com a troca do repositório do ranking, de `groupRankingInputSchema` e de `capRoom` pelo `gamificacao`; até lá o repositório manda `p_timezone` e o PostgREST não acha a função.

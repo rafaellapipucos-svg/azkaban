@@ -87,6 +87,7 @@ create function pg_temp.st(p_occ uuid, p_status public.occurrence_status) return
 $$;
 
 -- Occurrences on the local day today - p_offset of the profile, at noon: done, partial, then pending.
+-- The profile is backdated to that day at the latest, as days before its creation are not counted.
 create function pg_temp.day(p_user uuid, p_offset int, p_done int, p_partial int default 0, p_pending int default 0)
 returns void language plpgsql as $$
 declare
@@ -94,6 +95,7 @@ declare
   d date := pg_temp.today(p_user) - p_offset;
   o uuid;
 begin
+  update public.profiles set created_at = least(created_at, d::timestamp at time zone tz) where id = p_user;
   for i in 1 .. p_done + p_partial + p_pending loop
     o := pg_temp.mko(p_user, (d + time '12:00' + make_interval(mins => i)) at time zone tz);
     if i <= p_done then
@@ -159,7 +161,7 @@ select is((select total_xp from public.user_stats where user_id = pg_temp.u('e')
 select is((select schedule from cron.job where jobname = 'close-gamification-days'), '*/15 * * * *', 'the close job runs every 15 minutes');
 select is(has_function_privilege('service_role', 'public.recompute_user_gamification(uuid)', 'execute'), true, 'the service role recomputes');
 select is(has_function_privilege('authenticated', 'public.recompute_user_gamification(uuid)', 'execute'), false, 'a client does not');
-select is(has_function_privilege('authenticated', 'public.refresh_user_day(uuid, date)', 'execute'), false, 'nor refreshes a day');
+select is(has_function_privilege('authenticated', 'public.refresh_user_day_counts(uuid, date)', 'execute'), false, 'nor refreshes a day');
 select is(has_function_privilege('authenticated', 'public.close_gamification_days()', 'execute'), false, 'nor runs the close job');
 
 -- ===== Canonical cases (section 3): [streak, freezes, perfectRun] =====
@@ -282,6 +284,7 @@ select is((select total_xp::bigint from public.user_stats where user_id = pg_tem
 
 -- ===== The zone of the profile: the same instant, 23:00 UTC, in Tokyo and in Sao Paulo =====
 create temp table utc_day as select (now() at time zone 'UTC')::date - 2 as d;
+update public.profiles set created_at = now() - interval '5 days' where id in (pg_temp.u('304'), pg_temp.u('305'));
 select pg_temp.st(pg_temp.mko(pg_temp.u('304'), ((select d from utc_day) + time '23:00') at time zone 'UTC'), 'done');
 select pg_temp.st(pg_temp.mko(pg_temp.u('305'), ((select d from utc_day) + time '23:00') at time zone 'UTC'), 'done');
 select is((select local_date from public.user_day_stats where user_id = pg_temp.u('304')), (select d + 1 from utc_day),
@@ -313,10 +316,11 @@ select is((select string_agg(local_date || ':' || streak || ':' || freezes || ':
     from public.user_day_stats where user_id = pg_temp.u('306')),
   (select days from snap_job), 'a second run changes no day');
 select is((select sum(amount) from public.xp_events where user_id = pg_temp.u('306')), (select xp from snap_job), 'and no XP');
-select is((select last_closed_date from public.user_stats where user_id = pg_temp.u('202')), null, 'a profile created today is not closed yet');
+select is((select last_closed_date from public.user_stats where user_id = pg_temp.u('307')), null, 'a profile created today is not closed yet');
 
 -- ===== The ranking (section 6) =====
-create temp table week as select (now() at time zone 'America/Sao_Paulo')::date - 3 as ws;
+-- The current week of b, in b's zone (America/Sao_Paulo), starting on Monday.
+create temp table week as select d - (extract(isodow from d)::int - 1) as ws from (select (now() at time zone 'America/Sao_Paulo')::date as d) x;
 grant select on week to authenticated;
 insert into public.xp_events (user_id, group_id, amount, reason, created_at) values
   (pg_temp.u('b'), '10000000-0000-0000-0000-00000000000a', 30, 'occurrence_done', now()),
@@ -330,16 +334,16 @@ insert into public.xp_events (user_id, amount, reason, local_date) values (pg_te
 delete from public.group_members where group_id = '10000000-0000-0000-0000-00000000000a' and user_id = pg_temp.u('f');
 create function pg_temp.ranking(p_group uuid) returns text language sql as $$
   select string_agg(display_name || ':' || xp || ':' || rank, ',' order by rank, display_name)
-  from public.group_ranking(p_group, (select ws from week), 'America/Sao_Paulo');
+  from public.group_ranking(p_group, (select ws from week));
 $$;
 
 select pg_temp.login(pg_temp.u('b'));
 select is(pg_temp.ranking('10000000-0000-0000-0000-00000000000a'), 'User b:30:1,User c:30:1',
   'family without the key: on; only group XP of the week, ties share the rank, zero and ex-members are out');
-select throws_ok($$select * from public.group_ranking('10000000-0000-0000-0000-00000000000c', current_date, 'America/Sao_Paulo')$$,
+select throws_ok($$select * from public.group_ranking('10000000-0000-0000-0000-00000000000c', (select ws from week))$$,
   'P0001', 'ranking_disabled', 'company without the key: off');
 select pg_temp.login(pg_temp.u('a'));
-select throws_ok($$select * from public.group_ranking('10000000-0000-0000-0000-00000000000e', current_date, 'America/Sao_Paulo')$$,
+select throws_ok($$select * from public.group_ranking('10000000-0000-0000-0000-00000000000e', (select ws from week))$$,
   'P0001', 'ranking_disabled', 'other without the key: off');
 select throws_ok($$update public.groups set settings = '{"rankingEnabled": "true"}' where id = '10000000-0000-0000-0000-00000000000c'$$,
   '23514', 'new row for relation "groups" violates check constraint "groups_settings_ranking_enabled_check"', 'rankingEnabled as text is refused');
@@ -349,13 +353,13 @@ select lives_ok($$update public.groups set settings = '{"rankingEnabled": false}
   'and off in a family');
 select pg_temp.login(pg_temp.u('b'));
 select is(pg_temp.ranking('10000000-0000-0000-0000-00000000000c'), null, 'company turned on: a member reads it, empty');
-select throws_ok($$select * from public.group_ranking('10000000-0000-0000-0000-00000000000a', current_date, 'America/Sao_Paulo')$$,
+select throws_ok($$select * from public.group_ranking('10000000-0000-0000-0000-00000000000a', (select ws from week))$$,
   'P0001', 'ranking_disabled', 'family turned off');
 select pg_temp.login(pg_temp.u('e'));
-select throws_ok($$select * from public.group_ranking('10000000-0000-0000-0000-00000000000c', current_date, 'America/Sao_Paulo')$$,
+select throws_ok($$select * from public.group_ranking('10000000-0000-0000-0000-00000000000c', (select ws from week))$$,
   '42501', 'forbidden', 'someone outside the group is forbidden');
 select pg_temp.login(pg_temp.u('f'));
-select throws_ok($$select * from public.group_ranking('10000000-0000-0000-0000-00000000000a', current_date, 'America/Sao_Paulo')$$,
+select throws_ok($$select * from public.group_ranking('10000000-0000-0000-0000-00000000000a', (select ws from week))$$,
   '42501', 'forbidden', 'and so is someone who left');
 select pg_temp.pg();
 

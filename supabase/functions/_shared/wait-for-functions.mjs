@@ -2,7 +2,8 @@
 // recycles idle workers, and a request that lands on one that is going away gets a 502. Calling the
 // preflight of each function until it answers boots a fresh worker, so the first real request of a
 // test does not pay for it.
-const api = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54421';
+import { apiUrl as api, project } from './local-stack.mjs';
+
 const names = [
   'materialize-occurrences',
   'proof-validate',
@@ -29,7 +30,7 @@ for (const name of names) {
     // from the function's `deno.json` (the CLI mounts only mapped files, at `db:start`).
     console.error(
       `${name} does not answer (last status ${status}). Did "pnpm db:start" finish? ` +
-        'On 503, see "docker logs supabase_edge_runtime_azkaban" for a worker boot error.',
+        `On 503, see "docker logs supabase_edge_runtime_${project}" for a worker boot error.`,
     );
     process.exit(1);
   }

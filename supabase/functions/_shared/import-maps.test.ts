@@ -1,6 +1,6 @@
 // Every runtime import of every function resolves through its deno.json, without Deno and without the
 // stack. An extensionless import of packages/* that the map misses makes the function fail to boot
-// (503 on the preflight, `Module not found` in `docker logs supabase_edge_runtime_azkaban`), and only
+// (503 on the preflight, `Module not found` in `docker logs supabase_edge_runtime_<project_id>`), and only
 // a stack with the function served would show it. Type-only imports are erased, so they are skipped.
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';

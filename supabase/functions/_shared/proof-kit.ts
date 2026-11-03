@@ -5,7 +5,7 @@
 //   pnpm functions:test
 //
 // A few tests need `docker exec` into the local database container
-// (DB_CONTAINER, default supabase_db_azkaban) for what the API cannot do, such as backdating a row
+// (DB_CONTAINER, default from supabase/config.toml, see local-stack.mjs) for what the API cannot do, such as backdating a row
 // that a trigger protects.
 //
 // The keys and the JWT secret below are the universal demo values of every local Supabase stack, not
@@ -15,8 +15,9 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { apiUrl, dbContainer, project } from './local-stack.mjs';
 
-export const API = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54421';
+export const API = apiUrl;
 export const ANON =
   process.env.SUPABASE_ANON_KEY ??
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
@@ -46,7 +47,7 @@ async function toReply(response: Response): Promise<Reply> {
 
 // ---------------------------------------------------------------------------------------- database
 
-const DB_CONTAINER = process.env.DB_CONTAINER ?? 'supabase_db_azkaban';
+const DB_CONTAINER = dbContainer;
 const psql = (statement: string) => [
   'exec',
   '-i',
@@ -346,7 +347,6 @@ export async function uploadStream(
  * network, so the test controls when each piece leaves and sees when the function stops reading.
  */
 export function rawUpload(who: Person, nonce: string, hashOf: Uint8Array, o: UploadOptions = {}) {
-  const project = process.env.COMPOSE_PROJECT ?? 'azkaban';
   const child = spawn(
     'docker',
     ['exec', '-i', `supabase_kong_${project}`, 'nc', `supabase_edge_runtime_${project}`, '8081'],

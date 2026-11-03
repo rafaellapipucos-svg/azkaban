@@ -29,6 +29,7 @@ import {
   type Person,
   newGroup,
 } from '../_shared/proof-kit.ts';
+import { project } from '../_shared/local-stack.mjs';
 import { makeJpeg } from './jpeg-fixture.ts';
 
 let salt = 0;
@@ -871,12 +872,7 @@ describe('proof-validate', () => {
       // The runtime writes the console of the function to the container's stderr.
       const read = spawnSync(
         'docker',
-        [
-          'logs',
-          '--since',
-          '5m',
-          `supabase_edge_runtime_${process.env.COMPOSE_PROJECT ?? 'azkaban'}`,
-        ],
+        ['logs', '--since', '5m', `supabase_edge_runtime_${project}`],
         { maxBuffer: 64 * 1024 * 1024 },
       );
       const logs = `${read.stdout}${read.stderr}`;

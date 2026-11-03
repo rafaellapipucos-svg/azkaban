@@ -418,7 +418,7 @@ verify_jwt = true
 verify_jwt = false
 
 # Off: it costs about 600 MB, and its vector container restarted in a loop. Function logs do not depend
-# on it: `docker logs supabase_edge_runtime_azkaban`.
+# on it: `docker logs supabase_edge_runtime_<project_id>`.
 [analytics]
 enabled = false
 port = 54427

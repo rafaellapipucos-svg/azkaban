@@ -6,3 +6,4 @@ export { proofDefaults, proofRules } from './proof';
 export { notificationDefaults, notificationRules } from './notifications';
 export { whatsappDefaults, whatsappRules } from './whatsapp';
 export { parseWhatsAppEnv, type WhatsAppEnv } from './whatsapp-env';
+export { gamificationDefaults, gamificationRules } from './gamification';

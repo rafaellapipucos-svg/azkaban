@@ -1726,3 +1726,23 @@
 - **Verificado:** na pilha B (só Postgres, `supabase_db_azkaban-b`): `db reset`, `pnpm db:test` com 5 arquivos e 1378 testes, todos passando; os de SEG5-1 seguem iguais. `pnpm db:check-permissions` em sincronia. `pnpm check` passou (17 de 17 e 9 de 9). Mutação, desfeita: a regex antiga aplicada no banco derruba os 4 testes novos (102 a 105); restaurada, 151 de 151.
 - **Não verificado:** o webhook servido contra a função nova (sem E2E nem `functions:test`, por pedido do orquestrador).
 - **Pendências / próximos passos:** o texto do ADR-0009, seção 18, com o `arquiteto`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:33 (BRT)
+
+- **Branch:** docs/gamification-adr, criada a partir de feat/phase-5-whatsapp (cd98617)
+- **Agente(s):** arquiteto
+- **Resumo:** ADR-0010 da gamificação (Fase 6), com contratos, config e handoffs para os agentes trabalharem em paralelo. Fecha o XP em massa pendente desde a Fase 2 com um teto diário. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - ADR-0010: motivos novos de XP (`proof_bonus`, `perfect_day`, `perfect_day_reverted`, `shopping_completed` reservado para a Fase 7) e `xp_events.local_date`; teto diário de XP por dia local do perfil, com lock por usuário; nível derivado do total, sem coluna; meta diária por conta inteira, ofensiva como dobra dos dias (dia vazio não quebra, hoje entra só cumprido, proteção a cada 7 dias até 2) com tabela de casos canônicos para core e pgTAP; `refresh_user_day`, `refold_streak`, `grant_achievements` no trigger de status e `close_gamification_days` a cada 15 minutos; conquistas em seed, concedidas uma vez; ranking por `groups.settings.rankingEnabled`, padrão por tipo (`company` desligado), só nome e XP semanal do grupo; RLS só do dono; comemorações pelo Realtime de `xp_events` num `CelebrationHost`; `streak` do resumo diário; anel de Hoje pela meta; recálculo e backfill; divisão do trabalho e nove itens a confirmar pelo humano.
+  - `packages/contracts`: `gamification.ts` novo (`userStatsSchema`, `userDayStatsSchema`, conquistas, ranking, `rankingErrorCodeSchema`, `celebrationKindSchema`), com teste; `tasks.ts` com os motivos novos, `cappedXpEventReasons` e `xpEventSchema.localDate`; `groups.ts` com `groupSettingsSchema`; comentário de `dailySummarySourceSchema.streak`.
+  - `packages/config/src/gamification.ts`: `gamificationRules` (espelho em `app_settings`, chave `gamification_rules`) e `gamificationDefaults` (só cliente).
+  - `scripts/check-permission-mirror.mjs` compara `gamification_rules`.
+  - `docs/arquitetura.md`: seção Gamificação. ADRs 0005, 0007 e 0009 apontam para o 0010 nas pendências da Fase 6.
+  - Handoffs `20261103-0235-arquiteto-para-{banco-de-dados,gamificacao,design-system}-gamificacao`, `...-tarefas-calendario-anel-de-hoje` e `...-notificacoes-whatsapp-ofensiva-no-resumo`.
+- **Arquivos/módulos principais:** `docs/adr/0010-gamificacao-xp-ofensiva-conquistas-ranking.md`, `packages/contracts/src/{gamification.ts,gamification.test.ts,tasks.ts,groups.ts,whatsapp.ts}`, `packages/config/src/gamification.ts`, `scripts/check-permission-mirror.mjs`, `docs/arquitetura.md`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma; são do `banco-de-dados` (F6-2).
+- **Decisões/ADRs:** ADR-0010.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9 tarefas; `functions:imports` 8 de 8). Contratos: 104 testes em 5 arquivos, 12 novos em `gamification.test.ts`.
+- **Não verificado:** nada com a pilha. `pnpm db:check-permissions` acusa `gamification_rules` até a migration de F6-2. Os casos canônicos foram conferidos à mão, não em código.
+- **Pendências / próximos passos:** os cinco handoffs. Para o humano: os nove itens da seção 13 do ADR-0010. Para o orquestrador: a divisão sugerida das tarefas F6 no relatório.

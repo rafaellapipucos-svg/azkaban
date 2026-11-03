@@ -8,3 +8,4 @@ export * from './occurrence-transitions';
 export * from './proof';
 export * from './notifications';
 export * from './whatsapp';
+export * from './gamification';

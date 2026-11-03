@@ -465,7 +465,7 @@ Decisões sobre os achados da revisão e do QA, em 2026-11-01. Valem sobre as se
 - `occurrence_actor` ganha `reviewer`, e `occurrenceTransitions` ganha quatro linhas, então `pnpm db:check-permissions` falha até F3-2 entrar. O mesmo vale para `proof.review`.
 - `done → partial` deixa de ser "reabra antes" para o revisor. Para os demais, nada muda.
 - Trocar o `requires_photo_proof` deixa de ser livre para quem tem só `task.edit_assigned`.
-- A Fase 6 herda: bônus de foto, adiantamento de prova e `in_review` em dia perfeito e ofensiva.
+- A Fase 6 herda: bônus de foto, adiantamento de prova e `in_review` em dia perfeito e ofensiva. Decididos no [ADR-0010](0010-gamificacao-xp-ofensiva-conquistas-ranking.md), seções 1 a 3.
 - A Fase 4 herda o aviso ao usuário em contestação e ao admin em "em análise".
 - `proof-validate` usa a API pública do Storage dentro da requisição, então uma falha do Storage vira falha da prova, e o usuário tenta de novo com outro desafio.
 - A prova contestada só volta por quem tem `proof.review`. Em um grupo com um admin só, a prova dele mesmo nunca é revista.

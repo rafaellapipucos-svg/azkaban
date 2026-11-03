@@ -2870,3 +2870,18 @@
   - Lighthouse, `pnpm build:web` e `bundle:size`; Safari e iPhone; nativo; projeto hospedado; CSP (depende de F8-8).
   - A `performance.spec.ts` depois de tirar a medida do calendário: a parte de Hoje e a do mercado rodaram na segunda E2E, a do confete passou, mas a spec inteira não rodou de novo sozinha. Sem mutação.
 - **Pendências / próximos passos:** os seis handoffs acima. Tirar o `test.fail` de QA8-2 e as linhas de `known` em `a11y.spec.ts` conforme os donos corrigirem. Lighthouse e o tempo do mês quando houver build servido.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:13 (BRT)
+
+- **Branch:** fix/calendar-a11y, criada a partir de feat/phase-8-polish (c2d46b5)
+- **Agente(s):** tarefas-calendario
+- **Resumo:** a parte de tarefas-calendario de QA8-5, QA8-6 e QA8-7 (handoff 20261103-0755). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/features/calendar/src/MonthView.tsx`: a grade do mês sangra sobre o respiro lateral da Screen (`marginHorizontal: -spacing[4]`) e cada dia ocupa a coluna inteira, com os 4 px entre as caixas como preenchimento dentro do alvo. A 320 px o alvo passa de 38 para cerca de 45 px de largura, sem rolagem lateral (QA8-5). Em telas largas a grade fica 16 px mais larga de cada lado que o resto do conteúdo.
+  - `packages/features/calendar/src/format.ts`: `weekdayShort` vira `weekdayNarrow` ("D S T Q Q S S"), que cabe a 200% (QA8-6). A linha é `aria-hidden`; o rótulo de cada dia segue com a data por extenso.
+  - `packages/features/tasks/src/Sections.tsx`: o título de contexto em Hoje tinha `role="heading"` sem nível, que o react-native-web desenha como `h1`; agora é nível 3, sob o nível 2 da seção (QA8-7).
+  - `packages/features/contexts/src/AreasScreen.tsx`: `/contexts` ganha o `Title` (nível 1) com o mesmo texto do título da aba (QA8-7).
+  - `e2e/a11y.spec.ts`: tiradas de `known` a linha de QA8-5, a dos dias da semana cortados (QA8-6) e `/` e `/contexts` da linha de QA8-7. Ficam a barra de abas a 200%, o contraste e os `h1` de `/groups/<id>` e do convite.
+- **Verificado:** `pnpm check` passou (17 de 17 e 11 de 11; 1 095 testes de unidade; `functions:imports` 10 de 10). `pnpm build:web` passou.
+- **Não verificado:** a E2E (`a11y.spec.ts` e as demais), sem pilha; a medida real dos alvos e do corte no navegador; nativo. Sem teste de unidade novo: não há lógica nova, só layout e o formato do Intl.
+- **Pendências / próximos passos:** rodar `pnpm exec playwright test e2e/a11y.spec.ts --project=app` na pilha A para confirmar.

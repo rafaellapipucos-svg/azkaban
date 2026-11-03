@@ -41,7 +41,12 @@ function ContextHeader({ context }: { context: Context | undefined }) {
       <Text aria-hidden className="text-md">
         {context?.icon}
       </Text>
-      <Text role="heading" className="font-heavy text-md text-muted dark:text-muted-dark">
+      {/* Under a Section's level 2; without a level, the web draws an h1. */}
+      <Text
+        role="heading"
+        aria-level={3}
+        className="font-heavy text-md text-muted dark:text-muted-dark"
+      >
         {context?.name ?? t('sections.otherContext')}
       </Text>
     </View>

@@ -32,9 +32,9 @@ export const dayMonth = (date: string, language: string) =>
 export const dayMonthYear = (date: string, language: string) =>
   format(date, language, { day: 'numeric', month: 'short', year: 'numeric' });
 
-/** "qua." for the head of a month column. */
-export const weekdayShort = (date: string, language: string) =>
-  format(date, language, { weekday: 'short' });
+/** "Q" for the head of a month column: one letter still fits at 200% zoom. */
+export const weekdayNarrow = (date: string, language: string) =>
+  format(date, language, { weekday: 'narrow' });
 
 /** What a screen reader says for a day: the date, the counts, and whether it is perfect. */
 export function daySummaryLabel(

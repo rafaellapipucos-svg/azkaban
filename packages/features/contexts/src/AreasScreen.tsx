@@ -1,6 +1,16 @@
 import { contextsRepository, groupsRepository } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
-import { Button, Card, Chip, ChipRow, EmptyState, Muted, Screen, Subtitle } from '@azkaban/ui';
+import {
+  Button,
+  Card,
+  Chip,
+  ChipRow,
+  EmptyState,
+  Muted,
+  Screen,
+  Subtitle,
+  Title,
+} from '@azkaban/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
@@ -23,6 +33,7 @@ export function AreasScreen() {
 
   return (
     <Screen title={t('list.title')}>
+      <Title>{t('list.title')}</Title>
       <ChipRow label={t('list.areaLabel')}>
         {areas.data?.map((item) => (
           <Chip

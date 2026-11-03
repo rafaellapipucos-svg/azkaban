@@ -1,7 +1,10 @@
 // Web Push without a library (ADR-0008, section 8): aes128gcm (RFC 8291) and VAPID (RFC 8292) on
-// WebCrypto, which Deno and Node both have. No imports, so Node runs the tests, including the vector
-// of RFC 8291, appendix A. Nothing here logs: an endpoint is a capability, and the payload has a title.
+// WebCrypto, which Deno and Node both have. Only relative imports, so Node runs the tests, including the
+// vector of RFC 8291, appendix A. Nothing here logs: an endpoint is a capability, and the payload has a title.
+import { retryAfterSeconds } from '../_shared/retry-after.ts';
 import type { NotificationChannel, OutboundMessage, SendResult } from './dispatch.ts';
+
+export { retryAfterSeconds };
 
 const encoder = new TextEncoder();
 
@@ -183,14 +186,6 @@ export function endpointAllowed(endpoint: string, hosts: readonly string[]): boo
   }
   if (url.protocol !== 'https:' || url.port !== '' || url.username || url.password) return false;
   return hosts.some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`));
-}
-
-/** Seconds of a `Retry-After`, in either form, or undefined. */
-export function retryAfterSeconds(header: string | null, nowMs: number): number | undefined {
-  if (!header) return undefined;
-  if (/^\d+$/.test(header.trim())) return Number(header.trim());
-  const at = Date.parse(header);
-  return Number.isNaN(at) ? undefined : Math.max(0, Math.ceil((at - nowMs) / 1000));
 }
 
 /** One subscription's answer, before the answers of all of them become one result. */

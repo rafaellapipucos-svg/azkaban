@@ -130,26 +130,23 @@ export function fakeExpoFetch(log: (line: string) => void = console.log): typeof
   }) as typeof fetch;
 }
 
-const blank = (value: unknown) => (value === '' ? undefined : value);
 const nativePushEnvSchema = z.discriminatedUnion('NATIVE_PUSH_PROVIDER', [
   z.object({ NATIVE_PUSH_PROVIDER: z.literal('fake') }),
   z.object({ NATIVE_PUSH_PROVIDER: z.literal('expo'), EXPO_ACCESS_TOKEN: z.string().min(16) }),
 ]);
 
 /**
- * How the function reaches Expo, from its secrets. Absent or empty provider is `fake`. The real API
- * only with `NATIVE_PUSH_PROVIDER=expo` and a token; anything else is not configured: logged by event
- * name only, and the devices are not sent to (their rows retry, then fail).
+ * How the function reaches Expo, from its secrets. `fake` only when written so (the local stack). The
+ * real API only with `NATIVE_PUSH_PROVIDER=expo` and a token. Anything else, absent and empty included,
+ * is not configured: logged by event name only, and the devices are not sent to (their rows retry,
+ * then fail). Never a silent fake in production that marks every device delivered (BL23-1).
  */
 export function nativePushTransport(
   values: { NATIVE_PUSH_PROVIDER?: string; EXPO_ACCESS_TOKEN?: string },
   realFetch: typeof fetch,
   log: (line: string) => void = console.error,
 ): Pick<NativePushOptions, 'fetch' | 'accessToken'> | null {
-  const env = nativePushEnvSchema.safeParse({
-    NATIVE_PUSH_PROVIDER: blank(values.NATIVE_PUSH_PROVIDER) ?? 'fake',
-    EXPO_ACCESS_TOKEN: blank(values.EXPO_ACCESS_TOKEN),
-  });
+  const env = nativePushEnvSchema.safeParse(values);
   if (!env.success) {
     log(JSON.stringify({ event: 'native_push_not_configured' }));
     return null;

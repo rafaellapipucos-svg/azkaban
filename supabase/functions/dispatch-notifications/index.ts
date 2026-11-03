@@ -4,7 +4,7 @@
 // function only renders and sends. Logs carry counts and codes, never an endpoint, a key, a title, a
 // phone, a user id or a payload. Each run claims only the channels it can send (ADR-0009, section 2):
 // without the VAPID secrets the push waits and WhatsApp goes on. The devices of the app ride the push
-// row (ADR-0012, section 11) through NativePushChannel: a fake Expo unless NATIVE_PUSH_PROVIDER=expo.
+// row (ADR-0012, section 11) through NativePushChannel: Expo with NATIVE_PUSH_PROVIDER=expo, a fake only with `fake`.
 import { notificationDefaults, notificationRules } from '@azkaban/config';
 import {
   nativePushAndroidChannelId,

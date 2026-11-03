@@ -3561,3 +3561,23 @@
 - **Verificado:** leitura do diff inteiro de `c74cce6..960c107`; NetInfo conferido no `node_modules` instalado (`defaultConfiguration.ts`, `internetReachability.ts`, sem `isInternetReachable` em `ios/`); `_setSession` do `auth-js` instalado confere o token no GoTrue (`_getUser`) e troca a sessão sem olhar a atual, e o `flowType` padrão é `implicit`. `pnpm check` passou (lint e Prettier, fronteiras, typecheck com e2e e `deno check` das funções, testes, `functions:imports`).
 - **Não verificado:** pgTAP, `pnpm functions:test` e E2E (sem pilha, como pedido); a API real da Expo e o comportamento em aparelho (`unregisterForNotificationsAsync`, deep link); CI no Linux.
 - **Pendências / próximos passos:** os dois handoffs; BL23-3 a BL23-5 ficam para os donos decidirem.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 11:11 (BRT)
+
+- **Branch:** fix/native-push-fake-explicit, criada a partir de feat/backlog-after-phase-8 (a251638)
+- **Agente(s):** backend-funcoes
+- **Resumo:** BL23-1. `NATIVE_PUSH_PROVIDER` vazio ou ausente deixa de ser `fake` e passa a ser "não configurado": em produção, sem a chave, os aparelhos repetem e falham com `native_push_not_configured` em vez de fechar como entregues. `fake` só quando escrito exatamente. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `supabase/functions/dispatch-notifications/native-push.ts`: `nativePushTransport` valida os valores como vieram (sem `?? 'fake'` e sem o `blank`); o Zod só aceita `fake` ou `expo` com token, todo o resto cai no ramo que já existia.
+  - `supabase/functions/dispatch-notifications/push.test.ts`: vazio e ausente dão `null` e logam `native_push_not_configured`; `fake` dá o falso sem token; `expo` sem token ou com token curto, `other` e `Fake` dão `null`.
+  - `supabase/functions/.env.example`: `NATIVE_PUSH_PROVIDER=fake`, com o comentário novo. O CI copia esse arquivo, então a pilha local segue com o falso.
+  - `supabase/functions/dispatch-notifications/index.ts`: comentário do topo.
+  - `docs/implantacao.md`, bloco "Push nativo": tabela e regras com o padrão novo, e o aviso para quem tem um `.env` antigo com o valor vazio.
+  - Handoff `20261103-1111-backend-funcoes-para-arquiteto-adr-0012-push-nativo-vazio`: o ADR-0012 (linha 337) ainda diz "vazio é `fake`".
+- **Arquivos/módulos principais:** `supabase/functions/dispatch-notifications/`, `supabase/functions/.env.example`, `docs/implantacao.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova; a primeira opção do handoff do revisor.
+- **Como testar:** `pnpm check`; `node --test supabase/functions/dispatch-notifications/push.test.ts` (unidade, sem pilha); `pnpm functions:test` na pilha, com o `.env` vindo do `.env.example` novo.
+- **Verificado:** `pnpm check` passou (lint e Prettier, fronteiras, typecheck com e2e e `deno check` das funções, testes, `functions:imports`); `push.test.ts` direto no Node, 28 de 28. O teste de integração do despacho injeta o próprio `fetch` da Expo e nenhum E2E cria aparelho `expo`, então nenhum depende do padrão.
+- **Não verificado:** `pnpm functions:test` e E2E (sem pilha, como pedido); CI no Linux.
+- **Pendências / próximos passos:** quem tem `supabase/functions/.env` local antigo, com `NATIVE_PUSH_PROVIDER=` vazio, troca para `fake`; o handoff ao arquiteto sobre o ADR-0012.

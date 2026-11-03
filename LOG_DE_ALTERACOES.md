@@ -1942,3 +1942,21 @@
 - **Verificado (pilha B, só Postgres):** `pnpm db:test` 7 arquivos, 1556 testes, todos passando (os 135 de `rls_shopping` intactos; 43 novos em `rls_shopping_security`). `pnpm db:check-permissions` em `supabase_db_azkaban-b`, Shopping rules em sincronia. `pnpm db:types` sem diferença. `pnpm check` passou. Mutação, uma por barreira, todas mortas: teto com `+ 1` (3 falhas), o `check` da nota sem U+2066 a U+2069 (1 falha), o desvio antigo por profundidade em `shopping_lists_guard` (6 falhas).
 - **Não verificado:** a ordem "visibilidade antes do `for share`" (SEG7-5) e a trava por escopo sob concorrência real ficaram na leitura do código: o pgTAP roda numa sessão só. Sem mutante separado no guarda de itens (os testes de item com trigger de profundidade 2 existem, mas o mutante do guarda de listas os derrubou em cascata). Sem E2E, Realtime ou projeto hospedado.
 - **Pendências / próximos passos:** `compras`: texto de `lists_full` e o erro de texto inválido nos formulários (handoff do `arquiteto`). Humano: valor 50 (seção 15, item 11).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:49 (BRT)
+
+- **Branch:** chore/qa-phase-7, criada a partir de feat/phase-7-shopping (`ebf34ea`)
+- **Agente(s):** qa-testes
+- **Resumo:** QA da Fase 7 (lista de compras) no estado integrado. `e2e/shopping.spec.ts` rodou pela primeira vez, com um ajuste e mais cobertura; spec nova com o percurso das telas de compras em três larguras e dois temas. Nenhum bloqueio; quatro achados para o `compras`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `e2e/shopping.spec.ts`: o zero do stepper é "0 pacote" (CLDR de pt-BR põe 0 em `one`), e a volta da lista para as listas é pelo "Voltar" (a lista é rota de pilha, sem barra de abas). Coberto a mais: "salvar no catálogo" pelo dono e o item no "Editar catálogo"; o membro sem `shopping.manage_catalog` não vê o interruptor; "Adicionado por" com o nome; lista pessoal do membro, com o interruptor no catálogo pessoal, que o dono do grupo não acha nem pelo endereço nem nas próprias listas.
+  - `e2e/shopping-layout.spec.ts` (nova): listas, catálogo, montar, montar com item avulso aberto, no mercado, finalizada, histórico e lista inexistente a 320, 375 e 1280 px, claro e escuro (alvos de 44 px, sem rolagem lateral, texto sem corte, anel de foco); a barra de seis abas em cada largura (rótulo dentro da própria aba, sem sobreposição); `title` de cada tela; `catalog_item_exists` e `forbidden` na tela; um membro novo sem lista nem histórico de exemplo.
+  - `e2e/walk.ts`: o percurso que estava dentro de `whatsapp.spec.ts`, agora compartilhado, conferindo também `radio` e `checkbox`.
+  - Handoff `20261103-0349-qa-testes-para-compras-achados-da-fase-7`: QA7-1 (média) sem excluir nem renomear lista, e `lists_full` manda excluir; QA7-2 (baixa) "Falta 0 item" na lista vazia; QA7-3 (baixa) erro do catálogo fica na tela depois de fechar a folha; QA7-4 (baixa) nota do item sem tela.
+- **Arquivos/módulos principais:** `e2e/shopping.spec.ts`, `e2e/shopping-layout.spec.ts`, `e2e/walk.ts`, `e2e/whatsapp.spec.ts`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** pilha A, `pnpm exec supabase db reset`, `pnpm exec playwright test e2e/shopping.spec.ts e2e/shopping-layout.spec.ts e2e/calendar.spec.ts`; `pnpm e2e` com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória.
+- **Verificado (pilha A, banco limpo):** `shopping.spec.ts` e `calendar.spec.ts` ajustado: 7 de 7; `shopping.spec.ts` 4 vezes em paralelo (`--repeat-each=4 --workers=4`): 4 de 4, com o stepper simultâneo somando 5. `pnpm e2e` completo uma vez, com a chave VAPID: 72 passaram, 0 falhas, 1 pulado (o que só roda sem a chave). `pnpm check` passou.
+- **Não verificado:** as folhas (unidade e edição do catálogo) não entram no percurso; `list_completed` numa escrita concorrente com o finalizar só no pgTAP; leitor de tela real, Safari, iOS e Android; projeto hospedado. Sem mutação. SEG7-2 a SEG7-6 no banco e SEG7-1/SEG7-3 nas telas seguem com os outros agentes e não foram conferidos.
+- **Pendências / próximos passos:** `compras`: QA7-1 a QA7-4. F7-5 (vínculo com tarefa nas telas e XP de compra) não entregue; o XP depende da Fase 6. `docs/agentes/QUADRO.md` ainda mostra a Fase 7 inteira como "a fazer" (orquestrador). Pilha A parada.

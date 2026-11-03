@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
+import { proofRules } from '../packages/config/src/proof';
 import { button, clientOf, groupWithMember, newUser, signUp, text } from './proof-fixtures';
 
 // Needs `pnpm db:start` and the Edge Functions `account-export` and `account-delete` (ADR-0012,
@@ -79,9 +80,8 @@ test('an owner is blocked until passing the group on, then deletes the account',
 test('revokes the photo proof acceptance and links to the transparency text', async ({ page }) => {
   await signUp(page, newUser('Revoga'));
   await expect(today(page)).toBeVisible();
-  // `proofRules.consentVersion` of @azkaban/config.
   const { error } = await clientOf(await userIdOf(page)).rpc('record_proof_consent', {
-    p_version: 2,
+    p_version: proofRules.consentVersion,
   });
   expect(error).toBeNull();
 

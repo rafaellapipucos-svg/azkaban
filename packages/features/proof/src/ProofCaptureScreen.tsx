@@ -54,7 +54,10 @@ function ConsentStep({ onAccept, onDecline }: { onAccept: () => void; onDecline:
             recordDays: proofRules.recordRetentionDays,
           })}
         </Body>
-        <Body>{t('consent.deletion')}</Body>
+        {/* Versioned like the WhatsApp notice: the line shown is the one of the version accepted. */}
+        <Body>
+          {t(`consent.deletion.v${proofRules.consentVersion}`, { days: proofRules.retentionDays })}
+        </Body>
       </Card>
       <Muted>{t('consent.declineHint')}</Muted>
       <Button label={t('consent.accept')} onPress={onAccept} />

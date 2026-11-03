@@ -292,7 +292,10 @@ describe('proof-validate', () => {
       await assertUntouched(occurrenceId);
 
       // After the acceptance the same user gets one and finishes.
-      assert.ifError((await author.client.rpc('record_proof_consent', { p_version: 2 })).error);
+      assert.ifError(
+        (await author.client.rpc('record_proof_consent', { p_version: proofRules.consentVersion }))
+          .error,
+      );
       const nonce = await challenge(author, occurrenceId);
       assert.equal((await upload(author, nonce, photo())).status, 200);
     });

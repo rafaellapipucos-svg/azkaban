@@ -2870,3 +2870,19 @@
   - Lighthouse, `pnpm build:web` e `bundle:size`; Safari e iPhone; nativo; projeto hospedado; CSP (depende de F8-8).
   - A `performance.spec.ts` depois de tirar a medida do calendário: a parte de Hoje e a do mercado rodaram na segunda E2E, a do confete passou, mas a spec inteira não rodou de novo sozinha. Sem mutação.
 - **Pendências / próximos passos:** os seis handoffs acima. Tirar o `test.fail` de QA8-2 e as linhas de `known` em `a11y.spec.ts` conforme os donos corrigirem. Lighthouse e o tempo do mês quando houver build servido.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:14 (BRT)
+
+- **Branch:** `fix/proof-kit-consent-v3` (base `feat/phase-8-polish`, `c2d46b5`)
+- **Agente(s):** backend-funcoes
+- **Resumo:** corrige QA8-9. Os fixtures dos testes de função gravavam o aceite da prova com versão fixa `2`, e o banco só aceita a 3. Agora leem `proofRules.consentVersion`; o opt-in do WhatsApp dos fixtures passa a ler `whatsappRules.consentVersion` (hoje 1, mesmo valor).
+- **Arquivos:** `supabase/functions/_shared/proof-kit.ts`, `supabase/functions/proof-validate/validate.integration.test.ts`, `supabase/functions/dispatch-notifications/dispatch.integration.test.ts`, `supabase/functions/whatsapp-webhook/webhook.integration.test.ts`. Imports relativos de `packages/config/src/*.ts`, sem `import.meta`, porque a E2E importa o `proof-kit.ts`.
+- **Como testar:** pilha A, `pnpm exec supabase db reset`, `pnpm functions:test`.
+- **Verificado:**
+  - `pnpm functions:test` na pilha A depois de `db reset`: 207 testes, 207 ok, 0 falhas, 0 cancelados.
+  - `pnpm exec playwright test --list`: 94 testes em 26 arquivos, sem erro de compilação.
+  - `pnpm check` passou.
+  - Pilha A parada com `supabase stop`, sem `--all`; pilha B não tocada.
+- **Não verificado:** a E2E não rodou (só a listagem). O Prettier reformatou duas linhas depois do `functions:test`; mudança só de formatação, sem nova rodada.
+- **Hora:** o PowerShell foi bloqueado no ambiente; a hora é UTC menos 3.
+- **Pendências / próximos passos:** nenhuma.

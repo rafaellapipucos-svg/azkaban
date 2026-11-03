@@ -1,7 +1,7 @@
-import { TextInput, View, type TextInputProps } from 'react-native';
+import { View, type TextInputProps } from 'react-native';
 import { useController, type Control, type FieldPath, type FieldValues } from 'react-hook-form';
+import { Input } from './Input';
 import { Body, ErrorText } from './Text';
-import { colors } from './tokens';
 
 type Props<T extends FieldValues> = {
   control: Control<T>;
@@ -21,16 +21,12 @@ export function FormTextField<T extends FieldValues>({
   return (
     <View className="gap-1">
       <Body>{label}</Body>
-      <TextInput
+      <Input
         aria-label={label}
-        aria-invalid={fieldState.invalid}
+        invalid={fieldState.invalid}
         value={field.value ?? ''}
         onChangeText={field.onChange}
         onBlur={field.onBlur}
-        placeholderTextColor={colors.muted}
-        className={`min-h-12 rounded-md border-2 bg-surface px-4 font-body text-md text-text dark:bg-surface-dark dark:text-text-dark ${
-          fieldState.invalid ? 'border-danger' : 'border-border dark:border-border-dark'
-        }`}
         {...input}
       />
       {fieldState.invalid ? <ErrorText>{errorText}</ErrorText> : null}

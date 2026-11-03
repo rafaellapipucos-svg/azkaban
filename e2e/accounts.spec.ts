@@ -24,6 +24,12 @@ async function openTab(page: Page, name: string) {
   await page.getByRole('tab', { name }).or(page.getByRole('link', { name })).first().click();
 }
 
+// Grupos left the tab bar: it is reached from Perfil.
+async function openGroups(page: Page) {
+  await openTab(page, 'Perfil');
+  await button(page, 'Grupos').click();
+}
+
 test('signed-out visitors land on the welcome screen', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('Tudo em ordem, todo dia')).toBeVisible();
@@ -36,6 +42,8 @@ test('sign up, sign out and sign back in', async ({ page }) => {
   await page.goto('/');
   await button(page, 'Começar').click();
   await fillSignUp(page, user);
+  // Hoje is the start screen, and without a context it offers to create one
+  await expect(page.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
   await expect(button(page, 'Novo contexto')).toBeVisible();
 
   await openTab(page, 'Perfil');
@@ -68,9 +76,10 @@ test('invite flow keeps personal contexts private', async ({ browser }) => {
   await button(ownerPage, 'Novo contexto').click();
   await ownerPage.getByLabel('Nome', { exact: true }).fill('Diário secreto');
   await button(ownerPage, 'Salvar').click();
+  await openTab(ownerPage, 'Trabalho');
   await expect(ownerPage.getByText('Diário secreto').first()).toBeVisible();
 
-  await openTab(ownerPage, 'Grupos');
+  await openGroups(ownerPage);
   await button(ownerPage, 'Criar grupo').click();
   await ownerPage.getByLabel('Nome do grupo').fill('Casa A');
   await button(ownerPage, 'Criar grupo').click();
@@ -83,6 +92,7 @@ test('invite flow keeps personal contexts private', async ({ browser }) => {
   await ownerPage.getByLabel('Nome', { exact: true }).fill('Cozinha');
   await ownerPage.getByRole('radio', { name: 'Casa A' }).click();
   await button(ownerPage, 'Salvar').click();
+  await openTab(ownerPage, 'Trabalho');
   await expect(ownerPage.getByText('Cozinha').first()).toBeVisible();
 
   // The invitee arrives through the link without an account
@@ -100,7 +110,7 @@ test('invite flow keeps personal contexts private', async ({ browser }) => {
   await expect(button(memberPage, 'Sair do grupo')).toBeVisible();
 
   // Group context is shared, the owner's personal one is not
-  await memberPage.goto('/');
+  await memberPage.goto('/contexts');
   await memberPage.getByRole('radio', { name: /Doméstico/ }).click();
   await memberPage.getByRole('radio', { name: /Trabalho/ }).click();
   await expect(memberPage.getByText('Diário secreto')).toHaveCount(0);
@@ -124,7 +134,7 @@ test('magic link signs the user in', async ({ page, request }) => {
   await button(page, 'Receber link por e-mail').click();
   await expect(page.getByText('Enviamos um link para o seu e-mail.')).toBeVisible();
 
-  const mail = 'http://127.0.0.1:54324/api/v1';
+  const mail = 'http://127.0.0.1:54424/api/v1';
   await expect
     .poll(async () => {
       const search = await request.get(`${mail}/search?query=to:${user.email}`);

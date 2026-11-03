@@ -5,10 +5,12 @@ import { deviceTimezone } from '@azkaban/platform';
 import { Body, Button, ErrorText, FormTextField, Mascot, Screen, Title } from '@azkaban/ui';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { View } from 'react-native';
 
-export function ProfileScreen() {
+/** `children` are extra entries the app puts above the sign-out button, such as the groups link. */
+export function ProfileScreen({ children }: { children?: ReactNode }) {
   const { t } = useTranslation('auth');
   const queryClient = useQueryClient();
   const profile = useQuery({ queryKey: ['profile'], queryFn: profilesRepository.getMine });
@@ -59,6 +61,7 @@ export function ProfileScreen() {
         loading={save.isPending}
         onPress={handleSubmit((values) => save.mutate(values))}
       />
+      {children}
       <Button
         variant="secondary"
         label={t('profile.signOut')}

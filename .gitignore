@@ -31,3 +31,6 @@ supabase/.temp/
 .claude/settings.local.json
 .DS_Store
 Thumbs.db
+
+# Agent worktrees
+.claude/worktrees/

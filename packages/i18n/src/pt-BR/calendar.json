@@ -1,0 +1,87 @@
+{
+  "title": "Calendário",
+  "loading": "Carregando o calendário…",
+  "errors": {
+    "load": "Não deu para carregar o calendário.",
+    "retry": "Tentar de novo"
+  },
+  "views": {
+    "label": "Visão do calendário",
+    "month": "Mês",
+    "week": "Semana",
+    "day": "Dia"
+  },
+  "nav": {
+    "today": "Hoje",
+    "range": "{{from}} a {{to}}",
+    "previous": {
+      "month": "Mês anterior",
+      "week": "Semana anterior",
+      "day": "Dia anterior"
+    },
+    "next": {
+      "month": "Próximo mês",
+      "week": "Próxima semana",
+      "day": "Próximo dia"
+    }
+  },
+  "scope": {
+    "label": "De quem é o calendário",
+    "mine": "Meu calendário",
+    "member": "De um membro",
+    "team": "Time inteiro",
+    "groupLabel": "Grupo",
+    "memberLabel": "Membro",
+    "noMembers": "Este grupo ainda não tem outros membros.",
+    "viewing": {
+      "member": "Calendário de {{name}}, no grupo {{group}}",
+      "team": "Time inteiro do grupo {{group}}"
+    }
+  },
+  "filters": {
+    "toggle": "Filtros",
+    "toggleActive": "Filtros ({{count}})",
+    "area": "Área",
+    "context": "Contexto",
+    "status": "Estado",
+    "allAreas": "Todas",
+    "allContexts": "Todos",
+    "allStatuses": "Todos",
+    "clear": "Limpar filtros"
+  },
+  "day": {
+    "summary": {
+      "none": "{{date}}, sem tarefas",
+      "some_one": "{{date}}, {{count}} tarefa: {{parts}}",
+      "some_other": "{{date}}, {{count}} tarefas: {{parts}}",
+      "perfect": "dia perfeito"
+    },
+    "count": {
+      "pending_one": "{{count}} pendente",
+      "pending_other": "{{count}} pendentes",
+      "done_one": "{{count}} feita",
+      "done_other": "{{count}} feitas",
+      "partial_one": "{{count}} tentada",
+      "partial_other": "{{count}} tentadas",
+      "missed_one": "{{count}} não feita",
+      "missed_other": "{{count}} não feitas"
+    },
+    "perfect": "Dia perfeito! Tudo feito neste dia.",
+    "empty": "Nada marcado para este dia.",
+    "selectHint": "Toque em um dia para ver as tarefas dele.",
+    "newOnDay": "Nova tarefa neste dia",
+    "openDay": "Ver o dia",
+    "openDayLabel": "Abrir {{date}}",
+    "deadlines": "Prazos do dia",
+    "noDeadlines": "Nenhum prazo vence neste dia.",
+    "allDay": "Dia todo",
+    "newAt": "Nova tarefa às {{time}}",
+    "count_one": "{{count}} tarefa",
+    "count_other": "{{count}} tarefas"
+  },
+  "item": {
+    "label": "{{title}}, {{when}}, {{status}}",
+    "dueAt": "até {{time}}"
+  },
+  "limit": "Tarefas que se repetem aparecem até {{date}}. Depois dessa data, o calendário mostra só o que já foi criado."
+}

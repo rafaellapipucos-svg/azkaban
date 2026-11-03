@@ -22,3 +22,11 @@ Moti, Lottie, TanStack Query, Zustand, formulários, datas, rrule e Playwright e
 
 - Componentes ficam restritos a primitivos do React Native, mesmo na web.
 - Hospedagem web fica para um ADR próprio, após a resposta do humano.
+
+## Nota da Fase 2: `date-fns-tz` fora
+
+**Status:** decisão do arquiteto, sujeita à validação do humano na aprovação da fase.
+
+A seção 4 do prompt mestre recomenda `date-fns-tz`, mas ele ficou fora: `packages/core` usa só `Intl` para fuso. Na versão 3.2.0, `getTimezoneOffset('America/New_York', new Date('2026-03-08T06:59:59Z'))` devolve -4 em vez de -5, um erro justamente ao redor da virada de horário de verão, que a recorrência precisa acertar.
+
+`date-fns`, sem o `-tz`, continua permitido na UI, se for útil.

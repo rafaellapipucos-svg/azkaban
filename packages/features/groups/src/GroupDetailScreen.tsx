@@ -1,5 +1,5 @@
 import { groupInputSchema, type GroupMember, type GroupRole } from '@azkaban/contracts';
-import { can } from '@azkaban/core';
+import { can, canRemoveMember, memberActions } from '@azkaban/core';
 import { groupsRepository } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import {
@@ -16,12 +16,23 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
+import type { ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { InvitesSection } from './InvitesSection';
 
 const nameSchema = groupInputSchema.pick({ name: true });
+const setRoleLabel = { admin: 'detail.makeAdmin', member: 'detail.makeMember' } as const;
 
-export function GroupDetailScreen({ groupId, userId }: { groupId: string; userId: string }) {
+export function GroupDetailScreen({
+  groupId,
+  userId,
+  children,
+}: {
+  groupId: string;
+  userId: string;
+  /** Entry points other modules add to this group's page, such as the team view. */
+  children?: ReactNode;
+}) {
   const { t } = useTranslation('groups');
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -83,31 +94,29 @@ export function GroupDetailScreen({ groupId, userId }: { groupId: string; userId
 
   if (!group) return <Screen>{null}</Screen>;
 
-  const memberActions = (member: GroupMember) => {
-    if (member.userId === userId || member.role === 'owner') return null;
+  const renderActions = (member: GroupMember) => {
+    const actions = memberActions(user, scope, {
+      role: member.role,
+      self: member.userId === userId,
+    });
+    const { setRoleTo } = actions;
     return (
       <>
-        {can(user, 'member.change_role', scope) ? (
+        {setRoleTo ? (
           <Button
             variant="secondary"
-            label={t(member.role === 'admin' ? 'detail.makeMember' : 'detail.makeAdmin')}
-            onPress={() =>
-              setRole.mutate({
-                memberId: member.userId,
-                role: member.role === 'admin' ? 'member' : 'admin',
-              })
-            }
+            label={t(setRoleLabel[setRoleTo])}
+            onPress={() => setRole.mutate({ memberId: member.userId, role: setRoleTo })}
           />
         ) : null}
-        {can(user, 'group.transfer', scope) ? (
+        {actions.transfer ? (
           <ConfirmButton
             label={t('detail.transfer')}
             confirmLabel={t('detail.transferConfirm')}
             onConfirm={() => transfer.mutate(member.userId)}
           />
         ) : null}
-        {can(user, 'member.remove', scope) &&
-        (member.role === 'member' || can(user, 'member.change_role', scope)) ? (
+        {actions.remove ? (
           <ConfirmButton
             label={t('detail.remove')}
             confirmLabel={t('detail.removeConfirm')}
@@ -147,9 +156,11 @@ export function GroupDetailScreen({ groupId, userId }: { groupId: string; userId
             {member.userId === userId ? ` (${t('detail.you')})` : ''}
           </Body>
           <Muted>{t(`roles.${member.role}`)}</Muted>
-          {memberActions(member)}
+          {renderActions(member)}
         </Card>
       ))}
+
+      {children}
 
       {can(user, 'member.invite', scope) ? (
         <InvitesSection
@@ -160,14 +171,14 @@ export function GroupDetailScreen({ groupId, userId }: { groupId: string; userId
 
       {failed ? <ErrorText>{t('errors.generic')}</ErrorText> : null}
 
-      {group.role === 'owner' ? null : (
+      {canRemoveMember(user, scope, { role: group.role, self: true }) ? (
         <ConfirmButton
           label={t('detail.leave')}
           confirmLabel={t('detail.leaveConfirm')}
           loading={leave.isPending}
           onConfirm={() => leave.mutate()}
         />
-      )}
+      ) : null}
       {can(user, 'group.delete', scope) ? (
         <ConfirmButton
           label={t('detail.delete')}

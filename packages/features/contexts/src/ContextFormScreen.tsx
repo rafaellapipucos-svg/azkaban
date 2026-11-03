@@ -133,6 +133,8 @@ export function ContextFormScreen({ contextId, areaId }: { contextId?: string; a
         <Button
           label={t('actions.save')}
           loading={save.isPending}
+          // Before the areas arrive the form has no area, and saving would do nothing, silently.
+          disabled={!areas.isSuccess}
           onPress={handleSubmit((values) => save.mutate(values))}
         />
       )}

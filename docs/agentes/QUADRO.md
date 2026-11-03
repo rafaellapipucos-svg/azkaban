@@ -26,20 +26,20 @@ Status: a fazer, em andamento, bloqueado, em revisão, feito. Handoffs em [hando
 
 ## Fase 2: Tarefas e calendário
 
-| ID    | Título                                                                  | Agente             | Status  | Depende de | Branch | Handoff |
-| ----- | ----------------------------------------------------------------------- | ------------------ | ------- | ---------- | ------ | ------- |
-| F2-1  | Contratos de tarefa, ocorrência e estado                                | arquiteto          | a fazer | F1         | —      | —       |
-| F2-2  | Migrations de tasks, occurrences, history e xp_events, com RLS e testes | banco-de-dados     | a fazer | F2-1       | —      | —       |
-| F2-3  | Máquina de estados em core                                              | tarefas-calendario | a fazer | F2-1       | —      | —       |
-| F2-4  | Recorrência: RRULE, EXDATE e fuso em core                               | tarefas-calendario | a fazer | F2-1       | —      | —       |
-| F2-5  | Job de materialização de ocorrências                                    | backend-funcoes    | a fazer | F2-2, F2-4 | —      | —       |
-| F2-6  | Criar, editar, duplicar, reagendar e excluir tarefa, com criação rápida | tarefas-calendario | a fazer | F2-3       | —      | —       |
-| F2-7  | Editor de recorrência: só esta, esta e próximas, todas                  | tarefas-calendario | a fazer | F2-4, F2-6 | —      | —       |
-| F2-8  | Tela Hoje e abas Trabalho e Doméstico com sub-abas                      | tarefas-calendario | a fazer | F2-6       | —      | —       |
-| F2-9  | Calendário: mês, semana, dia, filtros, dia perfeito                     | tarefas-calendario | a fazer | F2-6       | —      | —       |
-| F2-10 | Visão Equipe                                                            | tarefas-calendario | a fazer | F2-8       | —      | —       |
-| F2-11 | ADR de concluído atrasado                                               | arquiteto          | a fazer | F2-3       | —      | —       |
-| F2-12 | Registrar eventos de XP nas transições                                  | tarefas-calendario | a fazer | F2-3       | —      | —       |
+| ID    | Título                                                                  | Agente             | Status     | Depende de | Branch                 | Handoff                                                             |
+| ----- | ----------------------------------------------------------------------- | ------------------ | ---------- | ---------- | ---------------------- | ------------------------------------------------------------------- |
+| F2-1  | Contratos de tarefa, ocorrência e estado                                | arquiteto          | em revisão | F1         | feat/tasks-contracts   | —                                                                   |
+| F2-2  | Migrations de tasks, occurrences, history e xp_events, com RLS e testes | banco-de-dados     | em revisão | F2-1       | feat/tasks-db          | 20261101-0935-arquiteto-para-banco-de-dados-tarefas.md              |
+| F2-3  | Máquina de estados em core                                              | tarefas-calendario | em revisão | F2-1       | feat/tasks-core        | 20261101-0935-arquiteto-para-tarefas-calendario-tarefas.md          |
+| F2-4  | Recorrência: RRULE, EXDATE e fuso em core                               | tarefas-calendario | em revisão | F2-1       | feat/tasks-core        | 20261101-0935-arquiteto-para-tarefas-calendario-tarefas.md          |
+| F2-5  | Job de materialização de ocorrências                                    | backend-funcoes    | em revisão | F2-2, F2-4 | feat/tasks-materialize | 20261101-1006-banco-de-dados-para-backend-funcoes-materializacao.md |
+| F2-6  | Criar, editar, duplicar, reagendar e excluir tarefa, com criação rápida | tarefas-calendario | em revisão | F2-3       | feat/tasks-screens     | —                                                                   |
+| F2-7  | Editor de recorrência: só esta, esta e próximas, todas                  | tarefas-calendario | em revisão | F2-4, F2-6 | feat/tasks-screens     | —                                                                   |
+| F2-8  | Tela Hoje e abas Trabalho e Doméstico com sub-abas                      | tarefas-calendario | em revisão | F2-6       | feat/tasks-screens     | —                                                                   |
+| F2-9  | Calendário: mês, semana, dia, filtros, dia perfeito                     | tarefas-calendario | em revisão | F2-6       | feat/tasks-calendar    | —                                                                   |
+| F2-10 | Visão Equipe                                                            | tarefas-calendario | em revisão | F2-8       | feat/tasks-calendar    | —                                                                   |
+| F2-11 | ADR de concluído atrasado                                               | arquiteto          | em revisão | F2-1       | feat/tasks-contracts   | —                                                                   |
+| F2-12 | Cálculo de XP para a tela; a gravação é do banco, em F2-2               | tarefas-calendario | em revisão | F2-3       | feat/tasks-screens     | —                                                                   |
 
 ## Fase 3: Prova por foto
 
@@ -55,15 +55,17 @@ Status: a fazer, em andamento, bloqueado, em revisão, feito. Handoffs em [hando
 
 ## Fase 4: Notificações
 
-| ID   | Título                                                       | Agente                | Status  | Depende de | Branch | Handoff |
-| ---- | ------------------------------------------------------------ | --------------------- | ------- | ---------- | ------ | ------- |
-| F4-1 | Migrations de preferências, push_subscriptions e outbox      | banco-de-dados        | a fazer | F2         | —      | —       |
-| F4-2 | `dispatch-notifications` com pg_cron, idempotência e backoff | backend-funcoes       | a fazer | F4-1       | —      | —       |
-| F4-3 | Canal in-app com Realtime e sino                             | notificacoes-whatsapp | a fazer | F4-1       | —      | —       |
-| F4-4 | Web Push, PWA e service worker, com explicação para iPhone   | notificacoes-whatsapp | a fazer | F4-2       | —      | —       |
-| F4-5 | Tela de preferências e horário de silêncio                   | notificacoes-whatsapp | a fazer | F4-1       | —      | —       |
-| F4-6 | Job de vermelho automático                                   | backend-funcoes       | a fazer | F2-3       | —      | —       |
-| F4-7 | Avisos ao admin                                              | notificacoes-whatsapp | a fazer | F4-2       | —      | —       |
+| ID   | Título                                                                                                     | Agente                | Status  | Depende de | Branch | Handoff                                                                         |
+| ---- | ---------------------------------------------------------------------------------------------------------- | --------------------- | ------- | ---------- | ------ | ------------------------------------------------------------------------------- |
+| F4-1 | Migrations de preferências, push_subscriptions e outbox                                                    | banco-de-dados        | a fazer | F2         | —      | —                                                                               |
+| F4-2 | `dispatch-notifications` com pg_cron, idempotência e backoff                                               | backend-funcoes       | a fazer | F4-1       | —      | —                                                                               |
+| F4-3 | Canal in-app com Realtime e sino                                                                           | notificacoes-whatsapp | a fazer | F4-1       | —      | —                                                                               |
+| F4-4 | Web Push, PWA e service worker, com explicação para iPhone                                                 | notificacoes-whatsapp | a fazer | F4-2       | —      | —                                                                               |
+| F4-5 | Tela de preferências e horário de silêncio                                                                 | notificacoes-whatsapp | a fazer | F4-1       | —      | —                                                                               |
+| F4-6 | Job de vermelho automático                                                                                 | backend-funcoes       | a fazer | F2-3       | —      | —                                                                               |
+| F4-7 | Avisos ao admin                                                                                            | notificacoes-whatsapp | a fazer | F4-2       | —      | —                                                                               |
+| F4-8 | Devolver `failed` e `deferred` da materialização ao cliente e criar `taskDefaults.materializationPastDays` | backend-funcoes       | a fazer | F2         | —      | 20261101-1604-backend-funcoes-para-arquiteto-limite-de-cpu-da-materializacao.md |
+| F4-9 | PWA, manifest, `theme-color` e título por tela, com marcos de página                                       | notificacoes-whatsapp | a fazer | F4-4       | —      | 20261101-1509-tarefas-calendario-para-arquiteto-casca-do-app-resolvida.md       |
 
 ## Fase 5: WhatsApp
 

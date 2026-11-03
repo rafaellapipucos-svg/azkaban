@@ -26,6 +26,7 @@ pnpm db:types           # gera os tipos do banco em packages/data
 pnpm db:test            # testes de RLS (pgTAP)
 pnpm db:check-permissions # compara a matriz do banco com packages/core
 pnpm e2e                # Playwright (exige `pnpm db:start`)
+pnpm functions:test     # Edge Functions (exige `pnpm exec supabase functions serve`)
 ```
 
 ## Regras de arquitetura

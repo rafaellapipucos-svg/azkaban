@@ -2,9 +2,11 @@ import { defaults } from '@azkaban/config';
 import i18next from 'i18next';
 import { initReactI18next, useTranslation } from 'react-i18next';
 import auth from './pt-BR/auth.json';
+import calendar from './pt-BR/calendar.json';
 import common from './pt-BR/common.json';
 import contexts from './pt-BR/contexts.json';
 import groups from './pt-BR/groups.json';
+import tasks from './pt-BR/tasks.json';
 import ui from './pt-BR/ui.json';
 
 export function initI18n() {
@@ -13,7 +15,7 @@ export function initI18n() {
     fallbackLng: defaults.locale,
     defaultNS: 'common',
     fallbackNS: 'common',
-    resources: { [defaults.locale]: { common, auth, groups, contexts, ui } },
+    resources: { [defaults.locale]: { common, auth, calendar, groups, contexts, tasks, ui } },
     interpolation: { escapeValue: false },
   });
 }

@@ -24,7 +24,7 @@ jobs:
         env:
           EXPO_PUBLIC_APP_NAME: CI
           EXPO_PUBLIC_APP_SCHEME: azkaban
-          EXPO_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          EXPO_PUBLIC_SUPABASE_URL: http://127.0.0.1:54421
           EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci
 
   database-and-e2e:
@@ -33,7 +33,7 @@ jobs:
       # The demo values every local Supabase prints; not secrets.
       EXPO_PUBLIC_APP_NAME: CI
       EXPO_PUBLIC_APP_SCHEME: azkaban
-      EXPO_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      EXPO_PUBLIC_SUPABASE_URL: http://127.0.0.1:54421
       EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH
     steps:
       - uses: actions/checkout@v4
@@ -46,5 +46,17 @@ jobs:
       - run: pnpm db:start
       - run: pnpm db:test
       - run: pnpm db:check-permissions
+      - run: cp supabase/functions/.env.example supabase/functions/.env
+      - run: nohup pnpm exec supabase functions serve > /tmp/functions.log 2>&1 &
+      - name: Wait for the function
+        run: |
+          for attempt in $(seq 1 30); do
+            status=$(curl -s -o /dev/null -w '%{http_code}' -X OPTIONS http://127.0.0.1:54421/functions/v1/materialize-occurrences)
+            case "$status" in 2*) exit 0 ;; esac
+            sleep 2
+          done
+          cat /tmp/functions.log
+          exit 1
+      - run: pnpm functions:test
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm e2e

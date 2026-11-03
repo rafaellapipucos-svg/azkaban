@@ -5,6 +5,8 @@ export const colors = {
   onPrimary: '#FFFFFF',
   danger: '#C8283D',
   dangerEdge: '#8F1626',
+  // Red text and borders on the dark theme: `danger` is only 2.9:1 on surface-dark.
+  'danger-light': '#F2677A',
   background: '#FBF8FF',
   'background-dark': '#16121F',
   surface: '#FFFFFF',
@@ -27,6 +29,10 @@ export const colors = {
   onPartial: '#2B2000',
   onMissed: '#FFFFFF',
   onCancelled: '#FFFFFF',
+  // Darker bottom edge of the 3D status controls, like primaryEdge on Button.
+  doneEdge: '#075B3C',
+  partialEdge: '#B58500',
+  cancelledEdge: '#4F4A5E',
 } as const;
 
 // Stored by name in areas.color_token and contexts.color_token. All pass AA with white text.
@@ -61,3 +67,31 @@ export const fontFamily = {
 export const fontSize = { sm: 14, md: 16, lg: 20, xl: 32 } as const;
 
 export const layout = { maxContentWidth: 560, tabBarHeight: 64 } as const;
+
+/** Pixel sizes for controls drawn with SVG or inline styles. `touch` is the minimum target. */
+export const sizes = {
+  touch: 44,
+  field: 48,
+  check: 48,
+  fab: 56,
+  ring: 96,
+  ringStroke: 10,
+  switchWidth: 52,
+  switchHeight: 32,
+  switchThumb: 24,
+  stepperValue: 64,
+  /** The "late" corner mark on TaskCheck. */
+  lateBadge: 20,
+  /** StatusMark: `dot` fits a month cell, `row` a list line. */
+  statusDot: 16,
+  statusRow: 24,
+  border: 2,
+  mascot: 120,
+  mascotSmall: 80,
+} as const;
+
+/** Animation durations in ms. Components skip them entirely when the user asks for reduced motion. */
+export const motion = { fast: 150, base: 450 } as const;
+
+/** Opacities for layers drawn over content. */
+export const opacity = { scrim: 0.4 } as const;

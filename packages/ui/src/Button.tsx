@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, Text } from 'react-native';
-import { colors } from './tokens';
+import { colors, sizes } from './tokens';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'danger';
 
@@ -33,7 +33,8 @@ export function Button({ label, onPress, variant = 'primary', disabled, loading 
       aria-disabled={inactive}
       disabled={inactive}
       onPress={onPress}
-      className={`min-h-12 items-center justify-center rounded-md border-b-4 px-6 py-3 active:translate-y-1 active:border-b-0 ${box} ${inactive ? 'opacity-60' : ''}`}
+      style={{ minHeight: sizes.field }}
+      className={`items-center justify-center rounded-md border-b-4 px-6 py-3 active:translate-y-1 active:border-b-0 ${box} ${inactive ? 'opacity-60' : ''}`}
     >
       {loading ? (
         <ActivityIndicator color={variant === 'secondary' ? colors.primary : colors.onPrimary} />

@@ -9,8 +9,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@azkaban/config": "workspace:*",
     "@azkaban/contracts": "workspace:*",
     "@azkaban/platform": "workspace:*",
-    "@supabase/supabase-js": "catalog:"
+    "@supabase/supabase-js": "catalog:",
+    "@tanstack/react-query": "^5.105.0",
+    "react": "catalog:"
   }
 }

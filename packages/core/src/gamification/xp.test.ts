@@ -48,15 +48,15 @@ describe('occurrenceXpWithBonus (ADR-0010 section 1)', () => {
   });
 });
 
-describe('capRoom (ADR-0010 section 2)', () => {
+describe('capRoom (ADR-0010 sections 2 and 14)', () => {
   let seq = 0;
-  // An event written today; `occ` null is an event without occurrence, counted on its own.
-  const ev = (reason: XpEventReason, amount: number, occ: string | null = `occ-${++seq}`) => ({
-    id: `event-${++seq}`,
-    occurrenceId: occ,
-    reason,
-    amount,
-  });
+  // An event in the window; `occ` null is an event without occurrence, counted on its own.
+  const ev = (
+    reason: XpEventReason,
+    amount: number,
+    occ: string | null = `occ-${++seq}`,
+    groupId: string | null = null,
+  ) => ({ id: `event-${++seq}`, occurrenceId: occ, groupId, reason, amount });
 
   it('is the whole cap with nothing today', () => {
     expect(capRoom([], CAP)).toBe(CAP);
@@ -112,6 +112,12 @@ describe('capRoom (ADR-0010 section 2)', () => {
     expect(capRoom(events, CAP)).toBe(CAP);
   });
 
+  it('charges private XP reopened and redone in a group (SEG6-3)', () => {
+    // A was +30 private before the window; reopened (-30, private) and redone in group G (+30).
+    const events = [ev('occurrence_reverted', -30, 'A'), ev('occurrence_done', 30, 'A', 'G')];
+    expect(capRoom(events, CAP)).toBe(270);
+  });
+
   it('sums the proof bonus with its occurrence', () => {
     const events = [ev('occurrence_done', 20, 'A'), ev('proof_bonus', 5, 'A')];
     expect(capRoom(events, CAP)).toBe(275);
@@ -142,11 +148,16 @@ describe('applyCap', () => {
   });
 
   it('closes mass XP: a day of many tasks stops at the cap', () => {
-    const events: { id: string; occurrenceId: string; reason: XpEventReason; amount: number }[] =
-      [];
+    const events: Parameters<typeof capRoom>[0][number][] = [];
     for (let i = 0; i < 40; i += 1) {
       const occ = (reason: XpEventReason, amount: number) =>
-        events.push({ id: `${events.length}`, occurrenceId: `occ-${i}`, reason, amount });
+        events.push({
+          id: `${events.length}`,
+          occurrenceId: `occ-${i}`,
+          groupId: null,
+          reason,
+          amount,
+        });
       const granted = applyCap({ base: 30, proofBonus: 5 }, capRoom(events, CAP));
       if (granted.base) occ('occurrence_done', granted.base);
       if (granted.proofBonus) occ('proof_bonus', granted.proofBonus);

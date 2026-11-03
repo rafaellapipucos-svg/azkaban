@@ -22,8 +22,8 @@ import {
 import { currentUserId, db } from '../client';
 import type { Json } from '../database.types';
 
-/** An event as the screens use it: `capRoom` groups by `occurrenceId`, else `id`. */
-export type XpEventItem = Pick<XpEvent, 'id' | 'occurrenceId' | 'reason' | 'amount'>;
+/** An event as the screens use it: `capRoom` groups by `occurrenceId` (else `id`) and `groupId`. */
+export type XpEventItem = Pick<XpEvent, 'id' | 'occurrenceId' | 'groupId' | 'reason' | 'amount'>;
 
 /** A new row of the user's, as the Realtime delivers it (ADR-0010, section 8). */
 export type GamificationRow =
@@ -36,13 +36,25 @@ export class RankingError extends Error {
   }
 }
 
-type XpEventRow = { id: string; occurrence_id: string | null; reason: string; amount: number };
+type XpEventRow = {
+  id: string;
+  occurrence_id: string | null;
+  group_id: string | null;
+  reason: string;
+  amount: number;
+};
 
 // A reason from a newer server is left out instead of failing the list or the burst.
 function toEventItem(row: XpEventRow): XpEventItem | null {
   const reason = xpEventReasonSchema.safeParse(row.reason);
   return reason.success
-    ? { id: row.id, occurrenceId: row.occurrence_id, reason: reason.data, amount: row.amount }
+    ? {
+        id: row.id,
+        occurrenceId: row.occurrence_id,
+        groupId: row.group_id,
+        reason: reason.data,
+        amount: row.amount,
+      }
     : null;
 }
 
@@ -129,11 +141,11 @@ export const gamificationRepository = {
     );
   },
 
-  /** The capped-reason events written from `since` on: today's, for "teto atingido". */
+  /** The capped-reason events written from `since` on: the cap window's, for "teto atingido". */
   async listCapEventsSince(since: string): Promise<XpEventItem[]> {
     const { data, error } = await db()
       .from('xp_events')
-      .select('id, occurrence_id, reason, amount')
+      .select('id, occurrence_id, group_id, reason, amount')
       .eq('user_id', await currentUserId())
       .in('reason', [...cappedXpEventReasons])
       .gte('created_at', since);
@@ -143,11 +155,11 @@ export const gamificationRepository = {
 
   /** Throws `RankingError` for `forbidden` and `ranking_disabled`. */
   async groupRanking(input: GroupRankingInput): Promise<GroupRankingRow[]> {
-    const { groupId, weekStart, timezone } = groupRankingInputSchema.parse(input);
+    const { groupId, weekStart } = groupRankingInputSchema.parse(input);
+    // The zone is the caller's profile, read by the server (ADR-0010, SEG6-4).
     const { data, error } = await db().rpc('group_ranking', {
       p_group_id: groupId,
       p_week_start: weekStart,
-      p_timezone: timezone,
     });
     if (error) {
       const code = rankingErrorCodeSchema.safeParse(error.message);

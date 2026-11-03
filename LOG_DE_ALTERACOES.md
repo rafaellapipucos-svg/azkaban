@@ -2003,3 +2003,22 @@
 - **Verificado:** `pnpm check` passou (17 de 17; core 688 testes; `functions:imports` 8 de 8).
 - **Não verificado:** `pnpm db:check-permissions` (sem pilha); ele acusa as quatro chaves novas até a migration do banco.
 - **Pendências / próximos passos:** migrations do `banco-de-dados` e a troca de `capRoom`, `useCapReached` e do repositório do ranking pelo `gamificacao`, integradas juntas; o humano confirma os itens 11 a 15.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:07 (BRT)
+
+- **Branch:** fix/gamification-client-security, criada a partir de feat/phase-6-gamification (6bb8f33)
+- **Agente(s):** gamificacao
+- **Resumo:** lado do cliente das decisões SEG6-1, SEG6-3 e SEG6-4 (ADR-0010, seção 14; handoff 20261103-0400-arquiteto-para-gamificacao). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - SEG6-1: `useCapReached` pede os eventos desde `now − capWindowHours`, sem fuso nem `zonedInstant`; a chave não leva o dia, uma rajada a refaz por `gamificationKey` e o relógio a cada `gamificationUi.capRefreshMs` (5 min). O aviso diz "nas últimas 24 horas".
+  - SEG6-3: `capRoom` agrupa por `(occurrenceId ?? id, groupId)`; `listCapEventsSince` e o Realtime levam `group_id`, e `XpEventItem` ganha `groupId`.
+  - SEG6-4: `groupRanking` chama `group_ranking(p_group_id, p_week_start)`; `groupRankingInputSchema` perde `timezone` (delegado pelo `arquiteto`); `useRanking` usa `gamificationRules.ranking.weekStartsOn` e só a semana corrente; `gamificationDefaults.rankingWeekStartsOn` apagado. O estado vazio explica que o ranking conta desde que foi ligado e desde a entrada.
+  - `database.types.ts`: a linha de `group_ranking` sem `p_timezone`, à mão, para o build passar até o `banco-de-dados` regenerar.
+  - E2E: textos novos do teto e do ranking vazio; o teto já não dependia da meia-noite.
+- **Arquivos/módulos principais:** `packages/core/src/gamification/xp{,.test}.ts`, `packages/data/src/{gamification/index.ts,database.types.ts}`, `packages/contracts/src/gamification.ts`, `packages/config/src/gamification.ts`, `packages/features/gamification/src/{hooks,config}.ts`, `packages/i18n/src/pt-BR/gamification.json`, `e2e/gamification.spec.ts`
+- **Migrations:** nenhuma (a do `banco-de-dados` entra junto)
+- **Decisões/ADRs:** ADR-0010, seção 14. Nenhuma nova.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/gamification/xp.test.ts`; com a pilha e a migration, `pnpm exec playwright test e2e/gamification.spec.ts`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 10 de 10; core 689 testes, `xp.test.ts` 18; `functions:imports` 8 de 8). `pnpm build:web` passou. `playwright test --list` carrega as 4 da spec. Mutação, desfeita: agrupar só pela ocorrência, sem `groupId`, derruba 1 de 18.
+- **Não verificado:** a E2E não rodou (pilha ocupada); o repositório não falou com um banco, e `group_ranking` de dois argumentos só existe com a migration; nenhuma tela aberta num navegador.
+- **Pendências / próximos passos:** integrar com a migration do `banco-de-dados`, deixando prevalecer o `database.types.ts` regenerado; rodar a E2E com a pilha.

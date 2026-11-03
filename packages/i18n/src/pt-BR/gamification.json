@@ -17,7 +17,7 @@
     "freezesHint": "Você ganha uma proteção a cada {{every}} dias seguidos, até {{max}}. Ela salva a ofensiva num dia em que a meta não foi cumprida. Um dia sem tarefas não conta nem quebra."
   },
   "goal": {
-    "capReached": "Você atingiu o limite de {{cap}} XP de hoje. As tarefas continuam contando para a meta e a ofensiva."
+    "capReached": "Você atingiu o limite de {{cap}} XP nas últimas 24 horas. As tarefas continuam contando para a meta e a ofensiva."
   },
   "days": {
     "title": "Últimos dias",
@@ -58,7 +58,7 @@
     "toggle": "Ranking no grupo",
     "toggleHint": "Os membros veem o nome e o XP da semana de cada um, só de tarefas deste grupo. Nível, ofensiva e conquistas continuam privados.",
     "disabled": "O ranking está desligado neste grupo.",
-    "empty": "Ninguém ganhou XP com tarefas deste grupo esta semana.",
+    "empty": "Ninguém ganhou XP com tarefas deste grupo esta semana. O ranking conta a partir de quando foi ligado e de quando você entrou no grupo.",
     "rank": "{{rank}}º",
     "xp": "{{xp}} XP",
     "forbidden": "Só membros do grupo veem o ranking.",

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { idSchema, instantSchema, localDateSchema, timezoneSchema } from './common';
+import { idSchema, instantSchema, localDateSchema } from './common';
 
 // Gamification (ADR-0010). `xp_events` is the source; everything here is a cache the database derives
 // from it and from the occurrences, and only the owner reads it. Level is not stored: core derives it
@@ -86,13 +86,11 @@ export type UserAchievement = z.infer<typeof userAchievementSchema>;
 /**
  * Arguments of the RPC `group_ranking`. The week is `[weekStart, weekStart + 7 days)` in the caller's
  * profile zone, read by the server. `weekStart` falls on `gamificationRules.ranking.weekStartsOn` and
- * is one of the last `ranking.maxWeeks` weeks (ADR-0010, SEG6-4). `timezone` goes away with the RPC's
- * `p_timezone`: `gamificacao` removes it here together with the repository.
+ * is one of the last `ranking.maxWeeks` weeks (ADR-0010, SEG6-4).
  */
 export const groupRankingInputSchema = z.object({
   groupId: idSchema,
   weekStart: localDateSchema,
-  timezone: timezoneSchema,
 });
 export type GroupRankingInput = z.infer<typeof groupRankingInputSchema>;
 

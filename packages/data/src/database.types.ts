@@ -843,7 +843,7 @@ isOneToOne: false
             }[]
                            },
 "group_ranking":
-{ Args: { "p_group_id": string,"p_timezone": string,"p_week_start": string }; Returns: {
+{ Args: { "p_group_id": string,"p_week_start": string }; Returns: {
               "display_name": string,"rank": number,"user_id": string,"xp": number
             }[]
                            },

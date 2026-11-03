@@ -54,8 +54,6 @@ export const gamificationDefaults = {
   level: { firstLevelXp: 100, growth: 1.25 },
   /** Per device. Sound is off until the user turns it on. A confirmar. */
   celebration: { sound: false, haptics: true },
-  /** Moved to `gamificationRules.ranking.weekStartsOn`; kept until the feature reads it there. */
-  rankingWeekStartsOn: gamificationRules.ranking.weekStartsOn,
   /** Streak days that get a milestone celebration. */
   streakMilestones: [7, 30, 100, 365],
 } as const;

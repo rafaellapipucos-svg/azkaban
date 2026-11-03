@@ -43,6 +43,9 @@ async function newGroup(page: Page, name: string, type?: string) {
   return page.url();
 }
 
+const emptyRanking =
+  'Ninguém ganhou XP com tarefas deste grupo esta semana. O ranking conta a partir de quando foi ligado e de quando você entrou no grupo.';
+
 const userId = (user: User) => sql(`select id from auth.users where email = '${user.email}'`)[0]!;
 
 test('finishing tasks: XP, the celebration with confetti, the goal ring, the streak and the first achievement', async ({
@@ -113,7 +116,7 @@ test('the ranking: on by default in a family group, off in a company until an ad
     'aria-checked',
     'true',
   );
-  await expect(text(page, 'Ninguém ganhou XP com tarefas deste grupo esta semana.')).toBeVisible();
+  await expect(text(page, emptyRanking)).toBeVisible();
   await newContext(page, 'Casa R', 'Família R');
   await quickCreate(page, 'Lavar o carro');
   await finish(page, 'Lavar o carro');
@@ -129,7 +132,7 @@ test('the ranking: on by default in a family group, off in a company until an ad
   await expect(text(page, 'O ranking está desligado neste grupo.')).toBeVisible();
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
-  await expect(text(page, 'Ninguém ganhou XP com tarefas deste grupo esta semana.')).toBeVisible();
+  await expect(text(page, emptyRanking)).toBeVisible();
 });
 
 test('at the daily cap a finished task writes no XP and is not celebrated, and the profile says so', async ({
@@ -138,7 +141,8 @@ test('at the daily cap a finished task writes no XP and is not celebrated, and t
   const user = newUser('Teto');
   await signUpWithContext(page, user);
   const id = userId(user);
-  // 300 already earned today, as the database would have written it.
+  // 300 earned within the last 24 hours, as the database would have written it. The window moves, so
+  // this holds at any hour, midnight included.
   sql(
     `insert into public.xp_events (user_id, amount, reason) values ('${id}', 300, 'occurrence_done')`,
   );
@@ -158,7 +162,7 @@ test('at the daily cap a finished task writes no XP and is not celebrated, and t
   await page.getByRole('tab', { name: 'Perfil' }).click();
   await expect(
     page.getByText(
-      'Você atingiu o limite de 300 XP de hoje. As tarefas continuam contando para a meta e a ofensiva.',
+      'Você atingiu o limite de 300 XP nas últimas 24 horas. As tarefas continuam contando para a meta e a ofensiva.',
     ),
   ).toBeVisible();
 });

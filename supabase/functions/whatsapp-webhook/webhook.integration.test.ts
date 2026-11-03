@@ -231,4 +231,15 @@ describe('whatsapp-webhook', () => {
     assert.equal((await inbox(stopper.phone)).length, 1);
     assert.equal((await inbox(button.phone)).length, 1);
   });
+
+  test('a status out of shape does not drop the PARAR in the same batch (SEG5-3)', async () => {
+    const stopper = await readyPerson('mixed');
+    const body = webhook({
+      statuses: [{ id: `wamid.${randomUUID()}`, status: 'failed', errors: [{ code: 'text' }] }],
+      messages: [textFrom(stopper.waId, 'PARAR\u200b')],
+    });
+    assert.equal((await post(body)).status, 200);
+    assert.equal((await optOut(stopper.id)).whatsapp_opt_out_source, 'webhook');
+    assert.equal((await inbox(stopper.phone)).length, 1);
+  });
 });

@@ -28,6 +28,8 @@ const startedSchema = z.union([
     resendAt: z.string(),
   }),
   z.object({ error: z.literal('phone_rate_limited'), retryAfterSeconds: z.int().min(0) }),
+  // Another country code than `whatsappRules.verification.allowedCountryCodes` (SEG5-5).
+  z.object({ error: z.literal('phone_country_not_allowed') }),
 ]);
 
 Deno.serve(async (req) => {
@@ -71,10 +73,9 @@ Deno.serve(async (req) => {
       return reply(500, { error: 'internal' });
     }
     if ('error' in result.data) {
-      console.log(
-        JSON.stringify({ event: 'phone_verification_refused', code: 'phone_rate_limited' }),
-      );
-      return reply(429, result.data);
+      const refused = result.data;
+      console.log(JSON.stringify({ event: 'phone_verification_refused', code: refused.error }));
+      return reply(refused.error === 'phone_rate_limited' ? 429 : 400, refused);
     }
     const { code, expiresAt, resendAt } = result.data;
 

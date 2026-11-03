@@ -3709,3 +3709,25 @@
 - **Verificado:** `quickCreateAction.test.ts`, 4 testes (carregando, vazio, com contextos, erro), PASS. `pnpm check` passou.
 - **Não verificado:** sem pilha, sem E2E (pilha A com outro agente) e sem abrir no navegador; a repetição de `e2e/a11y.spec.ts` do handoff fica para `qa-testes`. Nativo. Hora derivada de UTC menos 3 (PowerShell barrado).
 - **Pendências / próximos passos:** `design-system`, se quiserem: `loading`/`disabled` acessível no `Fab`. Caso raro não tratado: erro, folha aberta, "Tentar de novo" volta com zero contextos; a folha fica sem contexto e "Criar" mostra erro.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 11:57 (BRT)
+
+- **Branch:** fix/global-transition-reduce (a partir de `feat/backlog-after-phase-8`, `765f4b4`)
+- **Agente(s):** design-system
+- **Resumo:** A intermitência "running animations with reduce" de `e2e/a11y.spec.ts` (handoff `20261103-1115`) era o aviso de Fast Refresh do servidor de dev do Expo, que anima `opacity`, `filter` e `transform` sem olhar o reduce. Agora ele respeita `prefers-reduced-motion`.
+- **Alterações:**
+  - Causa: `expo/src/environment/DevLoadingView.web.tsx` (só em dev, por `withDevTools`) desenha `.__expo_fast_refresh`, um raio em SVG sem texto nem rótulo, com `transition: all 150ms`, a cada `update-start` do HMR. No Windows o watcher do Metro conta como mudança a atualização do último acesso de um arquivo, até por uma leitura (a mesma do `supabase functions serve` em `playwright.config.ts`): com `DEBUG=Metro:DeltaCalculator`, os workers do Playwright lendo `node_modules` (`@nodelib/*`, `@supabase/*`, `supabase/package.json`) dispararam "Handling change" no meio da spec. Daí telas, larguras e esquemas ao acaso.
+  - `apps/app/public/index.html`: com `prefers-reduced-motion: reduce`, `html .__expo_fast_refresh { transition: none; }`. Fica no modelo só da web (o NativeWind não lê), e o `html` vence a regra do próprio Expo, que vem depois na página. A regra da spec não mudou.
+- **Arquivos/módulos principais:** `apps/app/public/index.html`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. Mudança mínima num arquivo do app, fora de `packages/ui`.
+- **Como testar:** `pnpm db:start` e `pnpm exec playwright test e2e/a11y.spec.ts --project=app --no-deps --repeat-each=6`, com `EXPO_PUBLIC_VAPID_PUBLIC_KEY` no ambiente. Para forçar o aviso, toque um arquivo do app a cada segundo durante a rodada (`touch apps/app/src/env.ts`).
+- **Verificado:**
+  - Antes, `--repeat-each=6`: 1 de 6 falhou com as três transições em `.__expo_fast_refresh` (achado trocando, por um momento, `short(target)` pelo `outerHTML` e a cadeia de pais; desfeito).
+  - Script avulso no servidor de dev, tocando um arquivo: sem reduce, `filter`, `opacity` e `transform` rodando no aviso; com reduce, `transition: none` e nenhuma animação.
+  - Controle, sem a correção e com o toque a cada segundo, `--repeat-each=2`: 2 de 2 falharam (16 e 20 problemas, todos "running animations with reduce").
+  - Com a correção: `--repeat-each=6` 6 de 6 com `0 problems`; com o toque a cada segundo, `--repeat-each=6` 6 de 6 com `0 problems`.
+  - Build (`E2E_BUILD=1`), `--repeat-each=2`: 2 de 2 com `0 problems`; no build o aviso nem existe (`withDevTools` só fora de `production`). A primeira tentativa travou no cadastro com `ZodError`: com `EXPO_NO_DOTENV` o build só lê `.env.development.local`, que não tem `EXPO_PUBLIC_APP_NAME` nem `EXPO_PUBLIC_APP_SCHEME`; passados no shell, rodou.
+  - `pnpm check` passou.
+- **Não verificado:** nativo (o aviso nativo é outro, do React Native); CI no Linux; Windows com `fsutil behavior set disablelastaccess 1`, que tiraria as mudanças falsas do Metro (configuração da máquina, não do repositório). Hora pela hora local do Git Bash (PowerShell barrado).
+- **Pendências / próximos passos:** o aviso falso de "Refreshing..." no Windows continua no dev (sem efeito no produto); se incomodar, o humano pode desligar a atualização do último acesso no NTFS.

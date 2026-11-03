@@ -2616,3 +2616,19 @@
 - **Verificado:** `pnpm db:test` 12 arquivos, 1886 testes, PASS; `pnpm db:check-permissions` em sincronia (`supabase_db_azkaban-b`); `pnpm check` passou (17 de 17). Mutações, cada uma numa transação desfeita, 5 de 5 mortas: mínimo 2 em vez de 3, contar itens não marcados, sem limite por dia, contar dias anteriores, sem o `unique`. Controle sem mutação, 16 de 16.
 - **Não verificado:** o projeto hospedado; a corrida de duas finalizações simultâneas da mesma pessoa (só a trava, sem teste concorrente); a tela e a comemoração do evento novo.
 - **Pendências / próximos passos:** `xpEventSchema` e o comentário de `xpEventReasonSchema` em `packages/contracts/src/tasks.ts` ainda chamam `shopping_completed` de reservado e não têm `shoppingListId` (o Zod descarta a coluna a mais, nada quebra).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:33 (BRT)
+
+- **Branch:** feat/proof-consent-v3, criada a partir de feat/phase-8-polish (439f363)
+- **Agente(s):** prova-foto
+- **Resumo:** o texto da versão 3 do aviso da prova (ADR-0012, seção 6; handoff `20261103-0619-auth-grupos-para-prova-foto-frase-de-exclusao-do-aviso`). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `proof.consent.deletion` passa a ter uma frase por versão, como `whatsapp.consent.v1`: `v2` guarda a antiga e `v3` diz que o aceite se revoga em Perfil > Privacidade e que as fotos já enviadas seguem o prazo de `retentionDays` e só saem antes com a exclusão da conta. A tela escolhe a frase por `proofRules.consentVersion`, então mostra a v2 até o `banco-de-dados` subir o número, e a v3 depois, sem outro commit.
+  - E2E sem o número fixo: `e2e/proof-fixtures.ts` e `e2e/privacy.spec.ts` gravam o aceite com `proofRules.consentVersion`; `expectNotice` de `e2e/proof-capture.spec.ts` espera a frase da versão em vigor.
+- **Arquivos/módulos principais:** `packages/i18n/src/pt-BR/proof.json`, `packages/features/proof/src/ProofCaptureScreen.tsx`, `e2e/proof-capture.spec.ts`, `e2e/proof-fixtures.ts`, `e2e/privacy.spec.ts`
+- **Migrations:** nenhuma (o número e o espelho `proof_rules` estão com o `banco-de-dados`)
+- **Decisões/ADRs:** quem aceitou a 2 vê o aviso de novo pela regra que já existia (`proof_consent_version < proofRules.consentVersion`, em `packages/data/src/proof`, coberta pela E2E "Whoever accepted an older version"). Sem lógica nova, sem teste de unidade novo.
+- **Como testar:** `pnpm check`; com a pilha e o número em 3, `pnpm exec playwright test e2e/proof-capture.spec.ts e2e/privacy.spec.ts --project=app`.
+- **Verificado:** `pnpm check` passou (ver o commit).
+- **Não verificado:** as E2E não rodaram (sem pilha); a tela não foi vista no navegador; a frase v3 na tela só aparece depois que o `banco-de-dados` subir o número.
+- **Pendências / próximos passos:** `banco-de-dados` sobe `proofRules.consentVersion` e o espelho para 3. A base legal segue com o humano (ADR-0012, seção 17, item 2).

@@ -15,7 +15,10 @@
     "stamp": "A foto leva carimbados o seu nome, o título da tarefa e o horário.",
     "thirdParties": "Evite mostrar outras pessoas na foto. Se alguém aparecer, quem revisa também vê.",
     "retention": "A foto é apagada depois de {{days}} dias. O registro sem a imagem, com horários e marcas de local, é apagado depois de {{recordDays}} dias.",
-    "deletion": "Para pedir a exclusão antes do prazo, fale com o dono do grupo.",
+    "deletion": {
+      "v2": "Para pedir a exclusão antes do prazo, fale com o dono do grupo.",
+      "v3": "Você pode revogar este aceite em Perfil > Privacidade. Revogar não apaga as fotos já enviadas: elas são apagadas depois de {{days}} dias, ou antes, se você excluir a sua conta, também por lá."
+    },
     "declineHint": "Sem aceitar não dá para enviar foto, mas você ainda pode marcar Tentei ou Não fiz.",
     "accept": "Aceitar e continuar",
     "decline": "Agora não"

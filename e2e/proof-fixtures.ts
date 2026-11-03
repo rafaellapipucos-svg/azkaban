@@ -9,12 +9,11 @@ import assert from 'node:assert/strict';
 import { createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { expect, type Browser, type Page } from '@playwright/test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { proofRules } from '../packages/config/src/proof';
 import { admin, ANON, API, options } from '../supabase/functions/_shared/proof-kit';
 
 const JWT_SECRET =
   process.env.SUPABASE_JWT_SECRET ?? 'super-secret-jwt-token-with-at-least-32-characters-long';
-// `proofRules.consentVersion` of @azkaban/config.
-const CONSENT_VERSION = 2;
 
 export const PHOTO = 'Pedir uma foto para concluir';
 export const APPROVAL = 'Um administrador aprova a foto';
@@ -147,7 +146,9 @@ export async function spotOf(title: string): Promise<Spot> {
  */
 export async function sendProof(occurrenceId: string, authorId: string): Promise<string> {
   const author = clientOf(authorId);
-  const consent = await author.rpc('record_proof_consent', { p_version: CONSENT_VERSION });
+  const consent = await author.rpc('record_proof_consent', {
+    p_version: proofRules.consentVersion,
+  });
   assert.ifError(consent.error);
   const challenge = await author.rpc('issue_proof_challenge', { p_occurrence_id: occurrenceId });
   assert.ifError(challenge.error);

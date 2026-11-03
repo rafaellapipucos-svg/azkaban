@@ -164,11 +164,12 @@ create table public.rate_limit_counters (
 | `occurrence_status`    | `set_occurrence_status`                    | 600 por hora | SEG4-1, laço de status             |
 | `shopping_list_create` | `create_shopping_list`                     | 30 por hora  | SEG7-2, criar e finalizar em série |
 | `invite_create`        | Trigger `before insert` em `group_invites` | 30 por dia   | Seção 9 do prompt mestre           |
-| `invite_lookup`        | `get_invite_preview`                       | 30 por hora  | Idem                               |
+| `invite_lookup`        | `get_invite_preview` e `accept_invite`     | 30 por hora  | Idem; SEG8-2                       |
 | `data_export`          | `account-export`, pela service role        | 3 por dia    | Seção 2                            |
+| `shopping_item_adjust` | O stepper e `add_catalog_item_to_list`     | 600 por hora | SEG8-4                             |
 
-- **`accept_invite` sem limite próprio:** ele levanta `invite_invalid`, que desfaria o contador. Chutar códigos é inviável (10 caracteres, cerca de 8 × 10^14 combinações, ADR-0004), e a prévia, que é o caminho do app, conta.
-- Itens de compras e o stepper não entram: cada lista tem teto de 200 itens, e o modo "no mercado" toca muito.
+- **`accept_invite` gasta `invite_lookup` (SEG8-2, migration `20261104150100`).** A primeira versão desta seção o deixava sem limite, porque ele levantava `invite_invalid`, e a exceção desfaria o contador. Agora ele conta em toda chamada, código válido ou não, e responde `null` a um código que não serve (expirado, revogado, esgotado, inexistente, ou de um dono com exclusão aberta, SEG8-3), sem `raise`, para o contador ficar. O cliente traduz o `null` em `invite_invalid` e o `PT429` em `rate_limited` (`groupsRepository.acceptInvite`). Entrar pelo app gasta 2 das 30 consultas por hora: a prévia e o aceite.
+- **O stepper entra (SEG8-4):** cada chamada que soma, tira ou cria item conta uma vez; um `requestId` repetido (seção 5) não conta, e o 429 desfaz a linha de `processed_requests`. Marcar item continua de fora: cada lista tem teto de 200 itens, e o modo "no mercado" toca muito.
 
 ### 5. Fila offline simples (F8-5)
 
@@ -269,11 +270,36 @@ O texto cobre, no mínimo, o que os ADRs pediram:
 **Metas medidas**, registradas no LOG com a máquina e o comando:
 
 1. **Pacote web:** o maior JS de `pnpm build:web`, comprimido com gzip, não passa de 110% do tamanho medido no início de F8-6. Um script compara e falha acima do teto. É a única meta que vira barreira, por ser estável. **Na entrega:** `pnpm bundle:size` (`scripts/check-bundle-size.mjs`) comprime com `zlib` (nível padrão) cada `.js` de `apps/app/dist` e falha se o maior passa de 427 641 bytes (110% de 388 765, o `__common` medido pelo `design-system` em 2026-11-03). Roda no CI, no passo seguinte ao `pnpm build:web`, e não no `pnpm check`: o `check` não constrói, e o build leva uns 20 s. Um crescimento deliberado muda o ponto de partida no script, no mesmo commit, com o motivo no LOG.
-2. **Requisições:** abrir Hoje com 50 ocorrências faz no máximo 8 chamadas REST (Playwright conta), sem N+1.
+2. **Requisições:** abrir Hoje com 50 ocorrências faz no máximo **14** chamadas REST (Playwright conta, até a rede ficar ociosa), sem N+1. A meta era 8; mudou com QA8-3, abaixo.
 3. **Lista longa:** Hoje, mês do calendário e "no mercado" com 200 itens desenham em menos de 1 s depois que os dados chegam, com CPU 4× mais lenta no Chromium. Meta, não barreira: o CI é ruidoso.
 4. **Animações:** só `transform` e `opacity` (Reanimated no nativo, CSS na web), nada que mude layout. Durante o confete, com CPU 4× mais lenta, no máximo 2 quadros acima de 50 ms (amostragem por `requestAnimationFrame` na E2E).
 5. **Lighthouse** (grátis, por `npx`) nas boas-vindas, que não pedem sessão, em perfil móvel: Performance 80 ou mais, Acessibilidade 95 ou mais.
 6. Retorno do toque no `TaskCheck` antes da resposta do servidor (já é otimista).
+
+**QA8-3: as 17 chamadas de Hoje (2026-11-03) e a meta de 14.** O total não cresce com as ocorrências; a meta de 8 foi escrita sem contar o que o layout com sessão monta sobre toda tela. Cada chamada:
+
+| Chamadas                               | Quem lê                                                                                  | Necessária?                                                                                                                                                                                                                |
+| -------------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `profiles` ×2, `groups` ×2             | `useCurrentUser` (`['profile']`, `['groups']`), em Hoje e em cada `OccurrenceRow`        | Uma de cada. A segunda é refetch: com `staleTime` 0, as linhas montam depois de o dado chegar e o acham velho. **Corta 2**                                                                                                 |
+| `task_occurrences` ×2                  | `useOccurrenceLists`: a janela do dia e as atrasadas                                     | Sim. Filtros diferentes, em paralelo; juntar num `or` não adianta o desenho                                                                                                                                                |
+| `contexts`, `areas`                    | Hoje (nome e cor nas linhas, estado sem contexto) e a barra de abas                      | Sim                                                                                                                                                                                                                        |
+| `user_stats` ×2                        | `StreakChip` (`useQuery`) e o ponto de partida do `CelebrationHost` (leitura direta)     | Uma. O `CelebrationHost` pode ler pela mesma chave do cache e pegar carona na consulta em voo. **Corta 1**                                                                                                                 |
+| `notifications` ×3                     | O sino (não lidas); o marco e o `catchUp` do `NotificationToaster` (`subscribeCaughtUp`) | Sim. O marco e o `catchUp` são o que impede perder a linha escrita antes de o Realtime ouvir a tabela                                                                                                                      |
+| `xp_events` ×2, `user_achievements` ×2 | O marco e o `catchUp` do `CelebrationHost`                                               | Sim, pelo mesmo motivo. Juntar cada par numa RPC cortaria 2, ao custo de duas funções, migration e pgTAP para chamadas paralelas e fora do caminho do desenho (o `catchUp` só sai no `ok` do Realtime). Não compensa agora |
+
+- **Cortes, cada um com o dono:** `auth-grupos` põe `staleTime: defaults.currentUserStaleMs` (60 s, `packages/config`) nas duas consultas de `useCurrentUser`; o que o próprio usuário muda já invalida as chaves, e o que outra pessoa muda (papel, nome do grupo) aparece na primeira montagem ou volta ao foco depois de 60 s. `gamificacao` lê o ponto de partida do `CelebrationHost` com `queryClient.fetchQuery` na chave do `StreakChip` (`[...gamificationKey, 'stats']`); a leitura depois de cada rajada continua indo ao servidor. Sem `staleTime` global no `QueryClient`: mudaria a atualização de toda tela para cortar duas chamadas.
+- **Barreira:** `e2e/performance.spec.ts` continua barrando o N+1 (nenhuma rota mais de 3 vezes) e, depois dos dois cortes, barra também o total em 14 (`qa-testes`). A contagem é estável: o `catchUp` que sai depois da rede ociosa só diminui o número.
+
+**Onde as metas 2 a 4 valem.** O servidor de dev, rodando junto com a E2E completa, não serve: o pacote não é minificado, o React fica em modo de desenvolvimento, e quatro workers disputam a CPU (o confete foi de 0 quadros ruins, sozinho, a 12, com a E2E). Os números de 2026-11-03 (LOG do `qa-testes`, 08:04) ficam só como indicação. A medida que conta:
+
+- **Build de produção servido:** `pnpm build:web` com o `.env` da pilha local, servido por `expo serve` (já vem no `@expo/cli`, nenhuma dependência nova) na porta 8091, que o Auth local aceita. A `webServer` do Playwright passa a escolher entre `pnpm dev` e o build por uma variável de ambiente; o padrão continua o dev, para a E2E de sempre.
+- **Sem carga paralela:** só a pilha A e o Playwright com `--workers=1`, a spec sozinha (`e2e/performance.spec.ts`), sem E2E, sem `functions:test`, sem a pilha B "funcoes" e sem outro servidor de dev. A pilha B "db" parada também, para a CPU ser só desta medida.
+- **Repetição:** `--repeat-each=3`; vale a mediana, e o pior vai junto. CPU 4× pelo CDP, como já está.
+- **Registro:** no LOG, com máquina, commit, comando e as três medidas. Medida fora disso não cumpre nem descumpre a meta.
+- **Mês do calendário:** falta o marcador do último desenho do mês. `qa-testes` mede; se o componente precisar de um `testID`, pede ao `tarefas-calendario`.
+- Meta não cumprida no build vira achado para o dono da tela (Hoje: `tarefas-calendario`; confete: `design-system`), não ajuste de meta.
+
+**Depois da hospedagem (F8-8).** O Lighthouse (meta 5) conta só na URL hospedada, em perfil móvel, por `npx lighthouse` (não entra como dependência): a compressão, o cache e os cabeçalhos são os do serviço escolhido pelo humano. Um Lighthouse no build local servido pode rodar antes, como indicação. A meta 1 já é barreira no CI e não depende da hospedagem. As metas 2 a 4 continuam medidas na pilha local, para não criar dados de teste no projeto hospedado.
 
 ### 11. Nativo: EAS, ícones, splash, deep links e push (F8-7)
 
@@ -347,6 +373,7 @@ As três primeiras podem rodar em ramos separados; só a de F8-3 depende de outr
 - `packages/contracts/src/common.ts`: `rateLimitedErrorCode`.
 - `packages/contracts/src/shopping.ts`: `requestId` opcional nos dois ramos de `shoppingQuantityAdjustSchema`.
 - `packages/config/src/limits.ts` (novo): `rateLimitRules` (espelho em `app_settings.rate_limit_rules`; `pnpm db:check-permissions` acusa a chave até a migration), `offlineDefaults` (só do cliente) e `privacyDefaults` (só das funções).
+- `packages/config/src/defaults.ts`: `currentUserStaleMs` (seção 10, QA8-3).
 
 ### 16. Divisão do trabalho
 

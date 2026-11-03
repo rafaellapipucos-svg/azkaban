@@ -1,7 +1,12 @@
 import '../global.css';
 import { useSession } from '@azkaban/feature-auth';
 import { stopPushWhenSignedOut } from '@azkaban/feature-notifications';
-import { initData, offlineMutationDefaults, useOfflineQueue } from '@azkaban/data';
+import {
+  initData,
+  offlineMutationDefaults,
+  useClearCacheOnUserChange,
+  useOfflineQueue,
+} from '@azkaban/data';
 import { initI18n } from '@azkaban/i18n';
 import { useSystemColorScheme } from '@azkaban/ui';
 import { Nunito_600SemiBold, Nunito_800ExtraBold, useFonts } from '@expo-google-fonts/nunito';
@@ -22,6 +27,8 @@ export default function RootLayout() {
   const { session, loading } = useSession();
   // Restores, saves and sends the signed-in user's offline queue (ADR-0012, section 5).
   useOfflineQueue(queryClient, session?.user.id ?? null);
+  // Another account, or none, never sees the last one's cached data.
+  useClearCacheOnUserChange(queryClient, session?.user.id ?? null);
   const [fontsLoaded] = useFonts({ Nunito_600SemiBold, Nunito_800ExtraBold });
   if (!fontsLoaded || loading) return null;
   return (

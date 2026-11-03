@@ -30,7 +30,7 @@ export {
   type ProofFailureCode,
   type ProofReviewItem,
 } from './proof';
-export { useCurrentUser } from './session';
+export { useClearCacheOnUserChange, useCurrentUser } from './session';
 export { notificationErrorCode, notificationsRepository, type BellItem } from './notifications';
 export {
   shoppingAddItemAction,

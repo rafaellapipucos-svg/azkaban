@@ -4,6 +4,8 @@ import { useMemo } from 'react';
 import { groupsRepository } from '../groups';
 import { profilesRepository } from '../profiles';
 
+export { useClearCacheOnUserChange } from './userChange';
+
 /**
  * Who is using the screen, in the shape `can()` and `deriveActors` take, and the zone their days
  * are counted in. The one place that owns the `['profile']` and `['groups']` cache keys, which

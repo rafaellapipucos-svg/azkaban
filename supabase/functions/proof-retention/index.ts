@@ -16,7 +16,11 @@ const MARK_BUDGET_MS = 90_000;
 const reply = responder();
 
 class DatabaseError extends Error {}
-function check<T>(stage: string, result: { data: T; error: { code?: string } | null }): T {
+// `message`, which every client error has, keeps Storage's error (no `code`) assignable here.
+function check<T>(
+  stage: string,
+  result: { data: T; error: { code?: string; message: string } | null },
+): T {
   if (result.error) {
     // The stage and the code only: a message can quote a row.
     console.error(JSON.stringify({ event: 'retention_failed', stage, code: result.error.code }));

@@ -3300,3 +3300,19 @@
 - **Verificado:** `pnpm check` passou (lint, `boundaries` sem violação, typecheck 17 de 17, testes 12 de 12 pacotes, contracts 159 e config 25 testes, `functions:imports`).
 - **Não verificado:** nada contra a pilha. `pnpm db:check-permissions` só vai conferir `privacy_rules` quando o BL-12 puser a comparação no script. O formato real do token e da resposta da Expo não foi conferido contra a API (sem conta e sem gasto). "Nenhuma função devolve 503" foi conferido por busca no código, não por teste (o teste é do BL-14). Depois do BL-4, um `WHATSAPP_PHONE_NUMBER_ID` malformado no `console` deixa o WhatsApp "não configurado" quando o BL-14 passar a ler pelo `parseWhatsAppEnv`.
 - **Pendências / próximos passos:** handoffs para `banco-de-dados` (BL-5 e BL-12), `prova-foto` (BL-10), `backend-funcoes` (BL-14, inclusive o teste que barra 503 e a leitura do número pelo env) e `notificacoes-whatsapp` (BL-19).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:17 (BRT)
+
+- **Branch:** `feat/functions-503-retry`, criada a partir de `feat/backlog-after-phase-8` (`9bbaf00`)
+- **Agente(s):** prova-foto
+- **Resumo:** BL-10. O cliente Supabase passa a usar um `fetch` próprio que repete só o 503 de `/functions/v1/`, com as esperas de `defaults.functionRetryDelaysMs` (ADR-0012 §18). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/data/src/client.ts`: `functionRetryFetch(url, base?, delays?)` vai em `global.fetch` do `createClient`. O prefixo é montado como o supabase-js monta o `functionsUrl` (`new URL('functions/v1/', url + '/')`), então caixa e barra final do env não importam. Repete só se a entrada é string com esse prefixo, o status é 503 e o corpo não é stream (duck-typed por `getReader`, porque os tipos do React Native não têm `ReadableStream`); entrada `Request` nunca repete (o supabase-js sempre manda string). Espera cada valor (no máximo 2 repetições) e devolve o último 503. Um `AbortSignal` abortado antes ou durante a espera rejeita com o `reason` do sinal, sem mandar de novo. 500, 502, 504, 546, 429 e erro de rede voltam como vieram. `detectSessionInUrl` e os repositórios não mudaram.
+  - `packages/data/src/client.test.ts`: 18 testes com `fetch` falso e relógio falso: 503, 503, 200 dá 200 em três chamadas; as esperas são 500 e 1500 ms; três 503 dão 503; 500, 502, 504, 546 e 429 não repetem; erro de rede volta igual; 503 de REST, Auth, Storage e de outro host com `/functions/v1/` não repetem; URL do env em caixa alta e com barra final casa; mesmo método, cabeçalhos e o mesmo `ArrayBuffer` na segunda chamada; corpo `ReadableStream` não repete; sinal abortado na espera e já abortado não mandam de novo.
+- **Arquivos/módulos principais:** `packages/data/src/{client,client.test}.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova (ADR-0012 §18). A falha por aborto rejeita com o `reason` do sinal, como o `fetch` faz quando abortado.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/data exec vitest run src/client.test.ts`.
+- **Verificado:** `pnpm check` passou (lint, `boundaries` sem violação, typecheck 17 de 17, testes 12 de 12 pacotes, data 71 testes, `functions:imports`). Mutação: sem a checagem do prefixo `/functions/v1/` caem 4 testes (REST, Auth, Storage, outro host); sem a checagem do stream cai 1. Conferido no `dist` do supabase-js instalado que `global.fetch` é o usado pelo `functionsFetch` e que `functionsUrl` é `new URL("functions/v1", baseUrl)`.
+- **Não verificado:** nada contra a pilha nem E2E (fica para o BL-22, inclusive `e2e/proof-capture.spec.ts` com 503 real do Edge Runtime). Nativo (iOS e Android) não rodado; a detecção de stream é por `getReader`, sem teste num corpo de stream do React Native.
+- **Pendências / próximos passos:** BL-14 (teste das funções que barra o literal 503, que sustenta a segurança desta repetição).

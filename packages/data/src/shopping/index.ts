@@ -1,5 +1,9 @@
 import {
+  rateLimitedErrorCode,
   shoppingErrorCodeSchema,
+  shoppingItemCheckInputSchema,
+  shoppingListItemInputSchema,
+  shoppingQuantityAdjustSchema,
   type ShoppingCatalogItem,
   type ShoppingCatalogItemInput,
   type ShoppingErrorCode,
@@ -16,6 +20,7 @@ import {
 } from '@azkaban/contracts';
 import { currentUserId, db } from '../client';
 import type { Database } from '../database.types';
+import { defineOfflineAction } from '../offline';
 import { subscribeCaughtUp } from '../realtime';
 
 type Tables = Database['public']['Tables'];
@@ -34,6 +39,9 @@ export type ShoppingCatalogItemUpdate = Partial<
  * screen drops the ones it does not show.
  */
 export type ShoppingChange = { deletedId: string | null };
+
+/** What a list shows of its task: the title and where to open it. */
+export type LinkedTask = { title: string; occurrenceId: string };
 
 /**
  * What the shopping screens need from the database (ADR-0011). Failures throw an `Error` whose
@@ -62,14 +70,33 @@ export type ShoppingRepository = {
   setChecked(input: ShoppingItemCheckInput): Promise<void>;
   addCatalogItem(input: ShoppingCatalogItemInput): Promise<ShoppingCatalogItem>;
   updateCatalogItem(id: string, input: ShoppingCatalogItemUpdate): Promise<void>;
+  /** Lists linked to the task, open first, newest first. */
+  listsForTask(taskId: string): Promise<ShoppingList[]>;
+  /**
+   * The linked task as far as the reader may see it: its title and the occurrence to open (the
+   * oldest pending one, else the latest). `null` when RLS hides the task or it is gone, which the
+   * screens treat as no link at all (ADR-0011, section 16, SEG7-1), never as "not found".
+   */
+  linkedTask(taskId: string): Promise<LinkedTask | null>;
   /** Realtime on the list and its items, by anyone. Returns the unsubscribe. */
   watchList(listId: string, onChange: (change: ShoppingChange) => void): () => void;
 };
 
+/**
+ * A code the UI has a text for. `rate_limited` comes from `consume_rate_limit` (ADR-0012, section 4)
+ * and stays out of the contract enum, as the ADR decided.
+ */
+export type ShoppingFailureCode = ShoppingErrorCode | typeof rateLimitedErrorCode;
+
 /** The database raises its code as the message. Anything else is null: the UI says the generic text. */
-export function shoppingErrorCode(error: unknown): ShoppingErrorCode | null {
-  const message =
-    typeof error === 'object' && error !== null && 'message' in error ? error.message : null;
+export function shoppingErrorCode(error: unknown): ShoppingFailureCode | null {
+  const field = (name: string) =>
+    typeof error === 'object' && error !== null && name in error
+      ? (error as Record<string, unknown>)[name]
+      : null;
+  const message = field('message');
+  // PostgREST answers PT429 with HTTP 429 and the message `rate_limited`.
+  if (field('code') === 'PT429' || message === rateLimitedErrorCode) return rateLimitedErrorCode;
   const parsed = shoppingErrorCodeSchema.safeParse(message);
   return parsed.success ? parsed.data : null;
 }
@@ -214,12 +241,19 @@ export const shoppingRepository: ShoppingRepository = {
   },
 
   async adjustQuantity(input) {
+    // With a request id the database applies the delta once and answers a repeat with the row.
+    const request = input.requestId ? { p_request_id: input.requestId } : {};
     const { data, error } = await ('itemId' in input
-      ? db().rpc('adjust_shopping_item_quantity', { p_item_id: input.itemId, p_delta: input.delta })
+      ? db().rpc('adjust_shopping_item_quantity', {
+          p_item_id: input.itemId,
+          p_delta: input.delta,
+          ...request,
+        })
       : db().rpc('add_catalog_item_to_list', {
           p_list_id: input.listId,
           p_catalog_item_id: input.catalogItemId,
           p_delta: input.delta,
+          ...request,
         }));
     if (error) throw fail(error);
     return toItemOrNull(data);
@@ -292,6 +326,35 @@ export const shoppingRepository: ShoppingRepository = {
     if (error) throw catalogFail(error);
   },
 
+  async listsForTask(taskId) {
+    const { data, error } = await db()
+      .from('shopping_lists')
+      .select(listColumns)
+      .eq('linked_task_id', taskId)
+      .order('status') // the enum's order: open, then completed
+      .order('created_at', { ascending: false });
+    if (error) throw fail(error);
+    return data.map(toList);
+  },
+
+  async linkedTask(taskId) {
+    // `!inner`: an occurrence whose task RLS hides comes without a row, like the task itself.
+    const read = (pending: boolean) => {
+      const query = db()
+        .from('task_occurrences')
+        .select('id, tasks!inner(title)')
+        .eq('task_id', taskId);
+      return (pending ? query.eq('status', 'pending') : query)
+        .order('scheduled_start', { ascending: pending })
+        .limit(1)
+        .maybeSingle();
+    };
+    const pending = await read(true);
+    if (pending.error) throw fail(pending.error);
+    const found = pending.data ?? (await read(false)).data;
+    return found ? { title: found.tasks.title, occurrenceId: found.id } : null;
+  },
+
   watchList(listId, onChange) {
     const toItem = (payload: { eventType: string; old: { id?: string } }): ShoppingChange => ({
       deletedId: payload.eventType === 'DELETE' ? (payload.old.id ?? null) : null,
@@ -326,3 +389,55 @@ export const shoppingRepository: ShoppingRepository = {
     );
   },
 };
+
+// The offline queue (ADR-0012, section 5): the three item actions that may wait for the connection.
+// Completing a list stays out (it gives XP and has no undo), and so does everything else.
+
+const reasonOf = (error: unknown) => shoppingErrorCode(error) ?? 'generic';
+// The screens' cache keys (`shoppingKeys` in the feature). Every list's items: the stepper by item
+// does not carry the list, and only the screens on display refetch.
+const itemsKey = ['shopping', 'items'];
+
+/** The stepper, both targets. The screen puts a fresh `requestId` in every send. */
+export const shoppingAdjustAction = defineOfflineAction({
+  key: 'shopping-adjust',
+  schema: shoppingQuantityAdjustSchema,
+  run: (input: ShoppingQuantityAdjust) => shoppingRepository.adjustQuantity(input),
+  reasonOf,
+  invalidates: () => [itemsKey],
+});
+
+/**
+ * An item typed outside the catalog, with an `id` made on the device. A replay whose first try got
+ * through hits the primary key (`23505`): when the row with that id is there, it was done.
+ */
+export const shoppingAddItemAction = defineOfflineAction({
+  key: 'shopping-add-item',
+  schema: shoppingListItemInputSchema,
+  run: async (input: ShoppingListItemInput) => {
+    try {
+      return await shoppingRepository.addItem(input);
+    } catch (error) {
+      const cause = error instanceof Error ? (error.cause as { code?: string } | undefined) : null;
+      if (!input.id || cause?.code !== '23505') throw error;
+      const { data, error: readError } = await db()
+        .from('shopping_list_items')
+        .select(itemColumns)
+        .eq('id', input.id)
+        .maybeSingle();
+      if (readError || !data) throw error;
+      return toItem(data);
+    }
+  },
+  reasonOf,
+  invalidates: ({ listId }) => [[...itemsKey, listId]],
+});
+
+/** Checking an item: a value, so a replay is harmless. */
+export const shoppingCheckAction = defineOfflineAction({
+  key: 'shopping-check',
+  schema: shoppingItemCheckInputSchema,
+  run: (input: ShoppingItemCheckInput) => shoppingRepository.setChecked(input),
+  reasonOf,
+  invalidates: () => [itemsKey],
+});

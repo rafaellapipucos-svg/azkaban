@@ -1,4 +1,12 @@
-import { shoppingErrorCodeSchema, shoppingNoteSchema, type ShoppingList } from '@azkaban/contracts';
+import { shoppingRules } from '@azkaban/config';
+import {
+  rateLimitedErrorCode,
+  shoppingErrorCodeSchema,
+  shoppingNameSchema,
+  shoppingNoteSchema,
+  type ShoppingList,
+  type Task,
+} from '@azkaban/contracts';
 import { can, type Permission, type PermissionUser } from '@azkaban/core';
 
 /** Where the screens live. The routes in `apps/app` mount them on these paths. */
@@ -58,6 +66,12 @@ export function canManageList(
 export const parseNote = (text: string) =>
   shoppingNoteSchema.safeParse(text.trim() === '' ? null : text);
 
+/**
+ * Codes with a text besides the contract's: the rate limit, no connection for something that cannot
+ * wait in the queue, and the queue's own reasons for dropping an action.
+ */
+const extraCodes: readonly unknown[] = [rateLimitedErrorCode, 'offline', 'expired', 'invalid'];
+
 /** i18n key for a failure: the database's code when it raised one we know, else the generic text. */
 export function shoppingErrorKey(failure: unknown): string {
   const raw =
@@ -66,8 +80,36 @@ export function shoppingErrorKey(failure: unknown): string {
       : typeof failure === 'object' && failure !== null && 'message' in failure
         ? failure.message
         : null;
+  if (extraCodes.includes(raw)) return `errors.${String(raw)}`;
   const code = shoppingErrorCodeSchema.safeParse(raw);
   return `errors.${code.success ? code.data : 'generic'}`;
+}
+
+/**
+ * What completing says about XP (ADR-0011, section 9), from the checked items alone: enough of them
+ * may earn `amount`, still subject to the daily cap the client cannot see; fewer never do.
+ */
+export function completionXp(checkedCount: number) {
+  const { amount, minCheckedItems, maxRewardedPerDay } = shoppingRules.xp;
+  return checkedCount >= minCheckedItems
+    ? ({ key: 'list.xp', amount, max: maxRewardedPerDay } as const)
+    : ({ key: 'list.xpNeedsItems', min: minCheckedItems } as const);
+}
+
+/**
+ * A list made from a task (ADR-0011, section 8): in the task's group when the whole group may see it,
+ * the only scope the database links there; else personal, which links any task its owner sees. Named
+ * after the task when the title fits a list name, else `fallback`.
+ */
+export function listForTask(
+  task: Pick<Task, 'groupId' | 'visibility' | 'title'>,
+  fallback: string,
+) {
+  const name = shoppingNameSchema.safeParse(task.title);
+  return {
+    groupId: task.groupId !== null && task.visibility === 'group' ? task.groupId : null,
+    name: name.success ? name.data : fallback,
+  };
 }
 
 /**

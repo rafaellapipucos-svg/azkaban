@@ -54,3 +54,6 @@ export const copyToClipboard = (text: string) => setStringAsync(text);
 export const createAppLink = (path: string) => createURL(path);
 
 export const deviceTimezone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+/** A v4 UUID made on the device, for ids the offline queue sends before the server sees them. */
+export { randomUUID as randomId } from 'expo-crypto';

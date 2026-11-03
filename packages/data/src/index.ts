@@ -31,8 +31,13 @@ export {
 export { useCurrentUser } from './session';
 export { notificationErrorCode, notificationsRepository, type BellItem } from './notifications';
 export {
+  shoppingAddItemAction,
+  shoppingAdjustAction,
+  shoppingCheckAction,
   shoppingErrorCode,
   shoppingRepository,
+  type LinkedTask,
+  type ShoppingFailureCode,
   type ShoppingCatalogItemUpdate,
   type ShoppingChange,
   type ShoppingRepository,

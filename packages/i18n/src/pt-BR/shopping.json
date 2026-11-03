@@ -44,6 +44,10 @@
     "catalog_full": "O catálogo chegou ao limite de itens. Arquive algum para abrir espaço.",
     "catalog_item_exists": "Já existe um item com esse nome no catálogo.",
     "task_link_invalid": "Não dá para ligar esta lista a essa tarefa.",
+    "rate_limited": "Foram muitas listas em pouco tempo. Espere um pouco e tente de novo.",
+    "offline": "Sem conexão. Esta mudança precisa de internet; tente de novo quando ela voltar.",
+    "expired": "ficou mais de {{hours}} horas sem conexão.",
+    "invalid": "os dados guardados no aparelho não eram válidos.",
     "generic": "Não deu certo. Confira a conexão e tente de novo."
   },
   "form": {
@@ -116,6 +120,9 @@
     "complete": "Finalizar compra",
     "completeConfirm": "Confirmar: finalizar",
     "completeHint": "Finalizar guarda a lista no histórico. Não dá para reabrir.",
+    "xp": "Ao finalizar, você ganha +{{amount}} XP (vale para até {{max}} listas por dia).",
+    "xpNeedsItems": "Com menos de {{min}} itens marcados, a compra finaliza sem XP.",
+    "completeOffline": "Sem conexão. Finalizar espera a internet voltar, porque dá XP e não dá para desfazer.",
     "completed": "Finalizada em {{date}}",
     "copy": "Nova lista a partir desta",
     "back": "Voltar às listas",
@@ -125,5 +132,18 @@
     "renameSave": "Salvar nome",
     "delete": "Excluir lista",
     "deleteConfirm": "Confirmar: excluir"
+  },
+  "task": {
+    "open": "Abrir a tarefa: {{title}}",
+    "openList": "Abrir a lista de compras: {{name}}",
+    "createList": "Criar lista de compras",
+    "defaultName": "Compras"
+  },
+  "offline": {
+    "none": "Sem conexão.",
+    "pending_one": "Sem conexão: {{count}} alteração será enviada quando a internet voltar.",
+    "pending_other": "Sem conexão: {{count}} alterações serão enviadas quando a internet voltar.",
+    "discarded": "Uma mudança na lista não foi enviada: {{reason}}",
+    "dismiss": "Fechar aviso"
   }
 }

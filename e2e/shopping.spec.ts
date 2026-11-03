@@ -1,5 +1,13 @@
-import { expect, test, type Page } from '@playwright/test';
-import { button, groupWithMember, newUser, signUp, text, uniqueTitle } from './proof-fixtures';
+import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import {
+  button,
+  groupWithMember,
+  newUser,
+  signUp,
+  signUpWithContext,
+  text,
+  uniqueTitle,
+} from './proof-fixtures';
 
 // Needs `pnpm db:start`. Two members of one group on two browsers, against the real Realtime of the
 // local stack (ADR-0011, section 7), and someone from another group who must see none of it.
@@ -196,4 +204,108 @@ test('whoever manages a list renames and deletes it; a member writes a note on a
   await expect(
     memberPage.getByText('Lista não encontrada. Ela pode ter sido excluída.'),
   ).toBeVisible();
+});
+
+// The queue as saved in the browser's storage, read from outside the page.
+const savedQueue = async (context: BrowserContext) =>
+  (await context.storageState()).origins
+    .flatMap(({ localStorage }) => localStorage)
+    .filter(({ name }) => name.startsWith('azkaban.offline-queue.'))
+    .map(({ value }) => value)
+    .join('');
+
+// Needs the root layout running `useOfflineQueue` (ADR-0012, section 5), like offline-queue.spec.ts.
+test('stepper taps and a check made offline survive closing the tab and count once', async ({
+  context,
+  page,
+}) => {
+  await signUpWithContext(page, 'Feirante');
+  const listName = uniqueTitle('Quitanda');
+  await page.goto('/shopping');
+  await page.getByLabel('Nome da nova lista').fill(listName);
+  await button(page, 'Criar lista').click();
+  await expect(page).toHaveURL(/\/shopping\/[0-9a-f-]{36}\?mode=build$/);
+  const listUrl = new URL(page.url()).pathname;
+  // The item is on the list before the connection goes, so the taps go by its id.
+  const added = page.waitForResponse('**/rest/v1/rpc/add_catalog_item_to_list');
+  await plus(page, 'Arroz').click();
+  expect((await added).status()).toBe(200);
+  await expect(stepper(page, 'Arroz').getByText('1 pacote', { exact: true })).toBeVisible();
+
+  // Offline: three taps and a check wait on the disk, shown at once; completing waits for the network
+  await context.setOffline(true);
+  for (let tap = 0; tap < 3; tap++) await plus(page, 'Arroz').click();
+  await expect(stepper(page, 'Arroz').getByText('4 pacotes')).toBeVisible();
+  await expect.poll(() => savedQueue(context)).toContain('shopping-adjust');
+  await mode(page, 'No mercado');
+  await page.getByRole('checkbox', { name: 'Arroz, 1 pacote' }).click();
+  await expect.poll(() => savedQueue(context)).toContain('shopping-check');
+  await expect(
+    page.getByText('Sem conexão: 2 alterações serão enviadas quando a internet voltar.'),
+  ).toBeVisible();
+  await expect(button(page, 'Finalizar compra')).toBeDisabled();
+  await expect(page.getByText(/^Sem conexão. Finalizar espera a internet voltar/)).toBeVisible();
+
+  // The tab closes before the connection returns; a new one sends what waited, in order
+  await page.close();
+  await context.setOffline(false);
+  const next = await context.newPage();
+  const stepped = next.waitForResponse('**/rest/v1/rpc/adjust_shopping_item_quantity');
+  await next.goto(`${listUrl}?mode=market`);
+  expect((await stepped).status()).toBe(200);
+  await expect.poll(() => savedQueue(context)).not.toContain('shopping-');
+
+  // Read again from scratch: one plus three, once, and checked
+  await next.reload();
+  await expect(next.getByRole('checkbox', { name: 'Arroz, 4 pacotes' })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+  await mode(next, 'Montar');
+  await expect(stepper(next, 'Arroz').getByText('4 pacotes', { exact: true })).toBeVisible();
+});
+
+test('a list made from a task links both ways; a member who cannot read the task sees no link', async ({
+  browser,
+}) => {
+  const { ownerPage, memberPage } = await groupWithMember(browser);
+  const title = uniqueTitle('Fazer compras');
+
+  // The owner's task in the group, seen by the whole group
+  await ownerPage.goto('/');
+  await button(ownerPage, 'Nova tarefa').click();
+  await ownerPage.getByLabel('O que precisa ser feito?').fill(title);
+  await button(ownerPage, 'Criar').click();
+  await ownerPage.getByText(title, { exact: true }).locator('visible=true').click();
+  await expect(ownerPage).toHaveURL(/\/tasks\/[0-9a-f-]{36}$/);
+  const taskUrl = new URL(ownerPage.url()).pathname;
+
+  // From the task, a list named after it, linked back to it
+  await button(ownerPage, 'Criar lista de compras').click();
+  await expect(ownerPage).toHaveURL(/\/shopping\/[0-9a-f-]{36}\?mode=build$/);
+  const listUrl = new URL(ownerPage.url()).pathname;
+  await expect(ownerPage.getByRole('heading', { name: title })).toBeVisible();
+  await button(ownerPage, `Abrir a tarefa: ${title}`).click();
+  await expect(ownerPage).toHaveURL(new RegExp(`${taskUrl}$`));
+  await button(ownerPage, `Abrir a lista de compras: ${title}`).click();
+  await expect(ownerPage).toHaveURL(new RegExp(`${listUrl}$`));
+
+  // The member sees the list but not the task (no task.view_group): no link, never "not found"
+  await memberPage.goto(listUrl);
+  await expect(memberPage.getByRole('heading', { name: title })).toBeVisible();
+  await plus(memberPage, 'Arroz').click();
+  await expect(stepper(memberPage, 'Arroz').getByText('1 pacote', { exact: true })).toBeVisible();
+  await expect(memberPage.getByRole('button', { name: /^Abrir a tarefa/ })).toHaveCount(0);
+  await expect(memberPage.getByText(/não encontrad/)).toHaveCount(0);
+
+  // Completing with fewer than three items checked says there is no XP, and the task is still offered
+  await expect(
+    ownerPage.getByText('Com menos de 3 itens marcados, a compra finaliza sem XP.'),
+  ).toBeVisible();
+  await button(ownerPage, 'Finalizar compra').click();
+  await button(ownerPage, 'Confirmar: finalizar').click();
+  await expect(ownerPage.getByText(/^Finalizada em /)).toBeVisible();
+  await expect(button(ownerPage, `Abrir a tarefa: ${title}`)).toBeVisible();
+  await expect(memberPage.getByText(/^Finalizada em /)).toBeVisible();
+  await expect(memberPage.getByRole('button', { name: /^Abrir a tarefa/ })).toHaveCount(0);
 });

@@ -7,11 +7,13 @@ import {
   type ShoppingCatalogItem,
   type ShoppingCategory,
   type ShoppingListItem,
+  type ShoppingListItemInput,
   type ShoppingUnit,
 } from '@azkaban/contracts';
 import { catalogSections, exactMatch, projectQuantity, roundQuantity } from '@azkaban/core';
-import { shoppingRepository } from '@azkaban/data';
+import { shoppingAddItemAction, shoppingRepository } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
+import { randomId } from '@azkaban/platform';
 import {
   Body,
   Button,
@@ -26,15 +28,17 @@ import {
   SwitchRow,
   tokens,
 } from '@azkaban/ui';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { shoppingKeys, usePendingDeltas, useQuantityText, useSetItem } from './hooks';
+import { queueRefuses, shoppingKeys, usePendingDeltas, useQuantityText, useSetItem } from './hooks';
 import { parseNote, shoppingTextErrorKey } from './shopping';
 
 type Props = {
   listId: string;
   groupId: string | null;
+  /** Who is adding, for the item shown before the server answers. */
+  userId: string;
   items: ShoppingListItem[];
   catalog: ShoppingCatalogItem[];
   /** `shopping.manage_catalog` in a group, or the owner of a personal list. */
@@ -60,6 +64,7 @@ type Row = {
 export function BuildMode({
   listId,
   groupId,
+  userId,
   items,
   catalog,
   canSaveToCatalog,
@@ -108,21 +113,29 @@ export function BuildMode({
 
   // A catalog row is keyed by its catalog id, so the first taps on an entry add up before the item
   // exists. The request goes by the item once it is in the cache, and by the catalog entry before.
-  const { pending, add } = usePendingDeltas(listId, async (key, delta) => {
-    const cached = queryClient.getQueryData<ShoppingListItem[]>(shoppingKeys.items(listId)) ?? [];
-    const found = cached.find((item) => item.id === key || item.catalogItemId === key);
-    try {
-      const row = await shoppingRepository.adjustQuantity(
-        found ? { itemId: found.id, delta } : { listId, catalogItemId: key, delta },
-      );
-      return () => {
-        if (found) setItem(found.id, row);
-        else if (row) setItem(row.id, row);
-      };
-    } catch (error) {
-      onError(error);
-      throw error;
-    }
+  const { pending, add } = usePendingDeltas(
+    listId,
+    (key) => {
+      const cached = queryClient.getQueryData<ShoppingListItem[]>(shoppingKeys.items(listId)) ?? [];
+      const found = cached.find((item) => item.id === key || item.catalogItemId === key);
+      return found ? { itemId: found.id } : { listId, catalogItemId: key };
+    },
+    onError,
+  );
+
+  // A typed item waits in the offline queue with an id made here, and shows at once.
+  const addItem = useMutation({
+    ...shoppingAddItemAction,
+    onMutate: (input: ShoppingListItemInput) =>
+      setItem(input.id ?? '', {
+        ...input,
+        id: input.id ?? '',
+        addedBy: userId,
+        addedAt: new Date().toISOString(),
+        checkedAt: null,
+        checkedBy: null,
+      }),
+    onError,
   });
 
   const run = async (action: () => Promise<unknown>) => {
@@ -153,34 +166,40 @@ export function BuildMode({
           key={typed.data}
           name={typed.data}
           canSave={canSaveToCatalog}
-          onAdd={(category, save) =>
-            run(async () => {
-              const { unit } = shoppingDefaults.customItem;
-              const saved = save
-                ? await shoppingRepository.addCatalogItem({
+          onAdd={async (category, save) => {
+            if (queueRefuses(queryClient)) return onError(new Error('offline'));
+            const { unit } = shoppingDefaults.customItem;
+            let catalogItemId: string | null = null;
+            // The catalog never waits in the queue: saving to it needs the connection.
+            if (save) {
+              try {
+                catalogItemId = (
+                  await shoppingRepository.addCatalogItem({
                     groupId,
                     name: typed.data,
                     category,
                     defaultUnit: unit,
                     emoji: null,
                   })
-                : null;
-              if (saved) {
-                await queryClient.invalidateQueries({ queryKey: shoppingKeys.catalog(groupId) });
+                ).id;
+              } catch (error) {
+                return onError(error);
               }
-              await shoppingRepository.addItem({
-                listId,
-                catalogItemId: saved?.id ?? null,
-                name: typed.data,
-                category,
-                quantity: shoppingDefaults.unitStep[unit],
-                unit,
-                emoji: null,
-                note: null,
-              });
-              setQuery('');
-            })
-          }
+              await queryClient.invalidateQueries({ queryKey: shoppingKeys.catalog(groupId) });
+            }
+            addItem.mutate({
+              id: randomId(),
+              listId,
+              catalogItemId,
+              name: typed.data,
+              category,
+              quantity: shoppingDefaults.unitStep[unit],
+              unit,
+              emoji: null,
+              note: null,
+            });
+            setQuery('');
+          }}
         />
       ) : null}
 

@@ -10,7 +10,7 @@ import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useForm } from 'react-hook-form';
 import { View } from 'react-native';
 import { failureKey } from './failureKey';
-import { expiredLinkParam } from './useSessionFromLink';
+import { expiredLinkParam, notRequestedLinkParam } from './useSessionFromLink';
 
 export function SignInScreen() {
   const { t } = useTranslation('auth');
@@ -58,6 +58,9 @@ export function SignInScreen() {
       />
       {link === expiredLinkParam && !magicLink.isSuccess ? (
         <ErrorText>{t('signIn.linkExpired')}</ErrorText>
+      ) : null}
+      {link === notRequestedLinkParam && !magicLink.isSuccess ? (
+        <ErrorText>{t('signIn.linkNotRequested')}</ErrorText>
       ) : null}
       {signIn.isError ? (
         <ErrorText>{t(failureKey(signIn.error, 'signIn.invalid'))}</ErrorText>

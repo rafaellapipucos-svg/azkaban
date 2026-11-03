@@ -43,3 +43,20 @@ export function parseSessionLink(url: string, appRoot: string): SessionLink | nu
   if (!accessToken || !refreshToken) return null;
   return { kind: 'session', accessToken, refreshToken, path };
 }
+
+declare const atob: (data: string) => string; // browsers and Hermes have it; this package has no DOM lib
+
+/**
+ * The `sub` of an access token, unverified: only to tell whose session a link carries before
+ * `setSession` checks it with GoTrue. `null` when it is not a readable JWT.
+ */
+export function tokenUserId(accessToken: string): string | null {
+  try {
+    const part = accessToken.split('.')[1]!.replace(/-/g, '+').replace(/_/g, '/');
+    const payload: unknown = JSON.parse(atob(part.padEnd(Math.ceil(part.length / 4) * 4, '=')));
+    const sub = (payload as { sub?: unknown } | null)?.sub;
+    return typeof sub === 'string' ? sub : null;
+  } catch {
+    return null;
+  }
+}

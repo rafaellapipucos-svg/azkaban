@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
 import { admin } from '../supabase/functions/_shared/proof-kit';
 import {
@@ -5,8 +6,10 @@ import {
   PHOTO,
   button,
   groupWithMember,
+  newUser,
   reviewProof,
   sendProof,
+  signUp,
   spotOf,
   uniqueTitle,
 } from './proof-fixtures';
@@ -91,4 +94,35 @@ test('a photo to review rings the admin bell live, opens the review and clears i
   await expect(button(memberPage, 'Marcar todos como lidos')).toHaveCount(0);
   await memberPage.goto('/');
   await expect(bell(memberPage, 0)).toBeVisible();
+});
+
+// Handoff 20261103-0554: `SUBSCRIBED` comes before the server hears the table, seconds later on a
+// cold Realtime. A row written in that gap is read back when it does, and announced once.
+test('a notice written right after the bell mounts rings it once, with the live notice', async ({
+  page,
+}) => {
+  const user = newUser(`Sino${randomUUID().slice(0, 6)}`);
+  await signUp(page, user);
+  await expect(page.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
+  const profile = await admin.from('profiles').select('id').eq('display_name', user.name).single();
+  const userId = profile.data!.id as string;
+
+  await page.reload();
+  await expect(bell(page, 0)).toBeVisible();
+  const written = await admin.from('notifications').insert({
+    user_id: userId,
+    type: 'occurrence_missed',
+    data: { byUserId: null },
+    dedupe_key: `occurrence_missed:${randomUUID()}`,
+  });
+  expect(written.error).toBeNull();
+
+  const toast = page.getByTestId('notification-toast');
+  await expect(bell(page, 1)).toBeVisible();
+  await expect(toast.getByText('Tarefa não feita')).toBeVisible();
+  await button(page, 'Fechar aviso').click();
+  // A later read-back (the `ok` of a slow server, a reconnect) does not announce it again.
+  await page.waitForTimeout(3_000);
+  await expect(toast.getByText('Tarefa não feita')).toHaveCount(0);
+  await expect(bell(page, 1)).toBeVisible();
 });

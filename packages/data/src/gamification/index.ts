@@ -21,6 +21,7 @@ import {
 } from '@azkaban/contracts';
 import { currentUserId, db } from '../client';
 import type { Json } from '../database.types';
+import { subscribeCaughtUp } from '../realtime';
 
 /** An event as the screens use it: `capRoom` groups by `occurrenceId` (else `id`) and `groupId`. */
 export type XpEventItem = Pick<XpEvent, 'id' | 'occurrenceId' | 'groupId' | 'reason' | 'amount'>;
@@ -209,32 +210,86 @@ export const gamificationRepository = {
     if (data.length === 0) throw new Error('forbidden');
   },
 
-  /** Inserts in the user's `xp_events` and `user_achievements`. Returns the unsubscribe. */
+  /**
+   * Inserts in the user's `xp_events` and `user_achievements`, each once, from the call on. Returns
+   * the unsubscribe. What is written before the server hears the tables is read back
+   * (`subscribeCaughtUp`).
+   */
   subscribe(userId: string, onRow: (row: GamificationRow) => void) {
-    const channel = db()
-      .channel(`gamification:${userId}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'xp_events', filter: `user_id=eq.${userId}` },
-        (payload) => {
-          const event = toEventItem(payload.new as XpEventRow);
-          if (event) onRow({ table: 'xp_events', event });
+    const granted = async () => {
+      const { data, error } = await db()
+        .from('user_achievements')
+        .select('achievement_key')
+        .eq('user_id', userId);
+      if (error) throw error;
+      return data.map((row) => row.achievement_key);
+    };
+    const newest = async () => {
+      const { data, error } = await db()
+        .from('xp_events')
+        .select('created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.created_at ?? null;
+    };
+    // What is already there: the newest event's instant, in server time, and the granted keys.
+    // ponytail: a row written during this first read counts as old; the window is one round trip.
+    const mark = Promise.all([newest(), granted()]);
+    mark.catch(() => undefined);
+    return subscribeCaughtUp<GamificationRow>(
+      {
+        name: `gamification:${userId}`,
+        changes: [
+          {
+            filter: {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'xp_events',
+              filter: `user_id=eq.${userId}`,
+            },
+            toItem: (payload) => {
+              const event = toEventItem(payload.new as XpEventRow);
+              return event && { table: 'xp_events', event };
+            },
+          },
+          {
+            filter: {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'user_achievements',
+              filter: `user_id=eq.${userId}`,
+            },
+            toItem: (payload) => {
+              const key = (payload.new as { achievement_key?: string }).achievement_key;
+              return key ? { table: 'user_achievements', key } : null;
+            },
+          },
+        ],
+        catchUp: async () => {
+          const [since, before] = await mark;
+          let query = db()
+            .from('xp_events')
+            .select('id, occurrence_id, group_id, reason, amount')
+            .eq('user_id', userId)
+            .order('created_at');
+          if (since) query = query.gt('created_at', since);
+          const [events, keys] = await Promise.all([query, granted()]);
+          if (events.error) throw events.error;
+          const rows: GamificationRow[] = [];
+          for (const row of events.data) {
+            const event = toEventItem(row);
+            if (event) rows.push({ table: 'xp_events', event });
+          }
+          for (const key of keys)
+            if (!before.includes(key)) rows.push({ table: 'user_achievements', key });
+          return rows;
         },
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'user_achievements',
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          const key = (payload.new as { achievement_key?: string }).achievement_key;
-          if (key) onRow({ table: 'user_achievements', key });
-        },
-      )
-      .subscribe();
-    return () => void db().removeChannel(channel);
+        key: (row) => (row.table === 'xp_events' ? `e:${row.event.id}` : `a:${row.key}`),
+      },
+      onRow,
+    );
   },
 };

@@ -2430,3 +2430,23 @@
 - **Verificado:** na pilha B, `db reset` limpo; `pnpm db:test` 10 arquivos, 1776 testes, PASS; `db:check-permissions` em sincronia no `supabase_db_azkaban-b`, com `rate_limit_rules`; `pnpm db:types`; `pnpm check` passou (17 de 17 e 11 de 11; `functions:imports` 8 de 8). Mutações, aplicadas por `psql` e desfeitas: sem o trigger de tarefas, 6 falhas; `set_occurrence_status` sem o limite, 7; `create_shopping_list` sem o limite, 5; sem o trigger de convites, 5; prévia sem o limite, 3; `grant` de `consume_rate_limit` a `authenticated`, 2; stepper ignorando o id, 9. Concorrência em duas sessões `psql` com dados confirmados (depois apagados pelo `db reset`): a segunda chamada com o mesmo `requestId` esperou 16 s pela primeira e devolveu 2, não 3; a quarta exportação simultânea levou `PT429` e o contador ficou em 3.
 - **Não verificado:** o HTTP 429 do PostgREST (a pilha B não tem PostgREST); E2E e `functions:test`; o projeto hospedado. Na concorrência, a segunda sessão esperou pelo `for update` da lista antes de chegar à chave de `processed_requests`, então a serialização só pela chave primária não foi isolada.
 - **Pendências / próximos passos:** `compras` manda `p_request_id`; `backend-funcoes` chama `consume_rate_limit(user, 'data_export')` na exportação; os módulos mapeiam `PT429`; F8-3 na faixa `20261104120000`+.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:03 (BRT)
+
+- **Branch:** `fix/bell-realtime-catch-up`, a partir de `feat/phase-8-polish` (`8dc831c`)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** o sino e o aviso ao vivo perdiam o que era gravado entre o `SUBSCRIBED` e o `system` `postgres_changes` `ok` do Realtime (handoff `20261103-0554`). A correção do `gamificacao` (`ef115d8`) virou um ajudante comum, usado pelos três assinantes do Realtime.
+- **Alterações:**
+  - `packages/data/src/realtime.ts` (novo): `subscribeCaughtUp`, um canal que, a cada `ok`, chama um `catchUp` que relê das tabelas; item com chave é entregue uma vez só, venha por onde vier; nada depois do `unsubscribe`. Teste com cliente falso em `realtime.test.ts`.
+  - `notificationsRepository.subscribe`: marca (o `created_at` mais novo do usuário, hora do servidor) na montagem; a releitura entrega como `insert` os avisos nascidos depois dela. Um `update` no intervalo continua perdido.
+  - `gamificationRepository.subscribe`: a mesma lógica de `ef115d8`, agora sobre o ajudante. Ao juntar com `feat/phase-6-gamification`/`fix/achievement-celebration-flake`, fica a versão desta branch.
+  - `shoppingRepository.watchList`: a cada `ok`, um `{ deletedId: null }`, que faz o `useShoppingList` reler (respeitando os passos do stepper em voo).
+  - `NotificationToaster`: `pointerEvents="box-none"` como prop (o react-native-web 0.21 descarta do estilo), do handoff `20261103-0515`.
+  - `e2e/notifications-bell.spec.ts`: novo teste, um aviso gravado logo depois da montagem do sino toca uma vez, com o aviso ao vivo, e não volta depois de fechado.
+- **Arquivos/módulos principais:** `packages/data/src/realtime.ts`, `packages/data/src/{notifications,gamification,shopping}/index.ts`, `packages/features/notifications/src/NotificationToaster.tsx`, `e2e/notifications-bell.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma
+- **Como testar:** `pnpm check`; com a pilha logo depois de um `db reset`, `pnpm exec playwright test e2e/notifications-bell.spec.ts e2e/gamification.spec.ts e2e/shopping.spec.ts --project=app --repeat-each=8 --workers=4`.
+- **Verificado:** `pnpm check` passou (`@azkaban/data` 3 arquivos, 12 testes); `pnpm build:web` passou.
+- **Não verificado:** nenhuma E2E rodou (a pilha A estava ocupada); a causa da falha "a reminder that is due rings the bell once…" não foi confirmada. Hora derivada de UTC menos 3 (o PowerShell foi barrado no worktree).
+- **Pendências / próximos passos:** rodar as E2E acima com o Realtime frio.

@@ -16,6 +16,7 @@ import {
 } from '@azkaban/contracts';
 import { currentUserId, db } from '../client';
 import type { Database } from '../database.types';
+import { subscribeCaughtUp } from '../realtime';
 
 type Tables = Database['public']['Tables'];
 type ListRow = Tables['shopping_lists']['Row'];
@@ -292,26 +293,36 @@ export const shoppingRepository: ShoppingRepository = {
   },
 
   watchList(listId, onChange) {
-    const forward = (payload: { eventType: string; old: { id?: string } }) =>
-      onChange({ deletedId: payload.eventType === 'DELETE' ? (payload.old.id ?? null) : null });
-    const channel = db()
-      .channel(`shopping:${listId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'shopping_list_items',
-          filter: `list_id=eq.${listId}`,
-        },
-        forward,
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'shopping_lists', filter: `id=eq.${listId}` },
-        forward,
-      )
-      .subscribe();
-    return () => void db().removeChannel(channel);
+    const toItem = (payload: { eventType: string; old: { id?: string } }): ShoppingChange => ({
+      deletedId: payload.eventType === 'DELETE' ? (payload.old.id ?? null) : null,
+    });
+    return subscribeCaughtUp(
+      {
+        name: `shopping:${listId}`,
+        changes: [
+          {
+            filter: {
+              event: '*',
+              schema: 'public',
+              table: 'shopping_list_items',
+              filter: `list_id=eq.${listId}`,
+            },
+            toItem,
+          },
+          {
+            filter: {
+              event: '*',
+              schema: 'public',
+              table: 'shopping_lists',
+              filter: `id=eq.${listId}`,
+            },
+            toItem,
+          },
+        ],
+        // Whatever changed before the server heard the tables: one reload takes it in.
+        catchUp: () => Promise.resolve([{ deletedId: null }]),
+      },
+      onChange,
+    );
   },
 };

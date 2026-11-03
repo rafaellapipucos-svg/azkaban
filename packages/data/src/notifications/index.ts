@@ -25,6 +25,9 @@ import {
   type WhatsAppStatus,
 } from '@azkaban/contracts';
 import { currentUserId, db } from '../client';
+import { subscribeCaughtUp } from '../realtime';
+
+type BellChange = { type: 'insert' | 'update'; id: string };
 
 /**
  * A line of the bell, and whether its task asks for a photo, which picks the tap target. The
@@ -137,21 +140,56 @@ export const notificationsRepository = {
     if (error) throw error;
   },
 
-  /** Any insert or update of the user's bell rows. Realtime checks the select policy per row. */
-  subscribe(userId: string, onChange: (event: { type: 'insert' | 'update'; id: string }) => void) {
-    const channel = db()
-      .channel(`notifications:${userId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
-        (payload) => {
-          const row = payload.new as { id?: string };
-          if (payload.eventType === 'DELETE' || !row.id) return;
-          onChange({ type: payload.eventType === 'INSERT' ? 'insert' : 'update', id: row.id });
+  /**
+   * Any insert or update of the user's bell rows, from the call on; each insert once. Realtime
+   * checks the select policy per row. Inserts written before the server hears the table are read
+   * back (`subscribeCaughtUp`); an update in that gap is not.
+   */
+  subscribe(userId: string, onChange: (event: BellChange) => void) {
+    // The newest row's instant, in server time.
+    // ponytail: a row written during this first read counts as old; the window is one round trip.
+    const mark = (async () => {
+      const { data, error } = await db()
+        .from('notifications')
+        .select('created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.created_at ?? null;
+    })();
+    mark.catch(() => undefined);
+    return subscribeCaughtUp<BellChange>(
+      {
+        name: `notifications:${userId}`,
+        changes: [
+          {
+            filter: {
+              event: '*',
+              schema: 'public',
+              table: 'notifications',
+              filter: `user_id=eq.${userId}`,
+            },
+            toItem: (payload) => {
+              const row = payload.new as { id?: string };
+              if (payload.eventType === 'DELETE' || !row.id) return null;
+              return { type: payload.eventType === 'INSERT' ? 'insert' : 'update', id: row.id };
+            },
+          },
+        ],
+        catchUp: async () => {
+          const since = await mark;
+          let query = db().from('notifications').select('id').eq('user_id', userId);
+          if (since) query = query.gt('created_at', since);
+          const { data, error } = await query.order('created_at');
+          if (error) throw error;
+          return data.map(({ id }) => ({ type: 'insert' as const, id }));
         },
-      )
-      .subscribe();
-    return () => void db().removeChannel(channel);
+        key: (event) => (event.type === 'insert' ? event.id : null),
+      },
+      onChange,
+    );
   },
 
   /** Only the rows the user chose; the rest follows `notificationRules.defaultChannels`. */

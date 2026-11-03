@@ -96,10 +96,32 @@ export const sizes = {
   border: 2,
   mascot: 120,
   mascotSmall: 80,
+  mascotLarge: 160,
+  /** How far the mascot jumps (`celebrating`) and sways (`worried`). */
+  mascotJump: 16,
+  mascotShake: 6,
+  xpBar: 16,
+  /** The icon circle of AchievementBadge. */
+  achievement: 56,
+  confettiPiece: 10,
 } as const;
 
 /** Animation durations in ms. Components skip them entirely when the user asks for reduced motion. */
-export const motion = { fast: 150, base: 450 } as const;
+export const motion = { fast: 150, base: 450, mascot: 600, celebrate: 1600 } as const;
+
+/** The confetti burst: how many pieces and their colors, all from the palette above. */
+export const confetti = {
+  pieces: 28,
+  colors: [
+    colors.primary,
+    colors.done,
+    colors.partial,
+    contextColors.coral,
+    contextColors.blue,
+    contextColors.rose,
+    mascotColors.leaf,
+  ],
+} as const;
 
 /** Opacities for layers drawn over content. */
 export const opacity = { scrim: 0.4 } as const;

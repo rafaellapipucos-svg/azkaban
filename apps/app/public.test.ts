@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
 import appConfig from './app.config';
-import { reportOnlyCsp, withReportOnlyCsp } from './scripts/headers';
+import { htaccess, reportOnlyCsp, withReportOnlyCsp } from './scripts/headers';
 // Tailwind reads the tokens of packages/ui, which this app may only reach through its config.
 import tailwind from './tailwind.config';
 
@@ -40,6 +40,9 @@ describe('public files', () => {
     );
     expect(all).toContain('  X-Content-Type-Options: nosniff');
     expect(all).toContain('  Referrer-Policy: strict-origin-when-cross-origin');
+    // The proof needs the camera and the location of the page itself, and never the microphone.
+    expect(all).toContain('  Permissions-Policy: camera=(self), geolocation=(self), microphone=()');
+    expect(all).toContain('  X-Frame-Options: DENY');
   });
 });
 
@@ -79,6 +82,52 @@ describe('report-only CSP (ADR-0012, section 13, item 1)', () => {
     expect(built.replace(/\n {2}Content-Security-Policy-Report-Only: .*/, '')).toBe(
       headers.replace(/\r/g, ''),
     );
+  });
+});
+
+describe('.htaccess for the Hostinger (BL-24)', () => {
+  const host = 'https://abcdefghij.supabase.co';
+  const built = htaccess(withReportOnlyCsp(file('_headers'), host));
+
+  it('sends every header of the /* block, the report-only CSP included', () => {
+    for (const line of [
+      `Header always set Content-Security-Policy "frame-ancestors 'none'; object-src 'none'; base-uri 'self'"`,
+      `Header always set Content-Security-Policy-Report-Only "${reportOnlyCsp(host)}"`,
+      'Header always set X-Content-Type-Options "nosniff"',
+      'Header always set Referrer-Policy "strict-origin-when-cross-origin"',
+      'Header always set Permissions-Policy "camera=(self), geolocation=(self), microphone=()"',
+      'Header always set X-Frame-Options "DENY"',
+    ]) {
+      expect(built).toContain(`  ${line}\n`);
+    }
+    expect(built).not.toContain('*.supabase.co');
+    expect(htaccess(file('_headers'))).not.toContain('Report-Only');
+  });
+
+  it('forces HTTPS before the SPA fallback, which skips chunks and assets', () => {
+    const https = built.indexOf('RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]');
+    const fallback = built.indexOf('RewriteRule ^ index.html [L]');
+    expect(https).toBeGreaterThan(-1);
+    expect(fallback).toBeGreaterThan(https);
+    expect(built.slice(https, fallback)).toContain('RewriteCond %{REQUEST_URI} !^/(_expo|assets)/');
+  });
+
+  it('caches only hashed names for long, and revalidates the document and the worker', () => {
+    const hashed = new RegExp(built.match(/<FilesMatch "(\[\.-\][^"]+)">/)![1]!);
+    expect(hashed.test('entry-16b2b9bf3b7078051015cdefa75f1961.js')).toBe(true);
+    expect(hashed.test('Nunito_400Regular.f04f0e9ff969fd52a75deade3a9761cd.ttf')).toBe(true);
+    for (const name of ['index.html', 'sw.js', 'manifest.webmanifest', 'icon-192.png']) {
+      expect(hashed.test(name)).toBe(false);
+    }
+    expect(built).toMatch(
+      /<FilesMatch "\^\(index\\\.html\|sw\\\.js\|manifest\\\.webmanifest\)\$">\n {4}Header set Cache-Control "no-cache"/,
+    );
+    expect(built).toContain('AddType application/manifest+json .webmanifest');
+  });
+
+  it('refuses a header it cannot quote', () => {
+    expect(() => htaccess('/*\n  X-Test: a "b"\n')).toThrow();
+    expect(() => htaccess('/sw.js\n  Cache-Control: no-cache\n')).toThrow();
   });
 });
 

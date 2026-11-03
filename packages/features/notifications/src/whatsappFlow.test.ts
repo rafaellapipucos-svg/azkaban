@@ -1,5 +1,21 @@
+import { whatsappErrorCodeSchema } from '@azkaban/contracts';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { secondsUntil, waitParts, whatsappErrorKey, whatsappStep } from './whatsappFlow';
+import {
+  phoneFormSchema,
+  readPendingCode,
+  requestRefusalKey,
+  secondsUntil,
+  waitParts,
+  whatsappErrorKey,
+  whatsappStep,
+} from './whatsappFlow';
+
+const packages = join(import.meta.dirname, '..', '..', '..');
+const messages = JSON.parse(
+  readFileSync(join(packages, 'i18n', 'src', 'pt-BR', 'notifications.json'), 'utf8'),
+) as { whatsapp: { errors: Record<string, string> } };
 
 const none = {
   phoneE164: null,
@@ -33,6 +49,27 @@ describe('whatsappStep', () => {
   });
 });
 
+describe('phoneFormSchema', () => {
+  const errorPath = (form: { country: string; number: string }) =>
+    phoneFormSchema.safeParse(form).error?.issues.map((issue) => issue.path.join('.'));
+
+  it('takes a Brazilian number, also typed with +55 or 0055', () => {
+    expect(errorPath({ country: '55', number: '(11) 98765-4321' })).toBeUndefined();
+    expect(errorPath({ country: '55', number: '+55 11 98765-4321' })).toBeUndefined();
+    expect(errorPath({ country: '55', number: '0055 11 98765-4321' })).toBeUndefined();
+  });
+
+  it('refuses another country in its field or in the number, before asking (SEG5-5)', () => {
+    expect(errorPath({ country: '351', number: '912 345 678' })).toEqual(['country']);
+    expect(errorPath({ country: '55', number: '+351 912 345 678' })).toEqual(['country']);
+    expect(errorPath({ country: '55', number: '00351 912 345 678' })).toEqual(['country']);
+  });
+
+  it('a number that is not a phone is the number field', () => {
+    expect(errorPath({ country: '55', number: 'abc' })).toEqual(['number']);
+  });
+});
+
 describe('secondsUntil', () => {
   const now = Date.parse('2026-11-03T10:00:00.000Z');
   it('rounds up and never goes below zero', () => {
@@ -62,9 +99,59 @@ describe('whatsappErrorKey', () => {
     );
   });
 
+  it('every code of the contract has its own message, so none falls to the generic one', () => {
+    for (const code of whatsappErrorCodeSchema.options) {
+      expect(messages.whatsapp.errors[code], code).toBeTruthy();
+    }
+    expect(whatsappErrorKey('phone_country_not_allowed')).toBe(
+      'whatsapp.errors.phone_country_not_allowed',
+    );
+  });
+
   it('anything else is generic', () => {
     expect(whatsappErrorKey(new Error('Failed to fetch'))).toBe('whatsapp.errors.generic');
     expect(whatsappErrorKey({ message: 'forbidden' })).toBe('whatsapp.errors.generic');
     expect(whatsappErrorKey(null)).toBe('whatsapp.errors.generic');
+  });
+});
+
+describe('readPendingCode', () => {
+  const now = Date.parse('2026-11-03T10:00:00.000Z');
+  const kept = {
+    userId: 'u1',
+    phone: '+5511987654321',
+    expiresAt: '2026-11-03T10:05:00.000Z',
+    resendAt: '2026-11-03T09:56:00.000Z',
+  };
+  const raw = JSON.stringify(kept);
+
+  it('gives back the code step of this user while the code lives', () => {
+    expect(readPendingCode(raw, 'u1', now)).toEqual(kept);
+  });
+
+  it('nothing for another user, a dead code, an unknown user or a broken value', () => {
+    expect(readPendingCode(raw, 'u2', now)).toBeNull();
+    expect(readPendingCode(raw, '', now)).toBeNull();
+    expect(readPendingCode(raw, 'u1', Date.parse(kept.expiresAt))).toBeNull();
+    expect(readPendingCode('{', 'u1', now)).toBeNull();
+    expect(readPendingCode(JSON.stringify({ ...kept, phone: '123' }), 'u1', now)).toBeNull();
+    expect(readPendingCode(null, 'u1', now)).toBeNull();
+  });
+});
+
+describe('requestRefusalKey', () => {
+  it('the wait between two codes is not "too many codes" (QA5-2)', () => {
+    expect(requestRefusalKey({ error: 'phone_rate_limited', retryAfterSeconds: 58 })).toBe(
+      'whatsapp.errors.phone_resend_wait',
+    );
+    expect(requestRefusalKey({ error: 'phone_rate_limited', retryAfterSeconds: 3600 })).toBe(
+      'whatsapp.errors.phone_rate_limited',
+    );
+    expect(requestRefusalKey({ error: 'phone_rate_limited' })).toBe(
+      'whatsapp.errors.phone_rate_limited',
+    );
+    expect(requestRefusalKey({ error: 'phone_country_not_allowed' })).toBe(
+      'whatsapp.errors.phone_country_not_allowed',
+    );
   });
 });

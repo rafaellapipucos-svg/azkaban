@@ -1643,3 +1643,25 @@
   - Tudo na pilha B só com o Postgres; a pilha A não foi tocada, e a B foi parada no fim com o `config.toml` devolvido.
 - **Não verificado:** `pnpm functions:test` (a B `db` não tem Edge Runtime; o teste do webhook usa `wa_id` igual aos dígitos do telefone) e a E2E. Até o `backend-funcoes` seguir o handoff 0206, a `phone-verification` não conhece `phone_country_not_allowed`.
 - **Pendências / próximos passos:** `backend-funcoes`: 400 para `phone_country_not_allowed`. Comentário de `whatsapp_messages` ainda diz que `recipient_wa_id` serve ao PARAR; fica como registro da entrega (migration integrada, não editada).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:17 (BRT)
+
+- **Branch:** fix/whatsapp-client-security, criada a partir de feat/phase-5-whatsapp (d66b135), com `feat/phase-5-whatsapp` mesclada depois para trazer o handoff do QA
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** A parte do cliente das decisões da revisão de segurança da Fase 5 (ADR-0009, seção 18: SEG5-5, SEG5-6, SEG5-7 e o `00` do revisor) e os achados QA5-1 a QA5-3 do handoff `20261103-0210-qa-testes-para-notificacoes-whatsapp-achados-da-fase-5`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `cleanParam` tira `\p{Cf}` (controles bidirecionais, largura zero, BOM, marcas LRM e RLM), exceto U+200D, que une os emojis compostos. Testes com U+202A a U+202E, U+2066 a U+2069, U+200B, U+200E, U+200F, U+FEFF, U+2060, e um emoji com ZWJ inteiro; a saída passa no `whatsappTextParamSchema`.
+  - `normalizePhone` lê o `00` do começo como `+`: `0055 11 98765-4321` dá `+5511987654321`.
+  - `formatPhone` em core (QA5-3): `+55 11 91705-8802`, fixo `+55 11 3333-4444`, outro país como está. Usado na dica do código, no aviso e em "Ativo para".
+  - Aviso v1 (SEG5-7): `what` cita as áreas e os contextos; chave nova `phone`, mostrada na tela do aviso. Continua v1.
+  - `whatsapp.errors.phone_country_not_allowed` ("Por enquanto, só números do Brasil (+55)."). O formulário recusa, antes de pedir, um país fora de `allowedCountryCodes`, no campo ou como `+`/`00` no número, e o campo do país mostra esse texto; `whatsapp.phone.countryInvalid` saiu. Teste: todo código de `whatsappErrorCodeSchema` tem texto próprio.
+  - QA5-2: `phone_rate_limited` com `retryAfterSeconds` até `resendSeconds` diz "Espere um pouco para pedir outro código." (`whatsapp.errors.phone_resend_wait`), com a contagem embaixo; o limite de 24 horas continua "Muitos códigos pedidos".
+  - QA5-1: o passo do código fica na sessão da aba: `{ userId, phone, expiresAt, resendAt }` em `azkaban.whatsapp.pendingCode`, nunca o código. Restaurado só para o mesmo usuário e com o código vivo; apagado ao confirmar e ao trocar o número. Adapter novo em `packages/platform`: `readSessionValue` e `writeSessionValue` (`sessionStorage` na web, memória no nativo).
+  - `e2e/whatsapp.spec.ts`: número formatado nos três textos; recarga na tela do código esperando o campo, a dica e o reenvio travado; o 429 do reenvio a partir de uma aba limpa, com o texto novo.
+- **Arquivos/módulos principais:** `packages/core/src/notifications/whatsapp.ts` e o teste, `packages/core/src/index.ts`, `packages/features/notifications/src/{WhatsAppSection.tsx,whatsappFlow.ts,whatsappFlow.test.ts}`, `packages/platform/src/{sessionValue.ts,sessionValue.web.ts,index.ts}`, `packages/i18n/src/pt-BR/notifications.json`, `e2e/whatsapp.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. Um só texto de erro no campo do país enquanto só o Brasil é permitido; com outro país na lista, o texto e o campo precisam mudar.
+- **Como testar:** `pnpm check`; com a pilha, `pnpm exec playwright test e2e/whatsapp.spec.ts --project app`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9 tarefas; core 605 testes, feature-notifications 17, platform 46; `functions:imports` 8 de 8).
+- **Não verificado:** a E2E não rodou (sem pilha); as mudanças da spec foram escritas sem execução. O `cleanParam` novo dentro do Deno do despacho (o regex com `\p{Cf}` e lookahead é padrão). A tela não foi vista no navegador. iOS e Android.
+- **Pendências / próximos passos:** o texto do aviso continua a confirmar pelo humano. A bandeira da Inglaterra e as outras de subdivisão usam caracteres de tag (`\p{Cf}`) e viram a bandeira preta no resumo.

@@ -3615,3 +3615,18 @@
 - **Verificado:** `pnpm check` passou (lint e Prettier, fronteiras, typecheck com e2e e `deno check` das funções, testes, `functions:imports`); `push.test.ts` direto no Node, 28 de 28. O teste de integração do despacho injeta o próprio `fetch` da Expo e nenhum E2E cria aparelho `expo`, então nenhum depende do padrão.
 - **Não verificado:** `pnpm functions:test` e E2E (sem pilha, como pedido); CI no Linux.
 - **Pendências / próximos passos:** quem tem `supabase/functions/.env` local antigo, com `NATIVE_PUSH_PROVIDER=` vazio, troca para `fake`; o handoff ao arquiteto sobre o ADR-0012.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 11:14 (BRT)
+
+- **Branch:** docs/adr-0012-native-push-empty, criada a partir de feat/backlog-after-phase-8 (8462cc6)
+- **Agente(s):** arquiteto
+- **Resumo:** Handoff `20261103-1111-backend-funcoes-para-arquiteto-adr-0012-push-nativo-vazio`. O ADR-0012, seção 11, deixa de dizer que `NATIVE_PUSH_PROVIDER` vazio é `fake`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `docs/adr/0012-polimento-lgpd-limites-offline.md`, parágrafo "URL da API da Expo e segredos": desde o BL23-1, vazio ou ausente é "não configurado", e `fake` só quando escrito, na pilha local. Confere com `docs/implantacao.md`, seção 2.
+- **Arquivos/módulos principais:** `docs/adr/0012-polimento-lgpd-limites-offline.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0012, seção 11 (só texto, a decisão é do BL23-1).
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` (abaixo).
+- **Não verificado:** nada roda; é texto.
+- **Pendências / próximos passos:** nenhuma.

@@ -11,11 +11,28 @@ import { parseEnv } from 'node:util';
 const baseURL = 'http://localhost:8091';
 
 // `E2E_BUILD=1`: the production build (`pnpm build:web`) served static by `e2e/serve-build.mjs`, where the goals
-// 2 to 4 of ADR-0012, section 10, count. `build:web` reads `.env.local`, which may point at the hosted
-// project, so it gets the local stack's values of `.env.development.local`; the shell still wins.
-const build = Boolean(process.env.E2E_BUILD);
+// 2 to 4 of ADR-0012, section 10, count. `build:web` would read `.env.local`, which may point at the hosted
+// project: `EXPO_NO_DOTENV` turns Expo's `.env` loading off, and the build gets only the `EXPO_PUBLIC_*`
+// values of the shell, or else of `.env.development.local`. A Supabase URL that is not the local stack,
+// or none (a worktree has no `.env.development.local`), stops the run before it builds.
+const build = process.env.E2E_BUILD === '1';
 const localEnv = 'apps/app/.env.development.local';
-const buildEnv = build && existsSync(localEnv) ? parseEnv(readFileSync(localEnv, 'utf8')) : {};
+const buildEnv: Record<string, string> = {};
+if (build) {
+  const file = existsSync(localEnv) ? parseEnv(readFileSync(localEnv, 'utf8')) : {};
+  for (const [key, value] of Object.entries({ ...file, ...process.env })) {
+    if (key.startsWith('EXPO_PUBLIC_') && value !== undefined) buildEnv[key] = value;
+  }
+  const url = buildEnv.EXPO_PUBLIC_SUPABASE_URL;
+  const host = url && URL.canParse(url) ? new URL(url).hostname : undefined;
+  if (host !== '127.0.0.1' && host !== 'localhost') {
+    throw new Error(
+      `E2E_BUILD=1 needs EXPO_PUBLIC_SUPABASE_URL of the local stack, in the shell or in ${localEnv} ` +
+        `(see apps/app/.env.example); got ${url ?? 'none'}`,
+    );
+  }
+  buildEnv.EXPO_NO_DOTENV = '1';
+}
 
 export default defineConfig({
   testDir: './e2e',

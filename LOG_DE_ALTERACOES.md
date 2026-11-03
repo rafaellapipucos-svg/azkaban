@@ -3137,3 +3137,20 @@
 - **Verificado:** as 12 execuções da spec de desempenho no build passaram; `pnpm bundle:size`; `e2e/a11y.spec.ts` 6 de 6; `pnpm check` passou.
 - **Não verificado:** a falha de a11y na E2E completa (`pnpm e2e` não rodou; a spec de a11y rodou sozinha); o mês com dados de mais de um dia; Lighthouse (meta 5, fica para F8-8); nativo; o hospedado.
 - **Pendências / próximos passos:** `gamificacao`: `user_stats` uma vez só (handoff `20261103-0930`). Depois disso, `qa-testes` barra `calls.length <= 14`. Arquiteto: revisar a `webServer` com `E2E_BUILD` e o texto do ADR sobre `expo serve`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 09:27 (BRT)
+
+- **Branch:** `docs/phase-8-build-server`, criada a partir de `feat/phase-8-polish` (`3d8fbaa`)
+- **Agente(s):** arquiteto
+- **Resumo:** revisão do `E2E_BUILD=1` do `qa-testes` (`6641293`). A injeção de env deixava o build cair no `.env.local` (hospedado) quando faltava o `.env.development.local`, o que acontece em todo worktree; agora para com erro. O servidor estático caía com `%` malformado; agora não. ADR-0012, seção 10, descreve o método real.
+- **Alterações:**
+  - `playwright.config.ts`: com `E2E_BUILD=1` (só o valor `1`), o build recebe `EXPO_NO_DOTENV=1`, para o Expo não ler `.env.local`, e só as `EXPO_PUBLIC_*` do shell ou, na falta, do `.env.development.local`. Se a `EXPO_PUBLIC_SUPABASE_URL` não for `127.0.0.1`/`localhost`, ou faltar, a config lança erro antes do build. Antes: sem o arquivo, `buildEnv` ficava vazio e o `expo export` lia o `.env.local`, com a URL e a chave VAPID do hospedado. Conferido no `@expo/env`: o que já está no ambiente não é sobrescrito, e `EXPO_NO_DOTENV` desliga a leitura. O padrão (`pnpm dev`) não muda.
+  - `e2e/serve-build.mjs`: `decodeURIComponent` com `%` malformado lançava dentro do handler e derrubava o servidor; agora cai no `index.html`. O teste de contenção passa a `startsWith(root + sep)`. Fallback SPA e tipos MIME estavam certos.
+  - `docs/adr/0012-polimento-lgpd-limites-offline.md`, seção 10: troca `expo serve` por `e2e/serve-build.mjs` (com o porquê), documenta `E2E_BUILD=1` e a regra de só a pilha local no build.
+- **Arquivos/módulos principais:** os três acima.
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** ADR-0012, seção 10, ajustado (método, não decisão nova).
+- **Como testar:** `E2E_BUILD=1 pnpm exec playwright test --list` num worktree sem `.env.development.local` deve falhar com a mensagem; com `EXPO_PUBLIC_SUPABASE_URL=https://x.supabase.co` também; com `http://127.0.0.1:54421` lista os testes.
+- **Verificado:** os três casos acima, e o padrão sem `E2E_BUILD` (95 testes listados). Servidor com um `dist` falso: `/`, `/sign-up` e `%E0%A4%A` dão `index.html`; `/sub/a.js` com `text/javascript`; `/../secret.txt`, `/%2e%2e/secret.txt`, `/..%2f..%2f...` e `/..%5c..%5c...` não saem de `dist`; o servidor segue de pé depois do `%` malformado. `pnpm check` passou.
+- **Não verificado:** o build real com `E2E_BUILD=1` e a spec de desempenho (sem pilha, por pedido); se o cache do Metro reaproveita uma transformação com valores do hospedado de um `build:web` anterior (o pacote do `qa-testes` saiu com `127.0.0.1:54421`, mas sem `EXPO_NO_DOTENV`). O servidor escuta em todas as interfaces, como o `expo start`; não muda para `localhost` sem testar a resolução IPv4/IPv6 do Playwright.
+- **Pendências / próximos passos:** nenhuma.

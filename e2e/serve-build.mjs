@@ -3,7 +3,7 @@
 // Only for `E2E_BUILD=1` in playwright.config.ts; stdlib, so no new dependency.
 import { createReadStream, statSync } from 'node:fs';
 import { createServer } from 'node:http';
-import { extname, join, normalize } from 'node:path';
+import { extname, join, normalize, sep } from 'node:path';
 import { URL } from 'node:url';
 
 const root = join(import.meta.dirname, '../apps/app/dist');
@@ -21,9 +21,16 @@ const types = {
 };
 
 createServer((req, res) => {
-  const path = normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname));
+  // A rooted path normalizes `..` away, and the `startsWith` stays as a backstop. A malformed `%` is a
+  // route like any other, not a crash.
+  let path;
+  try {
+    path = normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname));
+  } catch {
+    path = sep;
+  }
   let file = join(root, path);
-  if (!file.startsWith(root) || !statSync(file, { throwIfNoEntry: false })?.isFile())
+  if (!file.startsWith(root + sep) || !statSync(file, { throwIfNoEntry: false })?.isFile())
     file = join(root, 'index.html');
   res.writeHead(200, { 'content-type': types[extname(file)] ?? 'application/octet-stream' });
   createReadStream(file).pipe(res);

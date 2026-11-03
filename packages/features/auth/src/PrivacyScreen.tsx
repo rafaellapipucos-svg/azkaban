@@ -24,6 +24,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState, type ReactNode } from 'react';
 import { View } from 'react-native';
+import { afterReauth, deleteStep } from './deleteStep';
 import { useSession } from './useSession';
 
 type T = ReturnType<typeof useTranslation>['t'];
@@ -192,7 +193,8 @@ function DeleteSection() {
     mutationFn: () => authRepository.signIn({ email, password }),
     onSuccess: () => {
       setPassword('');
-      remove.mutate();
+      if (afterReauth(remove.error) === 'delete') remove.mutate();
+      else void preview.refetch();
     },
   });
   const magicLink = useMutation({
@@ -201,8 +203,12 @@ function DeleteSection() {
 
   const confirmWord = t('privacy.delete.word');
   const confirmed = word.trim().toLocaleUpperCase(i18n.language) === confirmWord;
-  const needsReauth =
-    remove.error instanceof PrivacyError && remove.error.code === 'reauth_required';
+  const step = deleteStep({
+    open,
+    preview: preview.data,
+    previewError: preview.error,
+    removeError: remove.error,
+  });
   const close = () => {
     setOpen(false);
     setWord('');
@@ -213,13 +219,52 @@ function DeleteSection() {
     <Card>
       <Subtitle tone="danger">{t('privacy.delete.title')}</Subtitle>
       <Body>{t('privacy.delete.description')}</Body>
-      {!open ? (
+      {step === 'closed' ? (
         <Button
           variant="secondary"
           label={t('privacy.delete.start')}
           onPress={() => setOpen(true)}
         />
-      ) : preview.isError ? (
+      ) : step === 'reauth' ? (
+        <>
+          <Subtitle level={3}>{t('privacy.delete.reauthTitle')}</Subtitle>
+          <Body>
+            {t('privacy.delete.reauthDescription', {
+              minutes: privacyDefaults.reauthMaxAgeMinutes,
+            })}
+          </Body>
+          <Body>{t('fields.password')}</Body>
+          <Input
+            aria-label={t('fields.password')}
+            value={password}
+            onChangeText={setPassword}
+            autoComplete="current-password"
+            secureTextEntry
+          />
+          {reauth.isError ? <ErrorText>{t('privacy.delete.reauthInvalid')}</ErrorText> : null}
+          <Button
+            variant="danger"
+            label={t(
+              afterReauth(remove.error) === 'delete'
+                ? 'privacy.delete.reauthSubmit'
+                : 'privacy.delete.reauthContinue',
+            )}
+            disabled={!password}
+            loading={reauth.isPending || remove.isPending || preview.isFetching}
+            onPress={() => reauth.mutate()}
+          />
+          <Button
+            variant="secondary"
+            label={t('privacy.delete.reauthMagicLink')}
+            loading={magicLink.isPending}
+            onPress={() => magicLink.mutate()}
+          />
+          {magicLink.isSuccess ? (
+            <Body role="status">{t('privacy.delete.reauthMagicLinkSent')}</Body>
+          ) : null}
+          {magicLink.isError ? <ErrorText>{t('errors.generic')}</ErrorText> : null}
+        </>
+      ) : step === 'error' ? (
         <>
           <ErrorText>{errorText(t, preview.error)}</ErrorText>
           <Button
@@ -228,9 +273,9 @@ function DeleteSection() {
             onPress={() => preview.refetch()}
           />
         </>
-      ) : !preview.data ? (
+      ) : step === 'loading' || !preview.data ? (
         <Button variant="secondary" label={t('privacy.delete.start')} loading />
-      ) : preview.data.blockingGroups.length > 0 ? (
+      ) : step === 'blocking' ? (
         <>
           <Body>{t('privacy.delete.blocking')}</Body>
           {preview.data.blockingGroups.map((group) => (
@@ -271,61 +316,22 @@ function DeleteSection() {
           ) : null}
           <Body>{t('privacy.delete.goes')}</Body>
           <Body>{t('privacy.delete.stays')}</Body>
-          {needsReauth ? (
-            <>
-              <Subtitle level={3}>{t('privacy.delete.reauthTitle')}</Subtitle>
-              <Body>
-                {t('privacy.delete.reauthDescription', {
-                  minutes: privacyDefaults.reauthMaxAgeMinutes,
-                })}
-              </Body>
-              <Body>{t('fields.password')}</Body>
-              <Input
-                aria-label={t('fields.password')}
-                value={password}
-                onChangeText={setPassword}
-                autoComplete="current-password"
-                secureTextEntry
-              />
-              {reauth.isError ? <ErrorText>{t('privacy.delete.reauthInvalid')}</ErrorText> : null}
-              <Button
-                variant="danger"
-                label={t('privacy.delete.reauthSubmit')}
-                disabled={!password}
-                loading={reauth.isPending || remove.isPending}
-                onPress={() => reauth.mutate()}
-              />
-              <Button
-                variant="secondary"
-                label={t('privacy.delete.reauthMagicLink')}
-                loading={magicLink.isPending}
-                onPress={() => magicLink.mutate()}
-              />
-              {magicLink.isSuccess ? (
-                <Body role="status">{t('privacy.delete.reauthMagicLinkSent')}</Body>
-              ) : null}
-              {magicLink.isError ? <ErrorText>{t('errors.generic')}</ErrorText> : null}
-            </>
-          ) : (
-            <>
-              <Body>{t('privacy.delete.wordLabel', { word: confirmWord })}</Body>
-              <Input
-                aria-label={t('privacy.delete.wordLabel', { word: confirmWord })}
-                value={word}
-                onChangeText={setWord}
-                autoCapitalize="characters"
-                autoCorrect={false}
-              />
-              {remove.isError ? <ErrorText>{errorText(t, remove.error)}</ErrorText> : null}
-              <Button
-                variant="danger"
-                label={t('privacy.delete.confirm')}
-                disabled={!confirmed}
-                loading={remove.isPending}
-                onPress={() => remove.mutate()}
-              />
-            </>
-          )}
+          <Body>{t('privacy.delete.wordLabel', { word: confirmWord })}</Body>
+          <Input
+            aria-label={t('privacy.delete.wordLabel', { word: confirmWord })}
+            value={word}
+            onChangeText={setWord}
+            autoCapitalize="characters"
+            autoCorrect={false}
+          />
+          {remove.isError ? <ErrorText>{errorText(t, remove.error)}</ErrorText> : null}
+          <Button
+            variant="danger"
+            label={t('privacy.delete.confirm')}
+            disabled={!confirmed}
+            loading={remove.isPending}
+            onPress={() => remove.mutate()}
+          />
         </>
       )}
       {open ? <Button variant="secondary" label={t('actions.cancel')} onPress={close} /> : null}

@@ -276,7 +276,7 @@ test('every screen: names, contrast, targets, reflow, zoom, keyboard and reduced
     /^cut at 200%: \/calendar: \S+\.$/, // QA8-6, weekday names
     /^contrast: \/calendar \d+px light: \d 3\.31:1$/, // QA8-4, day counts
     /^contrast: \/team\/[\w-]+ \d+px dark: – 2\.34:1$/, // QA8-4, the dash for no data
-    /^h1 count: (\/|\/contexts|\/groups\/[\w-]+|signed out \/join\/\w+) \d+px \w+: [02]$/, // QA8-7
+    /^h1 count: (\/|\/contexts) \d+px \w+: [02]$/, // QA8-7
   ];
   const unknown = Object.entries(notes)
     .flatMap(([key, items]) => items.map((item) => `${key}: ${item}`))

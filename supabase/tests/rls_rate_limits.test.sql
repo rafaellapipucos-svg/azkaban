@@ -3,7 +3,7 @@
 -- reached by moving the counter's window back.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(78);
+select plan(89);
 
 create function pg_temp.u(p text) returns uuid language sql as $$
   select ('00000000-0000-0000-0000-' || lpad(p, 12, '0'))::uuid;
@@ -11,7 +11,7 @@ $$;
 
 insert into auth.users (id, email, raw_user_meta_data)
 select pg_temp.u(k), k || '@rl.local', jsonb_build_object('display_name', 'User ' || k)
-from unnest(array['1', '2', '3', '4', '5', '6', '7', '8']) k;
+from unnest(array['1', '2', '3', '4', '5', '6', '7', '8', '9']) k;
 insert into public.contexts (area_id, group_id, owner_user_id, name, color_token, icon, created_by)
 select (select id from public.areas where key = 'work'), null, p.id, 'Own', 'teal', 'x', p.id from public.profiles p
 where p.id in (pg_temp.u('1'), pg_temp.u('2'));
@@ -100,7 +100,8 @@ select is((select value from public.app_settings where key = 'rate_limit_rules')
     "shopping_list_create": {"limit": 30, "windowSeconds": 3600},
     "invite_create": {"limit": 30, "windowSeconds": 86400},
     "invite_lookup": {"limit": 30, "windowSeconds": 3600},
-    "data_export": {"limit": 3, "windowSeconds": 86400}
+    "data_export": {"limit": 3, "windowSeconds": 86400},
+    "shopping_item_adjust": {"limit": 600, "windowSeconds": 3600}
   },
   "counterRetentionHours": 48,
   "idempotencyRetentionHours": 48
@@ -263,6 +264,23 @@ select pg_temp.login(pg_temp.u('5'));
 select is((select group_name from public.get_invite_preview('RLCODE0001')), 'Casa 4', 'the next window answers again');
 select pg_temp.pg();
 
+-- SEG8-2: accept_invite spends the same limit and answers a wrong code with null, so the counter stays.
+select pg_temp.login(pg_temp.u('9'));
+select is(public.accept_invite('NOPE000000'), null, 'accept_invite answers null for a wrong code');
+select pg_temp.pg();
+select is(pg_temp.hits(pg_temp.u('9'), 'invite_lookup'), 1, 'and the wrong code counts');
+select pg_temp.fill(pg_temp.u('9'), 'invite_lookup');
+select pg_temp.login(pg_temp.u('9'));
+select is(public.accept_invite('GUESS00001'), null, 'accept number 30 passes');
+select throws_ok($$select public.accept_invite('RLCODE0001')$$,
+  'PT429', 'rate_limited', 'accept number 31 is rate_limited, even with a valid code');
+select pg_temp.pg();
+select pg_temp.age(pg_temp.u('9'), 'invite_lookup');
+select pg_temp.login(pg_temp.u('9'));
+select is(public.accept_invite('RLCODE0001'), '30000000-0000-0000-0000-000000000004'::uuid, 'the next window joins again');
+select pg_temp.pg();
+select is(pg_temp.hits(pg_temp.u('9'), 'invite_lookup'), 1, 'a valid code counts too');
+
 -- ===== The idempotent stepper =====
 select pg_temp.sv('cat', (select id from public.shopping_catalog_items where owner_user_id = pg_temp.u('6') order by name limit 1)::text);
 select pg_temp.login(pg_temp.u('6'));
@@ -305,6 +323,22 @@ select ok(not exists (select 1 from pg_proc where proname = 'adjust_shopping_ite
 select ok(has_function_privilege('authenticated', 'public.add_catalog_item_to_list(uuid, uuid, numeric, uuid)', 'execute')
   and not has_function_privilege('anon', 'public.adjust_shopping_item_quantity(uuid, numeric, uuid)', 'execute'),
   'the grants of the stepper are redone');
+
+-- SEG8-4: shopping_item_adjust. Above, U6 made 7 applied calls (an add that created, four steps, the
+-- three-argument add that handed off to the step, and the step to zero); the replays, the refused step
+-- of U7 and the repeat on the deleted item wrote nothing.
+select is(pg_temp.hits(pg_temp.u('6'), 'shopping_item_adjust'), 7, 'each applied call counts once, a replay does not');
+select is(pg_temp.hits(pg_temp.u('7'), 'shopping_item_adjust'), null, 'a refused call does not count');
+select pg_temp.fill(pg_temp.u('6'), 'shopping_item_adjust');
+select pg_temp.login(pg_temp.u('6'));
+select pg_temp.sv('item2', (public.add_catalog_item_to_list(pg_temp.g('list'), pg_temp.g('cat'), 1,
+  'a0000000-0000-0000-0000-000000000005')).id::text);
+select ok(pg_temp.g('item2') is not null, 'call number 600 passes');
+select throws_ok(format($$select public.adjust_shopping_item_quantity(%L, 1, 'a0000000-0000-0000-0000-000000000006')$$,
+  pg_temp.g('item2')), 'PT429', 'rate_limited', 'call number 601 is rate_limited');
+select pg_temp.pg();
+select ok(not exists (select 1 from public.processed_requests where request_id = 'a0000000-0000-0000-0000-000000000006'),
+  'and its id was not recorded');
 
 -- ===== Retention, in the daily job =====
 insert into public.rate_limit_counters (user_id, action, window_start, hits) values

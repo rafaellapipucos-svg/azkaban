@@ -1,8 +1,8 @@
--- XP of a completed list (ADR-0011, section 9; F7-5): the minimum of checked items, the limit per local
--- day, once per list, the personal list without a group, the daily cap of ADR-0010 and the ranking.
+-- XP of a completed list (ADR-0011, section 9; F7-5): the minimum of checked items, the limit per rolling
+-- 24 hours, once per list, the personal list without a group, the daily cap of ADR-0010 and the ranking.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(17);
 
 -- Alice owns Casa A, Duda is a member of A. Bia has only personal lists.
 insert into auth.users (id, email, raw_user_meta_data) values
@@ -87,22 +87,35 @@ select pg_temp.pg();
 select is(pg_temp.ev(pg_temp.g('p1')), row(pg_temp.u('a'), null::uuid, 10, null::uuid)::text,
   'a personal list gives XP with no group');
 
--- ===== Limit per local day =====
+-- ===== Limit per 24 hours =====
 select pg_temp.login(pg_temp.u('a'));
 select pg_temp.sv('l3', pg_temp.done(pg_temp.grp(), 3, 3)::text);
 select pg_temp.pg();
 select is(pg_temp.ev(pg_temp.g('l3')), 'none', 'the third rewarded list of the day gives nothing');
 
--- Two rewarded lists of Duda a minute before the local midnight do not count today.
+-- Two rewarded lists of Duda a minute more than 24 hours ago do not count (SEG8-1: a rolling window).
 insert into public.xp_events (user_id, amount, reason, created_at)
-select pg_temp.u('d'), 10, 'shopping_completed',
-  (now() at time zone 'America/Sao_Paulo')::date::timestamp at time zone 'America/Sao_Paulo' - interval '1 minute'
+select pg_temp.u('d'), 10, 'shopping_completed', now() - interval '24 hours 1 minute'
 from generate_series(1, 2);
 select pg_temp.login(pg_temp.u('d'));
 select pg_temp.sv('l4', pg_temp.done(pg_temp.grp(), 4, 3)::text);
 select pg_temp.pg();
 select is(pg_temp.ev(pg_temp.g('l4')), row(pg_temp.u('d'), pg_temp.grp(), 10, null::uuid)::text,
-  'rewarded lists of yesterday, in the zone of the profile, leave today free');
+  'rewarded lists older than 24 hours leave the window free');
+
+-- SEG8-1: one more an hour ago makes two in the window. Duda then moves to the Etc/GMT zone where it is
+-- now between 00:00 and 01:00, so that event is "yesterday" there; the third list still gives nothing.
+insert into public.xp_events (user_id, amount, reason, created_at)
+values (pg_temp.u('d'), 10, 'shopping_completed', now() - interval '1 hour');
+update public.profiles set timezone = (
+  select 'Etc/GMT' || case when off = 0 then '' when off > 0 then '-' || off else '+' || -off end
+  from (select case when h <= 12 then -h else 24 - h end as off
+        from (select extract(hour from now() at time zone 'UTC')::int as h) x) y)
+where id = pg_temp.u('d');
+select pg_temp.login(pg_temp.u('d'));
+select pg_temp.sv('l5', pg_temp.done(null, 3, 3)::text);
+select pg_temp.pg();
+select is(pg_temp.ev(pg_temp.g('l5')), 'none', 'switching to a zone whose midnight just passed does not reset the count');
 
 -- ===== Once per list =====
 select pg_temp.login(pg_temp.u('a'));

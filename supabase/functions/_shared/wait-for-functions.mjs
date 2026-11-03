@@ -9,6 +9,8 @@ const names = [
   'proof-url',
   'proof-retention',
   'dispatch-notifications',
+  'phone-verification',
+  'whatsapp-webhook',
 ];
 
 for (const name of names) {

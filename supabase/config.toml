@@ -409,6 +409,14 @@ verify_jwt = false
 [functions.dispatch-notifications]
 verify_jwt = false
 
+# WhatsApp (ADR-0009). phone-verification is the user's, and asks Auth for the user like proof-url.
+# The webhook is called by Meta, without a JWT: the HMAC of the body with the app secret is the check.
+[functions.phone-verification]
+verify_jwt = true
+
+[functions.whatsapp-webhook]
+verify_jwt = false
+
 # Off: it costs about 600 MB, and its vector container restarted in a loop. Function logs do not depend
 # on it: `docker logs supabase_edge_runtime_azkaban`.
 [analytics]

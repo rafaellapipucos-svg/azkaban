@@ -3810,3 +3810,21 @@
 - **Verificado:** `pnpm check` passou.
 - **Não verificado:** o passo no CI (sem push, sem PR de rascunho). Fixar as actions por SHA fica para uma mudança do workflow inteiro. Hora pelo UTC−3 (PowerShell barrado).
 - **Pendências / próximos passos:** o PR de rascunho do "Como testar".
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 17:20 (BRT)
+
+- **Branch:** fix/zero-plural (a partir de `feat/launch-decisions`, `33132dc`)
+- **Agente(s):** compras
+- **Resumo:** decisão do humano (ADR-0012, seção 17 item 10 e seção 13 item 5): contagem zero no plural, "0 pacotes" e não "0 pacote". Vale para todas as chaves de contagem do i18n, não só compras.
+- **Alterações:**
+  - `packages/i18n/src/pt-BR/*.json`: 47 chaves `_zero` novas, cada uma com o mesmo texto da `_other` irmã, em auth, calendar, gamification, notifications, shopping, tasks e ui. Nenhum outro texto mudou. As 4 chaves que já tinham `_zero` ficaram como estavam (`notifications:bell.label_zero` "Avisos", `ui` `bellLabel_zero` com texto próprio, e `gamification:streak.days_zero`/`best_zero`). Por exceção autorizada pelo orquestrador, os JSON de outros módulos foram tocados só para acrescentar o caso zero.
+  - i18next 26 procura `_zero` sempre que `count === 0`, antes da forma do CLDR, sem opção extra; nada mudou em `initI18n`.
+  - `packages/i18n/src/plurals.test.ts` (novo) e `vitest` no `packages/i18n/package.json`: `count: 1` singular e `count: 0` plural para `shopping:units.pack`, `shopping:units.dozen`, `calendar:day.count`, `gamification:streak.freezes` e `tasks:repeat.count`; o texto próprio do zero do sino continua; e toda chave `_one` tem `_zero` ao lado, para chave nova não voltar a "0 pacote".
+  - `e2e/shopping.spec.ts`: as duas asserções do stepper passam de "0 pacote" para "0 pacotes".
+- **Arquivos/módulos principais:** `packages/i18n/src/pt-BR/*.json`, `packages/i18n/src/plurals.test.ts`, `packages/i18n/package.json`, `pnpm-lock.yaml`, `e2e/shopping.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** aplica a resposta do humano ao item 10 da seção 17 do ADR-0012; o texto do ADR ("até a resposta, fica como está") não foi atualizado aqui.
+- **Como testar:** `pnpm --filter @azkaban/i18n test`; `pnpm exec playwright test e2e/shopping.spec.ts` com a pilha.
+- **Verificado:** `pnpm check` passou (14 tarefas de teste, 7 testes novos no i18n).
+- **Não verificado:** E2E (sem pilha, por ordem do orquestrador), incluindo a spec de compras alterada. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** o `t` das Edge Functions (`supabase/functions/dispatch-notifications/translate.ts`) não procura `_zero`, então push e WhatsApp seguem no singular com 0: handoff `20261103-1722-compras-para-backend-funcoes-zero-no-plural-nas-funcoes.md`. Atualizar o item 5 da seção 13 e o item 10 da seção 17 do ADR-0012 como respondidos (arquiteto).

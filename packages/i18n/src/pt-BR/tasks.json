@@ -152,6 +152,7 @@
     "me": "Eu",
     "batchHint_one": "Uma tarefa será criada para {{count}} pessoa.",
     "batchHint_other": "Uma tarefa será criada para cada uma das {{count}} pessoas.",
+    "batchHint_zero": "Uma tarefa será criada para cada uma das {{count}} pessoas.",
     "private": "Só eu vejo",
     "privateHint": "Os outros do grupo não veem esta tarefa.",
     "moreOptions": "Mais opções",
@@ -185,8 +186,10 @@
     "minutes": "{{count}} min antes",
     "hours_one": "{{count}} hora antes",
     "hours_other": "{{count}} horas antes",
+    "hours_zero": "{{count}} horas antes",
     "days_one": "{{count}} dia antes",
-    "days_other": "{{count}} dias antes"
+    "days_other": "{{count}} dias antes",
+    "days_zero": "{{count}} dias antes"
   },
   "repeat": {
     "frequencyLabel": "Com que frequência",
@@ -199,10 +202,13 @@
     "unit": {
       "daily_one": "{{count}} dia",
       "daily_other": "{{count}} dias",
+      "daily_zero": "{{count}} dias",
       "weekly_one": "{{count}} semana",
       "weekly_other": "{{count}} semanas",
+      "weekly_zero": "{{count}} semanas",
       "monthly_one": "{{count}} mês",
-      "monthly_other": "{{count}} meses"
+      "monthly_other": "{{count}} meses",
+      "monthly_zero": "{{count}} meses"
     },
     "daysLabel": "Em quais dias",
     "monthDayLabel": "Dia do mês",
@@ -219,16 +225,21 @@
     "countLabel": "Número de vezes",
     "count_one": "{{count}} vez",
     "count_other": "{{count}} vezes",
+    "count_zero": "{{count}} vezes",
     "summary": {
       "prefix": "Vai repetir: {{text}}",
       "daily_one": "todo dia",
       "daily_other": "a cada {{count}} dias",
+      "daily_zero": "a cada {{count}} dias",
       "weekly_one": "toda semana ({{days}})",
       "weekly_other": "a cada {{count}} semanas ({{days}})",
+      "weekly_zero": "a cada {{count}} semanas ({{days}})",
       "monthly_one": "todo mês, no dia {{day}}",
       "monthly_other": "a cada {{count}} meses, no dia {{day}}",
+      "monthly_zero": "a cada {{count}} meses, no dia {{day}}",
       "afterCount_one": "só 1 vez",
       "afterCount_other": "termina depois de {{count}} vezes",
+      "afterCount_zero": "termina depois de {{count}} vezes",
       "onDate": "termina em {{date}}"
     }
   },
@@ -328,6 +339,7 @@
     "none": "Sem conexão.",
     "pending_one": "Sem conexão: {{count}} alteração será enviada quando a internet voltar.",
     "pending_other": "Sem conexão: {{count}} alterações serão enviadas quando a internet voltar.",
+    "pending_zero": "Sem conexão: {{count}} alterações serão enviadas quando a internet voltar.",
     "discarded": "Uma mudança de estado não foi enviada: {{reason}}",
     "dismiss": "Fechar aviso"
   }

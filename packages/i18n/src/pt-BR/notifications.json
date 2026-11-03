@@ -4,10 +4,13 @@
     "lead": {
       "minutes_one": "{{count}} minuto",
       "minutes_other": "{{count}} minutos",
+      "minutes_zero": "{{count}} minutos",
       "hours_one": "{{count}} hora",
       "hours_other": "{{count}} horas",
+      "hours_zero": "{{count}} horas",
       "days_one": "{{count}} dia",
-      "days_other": "{{count}} dias"
+      "days_other": "{{count}} dias",
+      "days_zero": "{{count}} dias"
     },
     "task_reminder": {
       "title": "{{task}}",
@@ -137,6 +140,7 @@
       "deadlineItem": "{{title}}, {{weekday}} ({{relative}})",
       "inDays_one": "amanhã",
       "inDays_other": "em {{count}} dias",
+      "inDays_zero": "em {{count}} dias",
       "more": "+{{count}}",
       "empty": {
         "today": "nada marcado",
@@ -148,9 +152,11 @@
       "streak": {
         "days_one": "Ofensiva de {{count}} dia.",
         "days_other": "Ofensiva de {{count}} dias.",
+        "days_zero": "Ofensiva de {{count}} dias.",
         "start": "Comece uma ofensiva hoje.",
         "goal_one": "Meta de hoje: {{count}} tarefa.",
-        "goal_other": "Meta de hoje: {{count}} tarefas."
+        "goal_other": "Meta de hoje: {{count}} tarefas.",
+        "goal_zero": "Meta de hoje: {{count}} tarefas."
       }
     },
     "stopReply": "Pronto, você não vai mais receber mensagens do Azkaban por aqui. Para voltar, ative o WhatsApp de novo no app.",
@@ -187,10 +193,13 @@
     "wait": {
       "seconds_one": "{{count}} segundo",
       "seconds_other": "{{count}} segundos",
+      "seconds_zero": "{{count}} segundos",
       "minutes_one": "{{count}} minuto",
       "minutes_other": "{{count}} minutos",
+      "minutes_zero": "{{count}} minutos",
       "hours_one": "{{count}} hora",
-      "hours_other": "{{count}} horas"
+      "hours_other": "{{count}} horas",
+      "hours_zero": "{{count}} horas"
     },
     "errors": {
       "generic": "Não deu para concluir. Tente de novo.",
@@ -219,6 +228,7 @@
       "skipEmpty": "Não enviar em dia sem nada marcado",
       "days_one": "{{count}} dia",
       "days_other": "{{count}} dias",
+      "days_zero": "{{count}} dias",
       "save": "Salvar resumo",
       "saved": "Resumo salvo."
     }

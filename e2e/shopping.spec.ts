@@ -40,12 +40,12 @@ test('two members build, shop and complete one list live; no outsider or admin s
   await button(ownerPage, 'Criar lista').click();
   await expect(ownerPage).toHaveURL(/\/shopping\/[0-9a-f-]{36}\?mode=build$/);
   const listUrl = new URL(ownerPage.url()).pathname;
-  await expect(stepper(ownerPage, 'Arroz').getByText('0 pacote', { exact: true })).toBeVisible();
+  await expect(stepper(ownerPage, 'Arroz').getByText('0 pacotes', { exact: true })).toBeVisible();
 
   // The member opens the same list
   await memberPage.goto(listUrl);
   await expect(memberPage.getByRole('heading', { name: listName })).toBeVisible();
-  await expect(stepper(memberPage, 'Arroz').getByText('0 pacote', { exact: true })).toBeVisible();
+  await expect(stepper(memberPage, 'Arroz').getByText('0 pacotes', { exact: true })).toBeVisible();
 
   // Both tap the stepper at the same time: 2 + 3, and neither tap is lost
   await Promise.all([

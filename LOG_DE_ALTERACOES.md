@@ -2631,3 +2631,18 @@
 - **Verificado:** pilha A depois de `db reset`: `account-export/export.integration.test.ts` 5 de 5; `pnpm functions:test` inteiro, 207 testes, 44 suítes, 207 passaram, 0 falhas, 0 cancelados. Pilha A parada com `supabase stop` (sem `--all`).
 - **Não verificado:** `pnpm check` não rodou de novo (só o arquivo de teste mudou; o lint-staged do commit passou); o projeto hospedado.
 - **Pendências / próximos passos:** nenhuma desta correção.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:44 (BRT)
+
+- **Branch:** `chore/security-phase-8` (de `feat/phase-8-polish`, `9c54f16`)
+- **Agente(s):** revisor-seguranca
+- **Resumo:** revisão de segurança da Fase 8 (ADR-0012: exportação, exclusão, revogação do aceite, limites, fila offline, Realtime) e do XP de compra (F7-5b). Nenhum achado crítico ou alto. Hora derivada de UTC menos 3 (o PowerShell foi bloqueado no worktree).
+- **Alterações:**
+  - Handoff para banco-de-dados: SEG8-1 (média), XP de compra além de 2 listas por dia trocando o fuso, com PoC (2 eventos sem trocar, 4 depois de trocar); SEG8-2 (baixa), `accept_invite` como oráculo de código sem limite, com PoC (35 tentativas, contador vazio); SEG8-3 (baixa), fotos apagadas antes do recheque de `owns_groups`; SEG8-4 (informativo), `processed_requests` sem limite; e o que conferir no hospedado (`auth.audit_log_entries`, `whatsapp_console_messages`).
+  - Handoff para tarefas-calendario: SEG8-5 (baixa), a fila offline de uma sessão expirada fica no `storage` sem prazo.
+- **PoCs que passaram (sem achado):** A exporta 4 vezes, o resultado é 200, 200, 200, 429 (`retryAfterSeconds` sem mais nada) e o arquivo não traz nada de B nem `code_hash`, `storage_path`, `p256dh`, `endpoint` ou `code`. A exclusão de B: prévia 200, exclusão 200, repetição 401; depois dela, 0 linhas de B em `auth.audit_log_entries` e `account_deletions` concluída. O `amr` se mantém no refresh (a renovação não reabre a janela de reautenticação). `profiles.proof_consent_version` não é editável pelo cliente. O `catchUp` lê pela RLS. Nenhum segredo no diff.
+- **Arquivos/módulos principais:** `docs/agentes/handoffs/20261103-0643-revisor-seguranca-para-banco-de-dados-seguranca-fase-8.md`, `docs/agentes/handoffs/20261103-0643-revisor-seguranca-para-tarefas-calendario-fila-offline-no-disco.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma; `phone_verifications` com `user_id` nulo por 48 h é decisão do ADR-0012 e não foi apontado.
+- **Como testar:** os PoCs estão descritos nos handoffs (pilha local, `curl` e `psql`).
+- **Pendências / próximos passos:** a CSP Report-Only não está no diff (`_headers` não mudou), então não foi revisada. Corrida de SEG8-3 sem PoC. Os privilégios em `auth` no hospedado não foram verificados. Pilha A parada às 06:43.

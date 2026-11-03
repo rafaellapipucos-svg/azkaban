@@ -1823,3 +1823,18 @@
 - **Verificado:** `pnpm check` passou (17 de 17 e 10 de 10; core 630, data 9, feature-shopping 7; dependency-cruiser sem violações; `functions:imports` 8 de 8). `pnpm build:web` passou, com a rota de compras no pacote. Medição dos rótulos da barra no Chromium com a fonte real: seis abas cabem a 375 px (7 px entre rótulos) e se sobrepõem 7 px a 320 px.
 - **Não verificado:** a E2E não rodou: a pilha A estava ocupada por outro agente. Nada do repositório real foi exercitado contra o banco (nem a serialização do nulo composto, nem o `DELETE` sem filtro do Realtime). Telas não abertas no navegador, nem no escuro. Sem mutação.
 - **Pendências / próximos passos:** QA da fase roda `e2e/shopping.spec.ts` e o `calendar.spec.ts` ajustado. A barra a 320 px (handoff). Assinatura da tela das listas, se o humano quiser lista nova aparecendo sem reabrir.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:21 (BRT)
+
+- **Branch:** chore/security-phase-7, criada a partir de feat/phase-7-shopping (7528ceb)
+- **Agente(s):** revisor-seguranca
+- **Resumo:** Revisão de segurança da Fase 7 (lista de compras), com PoCs na pilha B. Nenhum achado alto ou médio. Três baixos (SEG7-1 a SEG7-3) e três informativos (SEG7-4 a SEG7-6). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Handoffs `20261103-0321-revisor-seguranca-para-arquiteto-compras` (SEG7-1 vínculo com tarefa que o membro não vê; SEG7-2 sem teto de listas por escopo; SEG7-3 controle e direção em nome, nota e emoji, no texto compartilhado) e `20261103-0321-revisor-seguranca-para-banco-de-dados-compras` (SEG7-4 desvio largo por `pg_trigger_depth()`; SEG7-5 oráculo de existência por UUID conhecido; SEG7-6 delta `NaN`/`Infinity`).
+- **Arquivos/módulos principais:** `docs/agentes/handoffs/`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. O `DELETE` do Realtime só com o id segue o risco aceito do SEG4-4 (ADR-0011, seção 7).
+- **Como testar:** `bash docs/agentes/ferramentas/pilha-b.sh db`, `pnpm exec supabase db reset` e os PoCs dos handoffs, como `authenticated` com `request.jwt.claims`.
+- **Verificado (pilha B, só Postgres):** outro grupo não vê listas, itens nem catálogo; owner e admin não veem lista, item nem catálogo pessoal de um membro; ex-membro não vê, não apaga a lista que criou, não ajusta item nem cria lista; `added_by`, `checked_at`, `checked_by`, `list_id`, `status`, `completed_by`, `group_id`, `insert` direto em `shopping_lists` e `delete` do catálogo dão 42501; catálogo pessoal para outro dono e catálogo do grupo por `member` dão `forbidden`; de outro grupo, `forbidden` igual para nome existente e novo no catálogo, lista existente e inexistente, e nas cinco RPCs; `catalog_item_id` de outro escopo, `forbidden`; vínculo com tarefa privada, de outro grupo ou inexistente, `task_link_invalid`; lista finalizada recusa `delete` de item e `update`; 201 itens, `list_full`. Funções: todas `security definer` com `search_path` vazio; `seed_*`, guardas e `shopping_rules()` sem `execute` para clientes; `anon` sem nenhuma. Publicação com `notifications` e as duas tabelas, `replica identity` padrão. `pnpm db:check-permissions`, matriz em sincronia (33 linhas). Nenhum segredo no diff.
+- **Não verificado:** Realtime em si (a B `db` não tem): o filtro `list_id=eq` e o `DELETE` só com id ficaram na leitura do código, que ignora o id que não mostra. `pnpm db:test`, `pnpm check` e E2E não rodaram (revisão sem mudança de código). Navegador, iOS, Android e projeto hospedado.
+- **Pendências / próximos passos:** decisão do `arquiteto` em SEG7-1 a SEG7-3; SEG7-4 a SEG7-6 a critério do `banco-de-dados`. Pilha B parada.

@@ -10,6 +10,7 @@
     "dev": "pnpm --filter @azkaban/app dev",
     "build:web": "pnpm --filter @azkaban/app build:web",
     "bundle:size": "node scripts/check-bundle-size.mjs",
+    "expo:doctor": "node scripts/check-expo-doctor.mjs",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "boundaries": "depcruise apps packages --config .dependency-cruiser.cjs",

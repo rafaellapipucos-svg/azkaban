@@ -352,6 +352,8 @@ O texto cobre, no mínimo, o que os ADRs pediram:
 
 Os valores das taxas não foram conferidos nesta data; o humano confere nas páginas da Google, da Apple e da Expo antes de decidir.
 
+**Decisão do humano (2026-11-03), BL-29: só Android por ora.** Contas Expo e Firebase, as duas grátis: build no EAS, APK de teste instalado à mão e push no Android pelo FCM, com `features.nativePush` ligando quando as contas existirem. Sem Apple Developer Program: nada de build para iPhone de verdade nem push no iPhone; no iPhone, só a PWA pela Tela de Início. A Play Store fica para depois. O identificador do app ainda não foi escolhido e segue no BL-29; com o domínio decidido (seção 12), o natural é `com.tabolao.<app>`, a confirmar.
+
 ### 12. Hospedagem web (F8-8)
 
 Depende do humano. O ADR-0004 adotou a Netlify como padrão, e `apps/app/public` já tem `_headers` e `_redirects` no formato dela. Opções sem custo, sem decidir contratar nada:
@@ -366,6 +368,17 @@ Depende do humano. O ADR-0004 adotou a Netlify como padrão, e `apps/app/public`
 **Pergunta ao humano:** Netlify (o padrão) ou outro serviço que você já use? Vai ter domínio próprio? O domínio é o que permite Universal Links e App Links (seção 11) e um remetente de e-mail com SPF e DKIM para o SMTP (seção 4).
 
 Lembrete do projeto Supabase: o plano grátis pausa depois de uma semana sem uso (ADR-0007, seção 18). Para produção com gente de verdade, é uma decisão de custo do humano.
+
+**Decisão do humano (2026-11-03), BL-24: Hostinger Premium, em `https://app.tabolao.com`.** É hospedagem compartilhada, que o humano já contrata, e não a Netlify. O domínio é `tabolao.com`, e o app fica no subdomínio `app`. O deploy é por GitHub Actions, enviando `apps/app/dist` por FTP.
+
+Consequências:
+
+- **`.htaccess` no lugar de `_headers` e `_redirects`.** A hospedagem compartilhada não lê os arquivos da Netlify. O `.htaccess` em `dist/` faz o mesmo: o fallback de rota (arquivo que existe, senão `index.html`, como o `_redirects` de hoje), os cabeçalhos de segurança de `public/_headers`, o `Cache-Control: no-cache` de `/sw.js` e `/manifest.webmanifest`, e a CSP de Report-Only da seção 13, item 1, com o host exato do Supabase. `apps/app/scripts/headers.ts` passa a gravar o `.htaccess` final em `dist/`. `_headers` e `_redirects` podem ficar em `public/` até a troca, porque o Apache não os serve como regra. Dono: `notificacoes-whatsapp`, que já cuida do script, com `qa-testes` na conferência.
+- **Sem HSTS automático.** A Netlify enviava; aqui o `.htaccess` envia `Strict-Transport-Security`, só depois de o HTTPS do subdomínio estar ativo no painel, e o HTTP redireciona para HTTPS.
+- **Conferir no primeiro deploy**, porque nada disso foi conferido nesta data: se o servidor aceita `mod_rewrite` e `mod_headers` no `.htaccess`, e se `expo export` copia os arquivos com ponto de `public/` (`.htaccess` e, no Android, `.well-known/assetlinks.json`). Se não copiar, o script grava os dois em `dist/`.
+- **Deploy:** um workflow do GitHub Actions, depois do `pnpm build:web`, com servidor, usuário e senha de FTP nos segredos do repositório, nunca no código. FTPS se a Hostinger oferecer. Envia só `dist/`. O workflow é configuração da raiz, dono `arquiteto`; a lista de implantação, de quem cuida de `docs/implantacao.md`.
+- **Supabase:** `https://app.tabolao.com` vira o `site_url` do projeto hospedado, e os caminhos de retorno entram na lista de redirecionamentos sem curinga (ADR-0004).
+- **Lighthouse e CSP valendo** (BL-25) passam a depender só do primeiro deploy.
 
 ### 13. Backlog que entra se couber
 
@@ -430,6 +443,19 @@ As três primeiras podem rodar em ramos separados; só a de F8-3 depende de outr
 12. **Contas de loja e de push** da tabela da seção 11, e o identificador do app.
 13. **CAPTCHA** desligado até haver abuso de cadastro.
 14. **Leitor de tela real** no percurso curto da seção 9, se ninguém da equipe tiver um.
+
+**Decisão do humano (2026-11-03): confirmado pelo humano em 2026-11-03.** Os itens 3, 4, 5, 7, 8 e 9 valem como estão. Os demais:
+
+- **Item 1, controlador:** Rafaell Bezerra Saraiva, pessoa física. E-mail do encarregado: `privacidade@tabolao.com` (BL-27). A política de privacidade e a tela de transparência passam a citar os dois.
+- **Item 2, base legal para funcionários: consentimento**, como já está. A revogação do aceite (seção 6) segue sendo o caminho, e a pendência do ADR-0007, seção 20, deixa de ser bloqueante. A prova com funcionários reais depende só de F8-3 e da implantação.
+- **Item 6, SMTP: Brevo, no plano grátis**, com remetente no domínio `tabolao.com` (BL-26). O domínio precisa de SPF e DKIM verificados na Brevo antes de o Supabase hospedado usar o SMTP. Credenciais só no painel do Supabase, nunca no repositório. Os limites do plano grátis não foram conferidos nesta data; com o SMTP, o limite de e-mails por hora da seção 4 sobe para 30.
+- **Item 10: "0 pacotes"**, com o caso zero no plural, no stepper e nas contagens (seção 13, item 5).
+- **Item 11, hospedagem e domínio:** Hostinger, `https://app.tabolao.com` (seção 12).
+- **Item 12, contas de loja e de push:** só Android, com Expo e Firebase grátis, sem Apple (seção 11, BL-29).
+- **Item 13: CAPTCHA desligado** até haver abuso de cadastro.
+- **Item 14, verificação manual (BL-36):** o humano testa em Android e no computador. Sem iPhone e sem leitor de tela real por ora; o percurso da seção 9 fica com as ferramentas automáticas, e o leitor de tela real segue pendente.
+
+**Projeto hospedado (BL-28 e BL-37, decisão do humano de 2026-11-03).** O merge na `main` está feito. O humano autorizou o Claude a aplicar as migrations e configurar o Supabase hospedado (lista de redirecionamentos, par VAPID, segredos das funções), **com confirmação do humano a cada comando**. Nenhum comando contra o hospedado roda sem essa confirmação, e nenhum segredo vai para o repositório ou para o LOG.
 
 ### 18. Repetição em 503 das Edge Functions (BL-3, 2026-11-03)
 

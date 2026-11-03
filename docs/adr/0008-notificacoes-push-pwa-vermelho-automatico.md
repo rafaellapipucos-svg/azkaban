@@ -192,7 +192,7 @@ Isso fecha a seção 13 do ADR-0005.
   - `<link rel="manifest">`, `apple-touch-icon` de 180 px e `lang` vindo de `web.lang`.
 - **Manifest** em `apps/app/public/manifest.webmanifest`: `name` e `short_name` iguais ao nome do app, `lang: pt-BR`, `start_url` e `scope` `/`, `display: standalone`, `orientation: portrait`, `background_color` e `theme_color` = `background` claro, e ícones de 192 e 512 px, mais um de 512 `maskable`, gerados a partir de `assets/icon.png`. `standalone` é o que libera o push no iPhone.
 - As cores e o nome nesses dois arquivos estáticos repetem os tokens e o nome provisório. Um teste de unidade compara as cores com `packages/ui/src/tokens.ts`. O nome é provisório; quando for definido, ou se passar a variar por ambiente, os dois arquivos passam a ser gerados no build.
-- **Netlify:** `apps/app/public/_headers` com `Cache-Control: no-cache` para `/sw.js` e `/manifest.webmanifest`, e `_redirects` com `/* /index.html 200`, para um endereço de notificação abrir direto na rota. Os cabeçalhos de segurança estão na seção 17 (SEG4-7).
+- **Netlify:** `apps/app/public/_headers` com `Cache-Control: no-cache` para `/sw.js` e `/manifest.webmanifest`, e `_redirects` com `/* /index.html 200`, para um endereço de notificação abrir direto na rota. Os cabeçalhos de segurança estão na seção 17 (SEG4-7). **Decisão do humano (2026-11-03):** a hospedagem é a Hostinger, e as mesmas regras e cabeçalhos, HSTS incluído, vão num `.htaccess` ([ADR-0012](0012-polimento-lgpd-limites-offline.md), seção 12).
 - **Título por tela:** `Screen`, em `packages/ui`, ganha a propriedade `title`, e um adapter de `packages/platform` (`useDocumentTitle`, que só age na web) define `document.title` como `"<tela> · <nome do app>"`, com o formato em `common.json`. Sem `title`, o documento fica com o nome do app. Cada feature passa o título das próprias telas.
 - **Marcos de página:** o conteúdo de `Screen` recebe `role="main"`, e a barra de abas, `role="navigation"` com nome acessível. O React Native Web transforma `role` no atributo, que é o que o leitor de tela usa. Um `main` por tela.
 - Os rótulos das abas cortados a 320 px seguem com `design-system`.
@@ -232,6 +232,10 @@ Padrões reversíveis, escolhidos para não travar a fase:
 8. **O push mostra o título da tarefa na tela bloqueada** (seção 17, risco de produto). Uma opção "esconder o conteúdo na tela bloqueada" fica para depois.
 9. **O mesmo aviso não se repete em 10 minutos** (seção 17, SEG4-1).
 10. **Inscrição de push sem entrega há 90 dias sai** (seção 17, SEG4-5).
+
+**Decisão do humano (2026-11-03): confirmado pelo humano em 2026-11-03.** Os dez padrões valem como estão, com um acréscimo no item 8 (BL-32):
+
+- **Esconder o conteúdo na tela bloqueada** passa a existir, como preferência por usuário, **desligada por padrão**. O padrão continua mostrando o título. Ligada, o push leva um título e um corpo genéricos, e o detalhe só aparece ao abrir. É o caminho da seção 17: uma preferência em `profiles` ou `notification_preferences` e um ramo em `buildPushPayload`, no web e no nativo. Dono: `notificacoes-whatsapp`, com `banco-de-dados` na migration; o campo novo entra no contrato antes.
 
 ### 17. Revisão de segurança da Fase 4
 

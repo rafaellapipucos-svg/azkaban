@@ -112,12 +112,16 @@ select is(
 select is(
   (select count(*)::int from public.shopping_catalog_items where owner_user_id = pg_temp.u('d')), 44,
   'a new profile starts with the 44 items in a personal catalog');
+-- Global, so it runs over data left by other runs (E2E saves items to catalogs and archives some). Old
+-- catalogs belong to their admins (ADR-0011): extra rows are fine, and archiving keeps the row. What must
+-- hold is that the copy, or the backfill, gave every scope each seed row.
+-- ponytail: matches by name, so a seed item renamed in a dev database fails here; reset the database then.
 select is(
-  (select count(*)::int from public.groups g
-   where (select count(*) from public.shopping_catalog_items c where c.group_id = g.id) <> 44)
-  + (select count(*)::int from public.profiles p
-   where (select count(*) from public.shopping_catalog_items c where c.owner_user_id = p.id) <> 44),
-  0, 'every group and every profile in the database has the 44 items');
+  (select count(*)::int from public.groups g cross join public.shopping_catalog_seed s
+   where not exists (select 1 from public.shopping_catalog_items c where c.group_id = g.id and c.name = s.name))
+  + (select count(*)::int from public.profiles p cross join public.shopping_catalog_seed s
+   where not exists (select 1 from public.shopping_catalog_items c where c.owner_user_id = p.id and c.name = s.name)),
+  0, 'every group and every profile in the database has each seed item, archived or not');
 select is(
   (select string_agg(c.name || '|' || c.category || '|' || c.default_unit || '|' || c.sort_order, ',' order by c.sort_order)
    from public.shopping_catalog_items c where c.group_id = pg_temp.grp('b')),

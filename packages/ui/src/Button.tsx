@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, Text } from 'react-native';
 import { colors, sizes } from './tokens';
+import { useReducedMotion } from './useReducedMotion';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'danger';
 
@@ -21,6 +22,13 @@ type Props = {
   loading?: boolean;
 };
 
+// Its own component so only a loading button listens for reduced motion. With it, the ring stays
+// still: the busy cue without the spin.
+function Busy({ color }: { color: string }) {
+  const reduced = useReducedMotion();
+  return <ActivityIndicator animating={!reduced} hidesWhenStopped={false} color={color} />;
+}
+
 // The thick bottom border is the 3D edge; pressing removes it and sinks the button into its place.
 export function Button({ label, onPress, variant = 'primary', disabled, loading }: Props) {
   const inactive = disabled || loading;
@@ -37,7 +45,7 @@ export function Button({ label, onPress, variant = 'primary', disabled, loading 
       className={`items-center justify-center rounded-md border-b-4 px-6 py-3 active:translate-y-1 active:border-b-0 ${box} ${inactive ? 'opacity-60' : ''}`}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'secondary' ? colors.primary : colors.onPrimary} />
+        <Busy color={variant === 'secondary' ? colors.primary : colors.onPrimary} />
       ) : (
         <Text className={`font-heavy text-md ${labelStyle}`}>{label}</Text>
       )}

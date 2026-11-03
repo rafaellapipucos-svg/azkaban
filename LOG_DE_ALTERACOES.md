@@ -2647,3 +2647,24 @@
 - **Verificado:** `pnpm check` passou (ver o commit).
 - **Não verificado:** as E2E não rodaram (sem pilha); a tela não foi vista no navegador; a frase v3 na tela só aparece depois que o `banco-de-dados` subir o número.
 - **Pendências / próximos passos:** `banco-de-dados` sobe `proofRules.consentVersion` e o espelho para 3. A base legal segue com o humano (ADR-0012, seção 17, item 2).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:35 (BRT)
+
+- **Branch:** `feat/ui-polish`, a partir de `feat/phase-8-polish` (`d2c8d4e`)
+- **Agente(s):** design-system
+- **Resumo:** o `Fab` bloqueava os toques numa faixa da largura toda no rodapé (handoff `20261103-0515`); reduzir movimento e animações de F8-6 em todos os componentes animados de `packages/ui`; arte do Broto para ícone, ícone adaptativo, splash e notificação (F8-7, parte visual). Hora do relógio da máquina convertida para America/Sao_Paulo pelo Node (o PowerShell foi barrado no worktree).
+- **Alterações:**
+  - `Fab` e `Confetti`: `pointerEvents` como prop, não no estilo (o react-native-web 0.21 descarta do estilo inline). Não restou nenhum `pointerEvents` em estilo em `packages/ui`.
+  - Reduzir movimento: o `Sheet` deixa de esmaecer (`animationType` `none`, como o `PerfectDayScreen`); o `Button` com `loading` mostra o anel parado em vez de girando (componente `Busy`, para só o botão ocupado ouvir a preferência). Mascote, confete, `TaskCheck` e `ProgressRing` já respeitavam.
+  - Animações: `nativeDriver` (`Platform.OS !== 'web'`) em `useReducedMotion.ts`, usado por `Mascot`, `Confetti` e `TaskCheck`, que só animam `transform` e `opacity`: no nativo rodam na thread de UI. O `ProgressRing` é a exceção anotada: anima o traço de um SVG (pintura, não layout).
+  - `mascotArt.ts` (novo, sem import em tempo de execução): a geometria do Broto, usada pelo `<Mascot>` e pelas construções de SVG dos ícones (`brotoMarkup`, `brotoSilhouette`, `brandSvg`, `brandAssets`). `tokens.ts`: `mascotColors.eye` (o branco do olho, antes literal) e `brandPalette`.
+  - `scripts/render-brand.mjs` e `pnpm --filter @azkaban/ui brand`: desenha os PNGs com o Chromium do Playwright em `packages/ui/assets/brand/` (ícone 1024 sem alfa, frente e monocromático do adaptativo dentro do círculo de 66/108 dp, splash 1024, notificação 96 branca, favicon 48, ícones web 192, 512 e 180 e o maskable 512).
+  - Handoffs `20261103-0633-design-system-para-arquiteto-teto-do-pacote-web` (o script do teto e a medida de partida) e `20261103-0633-design-system-para-notificacoes-whatsapp-icones-e-splash` (copiar os PNGs e o `app.config.ts`).
+- **Arquivos/módulos principais:** `packages/ui/src/{Fab,Confetti,Sheet,Button,Mascot,TaskCheck,ProgressRing}.tsx`, `packages/ui/src/{useReducedMotion,tokens,mascotArt,mascotArt.test}.ts`, `packages/ui/scripts/render-brand.mjs`, `packages/ui/assets/brand/*.png`, `packages/ui/package.json`, os dois handoffs
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** `useNativeDriver` no nativo em vez do Reanimated da seção 10 do ADR-0012: o mesmo efeito (fora da thread de JS) sem dependência nova em `packages/ui`. O `ActivityIndicator` parado com reduzir movimento, em vez de sumir, para o estado ocupado continuar com ícone.
+- **Medidas (F8-6, meta 1, partida):** `pnpm build:web` nesta branch, Windows 11 Home, Node 24: maior JS `__common-<hash>.js`, 1 645 230 bytes brutos, 388 765 com o gzip padrão do `zlib` (387 156 no nível 9); teto de 110%, 427 641. 36 arquivos JS, 2 864 238 bytes.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/ui brand` e abrir os PNGs; `/design-system` com `prefers-reduced-motion: reduce`.
+- **Verificado:** `pnpm check` passou; `pnpm build:web` passou. No navegador, `/design-system` servido por `expo start --web` com `.env.local` falso (já apagado), Chromium do Playwright, a 375 e 1280 px, claro e escuro, com e sem reduzir movimento (8 combinações): o ponto à esquerda da faixa do `Fab` devolve o conteúdo de trás, não o invólucro (`pointer-events: none` nos dois `View`), e o centro do botão devolve o botão; o invólucro do confete com `pointer-events: none`; 28 peças de confete sem reduzir e 0 com; com reduzir, a animação de esmaecer da folha some e a do anel do botão fica `paused`; sem rolagem lateral; nenhum erro de página. Os quatro humores do mascote conferidos no olho depois de mover a geometria.
+- **Não verificado:** nativo (o `useNativeDriver` e o anel parado só no aparelho); as metas 2 a 5 de F8-6 (E2E e Lighthouse, do `qa-testes`); quadros do confete com CPU 4× mais lenta; os ícones no `prebuild` ou num aparelho; Safari. Sem mutação.
+- **Pendências / próximos passos:** o teste de contraste de todos os pares de texto e fundo (ADR-0012, seção 9, item 2) e os componentes de pendências e descarte da fila (seção 5), do handoff `20261103-0456`, ficaram fora desta tarefa; os dois handoffs acima.

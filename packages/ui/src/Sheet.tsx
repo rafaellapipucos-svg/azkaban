@@ -2,6 +2,7 @@ import { useRestoreFocus } from '@azkaban/platform';
 import type { ReactNode } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, View } from 'react-native';
 import { colors, layout, opacity, spacing } from './tokens';
+import { useReducedMotion } from './useReducedMotion';
 
 // Lives only while the sheet is open, which is what useRestoreFocus needs.
 export function RestoreFocus() {
@@ -25,11 +26,12 @@ type Props = {
  * `onClose` must set `visible` to false.
  */
 export function Sheet({ visible, label, onClose, children }: Props) {
+  const reduced = useReducedMotion();
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType={reduced ? 'none' : 'fade'}
       onRequestClose={onClose}
       // Not in the Modal's native types; react-native-web passes it to the dialog element.
       {...{ 'aria-label': label }}

@@ -10,8 +10,15 @@ import { profilesRepository } from '../profiles';
  * invalidation depends on (ADR-0006 section 4).
  */
 export function useCurrentUser() {
-  const profile = useQuery({ queryKey: ['profile'], queryFn: profilesRepository.getMine });
-  const groups = useQuery({ queryKey: ['groups'], queryFn: groupsRepository.listMine });
+  // Fresh for a minute: rows mounting after the first read reuse it, and every own change to the
+  // profile or the groups invalidates the key (ADR-0012, section 10, QA8-3).
+  const staleTime = defaults.currentUserStaleMs;
+  const profile = useQuery({
+    queryKey: ['profile'],
+    queryFn: profilesRepository.getMine,
+    staleTime,
+  });
+  const groups = useQuery({ queryKey: ['groups'], queryFn: groupsRepository.listMine, staleTime });
   const user = useMemo(
     () => ({
       id: profile.data?.id ?? '',

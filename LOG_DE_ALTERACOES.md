@@ -2952,3 +2952,20 @@
 - **Não verificado:** E2E e pilha (sem pilha nesta tarefa); que `user_stats` sai uma vez ao abrir Hoje. Sem teste de unidade: o pacote não tem ambiente de componente, e a chave única vem do objeto compartilhado.
 - **Hora:** o PowerShell foi barrado no worktree; a hora é UTC menos 3.
 - **Pendências / próximos passos:** a E2E acima na pilha A.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:22 (BRT)
+
+- **Branch:** `perf/current-user-stale-time`, criada a partir de `feat/phase-8-polish` (`07ad55a`)
+- **Agente(s):** auth-grupos
+- **Resumo:** corte de `profiles` e `groups` repetidos ao abrir Hoje (QA8-3, handoff 20261103-0815). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/data/src/session/index.ts`: `staleTime: defaults.currentUserStaleMs` (60 s) nas consultas `['profile']` e `['groups']` de `useCurrentUser`. Sem `staleTime` global no `QueryClient`.
+  - Conferidas, sem mudança, as mutações que mexem no que essas chaves leem: perfil e fuso (`ProfileScreen`, invalida `['profile']`); criar (`GroupFormScreen`), renomear, papel, remover membro, transferir posse (`refresh`), sair e excluir (`leaveGroups`) em `GroupDetailScreen`; aceitar convite (`JoinGroupScreen`). Todas invalidam `['groups']`. Telefone, WhatsApp, resumo diário, horário silencioso e aceite da prova gravam colunas de `profiles` que `getMine` não lê, então não tocam a chave. Sair da conta e excluir a conta já fazem `queryClient.clear()`.
+- **Arquivos/módulos principais:** `packages/data/src/session/index.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0012, seção 10.
+- **Como testar:** `pnpm check`; pilha A, `pnpm exec playwright test e2e/performance.spec.ts --project=app`, com `profiles` e `groups` uma vez cada.
+- **Verificado:** `pnpm check` passou (17 de 17 e 12 de 12; `functions:imports` 10 de 10).
+- **Não verificado:** a E2E de desempenho (sem pilha). Sem teste de unidade: `packages/data` não tem ambiente de React nem `@testing-library`, e a mudança é uma opção de consulta.
+- **Riscos:** a sessão que termina sem passar pelo botão de sair (refresh token revogado por um "sair de todos" em outro aparelho) não limpa o cache; se outra pessoa entrar na mesma aba em menos de 60 s da última leitura, vê o perfil e os grupos anteriores até a chave vencer. A RLS barra os dados; a interface erra nomes e botões. Antes o refetch na montagem cobria isso. Corte possível: limpar o cache no layout raiz quando o `user.id` da sessão muda.
+- **Pendências / próximos passos:** QA rodar `e2e/performance.spec.ts` na pilha A.

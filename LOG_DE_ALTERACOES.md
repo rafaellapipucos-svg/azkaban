@@ -1541,6 +1541,29 @@
 - **Não verificado:** a E2E (fica com o QA da fase); nada contra a Meta; o `MetaCloudProvider` dentro do Edge Runtime; o código das funções não passa por `tsc` (o `supabase/` está fora do typecheck e do ESLint, como antes).
 - **Pendências / próximos passos:** os dois handoffs. `qa-testes`: o resumo pela E2E lê `whatsapp_console_messages`; perfis prontos na E2E pedem `enqueue-daily-summaries` desligado (já apontado pelo `banco-de-dados`).
 
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 01:58 (BRT)
+
+- **Branch:** chore/security-phase-5, criada a partir de feat/phase-5-whatsapp (9f88a68)
+- **Agente(s):** revisor-seguranca
+- **Resumo:** Primeira passada da revisão de segurança da Fase 5 (WhatsApp), sem pilha: as 10 migrations, contratos e config, provedores e peças do webhook, core, repositório e telas. Oito achados, SEG5-1 a SEG5-8: um médio, o resto baixo. `WhatsAppChannel`, `phone-verification` e `whatsapp-webhook` ficam para a segunda passada. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Handoffs `20261103-0158-revisor-seguranca-para-{banco-de-dados,backend-funcoes,notificacoes-whatsapp,arquiteto}-whatsapp`.
+  - SEG5-1 (média, `banco-de-dados`): `whatsapp_stop_by_wa_id` casa qualquer `recipient_wa_id` já visto do usuário, então o PARAR de um número digitado errado (linha `phone_code`) ou antigo desliga quem já usa outro número.
+  - SEG5-2 (baixa, `backend-funcoes`): `normalizeReply` não tira U+200B, U+200E, ZWJ nem largura total, e esses PARAR não param.
+  - SEG5-3 (baixa, `backend-funcoes` e `arquiteto`): o schema do webhook é tudo ou nada, e um elemento fora do formato descarta o lote com os PARAR.
+  - SEG5-4 (baixa, média com F8-3, `banco-de-dados`): `phone_verifications` em cascata zera o limite por número quando a conta é excluída.
+  - SEG5-5 (baixa, `arquiteto`): sem teto global de envios pagos nem lista de países.
+  - SEG5-6 (baixa, `notificacoes-whatsapp` e `arquiteto`): controle bidirecional e URL de títulos de outra pessoa chegam pelo número da empresa.
+  - SEG5-7 (baixa, `arquiteto`): o aviso v1 não cita contextos, a remoção do número nem a política; a exportação de F8-3 não cita `phone_verifications`.
+  - SEG5-8 (baixa, preventivo, `arquiteto` e `backend-funcoes`): nada recusa um segredo `local-demo-` em produção.
+- **Arquivos/módulos principais:** `docs/agentes/handoffs/`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma; sugerida uma seção "Revisão de segurança da Fase 5" no ADR-0009.
+- **Como testar:** os PoCs de banco listados em cada handoff, com a pilha.
+- **Verificado:** `pnpm install --frozen-lockfile`. PoCs em Node puro contra os módulos reais: `isStop` com 13 entradas (4 falsos negativos) e a normalização proposta (8 de 8); `validSignature` com bytes brutos, JSON reserializado, segredo errado, hex maiúsculo e sem cabeçalho; `challengeAnswer` com desafio válido, tag HTML e token não configurado; o regex de `whatsappTextParamSchema` e `cleanParam` com RLO e URL; `normalizePhone` com prefixo `00`. Varredura de segredos no diff: só valores de teste; `.env.example` só com nomes.
+- **Não verificado:** nada rodou no banco (pilha com o `backend-funcoes`), nem `pnpm check` nesta branch (só documentação mudou), nem as telas no navegador. O `WhatsAppChannel`, `phone-verification`, `whatsapp-webhook` e o `verify_jwt` ainda não estavam integrados.
+- **Pendências / próximos passos:** segunda passada com a pilha: PoC do SEG5-1, `confirm_phone_verification` por `GET` e com `Prefer: tx=rollback`, confirmações concorrentes, SEG5-4 apagando o usuário, acesso de `anon` e `authenticated` às três tabelas pela REST, colunas de outro perfil por embed, publicação do Realtime, e as três funções (JWT, limites de corpo, assinatura, logs do contêiner sem telefone, código, `wa_id` ou título).
+
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 01:59 (BRT)
 
 - **Branch:** docs/whatsapp-deploy, criada a partir de feat/phase-5-whatsapp (e140adc)

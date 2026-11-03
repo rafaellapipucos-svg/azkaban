@@ -553,7 +553,7 @@ select is(
   (select count(*)::int from public.push_subscriptions where user_id = pg_temp.u('d')), 'and every browser of the user');
 select is(
   (select array(select jsonb_object_keys(i -> 'subscriptions' -> 0) order by 1) from claim1, jsonb_array_elements(r -> 'items') i where i ->> 'outboxId' = pg_temp.g('x5')::text),
-  array['auth', 'endpoint', 'id', 'p256dh'], 'with endpoint and keys');
+  array['auth', 'endpoint', 'id', 'kind', 'p256dh'], 'with its kind, endpoint and keys');
 
 select pg_temp.service();
 select is(public.report_notification_results(jsonb_build_array(

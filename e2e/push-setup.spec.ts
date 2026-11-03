@@ -25,6 +25,7 @@ test('the push step shows once after the first sign-in, and "Agora não" goes to
 
   await button(page, 'Agora não').click();
   await expect(page.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
+  await expect(page).not.toHaveURL(/\/push-setup$/);
 
   // Offered once per device: a reload, and the next visit to Hoje, stay on Hoje.
   await page.reload();

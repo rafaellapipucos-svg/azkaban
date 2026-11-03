@@ -57,5 +57,59 @@
     "decline": "Agora não",
     "signInFirst": "Entre na sua conta para aceitar o convite.",
     "signIn": "Entrar"
+  },
+  "transparency": {
+    "title": "O que quem administra vê",
+    "open": "O que quem administra vê",
+    "intro": "Antes de entrar num grupo, saiba o que fica visível para quem administra e para os colegas.",
+    "here": "Neste grupo",
+    "type": "Tipo: {{type}}",
+    "rankingOn": "Ranking: ligado",
+    "rankingOff": "Ranking: desligado",
+    "rankingDefaultOn": "Ranking: começa ligado em grupos do tipo {{type}}, e quem administra pode desligar.",
+    "rankingDefaultOff": "Ranking: começa desligado em grupos do tipo {{type}}, e quem administra pode ligar.",
+    "sees": {
+      "title": "Quem administra vê",
+      "text": "As tarefas do grupo atribuídas a você: status, horários, atrasos, as justificativas do amarelo e o histórico de quem mudou o quê e quando, na Equipe e no detalhe da tarefa. Também vê o registro das mudanças nas regras de foto."
+    },
+    "notSees": {
+      "title": "Quem administra não vê",
+      "text": "Suas tarefas privadas, seus contextos pessoais, o que você faz em outros grupos, suas listas pessoais, seu e-mail, seu telefone, se você recebe o WhatsApp, seu nível, sua ofensiva, seu total de XP e suas conquistas."
+    },
+    "members": {
+      "title": "Os membros veem",
+      "text": "Seu nome e o seu papel no grupo."
+    },
+    "proof": {
+      "title": "Prova por foto",
+      "viewers": "Quem vê a foto: você e quem revisa provas no grupo, nunca os colegas. Em tarefa privada, só você.",
+      "stamp": "A foto leva carimbados o seu nome, o título da tarefa e o horário. Outras pessoas podem aparecer nela.",
+      "device": "Junto com a foto ficam o aparelho, o navegador e a versão do app.",
+      "location": "Se o contexto tiver um local, fica a distância até ele, nunca as suas coordenadas. Os membros veem o endereço de um contexto com local.",
+      "admin": "Quem administra pode exigir foto numa tarefa, aprovar e contestar a prova.",
+      "web": "Na web, o app não garante que a foto veio da câmera, e quem revisa é avisado disso.",
+      "retention": "A foto é apagada depois de {{days}} dias, e o registro sem a imagem, depois de {{recordDays}} dias."
+    },
+    "notifications": {
+      "title": "Avisos",
+      "text": "Quem criou a tarefa é avisado quando você muda o status dela. Quem revisa provas é avisado quando uma prova sua entra em análise. Quando uma tarefa vira vermelha sozinha, o aviso vai para você."
+    },
+    "whatsapp": {
+      "title": "WhatsApp",
+      "text": "É opcional e só seu. Quem administra não liga, não desliga e não vê o seu número."
+    },
+    "ranking": {
+      "title": "Ranking",
+      "text": "Com o ranking ligado, os colegas veem seu nome e o XP semanal das tarefas daquele grupo. Quem administra pode ligá-lo a qualquer momento. Ele conta só desde que foi ligado e desde que você entrou, e mostra a semana corrente e a anterior.",
+      "private": "O app guarda por dia quantas tarefas você planejou, concluiu e perdeu, e só você vê. Nível, ofensiva, total de XP e conquistas não aparecem para ninguém."
+    },
+    "shopping": {
+      "title": "Compras",
+      "text": "Nas listas do grupo, os membros veem quem adicionou e quem marcou cada item. Suas listas pessoais ninguém vê."
+    },
+    "deletion": {
+      "title": "Se você excluir a conta",
+      "text": "Suas tarefas são apagadas, inclusive as do grupo, com o histórico. Ficam, sem o seu nome, as tarefas que você criou para outras pessoas, as revisões de foto que fez e os itens das listas do grupo."
+    }
   }
 }

@@ -162,6 +162,12 @@ export function GroupDetailScreen({
 
       {children}
 
+      <Button
+        variant="secondary"
+        label={t('transparency.open')}
+        onPress={() => router.push({ pathname: '/transparency', params: { groupId } })}
+      />
+
       {can(user, 'member.invite', scope) ? (
         <InvitesSection
           groupId={groupId}

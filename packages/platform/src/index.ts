@@ -32,6 +32,7 @@ export { useOnline } from './network';
 export { useDocumentTitle } from './documentTitle';
 export { readSessionValue, writeSessionValue } from './sessionValue';
 export { shareText, type ShareResult } from './shareText';
+export { canSaveTextFile, saveTextFile } from './saveTextFile';
 export { canVibrate, vibrate } from './haptics';
 export { canPlayTone, playTone, type Tone } from './celebrationSound';
 export {

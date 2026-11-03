@@ -41,7 +41,7 @@ O WhatsApp entra como o ADR-0008, seção 11, previu, sem mudar backoff nem repo
   - `daily_summary` expira em `scheduled_for + whatsappRules.dailySummary.catchUpMinutes`, não em `maxDelayHours`: um resumo das 8h entregue à noite não serve. Com `daily_summary_skip_empty` e a fonte vazia na hora do envio, `cancelled` com `summary_empty`;
   - o silêncio vale para o WhatsApp como para o push (ADR-0008, seção 5), com a mesma exceção do lembrete. `daily_summary` não passa pelo silêncio: tem horário próprio;
   - cada item ganha `timezone` (do perfil), `overdueAt` e `occurrenceStatus` (da ocorrência, nulos sem ela; seção 9), `phone` (E.164, só em `whatsapp`) e `summary` (`dailySummarySourceSchema`, só em `daily_summary`).
-- **`WhatsAppChannel`** implementa `NotificationChannel` em `dispatch.ts`: monta a mensagem a partir do tipo e do item, envia pelo provedor, e devolve `sent` com `{ providerMessageId, waId, template }`, ou `retry`/`failed` com o código.
+- **`WhatsAppChannel`** implementa `NotificationChannel` em `dispatch.ts`: monta a mensagem a partir do tipo e do item, envia pelo provedor, e devolve `sent` com `{ providerMessageId, waId, template }`, ou `retry`/`failed` com o código. Um provedor que lança é `retry` com `wa_provider_error` (seção 17).
 - **`report_notification_results`** aceita, num `sent` de `whatsapp`, o campo `whatsapp: { providerMessageId, waId, template }` e grava a linha de `whatsapp_messages` na mesma transação.
 - Entrega pelo menos uma vez, como no push. Se a função morrer entre o envio e o report, o resumo sai duas vezes; não há `tag` que esconda. É raro, e custa uma mensagem.
 
@@ -92,7 +92,7 @@ O mesmo número pode estar verificado em duas contas (um aparelho da casa, por e
 
 **A linha do sino nasce lida** (`read_at = created_at`). O sino a lista como "Resumo do dia", com toque para Hoje (`/`), mas ela não soma no contador nem aparece no aviso ao vivo. A linha existe porque a outbox pende dela.
 
-**O resumo só sai por WhatsApp nesta fase.** `defaultChannels.daily_summary` é `{ web_push: false, whatsapp: true }`, e o job ignora quem não tem WhatsApp. Um resumo por push, de graça, é decisão do humano (seção 16).
+**O resumo só sai por WhatsApp nesta fase.** `defaultChannels.daily_summary` é `{ web_push: false, whatsapp: true }`, e o job ignora quem não tem WhatsApp. Um resumo por push, de graça, é decisão do humano (seção 16), e hoje nem seria possível (seção 17).
 
 **Fonte** (`dailySummarySourceSchema`), montada pelo banco no claim, na hora do envio, com o mesmo acesso do sino: ocorrências de que a pessoa é **responsável**, de tarefas não arquivadas, em grupos de que ainda é membro (ADR-0005, seção 9):
 
@@ -268,7 +268,8 @@ Em `packages/contracts/src/whatsapp.ts`:
 Os códigos novos de `last_error`, todos dentro dos 64 caracteres:
 
 - do claim: `whatsapp_not_ready`, `whatsapp_type_not_allowed`, `summary_empty`;
-- do provedor: `wa_<código>`, `wa_http_<status>`, `wa_rate_limited`, `wa_network`, `wa_timeout`, `wa_redirect`, `wa_bad_response`.
+- do provedor: `wa_<código>`, `wa_http_<status>`, `wa_rate_limited`, `wa_network`, `wa_timeout`, `wa_redirect`, `wa_bad_response`;
+- do canal: `wa_provider_error` (seção 17).
 
 ### 14. Divisão do trabalho
 
@@ -323,6 +324,16 @@ Padrões reversíveis, escolhidos para não travar a fase:
 11. **Sem login por telefone** nesta fase.
 12. **Verificação:** 5 códigos por dia por pessoa e por número, 10 minutos de validade, 5 tentativas.
 
+### 17. Diferenças da implementação
+
+O que a implementação fez diferente deste texto, aceito pelo orquestrador em 2026-11-03. Vale sobre as seções anteriores onde há diferença, e os trechos afetados remetem para cá.
+
+**Provedor que lança vira `retry` com `wa_provider_error`.** Só o `ConsoleProvider` lança, quando o `insert` em `whatsapp_console_messages` falha; o `MetaCloudProvider` responde códigos (seção 1). Nada chegou a ninguém, então repetir não duplica: a linha volta pelo backoff e pelo `maxAttempts` de sempre (ADR-0008, seção 6). Uma falha de **montagem** (tipo fora de `whatsappTypes`, resumo que o contrato recusa) continua `failed` com `send_error`, porque repetir não a conserta. Na `phone-verification`, o provedor que lança é 502 `whatsapp_send_failed`, e o código conta no limite, como o envio que falha (seção 3).
+
+**A tela não mostra o WhatsApp na lista de tipos.** Em `/settings/notifications`, as chaves por canal são só do push. O resumo, único tipo de `whatsappTypes`, é ligado e desligado por `daily_summary_enabled`, na seção do WhatsApp, junto do horário e das outras preferências da seção 5: a mesma escolha não mora em dois lugares. A linha `(daily_summary, whatsapp)` de `notification_preferences` fica no padrão (ligada, por `defaultChannels`) e nenhuma tela a grava. **Teto:** se um segundo tipo entrar em `whatsappTypes`, a chave por canal do WhatsApp volta à lista para ele, e o resumo continua na seção própria.
+
+**O resumo nunca vai por push.** `notificationUrl` leva o resumo a Hoje (`/`), e `internalPathSchema` recusa `/` sozinho, então `buildPushPayload` lança para `daily_summary`. Com `defaultChannels.daily_summary.web_push = false` e o `enqueue_notification` que não grava push para ele, a linha nunca nasce. Um resumo por push (seção 16, item 7) exige uma rota própria para Hoje que passe no contrato, e o texto do push.
+
 ## Alternativas
 
 - **Código por SMS:** custa por mensagem e pede outro fornecedor. O código pelo WhatsApp prova também que o número tem WhatsApp, que é o que importa.
@@ -341,7 +352,7 @@ Padrões reversíveis, escolhidos para não travar a fase:
 
 - `banco-de-dados` entrega antes da integração de `backend-funcoes` e das telas. `pnpm db:check-permissions` acusa `notification_rules` e `whatsapp_rules` até lá.
 - O despacho passa a funcionar sem VAPID para o WhatsApp, e o push sem VAPID espera em vez de falhar.
-- A tela de preferências passa a ver `whatsapp` em `activeChannels`. Só os tipos de `whatsappTypes` mostram a opção.
+- A tela de preferências não mostra o WhatsApp na lista de tipos; o resumo tem a seção própria (seção 17).
 - Nenhuma mensagem real sai até o humano decidir. A E2E do resumo com o provedor de teste (definição de pronto) usa `whatsapp_console_messages`.
 - Entrega pelo menos uma vez: um resumo pode, raramente, chegar duas vezes.
 - O título das tarefas passa pelos servidores da Meta quando o WhatsApp estiver ligado, e o aviso de consentimento diz isso.

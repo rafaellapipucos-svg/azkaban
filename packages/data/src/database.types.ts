@@ -417,14 +417,14 @@ isOneToOne: false
                   ]
                 },"push_subscriptions": {
                   Row: {
-                    "auth": string,"created_at": string,"endpoint": string,"id": string,"last_success_at": string | null,"p256dh": string,"user_agent": string | null,"user_id": string
+                    "auth": string | null,"created_at": string,"endpoint": string | null,"expo_token": string | null,"id": string,"kind": string,"last_success_at": string | null,"p256dh": string | null,"user_agent": string | null,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "auth": string,"created_at"?: string,"endpoint": string,"id"?: string,"last_success_at"?: string | null,"p256dh": string,"user_agent"?: string | null,"user_id": string
+                    "auth"?: string | null,"created_at"?: string,"endpoint"?: string | null,"expo_token"?: string | null,"id"?: string,"kind"?: string,"last_success_at"?: string | null,"p256dh"?: string | null,"user_agent"?: string | null,"user_id": string
                   }
                   Update: {
-                    "auth"?: string,"created_at"?: string,"endpoint"?: string,"id"?: string,"last_success_at"?: string | null,"p256dh"?: string,"user_agent"?: string | null,"user_id"?: string
+                    "auth"?: string | null,"created_at"?: string,"endpoint"?: string | null,"expo_token"?: string | null,"id"?: string,"kind"?: string,"last_success_at"?: string | null,"p256dh"?: string | null,"user_agent"?: string | null,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -1227,6 +1227,9 @@ isOneToOne: false
                            },
 "refresh_user_day_counts":
 { Args: { "p_date": string,"p_user": string }; Returns: undefined
+                           },
+"register_native_push_subscription":
+{ Args: { "p_token": string,"p_user_agent": string }; Returns: string
                            },
 "register_push_subscription":
 { Args: { "p_auth": string,"p_endpoint": string,"p_p256dh": string,"p_user_agent": string }; Returns: string

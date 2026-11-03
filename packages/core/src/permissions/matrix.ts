@@ -14,6 +14,10 @@ export const rolePermissions = {
     'task.edit_assigned',
     'task.delete_assigned',
     'proof.review',
+    'shopping.create_list',
+    'shopping.complete_list',
+    'shopping.manage_catalog',
+    'shopping.manage_lists',
   ],
   admin: [
     'group.update',
@@ -26,6 +30,10 @@ export const rolePermissions = {
     'task.edit_assigned',
     'task.delete_assigned',
     'proof.review',
+    'shopping.create_list',
+    'shopping.complete_list',
+    'shopping.manage_catalog',
+    'shopping.manage_lists',
   ],
-  member: [],
+  member: ['shopping.create_list', 'shopping.complete_list'],
 } as const;

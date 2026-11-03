@@ -1746,3 +1746,19 @@
 - **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9 tarefas; contratos 108 testes, config 19; `functions:imports` 8 de 8; dependency-cruiser sem violações). Mutação no contrato, desfeita: sem o piso da quantidade e com o stepper não estrito, 4 de 16 testes falham. Os três arquivos de espelho carregam direto no Node.
 - **Não verificado:** nada com a pilha; `pnpm db:check-permissions` vai acusar as quatro comparações de compras e a matriz até as migrations e o espelho de `auth-grupos`. A leitura do seed com acentos e emojis pelo `docker exec` no Windows não foi exercitada. O nome do evento de XP depende do ADR-0010, escrito em paralelo.
 - **Pendências / próximos passos:** os três handoffs. Para o orquestrador: dividir F7-5 no QUADRO e dar dono a `packages/core/src/shopping` e à aba "Compras". Para o humano: a seção 15 do ADR-0011.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:37 (BRT)
+
+- **Branch:** feat/shopping-permissions, a partir de feat/phase-7-shopping (`b30a4b0`)
+- **Agente(s):** auth-grupos
+- **Resumo:** As quatro chaves de compras do ADR-0011, seção 3, no espelho da matriz do cliente. São as primeiras chaves de `member`.
+- **Alterações:**
+  - `shopping.create_list`, `shopping.complete_list`, `shopping.manage_catalog` e `shopping.manage_lists` para `owner` e `admin`; `member` recebe só as duas primeiras.
+  - O teste da matriz cobre as quatro nos três papéis.
+- **Arquivos/módulos principais:** `packages/core/src/permissions/matrix.ts`, `packages/core/src/permissions/matrix.test.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0011, seção 3, e ADR-0003. Nada no cliente tratava `member: []` como sinal de membro comum: `rolePermissions` só é lido por `can()` e pelo teste. Nenhuma tela lista chaves de permissão, então não há rótulo i18n a criar. O formato do arquivo segue o que `scripts/check-permission-mirror.mjs` lê.
+- **Como testar:** `pnpm check`; com a pilha e a migration de `banco-de-dados`, `pnpm db:check-permissions`.
+- **Verificado:** `pnpm check` passa (core com 617 testes). Mutação: tirar `shopping.complete_list` de `member` fez 1 teste falhar; restaurado.
+- **Não verificado:** `pnpm db:check-permissions`, sem pilha e com a migration ainda em andamento. Hora derivada de UTC menos 3, porque o PowerShell foi bloqueado.
+- **Pendências / próximos passos:** entrar no mesmo merge da migration de permissões de `banco-de-dados`.

@@ -3951,3 +3951,20 @@
 - **Verificado:** `push.test.ts` 31/31 no Node (3 novos: zero no plural; `hideContent` ligado e desligado, cada um mandando a um navegador e a um aparelho, com o corpo do Web Push decifrado e a mensagem do Expo capturada). Na pilha A, depois de `supabase db reset` (com as migrations `20261106100000`/`100100`) e `NATIVE_PUSH_PROVIDER=fake`: `pnpm functions:test` 228/228. `pnpm check` passou (turbo 14/14, `functions:imports` 20/20).
 - **Não verificado:** o `index.ts` real com `hideContent` ligado (localmente sem VAPID o push espera, e o Node não importa `buildPushPayload` nem `nativePushMessageSchema`; o teste repete o mapeamento do `renderNative`); Expo e navegador de verdade; hospedado. Hora pelo UTC−3 (PowerShell barrado).
 - **Pendências / próximos passos:** handoffs de origem atendidos (`20261103-1726-banco-de-dados-para-backend-funcoes-push-generico.md`, `20261103-1722-compras-para-backend-funcoes-zero-no-plural-nas-funcoes.md`). Interruptor na tela é do `notificacoes-whatsapp`. Nota no ADR-0008 §16 item 8 pelo `arquiteto`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 18:07 (BRT)
+
+- **Branch:** fix/web-magic-link-session (a partir de `feat/launch-decisions`, `451c471`)
+- **Agente(s):** auth-grupos
+- **Resumo:** regressão do BL-38 (`d9c9384`): no web o link por e-mail não entrava. `createAppLink('/')` no web devolve a origem sem a barra final (`http://localhost:8091`, o `createURL.web.js` do `expo-linking` corta a barra) e o `parseSessionLink` recusava toda raiz sem barra, então todo link do web virava `null` e nenhuma sessão começava.
+- **Alterações:**
+  - `parseSessionLink` completa a raiz com `/` em vez de recusá-la. A barra continua separando o host: `http://localhost:8091.evil.com/#…` e `http://localhost:80910/#…` seguem `null`. A regra A' (`setSessionFromLink`) não mudou.
+  - Teste de unidade do caso: raiz do web sem barra, com caminho, e os dois hosts parecidos recusados.
+- **Evidência:** no trace da falha, `/auth/v1/verify?...&redirect_to=http://localhost:8091` respondeu `Location: http://localhost:8091#access_token=…` (o navegador normaliza para `/#access_token=…`); o app foi para `/sign-in` sem sessão. Revertendo só o `link.ts`, o E2E "magic link signs the user in" falhou de novo; com a correção, passou.
+- **Arquivos/módulos principais:** `packages/data/src/auth/link.ts`, `packages/data/src/auth/link.test.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova; mantém ADR-0012 seção 11 e a opção A' do BL-38.
+- **Como testar:** `pnpm --filter @azkaban/data exec vitest run src/auth/link.test.ts`; com a pilha, `pnpm exec playwright test e2e/accounts.spec.ts --project=app --no-deps`.
+- **Verificado:** pilha A (`db:reset`): `e2e/accounts.spec.ts` + `e2e/privacy.spec.ts` com `--repeat-each=3`, 30/30. Nenhuma outra spec entra por link. `pnpm check` passou.
+- **Não verificado:** link de outra conta com sessão ativa no web (vai para `/profile?link=other-account`) e link da mesma conta não têm E2E; até esta correção esses ramos nunca rodavam no web. Nativo e hospedado não testados (a raiz nativa `azkaban:///` já tinha barra). Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** E2E de "outra conta não troca a sessão" no web, se o orquestrador quiser.

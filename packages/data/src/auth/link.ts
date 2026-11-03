@@ -23,15 +23,18 @@ function readParams(text: string) {
 
 /**
  * Reads a sign-in link that opened the app. `appRoot` is the app's own `createAppLink('/')`
- * (`azkaban:///` in a build): any other scheme or host is `null`, as is a link of the app without
- * the Supabase parameters, which the router handles on its own. The path never leaves the app.
+ * (`azkaban:///` in a build, `https://host` with no trailing slash on the web): any other scheme or
+ * host is `null`, as is a link of the app without the Supabase parameters, which the router handles
+ * on its own. The path never leaves the app.
  */
 export function parseSessionLink(url: string, appRoot: string): SessionLink | null {
-  if (!appRoot.endsWith('/') || !url.startsWith(appRoot)) return null;
+  // The slash ends the host: `https://host` alone would also match `https://host.evil.com`.
+  const root = appRoot.endsWith('/') ? appRoot : `${appRoot}/`;
+  if (!url.startsWith(root)) return null;
   const hashAt = url.indexOf('#');
   const beforeHash = hashAt === -1 ? url : url.slice(0, hashAt);
   const queryAt = beforeHash.indexOf('?');
-  const rawPath = `/${(queryAt === -1 ? beforeHash : beforeHash.slice(0, queryAt)).slice(appRoot.length)}`;
+  const rawPath = `/${(queryAt === -1 ? beforeHash : beforeHash.slice(0, queryAt)).slice(root.length)}`;
   const path = internalPathSchema.safeParse(rawPath).success ? rawPath : '/';
   const fragment = readParams(hashAt === -1 ? '' : url.slice(hashAt + 1));
   // GoTrue puts the error in the fragment, older versions in the query.

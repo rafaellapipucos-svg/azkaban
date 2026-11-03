@@ -3448,3 +3448,21 @@
 - **Verificado:** `pnpm install --frozen-lockfile` passa. `pnpm expo:doctor`: "20/20 checks passed. No issues detected!", saída 0. `pnpm check` passou. `pnpm build:web` passou; `pnpm bundle:size`: 402622 bytes gzip no maior JS, teto 427641.
 - **Não verificado:** sem pilha e sem E2E. Nativo real (APK/iOS): a troca da async-storage 3.x pela 2.x no `packages/platform` só afeta o nativo; no web as duas usam `localStorage`, mas dados gravados por um build nativo com a 3.x não foram testados contra a 2.x (ainda não houve build nativo publicado). CI no Linux não rodou.
 - **Pendências / próximos passos:** ao subir o SDK do Expo, alinhar os mesmos pacotes à tabela nova; o doctor acusa se esquecer.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:44 (BRT)
+
+- **Branch:** feat/native-push-token, criada a partir de feat/backlog-after-phase-8 (f0b9d35)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** BL-19. `enableThisDevice` pede primeiro o token Expo e, com ele, registra pela RPC `register_native_push_subscription`; sem token, segue pelo Web Push como antes. `features.nativePush` continua `false`: desligada, nada muda no nativo (sem pedir permissão, card em "não suportado"). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/platform/src/push.native.ts`: o canal Android vem de quem chama (`AndroidPushChannel`, `{ id, name }`), e a feature passa `nativePushAndroidChannelId` do contrato (handoff 1010, item 1; a plataforma não depende de `contracts`). `nativePushToken` devolve `{ token, userAgent }` (`NativePushTokenData`), com o sistema (`Android`, `iPhone`, `iPad`) como rótulo, que o `deviceLabel` do core já lê. Sem `extra.eas.projectId`, não tenta, não pede permissão e avisa em `console.warn`. `pushSupport` diz `supported` só com a flag e o `projectId`; `pushPermission` guarda a última resposta do sistema, lida uma vez ao abrir e a cada pedido. Sem a flag, as duas respondem `unsupported` e `denied`, como antes.
+  - `packages/platform/src/push.ts` e `push.web.ts`: mesma assinatura; no web, `nativePushToken` devolve null sem perguntar nada. `index.ts` exporta os dois tipos novos.
+  - `packages/data/src/notifications/index.ts`: `registerNativeDevice`, validando com `nativePushSubscriptionInputSchema` antes da rede (token inválido não chama a RPC); erro da RPC, inclusive `invalid_push_subscription`, sobe e vira a falha genérica (handoff 1010, item 2).
+  - `packages/features/notifications/src/device.ts`: `enableThisDevice(userId, vapidPublicKey, androidChannelName)`, nativo primeiro e web depois; o `PushSetupCard` passa `setup.androidChannel` ("Lembretes e avisos", novo em `pt-BR/notifications.json`).
+- **Arquivos/módulos principais:** `packages/platform/src/push*.ts`, `packages/data/src/notifications/`, `packages/features/notifications/src/{device,PushSetupCard}.ts*`, `packages/i18n/src/pt-BR/notifications.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova; segue o ADR-0012, seção 11.
+- **Como testar:** `pnpm --filter @azkaban/platform --filter @azkaban/data --filter @azkaban/feature-notifications test`; `pnpm check`.
+- **Verificado:** testes novos com `expo-notifications`, `expo-constants` e repositório falsos: `push.native.test.ts` (flag desligada não pede permissão; sem `projectId` não tenta e avisa; com tudo, cria o canal, pede e devolve o token; negado guarda `denied`), `notifications.test.ts` do data (RPC e argumentos; token fora do contrato não chama a RPC; erro da RPC sobe) e `device.test.ts` (nativo não toca o Web Push; sem token vai pelo web; sem nada, `dismissed`; recusa do repositório, `failed`). `pnpm check` passou.
+- **Não verificado:** nativo real (sem build, sem conta Expo/Firebase/Apple, sem `projectId`): o pedido de permissão, o token e o recebimento. Sem pilha e sem E2E (BL-22). A RPC só foi exercitada com cliente falso.
+- **Pendências / próximos passos:** ligar `features.nativePush` só com as contas do BL-29. No nativo, `syncThisDevice` não registra o token de novo ao abrir (o token Expo é estável; registrar ao abrir se a Expo passar a trocá-lo). Uma sessão que expira sem o botão Sair deixa a linha `expo` viva, porque o token não morre como o endpoint web: avaliar `unregisterForNotificationsAsync` em `stopPushWhenSignedOut` antes de ligar a flag.

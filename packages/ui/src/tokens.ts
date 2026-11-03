@@ -61,6 +61,14 @@ export const mascotColors = {
   leaf: '#22B573',
   ink: '#1F1830',
   blush: '#FF8FA3',
+  eye: '#FFFFFF',
+} as const;
+
+/** The app icons and the splash (`pnpm --filter @azkaban/ui brand`). */
+export const brandPalette = {
+  background: colors.background,
+  mascot: mascotColors,
+  silhouette: mascotColors.ink,
 } as const;
 
 export const radii = { md: 16, lg: 24, full: 999 } as const;

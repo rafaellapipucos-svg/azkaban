@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, View } from 'react-native';
 import { confettiPieces, confettiPlan } from './celebration';
 import { motion, sizes } from './tokens';
-import { useMotionPreference } from './useReducedMotion';
+import { nativeDriver, useMotionPreference } from './useReducedMotion';
 
 const pieces = confettiPieces();
 
@@ -30,7 +30,7 @@ export function Confetti({ onDone }: { onDone?: () => void }) {
       toValue: 1,
       duration: motion.celebrate,
       easing: Easing.out(Easing.quad),
-      useNativeDriver: false,
+      useNativeDriver: nativeDriver,
     });
     run.start(({ finished }) => finished && done.current?.());
     return () => run.stop();
@@ -41,6 +41,8 @@ export function Confetti({ onDone }: { onDone?: () => void }) {
   return (
     <View
       aria-hidden
+      // The prop: react-native-web drops `pointerEvents` from inline styles.
+      pointerEvents="none"
       onLayout={(event) => setHeight(event.nativeEvent.layout.height)}
       style={{
         position: 'absolute',
@@ -49,7 +51,6 @@ export function Confetti({ onDone }: { onDone?: () => void }) {
         bottom: 0,
         left: 0,
         overflow: 'hidden',
-        pointerEvents: 'none',
       }}
     >
       {measured

@@ -20,9 +20,11 @@ type Props = {
 export function Fab({ label, onPress, icon = '+', extended, insideTabs = true }: Props) {
   const insets = useSafeAreaInsets();
   return (
+    // The prop, not the style: react-native-web 0.21 drops `pointerEvents` from inline styles, and
+    // this full-width strip would swallow every touch on the content behind it.
     <View
+      pointerEvents="box-none"
       style={{
-        pointerEvents: 'box-none',
         position: 'absolute',
         left: 0,
         right: 0,
@@ -32,8 +34,8 @@ export function Fab({ label, onPress, icon = '+', extended, insideTabs = true }:
       }}
     >
       <View
+        pointerEvents="box-none"
         style={{
-          pointerEvents: 'box-none',
           width: '100%',
           maxWidth: layout.maxContentWidth,
           alignItems: 'flex-end',

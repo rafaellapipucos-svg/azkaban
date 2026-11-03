@@ -7,7 +7,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "brand": "node scripts/render-brand.mjs"
   },
   "dependencies": {
     "@azkaban/contracts": "workspace:*",

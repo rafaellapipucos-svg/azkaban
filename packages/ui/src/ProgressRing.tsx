@@ -16,6 +16,8 @@ type Props = {
 };
 
 // Eases the number that drives the arc. Reduced motion jumps straight to the target.
+// ponytail: the one animation that is not transform or opacity (ADR-0012, section 10): a paint of
+// one SVG stroke, never layout, for `motion.base`. A rotating half-ring mask if a trace shows jank.
 export function useEased(target: number) {
   const reduced = useReducedMotion();
   const animated = useRef(new Animated.Value(target)).current;

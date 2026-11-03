@@ -8,7 +8,9 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  canManageList,
   canShop,
+  parseNote,
   readMode,
   shoppingErrorKey,
   shoppingPaths,
@@ -20,7 +22,10 @@ const messages = JSON.parse(
     join(import.meta.dirname, '..', '..', '..', 'i18n', 'src', 'pt-BR', 'shopping.json'),
     'utf8',
   ),
-) as Record<'errors' | 'categories' | 'units' | 'unitNames' | 'form', Record<string, string>>;
+) as Record<
+  'errors' | 'categories' | 'units' | 'unitNames' | 'form' | 'list',
+  Record<string, string>
+>;
 
 describe('shoppingErrorKey', () => {
   it('every code of the contract has its own message, so none falls to the generic one', () => {
@@ -91,5 +96,54 @@ describe('shoppingTextErrorKey', () => {
     expect(key(' Arroz\n')).toBeNull();
     expect(key('')).toBeNull();
     expect(key('a'.repeat(500))).toBeNull();
+  });
+});
+
+describe('canManageList', () => {
+  const me = (role: 'owner' | 'admin' | 'member') => ({
+    id: 'u1',
+    memberships: [{ groupId: 'g1', role }],
+  });
+
+  it('lets the creator rename and delete while a member, and nobody else without the key', () => {
+    expect(canManageList(me('member'), { groupId: 'g1', createdBy: 'u1' })).toBe(true);
+    expect(canManageList(me('member'), { groupId: 'g1', createdBy: 'u2' })).toBe(false);
+    expect(canManageList(me('member'), { groupId: 'g1', createdBy: null })).toBe(false);
+  });
+
+  it('lets shopping.manage_lists act on a group list someone else created', () => {
+    expect(canManageList(me('admin'), { groupId: 'g1', createdBy: 'u2' })).toBe(true);
+    expect(canManageList(me('owner'), { groupId: 'g1', createdBy: null })).toBe(true);
+  });
+
+  it('never lets a former member act on the list they created', () => {
+    const gone = { id: 'u1', memberships: [] };
+    expect(canManageList(gone, { groupId: 'g1', createdBy: 'u1' })).toBe(false);
+  });
+
+  it('leaves a personal list to its owner, the only one who sees it', () => {
+    expect(canManageList({ id: 'u1', memberships: [] }, { groupId: null, createdBy: 'u1' })).toBe(
+      true,
+    );
+  });
+});
+
+describe('parseNote', () => {
+  it('clears the note when left blank', () => {
+    expect(parseNote('')).toMatchObject({ success: true, data: null });
+    expect(parseNote('   ')).toMatchObject({ success: true, data: null });
+  });
+
+  it('keeps a trimmed note and refuses one that breaks the contract', () => {
+    expect(parseNote(' Integral ')).toMatchObject({ success: true, data: 'Integral' });
+    expect(shoppingTextErrorKey(parseNote('Integral\nDesnatado'))).toBe('form.invalidText');
+    expect(parseNote('a'.repeat(201)).success).toBe(false);
+  });
+});
+
+describe('list status', () => {
+  it('says an empty list is empty, never "Falta 0 item"', () => {
+    expect(messages.list.empty).toBeTruthy();
+    expect(messages.errors.lists_full).toContain('exclua');
   });
 });

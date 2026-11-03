@@ -1960,3 +1960,23 @@
 - **Verificado (pilha A, banco limpo):** `shopping.spec.ts` e `calendar.spec.ts` ajustado: 7 de 7; `shopping.spec.ts` 4 vezes em paralelo (`--repeat-each=4 --workers=4`): 4 de 4, com o stepper simultâneo somando 5. `pnpm e2e` completo uma vez, com a chave VAPID: 72 passaram, 0 falhas, 1 pulado (o que só roda sem a chave). `pnpm check` passou.
 - **Não verificado:** as folhas (unidade e edição do catálogo) não entram no percurso; `list_completed` numa escrita concorrente com o finalizar só no pgTAP; leitor de tela real, Safari, iOS e Android; projeto hospedado. Sem mutação. SEG7-2 a SEG7-6 no banco e SEG7-1/SEG7-3 nas telas seguem com os outros agentes e não foram conferidos.
 - **Pendências / próximos passos:** `compras`: QA7-1 a QA7-4. F7-5 (vínculo com tarefa nas telas e XP de compra) não entregue; o XP depende da Fase 6. `docs/agentes/QUADRO.md` ainda mostra a Fase 7 inteira como "a fazer" (orquestrador). Pilha A parada.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:58 (BRT)
+
+- **Branch:** fix/shopping-qa7 (a partir de `feat/phase-7-shopping`, `a5ae390`)
+- **Agente(s):** compras
+- **Resumo:** QA7-1 a QA7-4 do QA da Fase 7: renomear e excluir lista, status da lista vazia, erro do catálogo que sobrava ao fechar a folha, e a nota do item.
+- **Alterações:**
+  - QA7-1: `ShoppingRepository.updateList` e `deleteList` (`update` e `delete` sob a RLS, com `select('id')`; se nenhuma linha volta, o erro é `forbidden`, porque a RLS não dá erro). Na lista aberta, "Renomear lista" (folha com `shoppingNameSchema`; o erro do banco aparece dentro da folha) e "Excluir lista" com `ConfirmButton`. Na finalizada, só "Excluir lista", porque o banco recusa `update` em lista `completed`. Quem vê os botões: `canManageList`, espelho de `can_manage_shopping_list` (criador ainda membro, ou `shopping.manage_lists`, ou o dono na pessoal). Excluir volta para `/shopping` antes de recarregar. `errors.lists_full` passa a dizer "Finalize ou exclua uma".
+  - QA7-2: lista sem itens diz "A lista está vazia." (`list.empty`) no status, em vez de "Falta 0 item".
+  - QA7-3: `save.reset()` no `onClose` da folha do catálogo.
+  - QA7-4: botão "Nota" ao lado da unidade, no modo montar, abre uma folha com um campo. `parseNote` aplica `shoppingNoteSchema`; em branco limpa (null). A nota aparece sob o nome no modo montar e, como antes, no modo no mercado. É um `update` comum, e a última escrita vale (ADR-0011, seção 5).
+  - Testes de unidade: `canManageList`, `parseNote` e os textos novos; no `data`, `updateList` e `deleteList` com o cliente simulado (sem linha vira `forbidden`; o código do banco é repassado).
+  - E2E: caso novo em `e2e/shopping.spec.ts` (lista vazia, membro sem os botões, nota escrita pelo membro e vista pelo dono, renomear ao vivo, excluir com confirmação e "não encontrada" no outro navegador).
+- **Arquivos/módulos principais:** `packages/data/src/shopping/`, `packages/features/shopping/src/` (`shopping.ts`, `ShoppingListScreen.tsx`, `BuildMode.tsx`, `ShoppingCatalogScreen.tsx`), `packages/i18n/src/pt-BR/shopping.json`, `e2e/shopping.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova; segue o ADR-0011, seções 3 a 6. Contratos sem mudança (`shoppingListUpdateInputSchema` e `shoppingNoteSchema` já existiam).
+- **Como testar:** `pnpm check`; com a pilha livre, `pnpm exec supabase db reset` e `pnpm exec playwright test e2e/shopping.spec.ts`.
+- **Verificado:** `pnpm check` passou (feature-shopping 16 testes, data 11, core 630, contracts 127, entre outros); `pnpm build:web` passou. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Não verificado:** a E2E nova não rodou, porque a pilha A estava ocupada pelo QA da Fase 6. Nada foi visto no navegador (layout das folhas novas a 320 px, tema escuro). Sem mutação. iOS e Android não testados.
+- **Pendências / próximos passos:** rodar `e2e/shopping.spec.ts` (e `shopping-layout.spec.ts`, que pode passar a cobrir as folhas novas) na próxima janela da pilha. O zero no singular das unidades ("0 pacote") ficou como está, à espera do humano.

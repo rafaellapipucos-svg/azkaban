@@ -11,6 +11,7 @@ import {
   type ShoppingListItemInput,
   type ShoppingListItemUpdateInput,
   type ShoppingListStatus,
+  type ShoppingListUpdateInput,
   type ShoppingQuantityAdjust,
 } from '@azkaban/contracts';
 import { currentUserId, db } from '../client';
@@ -48,6 +49,10 @@ export type ShoppingRepository = {
   createList(input: ShoppingListCreateInput): Promise<string>;
   /** `complete_shopping_list`. */
   completeList(input: ShoppingListCompleteInput): Promise<void>;
+  /** Rename or link, by whoever manages the list (ADR-0011, section 4). The database refuses a completed one. */
+  updateList(id: string, input: ShoppingListUpdateInput): Promise<void>;
+  /** A real `delete`, in any state, by whoever manages the list. The items go with it (section 6). */
+  deleteList(id: string): Promise<void>;
   /** The stepper. `null` when the item left the list (zero or below, or removed meanwhile). */
   adjustQuantity(input: ShoppingQuantityAdjust): Promise<ShoppingListItem | null>;
   addItem(input: ShoppingListItemInput): Promise<ShoppingListItem>;
@@ -188,6 +193,23 @@ export const shoppingRepository: ShoppingRepository = {
   async completeList({ listId }) {
     const { error } = await db().rpc('complete_shopping_list', { p_list_id: listId });
     if (error) throw fail(error);
+  },
+
+  async updateList(id, { name, linkedTaskId }) {
+    const { data, error } = await db()
+      .from('shopping_lists')
+      .update({ name, linked_task_id: linkedTaskId })
+      .eq('id', id)
+      .select('id');
+    if (error) throw fail(error);
+    // RLS answers someone who may not manage the list with no row, not an error.
+    if (data.length === 0) throw new Error('forbidden');
+  },
+
+  async deleteList(id) {
+    const { data, error } = await db().from('shopping_lists').delete().eq('id', id).select('id');
+    if (error) throw fail(error);
+    if (data.length === 0) throw new Error('forbidden');
   },
 
   async adjustQuantity(input) {

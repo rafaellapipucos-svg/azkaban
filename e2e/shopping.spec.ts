@@ -147,3 +147,53 @@ test('two members build, shop and complete one list live; no outsider or admin s
   await expect(ownerPage.getByText('Nenhuma lista aberta por aqui.')).toBeVisible();
   await expect(ownerPage.getByText(personal)).toHaveCount(0);
 });
+
+test('whoever manages a list renames and deletes it; a member writes a note on an item', async ({
+  browser,
+}) => {
+  const { ownerPage, memberPage } = await groupWithMember(browser);
+  const listName = uniqueTitle('Feira');
+  const renamed = uniqueTitle('Sacolão');
+
+  await ownerPage.goto('/shopping');
+  await ownerPage.getByRole('radio', { name: 'Equipe P' }).click();
+  await ownerPage.getByLabel('Nome da nova lista').fill(listName);
+  await button(ownerPage, 'Criar lista').click();
+  await expect(ownerPage).toHaveURL(/\/shopping\/[0-9a-f-]{36}\?mode=build$/);
+  const listUrl = new URL(ownerPage.url()).pathname;
+  // An empty list says so, never "Falta 0 item"
+  await expect(ownerPage.getByRole('status').getByText('A lista está vazia.')).toBeVisible();
+
+  // The member, who neither created the list nor has shopping.manage_lists, is not offered either
+  await memberPage.goto(listUrl);
+  await expect(memberPage.getByRole('heading', { name: listName })).toBeVisible();
+  await expect(button(memberPage, 'Renomear lista')).toHaveCount(0);
+  await expect(button(memberPage, 'Excluir lista')).toHaveCount(0);
+
+  // A note on an item, written by the member, shown at the store to both
+  await plus(memberPage, 'Arroz').click();
+  await expect(stepper(memberPage, 'Arroz').getByText('1 pacote')).toBeVisible();
+  await button(memberPage, 'Nota de Arroz').click();
+  await memberPage.getByRole('textbox', { name: 'Nota de Arroz' }).fill('Integral');
+  await button(memberPage, 'Salvar nota').click();
+  await expect(text(memberPage, 'Integral')).toBeVisible();
+  await mode(ownerPage, 'No mercado');
+  await expect(text(ownerPage, '1 pacote · Integral · Adicionado por Duda')).toBeVisible();
+
+  // The creator renames it, and the member sees the new name live
+  await button(ownerPage, 'Renomear lista').click();
+  await ownerPage.getByLabel('Nome da lista').fill(renamed);
+  await button(ownerPage, 'Salvar nome').click();
+  await expect(ownerPage.getByRole('heading', { name: renamed })).toBeVisible();
+  await expect(memberPage.getByRole('heading', { name: renamed })).toBeVisible();
+
+  // Deleting asks to confirm, leaves for the lists and takes the list from the member too
+  await button(ownerPage, 'Excluir lista').click();
+  await button(ownerPage, 'Confirmar: excluir').click();
+  await expect(ownerPage).toHaveURL(/\/shopping$/);
+  await ownerPage.getByRole('radio', { name: 'Equipe P' }).click();
+  await expect(ownerPage.getByRole('button', { name: renamed })).toHaveCount(0);
+  await expect(
+    memberPage.getByText('Lista não encontrada. Ela pode ter sido excluída.'),
+  ).toBeVisible();
+});

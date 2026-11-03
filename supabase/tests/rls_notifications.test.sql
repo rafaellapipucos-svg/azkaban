@@ -120,8 +120,17 @@ create function pg_temp.ob(p_user uuid, p_type text default null) returns bigint
   where ob.user_id = p_user and (p_type is null or n.type::text = p_type);
 $$;
 
-create function pg_temp.last(p_user uuid, p_type text) returns public.notifications language sql security definer as $$
-  select * from public.notifications where user_id = p_user and type::text = p_type order by ctid desc limit 1;
+-- The one notification of the user and type (and occurrence). Not "the newest": ctid is not insertion
+-- order (an update moves a row, an insert may land on an earlier page) and created_at is now() for all,
+-- so two would be told apart by chance. Strict, so two fail loudly instead.
+create function pg_temp.one(p_user uuid, p_type text, p_occ uuid default null) returns public.notifications
+language plpgsql security definer as $$
+declare r public.notifications;
+begin
+  select * into strict r from public.notifications
+  where user_id = p_user and type::text = p_type and (p_occ is null or occurrence_id = p_occ);
+  return r;
+end;
 $$;
 
 create function pg_temp.ep(p text) returns text language sql as $$
@@ -312,12 +321,12 @@ select pg_temp.pg();
 select is(pg_temp.n(pg_temp.u('c'), 'occurrence_resolved'), 1::bigint, 'the creator gets occurrence_resolved');
 select is(pg_temp.n(pg_temp.u('d')), 0::bigint, 'nobody is told of their own action');
 select is(pg_temp.n(pg_temp.u('a')), 0::bigint, 'the owner of the group is not the creator');
-select is((pg_temp.last(pg_temp.u('c'), 'occurrence_resolved')).data,
+select is((pg_temp.one(pg_temp.u('c'), 'occurrence_resolved')).data,
   jsonb_build_object('status', 'done', 'byUserId', pg_temp.u('d')), 'data says what and who, no title');
-select is((pg_temp.last(pg_temp.u('c'), 'occurrence_resolved')).dedupe_key,
+select is((pg_temp.one(pg_temp.u('c'), 'occurrence_resolved')).dedupe_key,
   'occurrence_resolved:' || (select id from public.task_status_history where occurrence_id = pg_temp.g('t1'))::text,
   'the key is the line of the history');
-select is((pg_temp.last(pg_temp.u('c'), 'occurrence_resolved')).group_id, '10000000-0000-0000-0000-00000000000a'::uuid, 'with the group');
+select is((pg_temp.one(pg_temp.u('c'), 'occurrence_resolved')).group_id, '10000000-0000-0000-0000-00000000000a'::uuid, 'with the group');
 select is(pg_temp.ob(pg_temp.u('c'), 'occurrence_resolved'), 0::bigint, 'the notice to the creator is bell only by default');
 
 -- Repeating an event writes nothing; done, pending, done is two events but the same notice (SEG4-1).
@@ -335,7 +344,7 @@ insert into public.notification_preferences (type, channel, enabled) values ('oc
 select pg_temp.pg();
 select pg_temp.act(pg_temp.u('c'), pg_temp.g('t2'), 'missed');
 select is(pg_temp.n(pg_temp.u('d'), 'occurrence_missed'), 1::bigint, 'the assignee gets occurrence_missed');
-select is((pg_temp.last(pg_temp.u('d'), 'occurrence_missed')).data, jsonb_build_object('byUserId', pg_temp.u('c')), 'by Caio');
+select is((pg_temp.one(pg_temp.u('d'), 'occurrence_missed')).data, jsonb_build_object('byUserId', pg_temp.u('c')), 'by Caio');
 select is(pg_temp.n(pg_temp.u('c'), 'occurrence_resolved'), 1::bigint, 'the creator who acted is not told');
 select is(pg_temp.ob(pg_temp.u('d'), 'occurrence_missed'), 1::bigint, 'a preference turned on writes the push row');
 select is(public.enqueue_notification(pg_temp.u('d'), 'occurrence_missed', pg_temp.g('t2'), null, '{}',
@@ -353,7 +362,7 @@ select pg_temp.act(pg_temp.u('c'), pg_temp.g('t3'), 'missed');
 select is(pg_temp.n(pg_temp.u('d'), null, pg_temp.g('t3')), 1::bigint, 'the creator who is the assignee gets the red only');
 select pg_temp.act(pg_temp.u('c'), pg_temp.g('t3b'), 'done');
 select is(pg_temp.n(pg_temp.u('d'), 'occurrence_resolved', pg_temp.g('t3b')), 1::bigint, 'and is told when someone else completes it');
-select is((pg_temp.last(pg_temp.u('d'), 'occurrence_resolved')).data, jsonb_build_object('status', 'done', 'byUserId', pg_temp.u('c')), 'by Caio');
+select is((pg_temp.one(pg_temp.u('d'), 'occurrence_resolved', pg_temp.g('t3b'))).data, jsonb_build_object('status', 'done', 'byUserId', pg_temp.u('c')), 'by Caio');
 
 -- A private task: the admin is never told.
 select pg_temp.act(pg_temp.u('d'), pg_temp.g('t4'), 'done');
@@ -378,9 +387,9 @@ select is(pg_temp.n(pg_temp.u('c'), 'proof_in_review'), 1::bigint, 'the admin is
 select is(pg_temp.n(pg_temp.u('a'), 'proof_in_review'), 1::bigint, 'the owner too');
 select is(pg_temp.n(pg_temp.u('d'), 'proof_in_review'), 0::bigint, 'the author is not');
 select is(pg_temp.n(pg_temp.u('c'), 'occurrence_resolved', pg_temp.g('pr')), 0::bigint, 'and the creator gets no resolution while it waits');
-select is((pg_temp.last(pg_temp.u('c'), 'proof_in_review')).data,
+select is((pg_temp.one(pg_temp.u('c'), 'proof_in_review')).data,
   jsonb_build_object('proofId', pg_temp.g('proof'), 'groupId', '10000000-0000-0000-0000-00000000000a'), 'data has the proof and the group');
-select is((pg_temp.last(pg_temp.u('c'), 'proof_in_review')).dedupe_key, 'proof_in_review:' || pg_temp.g('proof'), 'keyed by the proof');
+select is((pg_temp.one(pg_temp.u('c'), 'proof_in_review')).dedupe_key, 'proof_in_review:' || pg_temp.g('proof'), 'keyed by the proof');
 select is(pg_temp.ob(pg_temp.u('c'), 'proof_in_review'), 1::bigint, 'a reviewer with a browser gets the push row');
 select is(pg_temp.ob(pg_temp.u('a'), 'proof_in_review'), 0::bigint, 'one without a browser does not');
 -- An author who is a reviewer is still the author.
@@ -394,7 +403,7 @@ select lives_ok(format($$select public.review_proof(%L, 'dispute', 'missed', 'bl
 select pg_temp.pg();
 select is(pg_temp.n(pg_temp.u('d'), 'proof_disputed'), 1::bigint, 'the author gets proof_disputed');
 select is(pg_temp.n(pg_temp.u('d'), 'occurrence_missed', pg_temp.g('pr')), 0::bigint, 'and not a red on top of it');
-select is((pg_temp.last(pg_temp.u('d'), 'proof_disputed')).data, jsonb_build_object('proofId', pg_temp.g('proof'), 'toStatus', 'missed'), 'with the proof and the status');
+select is((pg_temp.one(pg_temp.u('d'), 'proof_disputed')).data, jsonb_build_object('proofId', pg_temp.g('proof'), 'toStatus', 'missed'), 'with the proof and the status');
 select is(pg_temp.ob(pg_temp.u('d'), 'proof_disputed'), 1::bigint, 'pushed by default');
 select is(pg_temp.n(pg_temp.u('c'), null, pg_temp.g('pr')), 1::bigint, 'the reviewer is told nothing of their own decision');
 
@@ -661,14 +670,17 @@ select public.set_occurrence_status(pg_temp.g('cd'), 'pending', 'done', null);
 select public.set_occurrence_status(pg_temp.g('cd'), 'partial', 'pending', null);
 select pg_temp.pg();
 select is(pg_temp.n(pg_temp.u('c'), 'occurrence_resolved', pg_temp.g('cd')), 3::bigint, 'another status inside the window is a new notice');
-select is((pg_temp.last(pg_temp.u('c'), 'occurrence_resolved')).data, jsonb_build_object('status', 'partial', 'byUserId', pg_temp.u('d')), 'the partial one');
+select is((select string_agg(data ->> 'status' || ':' || (data ->> 'byUserId' = pg_temp.u('d')::text), ',' order by data ->> 'status')
+  from public.notifications where user_id = pg_temp.u('c') and type = 'occurrence_resolved' and occurrence_id = pg_temp.g('cd')),
+  'done:true,done:true,partial:true', 'the new one is the partial one');
 
 -- Reminders are out of the cooldown: two leads of the same occurrence are two notices.
 select pg_temp.sv('cdr', pg_temp.mk('CDR two leads', pg_temp.u('c'), pg_temp.u('d'), now() - interval '1 minute', 'group', '[5, 0]')::text);
 select ok(public.enqueue_due_reminders() >= 2, 'the scan writes the two leads');
 select is(pg_temp.n(pg_temp.u('d'), 'task_reminder', pg_temp.g('cdr')), 2::bigint, 'two reminders of one occurrence');
 select isnt(public.enqueue_notification(pg_temp.u('d'), 'task_reminder', pg_temp.g('cdr'), null,
-  (pg_temp.last(pg_temp.u('d'), 'task_reminder')).data, 'another-key'), null, 'even the same data under another key is written');
+  (select data from public.notifications where user_id = pg_temp.u('d') and occurrence_id = pg_temp.g('cdr') order by data::text limit 1),
+  'another-key'), null, 'even the same data under another key is written');
 
 -- Disputing and undoing in a loop tells the author once.
 select pg_temp.sv('cdp', pg_temp.mk('CDP disputed', pg_temp.u('c'), pg_temp.u('d'), now() + interval '2 days', 'group', '[]', true, true)::text);

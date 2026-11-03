@@ -1,6 +1,6 @@
 // Fails when the database differs from its mirrors in code: the permission matrix in packages/core,
 // occurrenceTransitions and the shopping vocabulary in packages/contracts, and taskRules, proofRules, notificationRules,
-// whatsappRules, shoppingRules, the starter shopping catalog, gamificationRules and rateLimitRules in packages/config. Needs
+// whatsappRules, shoppingRules, the starter shopping catalog, gamificationRules, rateLimitRules and privacyRules in packages/config. Needs
 // `pnpm db:start`.
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -192,19 +192,20 @@ if (!gamificationRow || canonical(JSON.parse(gamificationRow)) !== canonical(gam
 }
 
 // Rate limits (ADR-0012, section 4): the limit and window per action, and the retention of the
-// counters and of the stepper's request ids.
-const { rateLimitRules } = await load('packages/config/src/limits.ts');
-const [rateLimitRow] = query(
-  "select value::text from public.app_settings where key = 'rate_limit_rules'",
-);
-if (!rateLimitRow || canonical(JSON.parse(rateLimitRow)) !== canonical(rateLimitRules)) {
-  console.error('Rate limit rules out of sync.', {
-    database: rateLimitRow,
-    code: canonical(rateLimitRules),
-  });
-  failed = true;
-} else {
-  console.log('Rate limit rules in sync.');
+// counters and of the stepper's request ids. Privacy (ADR-0012, section 3): the hold of an open
+// account deletion on the owner's invites.
+const { rateLimitRules, privacyRules } = await load('packages/config/src/limits.ts');
+for (const [name, key, code] of [
+  ['Rate limit rules', 'rate_limit_rules', rateLimitRules],
+  ['Privacy rules', 'privacy_rules', privacyRules],
+]) {
+  const [row] = query(`select value::text from public.app_settings where key = '${key}'`);
+  if (!row || canonical(JSON.parse(row)) !== canonical(code)) {
+    console.error(`${name} out of sync.`, { database: row, code: canonical(code) });
+    failed = true;
+  } else {
+    console.log(`${name} in sync.`);
+  }
 }
 
 // Time zones: the database takes a name only if Intl reads it too, or taskSchema.parse would fail on a

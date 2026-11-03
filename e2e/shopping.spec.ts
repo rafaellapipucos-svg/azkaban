@@ -251,7 +251,11 @@ test('stepper taps and a check made offline survive closing the tab and count on
   await page.close();
   await context.setOffline(false);
   const next = await context.newPage();
-  const stepped = next.waitForResponse('**/rest/v1/rpc/adjust_shopping_item_quantity');
+  // This wait spans the new tab's whole cold start (load, bundle, session, restore) before the queue
+  // sends, under a second here and over the 30 s action limit on a slow CI runner: the navigation's 60 s.
+  const stepped = next.waitForResponse('**/rest/v1/rpc/adjust_shopping_item_quantity', {
+    timeout: 60_000,
+  });
   await next.goto(`${listUrl}?mode=market`);
   expect((await stepped).status()).toBe(200);
   await expect.poll(() => savedQueue(context)).not.toContain('shopping-');

@@ -115,4 +115,13 @@ describe('phone-verification', () => {
     assert.ok(again.body.retryAfterSeconds > 0 && again.body.retryAfterSeconds <= 60);
     assert.equal((await inbox(phone)).length, 1);
   });
+
+  test('a number of another country is 400 phone_country_not_allowed, and sends nothing', async () => {
+    const person = await newPerson('country');
+    const phone = `+1202555${String(Math.floor(Math.random() * 1e4)).padStart(4, '0')}`;
+    const refused = await ask(person.bearer, JSON.stringify({ phone }));
+    assert.equal(refused.status, 400);
+    assert.deepEqual(refused.body, { error: 'phone_country_not_allowed' });
+    assert.equal((await inbox(phone)).length, 0);
+  });
 });

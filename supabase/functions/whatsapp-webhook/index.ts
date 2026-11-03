@@ -3,7 +3,12 @@
 // `record_whatsapp_statuses`, and a whole-message stop word to `whatsapp_stop_by_wa_id`, both
 // idempotent: a repeated event changes nobody and confirms nothing. Logs carry counts and codes, never
 // a phone, a wa_id, a text, a signature, a body or a token.
-import { whatsappWebhookSchema, type WhatsAppOutbound } from '@azkaban/contracts';
+import {
+  whatsappWebhookMessageSchema,
+  whatsappWebhookSchema,
+  whatsappWebhookStatusSchema,
+  type WhatsAppOutbound,
+} from '@azkaban/contracts';
 import { whatsappDefaults } from '../../../packages/config/src/whatsapp.ts';
 import ptBR from '../../../packages/i18n/src/pt-BR/notifications.json' with { type: 'json' };
 import { readLimited } from '../_shared/body.ts';
@@ -66,11 +71,14 @@ Deno.serve(async (req) => {
       return empty(200);
     }
 
-    const work = readWebhook(
-      webhook.data,
-      env.WHATSAPP_PROVIDER === 'meta' ? env.WHATSAPP_PHONE_NUMBER_ID : undefined,
-      whatsappDefaults.stopWords,
-    );
+    // With a number configured, only its changes count, whatever the provider: the app secret alone
+    // would let every number of the account through. `console` drops the key from its parsed env, so
+    // it is read here; `meta` has already required it in shape.
+    const phoneNumberId = Deno.env.get('WHATSAPP_PHONE_NUMBER_ID') || undefined;
+    const work = readWebhook(webhook.data, phoneNumberId, whatsappDefaults.stopWords, {
+      status: whatsappWebhookStatusSchema,
+      message: whatsappWebhookMessageSchema,
+    });
     const admin = serviceClient();
     const check = <T>(stage: string, result: { data: T; error: { code?: string } | null }): T => {
       if (result.error) {

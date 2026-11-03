@@ -2,6 +2,7 @@
 // the raw bytes, the body limit, the stop words and what a POST asks of the database.
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
+import { registerHooks } from 'node:module';
 import { describe, test } from 'node:test';
 import type { WhatsAppWebhook } from '../../../../packages/contracts/src/whatsapp.ts';
 import { whatsappDefaults } from '../../../../packages/config/src/whatsapp.ts';
@@ -12,6 +13,22 @@ const APP_SECRET = 'app-secret-for-tests-0123456789';
 const VERIFY_TOKEN = 'verify-token-for-tests-0123456789';
 const OUR_NUMBER = '106540352242922';
 const stopWords = whatsappDefaults.stopWords;
+
+// The real element schemas of the contract. Its files import each other without an extension, as
+// the deno.json of the function maps them; this does the same for Node.
+registerHooks({
+  resolve: (specifier, context, next) =>
+    context.parentURL?.includes('/packages/contracts/src/') &&
+    specifier.startsWith('.') &&
+    !specifier.endsWith('.ts')
+      ? next(`${specifier}.ts`, context)
+      : next(specifier, context),
+});
+const contract = await import('../../../../packages/contracts/src/whatsapp.ts');
+const schemas = {
+  status: contract.whatsappWebhookStatusSchema,
+  message: contract.whatsappWebhookMessageSchema,
+};
 
 const encoder = new TextEncoder();
 /** What Meta sends: `sha256=` and the lowercase hex HMAC of the bytes, computed apart from the code. */
@@ -160,6 +177,22 @@ describe('stop words', () => {
     assert.equal(normalizeReply('  Não!  '), 'nao');
     assert.equal(normalizeReply('CANCELAR 🛑'), 'cancelar');
   });
+
+  test('invisible format characters and full-width letters still stop (SEG5-2)', () => {
+    for (const text of [
+      'PARAR\u200b', // zero width space after
+      '\u200ePARAR', // left-to-right mark before
+      'PARAR \u{1F926}\u200d\u2642\ufe0f', // a ZWJ emoji: the emoji goes, the ZWJ must too
+      '\uff30\uff21\uff32\uff21\uff32', // full-width PARAR
+      '\ufeffPARAR', // BOM
+      'PARAR 🛑',
+      'Pàrar',
+    ]) {
+      assert.equal(normalizeReply(text), 'parar', JSON.stringify(text));
+      assert.equal(isStop(text, stopWords), true, JSON.stringify(text));
+    }
+    assert.equal(normalizeReply('não quero\u200b parar'), 'nao quero parar');
+  });
 });
 
 describe('readWebhook', () => {
@@ -201,6 +234,7 @@ describe('readWebhook', () => {
       ),
       OUR_NUMBER,
       stopWords,
+      schemas,
     );
     assert.deepEqual(work.statuses, [
       {
@@ -239,11 +273,11 @@ describe('readWebhook', () => {
       change({ metadata, statuses: [{ id: 'wamid.z', status: 'sent' }] }),
     );
     assert.deepEqual(
-      readWebhook(payload, OUR_NUMBER, stopWords).statuses.map((s) => s.providerMessageId),
+      readWebhook(payload, OUR_NUMBER, stopWords, schemas).statuses.map((s) => s.providerMessageId),
       ['wamid.z'],
     );
     assert.deepEqual(
-      readWebhook(payload, undefined, stopWords).statuses.map((s) => s.providerMessageId),
+      readWebhook(payload, undefined, stopWords, schemas).statuses.map((s) => s.providerMessageId),
       ['wamid.x', 'wamid.y', 'wamid.z'],
     );
   });
@@ -275,9 +309,40 @@ describe('readWebhook', () => {
       ),
       OUR_NUMBER,
       stopWords,
+      schemas,
     );
     assert.deepEqual(work.stopWaIds, ['5511987654321', '551187654321']);
     assert.equal(work.ignored, 2);
     assert.deepEqual(work.statuses, []);
+  });
+
+  test('an element out of shape is counted and skipped; the rest of the batch still counts (SEG5-3)', () => {
+    const work = readWebhook(
+      webhook(
+        change({
+          metadata,
+          statuses: [
+            { id: 'wamid.bad', status: 'failed', errors: [{ code: 'not-a-number' }] },
+            { id: 'x'.repeat(129), status: 'sent' },
+            'not an object',
+            { id: 'wamid.ok', status: 'delivered' },
+          ],
+          messages: [
+            { from: 'not-digits', id: 'wamid.m1', type: 'text', text: { body: 'PARAR' } },
+            { from: '5511912345678', id: 'wamid.m2', type: 'x'.repeat(33) },
+            { from: '5511987654321', id: 'wamid.m3', type: 'text', text: { body: 'PARAR' } },
+          ],
+        }),
+      ),
+      OUR_NUMBER,
+      stopWords,
+      schemas,
+    );
+    assert.deepEqual(work.stopWaIds, ['5511987654321']);
+    assert.deepEqual(
+      work.statuses.map((s) => s.providerMessageId),
+      ['wamid.ok'],
+    );
+    assert.equal(work.ignored, 5);
   });
 });

@@ -1665,3 +1665,27 @@
 - **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9 tarefas; core 605 testes, feature-notifications 17, platform 46; `functions:imports` 8 de 8).
 - **Não verificado:** a E2E não rodou (sem pilha); as mudanças da spec foram escritas sem execução. O `cleanParam` novo dentro do Deno do despacho (o regex com `\p{Cf}` e lookahead é padrão). A tela não foi vista no navegador. iOS e Android.
 - **Pendências / próximos passos:** o texto do aviso continua a confirmar pelo humano. A bandeira da Inglaterra e as outras de subdivisão usam caracteres de tag (`\p{Cf}`) e viram a bandeira preta no resumo.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:18 (BRT)
+
+- **Branch:** chore/functions-stack-from-config, criada a partir de feat/phase-5-whatsapp (88c3749), com merge de feat/phase-5-whatsapp (d66b135)
+- **Agente(s):** backend-funcoes
+- **Resumo:** Os testes das funções acham a pilha pelo `supabase/config.toml` do checkout, e não mais por padrões fixos da pilha A. Também SEG5-2, SEG5-3 e SEG5-5 do handoff `20261103-0206-arquiteto-para-backend-funcoes-seguranca-whatsapp`, e o `phone_number_id` sempre passado ao webhook (handoff `20261103-0158-revisor-seguranca-para-backend-funcoes-whatsapp`). Hora derivada de UTC menos 3 (PowerShell barrado no worktree).
+- **Alterações:**
+  - `_shared/local-stack.mjs` (novo): lê o `project_id` e o `port` de `[api]` e exporta `apiUrl`, `project` e `dbContainer` (`supabase_db_<project>`). `SUPABASE_URL`, `COMPOSE_PROJECT` e `DB_CONTAINER` continuam valendo; sem `DB_CONTAINER`, o contêiner segue o `COMPOSE_PROJECT`. Um config sem as duas chaves lança erro, sem adivinhar.
+  - `proof-kit.ts`, `wait-for-functions.mjs` (inclusive a mensagem de erro) e os testes de `dispatch`, `materialize`, `proof-url` e `proof-validate` usam o módulo. Os comentários que citavam `supabase_edge_runtime_azkaban` dizem `<project_id>`.
+  - `_shared/local-stack.test.ts` (novo, no `functions:test`): o config commitado dá `http://127.0.0.1:54421`, `azkaban` e `supabase_db_azkaban`; com as mesmas trocas de `pilha-b.sh` dá `54521`, `azkaban-b` e `supabase_db_azkaban-b`; só o `port` de `[api]` conta; CRLF; o ambiente vence. Passa também num checkout com a B ligada.
+  - SEG5-2: `normalizeReply` com `NFKD` e `\p{Cf}`.
+  - SEG5-3: `readWebhook` recebe os schemas de elemento do contrato e valida cada status e mensagem com `safeParse`; o inválido soma em `ignored`. `webhook.test.ts` carrega os schemas reais do contrato com `registerHooks`, porque os arquivos dele se importam sem extensão.
+  - SEG5-5: `phone-verification` responde 400 `{ error: 'phone_country_not_allowed' }` sem enviar nada.
+  - `whatsapp-webhook`: `WHATSAPP_PHONE_NUMBER_ID` filtra sempre que existe, com qualquer provedor. É lido do ambiente, porque a variante `console` de `parseWhatsAppEnv` descarta a chave.
+- **Arquivos/módulos principais:** `supabase/functions/_shared/{local-stack.mjs,local-stack.test.ts,proof-kit.ts,wait-for-functions.mjs,whatsapp/webhook.ts,whatsapp/webhook.test.ts}`, `supabase/functions/{whatsapp-webhook,phone-verification}/*`, testes de integração de `dispatch`, `materialize`, `proof-url` e `proof-validate`, `package.json`, um comentário em `supabase/config.toml`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova.
+- **Como testar:** `node --test supabase/functions/_shared/local-stack.test.ts supabase/functions/_shared/whatsapp/webhook.test.ts`; `pnpm db:start`, `pnpm exec supabase db reset` e `pnpm functions:test` sem exportar nada; `pnpm check`.
+- **Verificado:**
+  - `pnpm functions:test` na pilha A, sem variáveis, depois de `db reset`: 175 de 176. A única falha é o teste novo do país (200 em vez de 400), porque a migration do `banco-de-dados` ainda não foi integrada. Depois, o teste novo de SEG5-3 do webhook rodou contra a função servida: 7 de 7 no arquivo.
+  - `node --test` de `local-stack`, `import-maps` e `webhook`: 30 de 30. `pnpm check` passou (17 de 17 e 9 de 9).
+  - Mutações, desfeitas: a validação do lote inteiro de volta em `readWebhook` derruba o teste de SEG5-3 (1 falha); `NFD` no lugar de `NFKD` derruba o de SEG5-2 (1 falha).
+- **Não verificado:** a prova na pilha B, que o orquestrador trocou pela A (a B estava com o `banco-de-dados`); o lado B só está no teste de unidade, com o config de exemplo. `phone_country_not_allowed` contra a migration real. A suíte completa não rodou de novo depois do teste de SEG5-3.
+- **Pendências / próximos passos:** a verificação final com a migration do `banco-de-dados` (teste "a number of another country is 400 phone_country_not_allowed"). Para o `arquiteto`, se quiser: a variante `console` de `whatsappEnvSchema` poderia aceitar `WHATSAPP_PHONE_NUMBER_ID` opcional, e a função deixaria de ler o ambiente direto.

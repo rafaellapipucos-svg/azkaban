@@ -7,7 +7,7 @@
 //
 // Do not edit files under supabase/functions while `functions serve` runs: it restarts the runtime
 // and the next call gets a 502. One test needs `docker exec` into the local database container
-// (DB_CONTAINER, default supabase_db_azkaban) to create legacy rows that the API cannot.
+// (DB_CONTAINER, default from supabase/config.toml) to create legacy rows that the API cannot.
 //
 // Everything is created under unique ids in the local database and removed at the end. The keys
 // below are the universal demo keys of every local Supabase stack, not secrets. Dates are relative
@@ -17,8 +17,8 @@ import { execFileSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { after, before, describe, test } from 'node:test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { apiUrl as API, dbContainer as DB_CONTAINER } from '../_shared/local-stack.mjs';
 
-const API = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54421';
 const ANON =
   process.env.SUPABASE_ANON_KEY ??
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0';
@@ -66,7 +66,6 @@ async function newPerson(name: string): Promise<Person> {
 }
 
 // Only for the legacy-row test, which needs DDL that the API cannot do.
-const DB_CONTAINER = process.env.DB_CONTAINER ?? 'supabase_db_azkaban';
 const sql = (statement: string) =>
   execFileSync(
     'docker',

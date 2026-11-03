@@ -271,12 +271,9 @@ test('every screen: names, contrast, targets, reflow, zoom, keyboard and reduced
   await test.info().attach('a11y.json', { body: JSON.stringify(notes, null, 1) });
   // Known on 2026-11-03, each in a handoff; the rest fails. Remove a line when its fix lands.
   const known = [
-    /^small: \/calendar 320px \w+: .* 38x68$/, // QA8-5, a month day is 38 px wide at 320 px
     /^sideways at 200%: \/(|calendar|area\/work|shopping|profile): 76px$/, // QA8-6, six tabs
-    /^cut at 200%: \/calendar: \S+\.$/, // QA8-6, weekday names
     /^contrast: \/calendar \d+px light: \d 3\.31:1$/, // QA8-4, day counts
     /^contrast: \/team\/[\w-]+ \d+px dark: – 2\.34:1$/, // QA8-4, the dash for no data
-    /^h1 count: (\/|\/contexts) \d+px \w+: [02]$/, // QA8-7
   ];
   const unknown = Object.entries(notes)
     .flatMap(([key, items]) => items.map((item) => `${key}: ${item}`))

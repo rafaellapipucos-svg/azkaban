@@ -13,14 +13,21 @@ const baseURL = 'http://localhost:8091';
 // `E2E_BUILD=1`: the production build (`pnpm build:web`) served static by `e2e/serve-build.mjs`, where the goals
 // 2 to 4 of ADR-0012, section 10, count. `build:web` would read `.env.local`, which may point at the hosted
 // project: `EXPO_NO_DOTENV` turns Expo's `.env` loading off, and the build gets only the `EXPO_PUBLIC_*`
-// values of the shell, or else of `.env.development.local`. A Supabase URL that is not the local stack,
-// or none (a worktree has no `.env.development.local`), stops the run before it builds.
+// values of the shell, or else of `.env.development.local`, or else of `.env.example` (only the
+// non-Supabase ones: app name, scheme, VAPID), since `.env.development.local` holds just the two
+// Supabase values. A Supabase URL that is not the local stack, or none (a worktree has no
+// `.env.development.local`), stops the run before it builds.
 const build = process.env.E2E_BUILD === '1';
 const localEnv = 'apps/app/.env.development.local';
 const buildEnv: Record<string, string> = {};
 if (build) {
+  const example = Object.fromEntries(
+    Object.entries(parseEnv(readFileSync('apps/app/.env.example', 'utf8'))).filter(
+      ([key]) => !key.startsWith('EXPO_PUBLIC_SUPABASE_'),
+    ),
+  );
   const file = existsSync(localEnv) ? parseEnv(readFileSync(localEnv, 'utf8')) : {};
-  for (const [key, value] of Object.entries({ ...file, ...process.env })) {
+  for (const [key, value] of Object.entries({ ...example, ...file, ...process.env })) {
     if (key.startsWith('EXPO_PUBLIC_') && value !== undefined) buildEnv[key] = value;
   }
   const url = buildEnv.EXPO_PUBLIC_SUPABASE_URL;
@@ -29,6 +36,12 @@ if (build) {
     throw new Error(
       `E2E_BUILD=1 needs EXPO_PUBLIC_SUPABASE_URL of the local stack, in the shell or in ${localEnv} ` +
         `(see apps/app/.env.example); got ${url ?? 'none'}`,
+    );
+  }
+  if (!buildEnv.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
+    throw new Error(
+      `E2E_BUILD=1 needs EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY of the local stack (\`supabase status\`), ` +
+        `in the shell or in ${localEnv}`,
     );
   }
   buildEnv.EXPO_NO_DOTENV = '1';

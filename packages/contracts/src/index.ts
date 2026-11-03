@@ -10,3 +10,4 @@ export * from './notifications';
 export * from './whatsapp';
 export * from './shopping';
 export * from './gamification';
+export * from './privacy';

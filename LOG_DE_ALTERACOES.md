@@ -1778,26 +1778,6 @@
 - **Não verificado:** nada com a pilha; `pnpm db:check-permissions` vai acusar as quatro comparações de compras e a matriz até as migrations e o espelho de `auth-grupos`. A leitura do seed com acentos e emojis pelo `docker exec` no Windows não foi exercitada. O nome do evento de XP depende do ADR-0010, escrito em paralelo.
 - **Pendências / próximos passos:** os três handoffs. Para o orquestrador: dividir F7-5 no QUADRO e dar dono a `packages/core/src/shopping` e à aba "Compras". Para o humano: a seção 15 do ADR-0011.
 
-### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:33 (BRT)
-
-- **Branch:** docs/gamification-adr, criada a partir de feat/phase-5-whatsapp (cd98617)
-- **Agente(s):** arquiteto
-- **Resumo:** ADR-0010 da gamificação (Fase 6), com contratos, config e handoffs para os agentes trabalharem em paralelo. Fecha o XP em massa pendente desde a Fase 2 com um teto diário. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
-- **Alterações:**
-  - ADR-0010: motivos novos de XP (`proof_bonus`, `perfect_day`, `perfect_day_reverted`, `shopping_completed` reservado para a Fase 7) e `xp_events.local_date`; teto diário de XP por dia local do perfil, com lock por usuário; nível derivado do total, sem coluna; meta diária por conta inteira, ofensiva como dobra dos dias (dia vazio não quebra, hoje entra só cumprido, proteção a cada 7 dias até 2) com tabela de casos canônicos para core e pgTAP; `refresh_user_day`, `refold_streak`, `grant_achievements` no trigger de status e `close_gamification_days` a cada 15 minutos; conquistas em seed, concedidas uma vez; ranking por `groups.settings.rankingEnabled`, padrão por tipo (`company` desligado), só nome e XP semanal do grupo; RLS só do dono; comemorações pelo Realtime de `xp_events` num `CelebrationHost`; `streak` do resumo diário; anel de Hoje pela meta; recálculo e backfill; divisão do trabalho e nove itens a confirmar pelo humano.
-  - `packages/contracts`: `gamification.ts` novo (`userStatsSchema`, `userDayStatsSchema`, conquistas, ranking, `rankingErrorCodeSchema`, `celebrationKindSchema`), com teste; `tasks.ts` com os motivos novos, `cappedXpEventReasons` e `xpEventSchema.localDate`; `groups.ts` com `groupSettingsSchema`; comentário de `dailySummarySourceSchema.streak`.
-  - `packages/config/src/gamification.ts`: `gamificationRules` (espelho em `app_settings`, chave `gamification_rules`) e `gamificationDefaults` (só cliente).
-  - `scripts/check-permission-mirror.mjs` compara `gamification_rules`.
-  - `docs/arquitetura.md`: seção Gamificação. ADRs 0005, 0007 e 0009 apontam para o 0010 nas pendências da Fase 6.
-  - Handoffs `20261103-0235-arquiteto-para-{banco-de-dados,gamificacao,design-system}-gamificacao`, `...-tarefas-calendario-anel-de-hoje` e `...-notificacoes-whatsapp-ofensiva-no-resumo`.
-- **Arquivos/módulos principais:** `docs/adr/0010-gamificacao-xp-ofensiva-conquistas-ranking.md`, `packages/contracts/src/{gamification.ts,gamification.test.ts,tasks.ts,groups.ts,whatsapp.ts}`, `packages/config/src/gamification.ts`, `scripts/check-permission-mirror.mjs`, `docs/arquitetura.md`, `docs/agentes/handoffs/`
-- **Migrations:** nenhuma; são do `banco-de-dados` (F6-2).
-- **Decisões/ADRs:** ADR-0010.
-- **Como testar:** `pnpm check`.
-- **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9 tarefas; `functions:imports` 8 de 8). Contratos: 104 testes em 5 arquivos, 12 novos em `gamification.test.ts`.
-- **Não verificado:** nada com a pilha. `pnpm db:check-permissions` acusa `gamification_rules` até a migration de F6-2. Os casos canônicos foram conferidos à mão, não em código.
-- **Pendências / próximos passos:** os cinco handoffs. Para o humano: os nove itens da seção 13 do ADR-0010. Para o orquestrador: a divisão sugerida das tarefas F6 no relatório.
-
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:37 (BRT)
 
 - **Branch:** feat/shopping-permissions, a partir de feat/phase-7-shopping (`b30a4b0`)
@@ -1813,26 +1793,6 @@
 - **Verificado:** `pnpm check` passa (core com 617 testes). Mutação: tirar `shopping.complete_list` de `member` fez 1 teste falhar; restaurado.
 - **Não verificado:** `pnpm db:check-permissions`, sem pilha e com a migration ainda em andamento. Hora derivada de UTC menos 3, porque o PowerShell foi bloqueado.
 - **Pendências / próximos passos:** entrar no mesmo merge da migration de permissões de `banco-de-dados`.
-
-### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:46 (BRT)
-
-- **Branch:** feat/gamification-ui-kit, criada a partir de feat/phase-6-gamification (1340eaf)
-- **Agente(s):** design-system
-- **Resumo:** Componentes visuais da gamificação (handoff `20261103-0235-arquiteto-para-design-system-gamificacao`, ADR-0010, seção 8), todos em `/design-system`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
-- **Alterações:**
-  - `Confetti` (rajada curta, cores de `tokens.confetti`, `onDone`; com reduzir movimento não desenha e chama `onDone` na hora; espera a resposta do sistema antes de decidir), `CelebrationCard` (mascote, título, detalhe, `others`, botão de fechar; `role="alert"` e `announceForAccessibility`; `occurrence_partial` sem confete e com mascote feliz), `PerfectDayScreen` (Modal de tela inteira, nomeado, Esc fecha, foco volta), `XpBar` (barra de progresso com rótulo e valor), `StreakBadge` (fogo e número, proteção com escudo e contagem, rótulo falado, fogo apagado em 0, pressionável opcional) e `AchievementBadge` (concedida ou bloqueada por cadeado, círculo tracejado e texto de estado, não só cor).
-  - `Mascot` ganha `animate`: pulo em `celebrating`, balanço em `worried`, parado com reduzir movimento. Padrão desligado, então as telas que já usam o mascote não mudam.
-  - `useMotionPreference` (interno): `null` até o sistema responder; `useReducedMotion` passa a usá-lo, sem mudar o comportamento.
-  - Tokens: `motion.mascot`, `motion.celebrate`, `confetti` (quantidade e cores da paleta), `sizes.mascotLarge`, `mascotJump`, `mascotShake`, `xpBar`, `achievement`, `confettiPiece`.
-  - `celebration.ts`: as decisões puras (plano do confete, movimento do mascote, aparência por tipo, peças determinísticas), com teste.
-  - Textos de demonstração em `ui.json`.
-- **Arquivos/módulos principais:** `packages/ui/src/{Confetti,CelebrationCard,PerfectDayScreen,XpBar,StreakBadge,AchievementBadge,Mascot,celebration,useReducedMotion,tokens,DesignSystemScreen,index}.ts(x)`, `packages/i18n/src/pt-BR/ui.json`
-- **Migrations:** nenhuma
-- **Decisões/ADRs:** animação com o `Animated` do React Native, como `ProgressRing` e `TaskCheck`, e confete com `View`s, em vez do `react-native-reanimated` e do `react-native-svg` citados no ADR: o Reanimated não é dependência de `packages/ui`, e acrescentá-lo mudaria o lockfile. O resultado na tela é o mesmo.
-- **Como testar:** `pnpm check`; `/design-system` em `pnpm dev`, seção Gamificação, com e sem reduzir movimento.
-- **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9); `packages/ui` com 31 testes em 2 arquivos (20 novos em `celebration.test.ts`, 2 de contraste da `XpBar`). `pnpm build:web` passou. No Chromium headless (Playwright avulso, fora da suíte E2E, com `.env.local` falso apontando para um Supabase local desligado, apagado depois), `/design-system` a 375 px claro com movimento, 375 px escuro com reduzir movimento e 1280 px claro: sem erro de console; o cartão é `alert`; o dia perfeito é `dialog` nomeado e fecha com Esc; com reduzir movimento as 28 peças de confete não existem.
-- **Não verificado:** iOS e Android (anúncio por `announceForAccessibility`, `Modal` em tela cheia, borda tracejada); leitor de tela real; E2E.
-- **Pendências / próximos passos:** a `gamificacao` monta o `CelebrationHost` com estes componentes; o `StreakBadge` entra no slot do cabeçalho de Hoje.
 
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:47 (BRT)
 
@@ -1852,46 +1812,6 @@
 - **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9 tarefas; core 618 testes, platform 50, feature-shopping 6, data 7; dependency-cruiser sem violações; `functions:imports` 8 de 8). `pnpm build:web` passou, mas nenhuma rota importa o módulo ainda, então as telas não estão no pacote.
 - **Não verificado:** as telas não foram abertas no navegador (sem rota e sem pilha; o exemplo usa `currentUserId`, que exige sessão), nem a 375 px, nem no escuro. `Share` nativo, iOS e Android. Sem mutação.
 - **Pendências / próximos passos:** depois das migrations e de `pnpm db:types`: o repositório real em `packages/data/src/shopping` no lugar de `sample.ts`, com `watchList` em `postgres_changes`; as rotas `/shopping`, `/shopping/history` e `/shopping/[id]` em `apps/app`; a aba (orquestrador); a E2E com dois navegadores. A tela do catálogo do grupo (editar e arquivar) ficou de fora. Tirar o cast de `canShop` quando `auth-grupos` acrescentar as chaves. Um eco do Realtime do próprio delta que chegar antes da resposta da RPC conta duas vezes por um instante.
-
-### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:47 (BRT)
-
-- **Branch:** feat/gamification-core, criada a partir de feat/phase-6-gamification (1340eaf)
-- **Agente(s):** gamificacao
-- **Resumo:** F6-1: motor puro da gamificação em `packages/core/src/gamification`, especificação executável do ADR-0010 para as telas e para o pgTAP de F6-2. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
-- **Alterações:**
-  - `levelForXp(totalXp, curve)`: nível pela curva, cada passo arredondado sozinho; curva inválida lança `RangeError`.
-  - `dailyGoal(counts, goal)`: meta por conta inteira, `needed` = `ceil(planned × percent / 100)`, amarelo conta com `countPartial`. `dayCounts(items, { timezone, date, assigneeId })` pelo `occurrenceDay`, `summarizeDay` e `isPerfectDay` de `core/tasks`, sem canceladas, repetidas nem de outro responsável.
-  - `foldStreak(days, { today, rules })`: dobra da seção 3; dia sem linha é vazio, hoje aberto não quebra, proteção ganha a cada múltiplo até o máximo e gasta em dia fechado sem meta. Devolve o estado de cada dia dado, `freezeUsed` incluído.
-  - `occurrenceXpWithBonus` (base de `occurrenceXp` mais `proofBonus` em `done` com prova `unreviewed` ou `approved`), `capRoom(eventsToday, dailyCap)` por `cappedXpEventReasons` e `applyCap` (base primeiro, bônus com o resto).
-  - `reachedAchievements(achievements, progress)` e `celebrationsFor(before, after, { events, achievementKeys, streakMilestones, celebratedLevel, levelCurve })`, do maior para o menor, com o nível comemorado uma vez por aparelho.
-  - Handoffs `20261103-0243-gamificacao-para-arquiteto-adr-0010-ajustes` e `20261103-0243-gamificacao-para-tarefas-calendario-meta-do-dia`.
-- **Arquivos/módulos principais:** `packages/core/src/gamification/{level,streak,xp,celebrations}.ts` e testes, `packages/core/src/index.ts`
-- **Migrations:** nenhuma
-- **Decisões/ADRs:** nenhuma nova. `dayCounts` recebe um objeto com `assigneeId`, diferente da assinatura do handoff. O nível 10 começa em 2.579, não 2.580 como diz o ADR (handoff ao `arquiteto`).
-- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/gamification`.
-- **Verificado:** `pnpm check` passou. 60 testes novos em 4 arquivos (665 no core). Os 11 casos canônicos da seção 3 e os exemplos de meta são testes. Mutações, uma por regra, desfeitas: teto `max(0, …)` para `max(1, …)` derruba 2; meta `>=` para `>` derruba 24; quebra da ofensiva trocada por `streak − 1` derruba 4; proteção `> 0` para `>= 0` derruba 7; curva `>=` para `>` derruba 3.
-- **Não verificado:** nada contra o banco (F6-2 não começou); a paridade com o SQL depende de o pgTAP usar a mesma tabela.
-- **Pendências / próximos passos:** F6-3 a F6-5 depois de F6-2 e do design system. As três perguntas do handoff ao `arquiteto`.
-
-### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:49 (BRT)
-
-- **Branch:** docs/gamification-adr-fixes, criada a partir de feat/phase-6-gamification (af89f8c)
-- **Agente(s):** arquiteto
-- **Resumo:** Respostas ao handoff `20261103-0243-gamificacao-para-arquiteto-adr-0010-ajustes` e o texto do nono dígito no ADR-0009. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
-- **Alterações:**
-  - ADR-0010, seção 2: `espaço = min(teto, max(0, teto − saldo do dia))`. Uma compensação de XP de outro dia não vira crédito: o espaço nunca passa do teto.
-  - `packages/core/src/gamification/xp.ts` (`capRoom`) com o `min`, e um teste novo em `xp.test.ts`. O core é do `gamificacao`; a mudança é de uma linha e decorre desta decisão.
-  - ADR-0010, seção 1: o nível 10 começa em 2.579, com os passos arredondados um a um.
-  - ADR-0010, seção 8: com o teto atingido, a conclusão vale zero, sem evento e sem comemoração; o `TaskCheck` ainda responde. Consequência aceita.
-  - ADR-0009, seção 18 (SEG5-1): a regra do nono dígito passa a citar a regex de SEG5-9, `'^(55[0-9]{2})9([6-9][0-9]{7})$'`, que só tira o 9 de celular.
-  - Handoff `20261103-0235-arquiteto-para-banco-de-dados-gamificacao` com a fórmula final (`least`/`greatest`) e um caso de pgTAP.
-- **Arquivos/módulos principais:** `docs/adr/0010-gamificacao-xp-ofensiva-conquistas-ranking.md`, `docs/adr/0009-whatsapp-verificacao-opt-in-resumo-diario.md`, `packages/core/src/gamification/xp.ts`, `packages/core/src/gamification/xp.test.ts`, o handoff acima
-- **Migrations:** nenhuma
-- **Decisões/ADRs:** ADR-0010 (seções 1, 2 e 8), ADR-0009 (seção 18).
-- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/gamification/xp.test.ts`.
-- **Verificado:** `pnpm check` passou (core 666 testes em 27 arquivos, contratos 104). Mutação: voltar `capRoom` para `max(0, …)` derruba 1 de 13 em `xp.test.ts`; desfeita.
-- **Não verificado:** nada contra o banco; `occurrence_award_xp` ainda não existe (F6-2).
-- **Pendências / próximos passos:** o `banco-de-dados` aplica a fórmula em F6-2.
 
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:54 (BRT)
 
@@ -1914,43 +1834,6 @@
 - **Verificado (pilha B, só Postgres, `supabase_db_azkaban-b`):** `db reset`; `pnpm db:test` com 6 arquivos e 1513 testes, todos passando. `pnpm check` passou (17 de 17 e 9 de 9). Preenchimento: `db reset --version 20261103160000`, um grupo e dois perfis criados, `migration up`, e os três com 44 itens. Concorrência real, em sessões paralelas: dois primeiros toques simultâneos no mesmo item do catálogo dão uma linha com 2; três passos simultâneos somam 5. Mutações, dentro da transação do teste: grupo visível a não membro (19 falhas), lista pessoal visível a outro (7), escrita em lista finalizada (8), colunas `checked_*`, `added_by`, `status` e `completed_*` liberadas (8), catálogo do grupo editável por membro sem `shopping.manage_catalog` (2).
 - **Não verificado:** o Realtime em si (a B `db` não tem), só a publicação por `pg_publication_tables` e as políticas de `select` que ele usa. Como o PostgREST serializa o nulo composto das RPCs. E2E e projeto hospedado.
 - **Pendências / próximos passos:** `pnpm db:check-permissions` acusa só a matriz: as 10 linhas `shopping.*` estão no banco e faltam em `matrix.ts`, até a branch do `auth-grupos` entrar no mesmo merge; os outros espelhos, `Shopping rules`, `categories`, `units` e `catalog seed`, estão em sincronia. F7-5 depois de F6-2. Handoff `20261103-0254-banco-de-dados-para-compras-compras`.
-
-### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:02 (BRT)
-
-- **Branch:** feat/today-goal-ring, criada a partir de feat/phase-6-gamification (293bfe7)
-- **Agente(s):** tarefas-calendario
-- **Resumo:** O anel de Hoje passa a mostrar a meta do dia do ADR-0010 (seções 3 e 10), e o cabeçalho de Hoje ganha o slot da ofensiva. Responde aos handoffs `20261103-0235-arquiteto-para-tarefas-calendario-anel-de-hoje` e `20261103-0243-gamificacao-para-tarefas-calendario-meta-do-dia`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
-- **Alterações:**
-  - `todayGoal(items, { now, timezone, assigneeId, rules })` em `core/tasks/today.ts`: `dailyGoal(dayCounts(...))` no dia local do perfil, só do usuário. A tela passa todas as ocorrências carregadas, não só `plan.today`, então um prazo vencido hoje (já em "Atrasadas", ou vermelho fora da janela) continua no anel como não cumprido, e o anel não melhora sozinho.
-  - `plan.goal` sai de `planToday`; o único uso era o anel.
-  - `TodayScreen`: o anel mostra `completed` de `needed`, cheio quando a meta é cumprida; o texto abaixo diz a porcentagem (de `gamificationRules.goal.percent`) ou "Meta cumprida". Nova prop `headerStreak`, antes de `headerRight`, para a rota pôr a ofensiva de `gamification`; a feature não a importa.
-  - i18n: `today.goalValue` com `{{completed}} de {{needed}}`, `today.goalHint` com `{{percent}}`, `today.goalMet` novo.
-- **Arquivos/módulos principais:** `packages/core/src/tasks/today.ts`, `packages/core/src/tasks/today.test.ts`, `packages/core/src/index.ts` (uma exportação), `packages/features/tasks/src/TodayScreen.tsx`, `packages/i18n/src/pt-BR/tasks.json`
-- **Migrations:** nenhuma
-- **Decisões/ADRs:** nenhuma nova. `plan.goal` removido em vez de mantido em paralelo.
-- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/tasks/today.test.ts`.
-- **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9; core 670 testes em 27 arquivos, 5 novos de `todayGoal`). `pnpm build:web` passou. As E2E de Hoje (`tasks.spec.ts`, `tasks-proof.spec.ts`) esperam `0 de 1` e `1 de 1`, que continuam valendo com uma ocorrência (`needed` 1); nenhuma usava o texto antigo da dica, então não mudaram.
-- **Não verificado:** E2E (não rodadas, sem pilha); a tela no navegador; o slot preenchido, porque a rota (`apps/app`) e o `StreakChip` são da `gamificacao`.
-- **Pendências / próximos passos:** a `gamificacao` passa `headerStreak={<StreakChip />}` em `apps/app/app/(app)/(tabs)/index.tsx`.
-
-### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:08 (BRT)
-
-- **Branch:** feat/gamification-shell, criada a partir de feat/phase-6-gamification (293bfe7)
-- **Agente(s):** gamificacao
-- **Resumo:** A parte de F6-3 a F6-5 que não depende do banco: adapters de vibração e som, preferências por aparelho, i18n, `StreakChip`, `CelebrationHost`, painel de progresso e ranking, todos sobre uma interface de repositório com dados falsos até a F6-2. Nada montado em `apps/app`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
-- **Alterações:**
-  - `packages/platform`: `canVibrate`/`vibrate` (web `navigator.vibrate`, engole a recusa do navegador; nativo vazio até F8-7) e `canPlayTone`/`playTone` (web Web Audio com oscilador e envelope, sem arquivo; nativo vazio). Sem dependência nova.
-  - `packages/core/src/gamification/ranking.ts`: `rankingEnabled(group, defaultByType)`, a chave de `settings` ou o padrão do tipo, desligado para tipo desconhecido (inclusive `constructor`).
-  - `packages/features/gamification`: `source.ts` com `GamificationSource` (o que as telas leem, mais `subscribe` do Realtime e `setRankingEnabled`), `RankingError` e `fakeGamificationSource`; `gamificationSource` é o único ponto a trocar pelo repositório real. `preferences.ts`: som e vibração no aparelho com os padrões de `gamificationDefaults.celebration`, valor corrompido ou armazenamento bloqueado voltam ao padrão; maior nível comemorado por conta no aparelho, só sobe; `celebrationFeedback`. `hooks.ts` com React Query sob a chave `['gamification']`. `StreakChip` (nada até carregar), `CelebrationHost` (rajada de 600 ms, uma leitura de `user_stats`, `celebrationsFor` do core, nível comemorado semeado com o nível atual na montagem, dia perfeito em tela inteira, cartão fecha sozinho em 6 s), `ProgressPanel` (nível, `XpBar`, teto atingido, ofensiva e proteções, últimos 7 dias, conquistas, chaves de som e vibração desabilitadas onde o aparelho não suporta) e `GroupRanking` (chave só com `can(user, 'group.update', group)`, `ranking_disabled` explicado).
-  - `packages/i18n/src/pt-BR/gamification.json`: nível, ofensiva, teto, últimos dias, as cinco conquistas, ranking, comemorações e preferências.
-  - `pnpm-lock.yaml`: só os links de workspace do pacote da feature.
-- **Arquivos/módulos principais:** `packages/platform/src/{haptics,celebrationSound}{,.web}.ts`, `packages/core/src/gamification/ranking{,.test}.ts`, `packages/features/gamification/src/*`, `packages/i18n/src/{index.ts,pt-BR/gamification.json}`
-- **Migrations:** nenhuma
-- **Decisões/ADRs:** nenhuma nova. Reduzir movimento não desliga som nem vibração: o ADR-0010, seção 8, tira só o confete e o movimento do mascote, que os componentes de `packages/ui` já fazem. O cartão de comemoração fica no centro, para não cobrir o cabeçalho nem a faixa do aviso de notificações.
-- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/feature-gamification test`.
-- **Verificado:** `pnpm check` passou (17 de 17 e 10 de 10; core 672 testes, 6 novos em `ranking.test.ts`; platform 49, 3 novos em `haptics.web.test.ts`; feature 15 em `preferences.test.ts`). `pnpm build:web` passou.
-- **Não verificado:** nenhuma tela foi renderizada (nada está montado em `apps/app` e não houve navegador); o tom da Web Audio e a vibração num aparelho real; nada contra o banco.
-- **Pendências / próximos passos:** depois da F6-2, `packages/data/src/gamification` implementando `GamificationSource` e a troca em `source.ts`; a rota monta `CelebrationHost` no layout, `StreakChip` no slot de Hoje, `ProgressPanel` no `ProfileScreen` e `GroupRanking` no `GroupDetailScreen`.
 
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:09 (BRT)
 
@@ -2004,29 +1887,6 @@
 - **Não verificado:** Realtime em si (a B `db` não tem): o filtro `list_id=eq` e o `DELETE` só com id ficaram na leitura do código, que ignora o id que não mostra. `pnpm db:test`, `pnpm check` e E2E não rodaram (revisão sem mudança de código). Navegador, iOS, Android e projeto hospedado.
 - **Pendências / próximos passos:** decisão do `arquiteto` em SEG7-1 a SEG7-3; SEG7-4 a SEG7-6 a critério do `banco-de-dados`. Pilha B parada.
 
-### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:29 (BRT)
-
-- **Branch:** feat/gamification-db, criada a partir de feat/phase-6-gamification (293bfe7)
-- **Agente(s):** banco-de-dados
-- **Resumo:** F6-2: a gamificação no banco (ADR-0010, handoff `20261103-0235-arquiteto-para-banco-de-dados-gamificacao`). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
-- **Alterações:**
-  - Espelho `gamification_rules` e `gamification_rules()`.
-  - `xp_events`: `local_date`, os quatro motivos novos, `check` de `local_date` só nos motivos de dia perfeito, índices `(user_id, created_at)`, `(group_id, created_at)` e `(user_id, local_date)`.
-  - `user_stats`, `user_day_stats`, `achievements` (seed da seção 5 na migration), `user_achievements`; RLS de leitura só do dono, `achievements` para todo autenticado, nenhuma escrita do cliente. `total_xp` por trigger `after insert` em `xp_events`.
-  - `occurrence_award_xp`: `proof_bonus` em `done` com prova `unreviewed` ou `approved`; teto diário sob `pg_advisory_xact_lock` por usuário. **Desvio do ADR:** o saldo do dia conta cada ocorrência no mínimo zero; a fórmula literal deixava o caso do arquiteto gravar 600 (handoffs ao `arquiteto` e à `gamificacao`).
-  - `user_day_counts`, `refresh_user_day(user, date)`, `refold_streak(user, from)`, `grant_achievements(user)`, chamadas pelo trigger `task_occurrences_after_status_gamification` (status ou revisão da prova). `close_gamification_days()` no pg_cron (`close-gamification-days`, `*/15 * * * *`).
-  - `group_ranking(p_group_id, p_week_start, p_timezone)` com `forbidden` e `ranking_disabled`, padrão por tipo, `check` de `rankingEnabled` booleano.
-  - Realtime em `xp_events` e `user_achievements`. `daily_summary_source` preenche `streak = { current, goalToday }`.
-  - `recompute_user_gamification(user)` (só `service_role`) e backfill de todos os perfis com `last_closed_date` em ontem. `pnpm db:types`.
-  - Testes: `rls_gamification.test.sql` (96); `rls_proof` desliga o bônus na transação e conhece `group_ranking`; `rls_notifications` lista a publicação nova; `rls_whatsapp` tira `streak` da comparação.
-- **Arquivos/módulos principais:** `supabase/migrations/20261103170000` a `20261103171000`, `supabase/tests/rls_{gamification,proof,notifications,whatsapp}.test.sql`, `packages/data/src/database.types.ts`, quatro handoffs `20261103-0328-banco-de-dados-para-*`
-- **Migrations:** as 11 acima.
-- **Decisões/ADRs:** o saldo do teto por ocorrência com piso zero (a confirmar pelo `arquiteto`).
-- **Como testar:** `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`.
-- **Verificado:** `pnpm db:test` passou (6 arquivos, 1474 testes); `pnpm db:check-permissions` passou (`Gamification rules in sync`); `pnpm check` passou. Os 11 casos canônicos e as quatro metas da seção 3 passam no pgTAP. Mutações, uma por barreira, desfeitas com `db reset`: saldo do teto por soma simples dá 600 (1 falha); sem o lock (1 falha); `user_day_stats` legível por todos (2 falhas); ranking sempre ligado (3 falhas); conquista revogada ao reabrir (falha o teste do laço). Duas sessões reais concluindo ao mesmo tempo com 290 de saldo gravaram só 10.
-- **Não verificado:** `pnpm functions:test` falha em 4 testes de prova que contam 1 evento e agora veem 2 (o bônus), fora do meu escopo (handoff ao `backend-funcoes`). `pnpm e2e` não rodou nenhum teste: 7 specs falham ao carregar `supabase/functions/_shared/local-stack.mjs` ("Cannot use 'import.meta' outside a module"), arquivos que esta branch não toca. Projeto hospedado.
-- **Pendências / próximos passos:** `capRoom` com a regra por ocorrência (`gamificacao`); texto da seção 2 (`arquiteto`); `footer` do resumo (`notificacoes-whatsapp`); o job novo no `e2e/global-setup.ts` (`qa-testes`); revisão de `revisor-seguranca`.
-
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:30 (BRT)
 
 - **Branch:** docs/shopping-security-decisions, criada a partir de feat/phase-7-shopping (b5e70fa)
@@ -2064,6 +1924,234 @@
 - **Não verificado:** telas não abertas no navegador; E2E não rodou (sem pilha; nenhum texto usado em `e2e/shopping.spec.ts` mudou). `lists_full` não exercitado contra o banco (a migration é do `banco-de-dados`). Sem mutação.
 - **Pendências / próximos passos:** F7-5 aplica o SEG7-1 ao construir o vínculo, nos dois lados (lista e tarefa).
 
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:41 (BRT)
+
+- **Branch:** fix/shopping-db-security, criada a partir de feat/phase-7-shopping (ebf34ea)
+- **Agente(s):** banco-de-dados
+- **Resumo:** SEG7-2 a SEG7-6 da revisão de segurança da Fase 7 no banco (ADR-0011, seção 16), em quatro migrations novas. Responde aos handoffs `20261103-0328-arquiteto-para-banco-de-dados-compras-seguranca` e `20261103-0321-revisor-seguranca-para-banco-de-dados-compras`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - SEG7-2: `app_settings.shopping_rules` ganha `maxOpenListsPerScope: 50`. `create_shopping_list` conta as listas `open` do grupo, ou as pessoais `open` de quem chama, sob `pg_advisory_xact_lock` por escopo, antes de inserir (com `p_from_list_id` também): `lists_full` (`54000`) no teto. Finalizadas não contam.
+  - SEG7-5: na mesma função, a visibilidade da origem é conferida antes do `for share`; lista alheia e inexistente dão `forbidden`.
+  - SEG7-3: `check` validado `*_plain_check` nas seis colunas de texto de compras, com a classe explícita do ADR.
+  - SEG7-4: abaixo de outro trigger, os guardas só deixam passar o que uma ação de FK faz (as colunas do ADR viram nulo e nada mais muda, comparado por `to_jsonb`). O `delete` em cascata de item não precisa de desvio: a lista já sumiu, então não há `list_completed`; um `delete` de profundidade 2 com a lista finalizada presente é recusado.
+  - SEG7-6: `NaN`, `Infinity` e `-Infinity` dão `invalid_argument` em `adjust_shopping_item_quantity` e `add_catalog_item_to_list`.
+- **Arquivos/módulos principais:** `supabase/migrations/2026110318{0000,0100,0200,0300}_shopping_*.sql`, `supabase/tests/rls_shopping_security.test.sql`
+- **Migrations:** `20261103180000_shopping_open_lists_cap`, `20261103180100_shopping_plain_text_checks`, `20261103180200_shopping_guards_fk_actions_only`, `20261103180300_shopping_delta_finite`.
+- **Decisões/ADRs:** nenhuma nova; ADR-0011, seção 16.
+- **Como testar:** `bash docs/agentes/ferramentas/pilha-b.sh db`, `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`.
+- **Verificado (pilha B, só Postgres):** `pnpm db:test` 7 arquivos, 1556 testes, todos passando (os 135 de `rls_shopping` intactos; 43 novos em `rls_shopping_security`). `pnpm db:check-permissions` em `supabase_db_azkaban-b`, Shopping rules em sincronia. `pnpm db:types` sem diferença. `pnpm check` passou. Mutação, uma por barreira, todas mortas: teto com `+ 1` (3 falhas), o `check` da nota sem U+2066 a U+2069 (1 falha), o desvio antigo por profundidade em `shopping_lists_guard` (6 falhas).
+- **Não verificado:** a ordem "visibilidade antes do `for share`" (SEG7-5) e a trava por escopo sob concorrência real ficaram na leitura do código: o pgTAP roda numa sessão só. Sem mutante separado no guarda de itens (os testes de item com trigger de profundidade 2 existem, mas o mutante do guarda de listas os derrubou em cascata). Sem E2E, Realtime ou projeto hospedado.
+- **Pendências / próximos passos:** `compras`: texto de `lists_full` e o erro de texto inválido nos formulários (handoff do `arquiteto`). Humano: valor 50 (seção 15, item 11).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:49 (BRT)
+
+- **Branch:** chore/qa-phase-7, criada a partir de feat/phase-7-shopping (`ebf34ea`)
+- **Agente(s):** qa-testes
+- **Resumo:** QA da Fase 7 (lista de compras) no estado integrado. `e2e/shopping.spec.ts` rodou pela primeira vez, com um ajuste e mais cobertura; spec nova com o percurso das telas de compras em três larguras e dois temas. Nenhum bloqueio; quatro achados para o `compras`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `e2e/shopping.spec.ts`: o zero do stepper é "0 pacote" (CLDR de pt-BR põe 0 em `one`), e a volta da lista para as listas é pelo "Voltar" (a lista é rota de pilha, sem barra de abas). Coberto a mais: "salvar no catálogo" pelo dono e o item no "Editar catálogo"; o membro sem `shopping.manage_catalog` não vê o interruptor; "Adicionado por" com o nome; lista pessoal do membro, com o interruptor no catálogo pessoal, que o dono do grupo não acha nem pelo endereço nem nas próprias listas.
+  - `e2e/shopping-layout.spec.ts` (nova): listas, catálogo, montar, montar com item avulso aberto, no mercado, finalizada, histórico e lista inexistente a 320, 375 e 1280 px, claro e escuro (alvos de 44 px, sem rolagem lateral, texto sem corte, anel de foco); a barra de seis abas em cada largura (rótulo dentro da própria aba, sem sobreposição); `title` de cada tela; `catalog_item_exists` e `forbidden` na tela; um membro novo sem lista nem histórico de exemplo.
+  - `e2e/walk.ts`: o percurso que estava dentro de `whatsapp.spec.ts`, agora compartilhado, conferindo também `radio` e `checkbox`.
+  - Handoff `20261103-0349-qa-testes-para-compras-achados-da-fase-7`: QA7-1 (média) sem excluir nem renomear lista, e `lists_full` manda excluir; QA7-2 (baixa) "Falta 0 item" na lista vazia; QA7-3 (baixa) erro do catálogo fica na tela depois de fechar a folha; QA7-4 (baixa) nota do item sem tela.
+- **Arquivos/módulos principais:** `e2e/shopping.spec.ts`, `e2e/shopping-layout.spec.ts`, `e2e/walk.ts`, `e2e/whatsapp.spec.ts`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** pilha A, `pnpm exec supabase db reset`, `pnpm exec playwright test e2e/shopping.spec.ts e2e/shopping-layout.spec.ts e2e/calendar.spec.ts`; `pnpm e2e` com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória.
+- **Verificado (pilha A, banco limpo):** `shopping.spec.ts` e `calendar.spec.ts` ajustado: 7 de 7; `shopping.spec.ts` 4 vezes em paralelo (`--repeat-each=4 --workers=4`): 4 de 4, com o stepper simultâneo somando 5. `pnpm e2e` completo uma vez, com a chave VAPID: 72 passaram, 0 falhas, 1 pulado (o que só roda sem a chave). `pnpm check` passou.
+- **Não verificado:** as folhas (unidade e edição do catálogo) não entram no percurso; `list_completed` numa escrita concorrente com o finalizar só no pgTAP; leitor de tela real, Safari, iOS e Android; projeto hospedado. Sem mutação. SEG7-2 a SEG7-6 no banco e SEG7-1/SEG7-3 nas telas seguem com os outros agentes e não foram conferidos.
+- **Pendências / próximos passos:** `compras`: QA7-1 a QA7-4. F7-5 (vínculo com tarefa nas telas e XP de compra) não entregue; o XP depende da Fase 6. `docs/agentes/QUADRO.md` ainda mostra a Fase 7 inteira como "a fazer" (orquestrador). Pilha A parada.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:58 (BRT)
+
+- **Branch:** fix/shopping-qa7 (a partir de `feat/phase-7-shopping`, `a5ae390`)
+- **Agente(s):** compras
+- **Resumo:** QA7-1 a QA7-4 do QA da Fase 7: renomear e excluir lista, status da lista vazia, erro do catálogo que sobrava ao fechar a folha, e a nota do item.
+- **Alterações:**
+  - QA7-1: `ShoppingRepository.updateList` e `deleteList` (`update` e `delete` sob a RLS, com `select('id')`; se nenhuma linha volta, o erro é `forbidden`, porque a RLS não dá erro). Na lista aberta, "Renomear lista" (folha com `shoppingNameSchema`; o erro do banco aparece dentro da folha) e "Excluir lista" com `ConfirmButton`. Na finalizada, só "Excluir lista", porque o banco recusa `update` em lista `completed`. Quem vê os botões: `canManageList`, espelho de `can_manage_shopping_list` (criador ainda membro, ou `shopping.manage_lists`, ou o dono na pessoal). Excluir volta para `/shopping` antes de recarregar. `errors.lists_full` passa a dizer "Finalize ou exclua uma".
+  - QA7-2: lista sem itens diz "A lista está vazia." (`list.empty`) no status, em vez de "Falta 0 item".
+  - QA7-3: `save.reset()` no `onClose` da folha do catálogo.
+  - QA7-4: botão "Nota" ao lado da unidade, no modo montar, abre uma folha com um campo. `parseNote` aplica `shoppingNoteSchema`; em branco limpa (null). A nota aparece sob o nome no modo montar e, como antes, no modo no mercado. É um `update` comum, e a última escrita vale (ADR-0011, seção 5).
+  - Testes de unidade: `canManageList`, `parseNote` e os textos novos; no `data`, `updateList` e `deleteList` com o cliente simulado (sem linha vira `forbidden`; o código do banco é repassado).
+  - E2E: caso novo em `e2e/shopping.spec.ts` (lista vazia, membro sem os botões, nota escrita pelo membro e vista pelo dono, renomear ao vivo, excluir com confirmação e "não encontrada" no outro navegador).
+- **Arquivos/módulos principais:** `packages/data/src/shopping/`, `packages/features/shopping/src/` (`shopping.ts`, `ShoppingListScreen.tsx`, `BuildMode.tsx`, `ShoppingCatalogScreen.tsx`), `packages/i18n/src/pt-BR/shopping.json`, `e2e/shopping.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova; segue o ADR-0011, seções 3 a 6. Contratos sem mudança (`shoppingListUpdateInputSchema` e `shoppingNoteSchema` já existiam).
+- **Como testar:** `pnpm check`; com a pilha livre, `pnpm exec supabase db reset` e `pnpm exec playwright test e2e/shopping.spec.ts`.
+- **Verificado:** `pnpm check` passou (feature-shopping 16 testes, data 11, core 630, contracts 127, entre outros); `pnpm build:web` passou. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Não verificado:** a E2E nova não rodou, porque a pilha A estava ocupada pelo QA da Fase 6. Nada foi visto no navegador (layout das folhas novas a 320 px, tema escuro). Sem mutação. iOS e Android não testados.
+- **Pendências / próximos passos:** rodar `e2e/shopping.spec.ts` (e `shopping-layout.spec.ts`, que pode passar a cobrir as folhas novas) na próxima janela da pilha. O zero no singular das unidades ("0 pacote") ficou como está, à espera do humano.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:30 (BRT)
+
+- **Branch:** fix/shopping-seed-test (a partir de `feat/phase-7-shopping`, `4f48f91`)
+- **Agente(s):** banco-de-dados
+- **Resumo:** o teste 4 de `rls_shopping.test.sql` exigia exatamente 44 itens em todo catálogo do banco e quebrava depois da E2E ("salvar no catálogo" deixa 45). Agora prova que todo grupo e todo perfil têm cada item do seed, pelo nome, arquivado ou não.
+- **Alterações:**
+  - `supabase/tests/rls_shopping.test.sql`: a asserção global cruza `groups` e `profiles` com `shopping_catalog_seed` e conta os pares sem item de mesmo nome no escopo. Itens extras e arquivados não contam, conforme o ADR-0011 (seção 2: catálogos antigos são do admin, e arquivar mantém a linha). O plano continua em 135.
+  - As demais contagens deste arquivo e de `rls_shopping_security.test.sql` já são restritas aos grupos e usuários criados no próprio teste; nada mais mudou.
+- **Arquivos/módulos principais:** `supabase/tests/rls_shopping.test.sql`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma; segue o ADR-0011, seção 2.
+- **Como testar:** pilha B (`pilha-b.sh db`), `pnpm exec supabase db reset`, `pnpm db:test`; depois inserir um item extra num catálogo de grupo, arquivar um item de grupo e um pessoal, e rodar `pnpm db:test` de novo.
+- **Verificado:** `pnpm db:test` limpo: 7 arquivos, 1556 testes, PASS. Com a sobra simulada (ids aleatórios; catálogo de grupo com 45 itens e 1 arquivado, pessoal com 44 e 1 arquivado): 1556 testes, PASS. Numa transação desfeita, apagar "Café" de um catálogo de grupo faz a consulta nova acusar 1 faltante. Pilha B parada no fim. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Não verificado:** a E2E da pilha A não rodou de novo seguida de `pnpm db:test`; a sobra foi simulada à mão.
+- **Pendências / riscos:** a asserção casa pelo nome, então um item do seed renomeado num banco de desenvolvimento (sem cópia arquivada) a faz falhar; `db reset` resolve. Fora do escopo pedido, `rls_whatsapp.test.sql` tem asserções globais: `enqueue_daily_summaries()` = 4 conta perfis do banco todo, e os filtros `like '%0000000001%'` pegam qualquer UUID que contenha essa sequência (um UUID que inventei na primeira simulação, `...000000000001`, quebrou o teste 142). Com os ids aleatórios da E2E isso é improvável, mas sobras com resumo diário ativo quebrariam o teste.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:32 (BRT)
+
+- **Branch:** feat/phase-7-shopping
+- **Agente(s):** orquestrador
+- **Resumo:** Fase 7 (lista de compras) fechada, sem a F7-5 (vincular a tarefa e XP de compra), que depende da Fase 6 e entra depois de integrar as duas. A fase rodou em paralelo com a 6, a partir da Fase 5 fechada.
+- **Alterações:**
+  - Integradas: ADR-0011, contratos, config e seed (`arquiteto`); migrations, RLS, RPCs e Realtime (`banco-de-dados`); chaves de permissão (`auth-grupos`); núcleo, adapter `shareText`, telas, repositório real, rotas, aba e catálogo (`compras`); barra de seis abas a 320 px (`design-system`); QA (`qa-testes`, QA7-1 a QA7-4 corrigidos); revisão de segurança com PoCs (`revisor-seguranca`, SEG7-1 a SEG7-6 corrigidos); teste do seed sem depender do estado da E2E.
+  - `docs/agentes/ferramentas/log-merge.cjs` (orquestrador): num conflito, monta o LOG a partir das versões inteiras de cada lado (índice do git), porque o git deixava fora do conflito um título igual nos dois lados e um corpo ficava sem título. Testado num repositório descartável. A única entrada antiga afetada é a de 2026-11-01 10:06, com dois corpos sob um título, anterior à ferramenta; fica como está (entradas antigas não se editam).
+  - `docs/agentes/QUADRO.md`: F7-1 a F7-4 e F7-6 feitas; F7-5 a fazer.
+- **Decisões/ADRs:** aceitos pelo orquestrador os desvios do `banco-de-dados` (trava em vez de `on conflict`, stepper até 9999, guardas só para ações de FK, escopo antes do estado) e as decisões da seção 16 do ADR-0011 (teto de 50 listas abertas, texto de compras sem controles, tarefa ilegível como vínculo ausente).
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`; `bash docs/agentes/ferramentas/verificar-fase.sh <checkout> <log>` com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória.
+- **Verificado:** em `c1c109a` (antes da correção do teste do seed): install, `db:start`, `db reset`, `db:test` (1556), `db:check-permissions`, `turbo typecheck test --force`, lint, `boundaries`, `build:web`, `functions:test`, E2E duas vezes com 73 ok, 0 falhas e 1 pulado (o "sem chave VAPID"). O `db:test` depois da E2E falhou só no teste 4 de `rls_shopping` (exigia 44 itens exatos, e a E2E salva um item no catálogo); corrigido em `fix/shopping-seed-test`, que passou em banco limpo e com a sobra simulada. Varredura de segredos no diff `feat/phase-5-whatsapp..`: nada.
+- **Não verificado:** o `db:test` depois de uma E2E real com o teste novo (fica para a verificação da integração das Fases 6 e 7); Realtime de compras só pela E2E; Share nativo, Safari, iOS e Android; projeto hospedado; CI do PR.
+- **Pendências / próximos passos:** PR para `feat/phase-5-whatsapp`; F7-5 depois da Fase 6; perguntas ao humano da seção 15 do ADR-0011.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:33 (BRT)
+
+- **Branch:** docs/gamification-adr, criada a partir de feat/phase-5-whatsapp (cd98617)
+- **Agente(s):** arquiteto
+- **Resumo:** ADR-0010 da gamificação (Fase 6), com contratos, config e handoffs para os agentes trabalharem em paralelo. Fecha o XP em massa pendente desde a Fase 2 com um teto diário. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - ADR-0010: motivos novos de XP (`proof_bonus`, `perfect_day`, `perfect_day_reverted`, `shopping_completed` reservado para a Fase 7) e `xp_events.local_date`; teto diário de XP por dia local do perfil, com lock por usuário; nível derivado do total, sem coluna; meta diária por conta inteira, ofensiva como dobra dos dias (dia vazio não quebra, hoje entra só cumprido, proteção a cada 7 dias até 2) com tabela de casos canônicos para core e pgTAP; `refresh_user_day`, `refold_streak`, `grant_achievements` no trigger de status e `close_gamification_days` a cada 15 minutos; conquistas em seed, concedidas uma vez; ranking por `groups.settings.rankingEnabled`, padrão por tipo (`company` desligado), só nome e XP semanal do grupo; RLS só do dono; comemorações pelo Realtime de `xp_events` num `CelebrationHost`; `streak` do resumo diário; anel de Hoje pela meta; recálculo e backfill; divisão do trabalho e nove itens a confirmar pelo humano.
+  - `packages/contracts`: `gamification.ts` novo (`userStatsSchema`, `userDayStatsSchema`, conquistas, ranking, `rankingErrorCodeSchema`, `celebrationKindSchema`), com teste; `tasks.ts` com os motivos novos, `cappedXpEventReasons` e `xpEventSchema.localDate`; `groups.ts` com `groupSettingsSchema`; comentário de `dailySummarySourceSchema.streak`.
+  - `packages/config/src/gamification.ts`: `gamificationRules` (espelho em `app_settings`, chave `gamification_rules`) e `gamificationDefaults` (só cliente).
+  - `scripts/check-permission-mirror.mjs` compara `gamification_rules`.
+  - `docs/arquitetura.md`: seção Gamificação. ADRs 0005, 0007 e 0009 apontam para o 0010 nas pendências da Fase 6.
+  - Handoffs `20261103-0235-arquiteto-para-{banco-de-dados,gamificacao,design-system}-gamificacao`, `...-tarefas-calendario-anel-de-hoje` e `...-notificacoes-whatsapp-ofensiva-no-resumo`.
+- **Arquivos/módulos principais:** `docs/adr/0010-gamificacao-xp-ofensiva-conquistas-ranking.md`, `packages/contracts/src/{gamification.ts,gamification.test.ts,tasks.ts,groups.ts,whatsapp.ts}`, `packages/config/src/gamification.ts`, `scripts/check-permission-mirror.mjs`, `docs/arquitetura.md`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma; são do `banco-de-dados` (F6-2).
+- **Decisões/ADRs:** ADR-0010.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9 tarefas; `functions:imports` 8 de 8). Contratos: 104 testes em 5 arquivos, 12 novos em `gamification.test.ts`.
+- **Não verificado:** nada com a pilha. `pnpm db:check-permissions` acusa `gamification_rules` até a migration de F6-2. Os casos canônicos foram conferidos à mão, não em código.
+- **Pendências / próximos passos:** os cinco handoffs. Para o humano: os nove itens da seção 13 do ADR-0010. Para o orquestrador: a divisão sugerida das tarefas F6 no relatório.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:46 (BRT)
+
+- **Branch:** feat/gamification-ui-kit, criada a partir de feat/phase-6-gamification (1340eaf)
+- **Agente(s):** design-system
+- **Resumo:** Componentes visuais da gamificação (handoff `20261103-0235-arquiteto-para-design-system-gamificacao`, ADR-0010, seção 8), todos em `/design-system`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `Confetti` (rajada curta, cores de `tokens.confetti`, `onDone`; com reduzir movimento não desenha e chama `onDone` na hora; espera a resposta do sistema antes de decidir), `CelebrationCard` (mascote, título, detalhe, `others`, botão de fechar; `role="alert"` e `announceForAccessibility`; `occurrence_partial` sem confete e com mascote feliz), `PerfectDayScreen` (Modal de tela inteira, nomeado, Esc fecha, foco volta), `XpBar` (barra de progresso com rótulo e valor), `StreakBadge` (fogo e número, proteção com escudo e contagem, rótulo falado, fogo apagado em 0, pressionável opcional) e `AchievementBadge` (concedida ou bloqueada por cadeado, círculo tracejado e texto de estado, não só cor).
+  - `Mascot` ganha `animate`: pulo em `celebrating`, balanço em `worried`, parado com reduzir movimento. Padrão desligado, então as telas que já usam o mascote não mudam.
+  - `useMotionPreference` (interno): `null` até o sistema responder; `useReducedMotion` passa a usá-lo, sem mudar o comportamento.
+  - Tokens: `motion.mascot`, `motion.celebrate`, `confetti` (quantidade e cores da paleta), `sizes.mascotLarge`, `mascotJump`, `mascotShake`, `xpBar`, `achievement`, `confettiPiece`.
+  - `celebration.ts`: as decisões puras (plano do confete, movimento do mascote, aparência por tipo, peças determinísticas), com teste.
+  - Textos de demonstração em `ui.json`.
+- **Arquivos/módulos principais:** `packages/ui/src/{Confetti,CelebrationCard,PerfectDayScreen,XpBar,StreakBadge,AchievementBadge,Mascot,celebration,useReducedMotion,tokens,DesignSystemScreen,index}.ts(x)`, `packages/i18n/src/pt-BR/ui.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** animação com o `Animated` do React Native, como `ProgressRing` e `TaskCheck`, e confete com `View`s, em vez do `react-native-reanimated` e do `react-native-svg` citados no ADR: o Reanimated não é dependência de `packages/ui`, e acrescentá-lo mudaria o lockfile. O resultado na tela é o mesmo.
+- **Como testar:** `pnpm check`; `/design-system` em `pnpm dev`, seção Gamificação, com e sem reduzir movimento.
+- **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9); `packages/ui` com 31 testes em 2 arquivos (20 novos em `celebration.test.ts`, 2 de contraste da `XpBar`). `pnpm build:web` passou. No Chromium headless (Playwright avulso, fora da suíte E2E, com `.env.local` falso apontando para um Supabase local desligado, apagado depois), `/design-system` a 375 px claro com movimento, 375 px escuro com reduzir movimento e 1280 px claro: sem erro de console; o cartão é `alert`; o dia perfeito é `dialog` nomeado e fecha com Esc; com reduzir movimento as 28 peças de confete não existem.
+- **Não verificado:** iOS e Android (anúncio por `announceForAccessibility`, `Modal` em tela cheia, borda tracejada); leitor de tela real; E2E.
+- **Pendências / próximos passos:** a `gamificacao` monta o `CelebrationHost` com estes componentes; o `StreakBadge` entra no slot do cabeçalho de Hoje.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:47 (BRT)
+
+- **Branch:** feat/gamification-core, criada a partir de feat/phase-6-gamification (1340eaf)
+- **Agente(s):** gamificacao
+- **Resumo:** F6-1: motor puro da gamificação em `packages/core/src/gamification`, especificação executável do ADR-0010 para as telas e para o pgTAP de F6-2. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `levelForXp(totalXp, curve)`: nível pela curva, cada passo arredondado sozinho; curva inválida lança `RangeError`.
+  - `dailyGoal(counts, goal)`: meta por conta inteira, `needed` = `ceil(planned × percent / 100)`, amarelo conta com `countPartial`. `dayCounts(items, { timezone, date, assigneeId })` pelo `occurrenceDay`, `summarizeDay` e `isPerfectDay` de `core/tasks`, sem canceladas, repetidas nem de outro responsável.
+  - `foldStreak(days, { today, rules })`: dobra da seção 3; dia sem linha é vazio, hoje aberto não quebra, proteção ganha a cada múltiplo até o máximo e gasta em dia fechado sem meta. Devolve o estado de cada dia dado, `freezeUsed` incluído.
+  - `occurrenceXpWithBonus` (base de `occurrenceXp` mais `proofBonus` em `done` com prova `unreviewed` ou `approved`), `capRoom(eventsToday, dailyCap)` por `cappedXpEventReasons` e `applyCap` (base primeiro, bônus com o resto).
+  - `reachedAchievements(achievements, progress)` e `celebrationsFor(before, after, { events, achievementKeys, streakMilestones, celebratedLevel, levelCurve })`, do maior para o menor, com o nível comemorado uma vez por aparelho.
+  - Handoffs `20261103-0243-gamificacao-para-arquiteto-adr-0010-ajustes` e `20261103-0243-gamificacao-para-tarefas-calendario-meta-do-dia`.
+- **Arquivos/módulos principais:** `packages/core/src/gamification/{level,streak,xp,celebrations}.ts` e testes, `packages/core/src/index.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. `dayCounts` recebe um objeto com `assigneeId`, diferente da assinatura do handoff. O nível 10 começa em 2.579, não 2.580 como diz o ADR (handoff ao `arquiteto`).
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/gamification`.
+- **Verificado:** `pnpm check` passou. 60 testes novos em 4 arquivos (665 no core). Os 11 casos canônicos da seção 3 e os exemplos de meta são testes. Mutações, uma por regra, desfeitas: teto `max(0, …)` para `max(1, …)` derruba 2; meta `>=` para `>` derruba 24; quebra da ofensiva trocada por `streak − 1` derruba 4; proteção `> 0` para `>= 0` derruba 7; curva `>=` para `>` derruba 3.
+- **Não verificado:** nada contra o banco (F6-2 não começou); a paridade com o SQL depende de o pgTAP usar a mesma tabela.
+- **Pendências / próximos passos:** F6-3 a F6-5 depois de F6-2 e do design system. As três perguntas do handoff ao `arquiteto`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:49 (BRT)
+
+- **Branch:** docs/gamification-adr-fixes, criada a partir de feat/phase-6-gamification (af89f8c)
+- **Agente(s):** arquiteto
+- **Resumo:** Respostas ao handoff `20261103-0243-gamificacao-para-arquiteto-adr-0010-ajustes` e o texto do nono dígito no ADR-0009. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - ADR-0010, seção 2: `espaço = min(teto, max(0, teto − saldo do dia))`. Uma compensação de XP de outro dia não vira crédito: o espaço nunca passa do teto.
+  - `packages/core/src/gamification/xp.ts` (`capRoom`) com o `min`, e um teste novo em `xp.test.ts`. O core é do `gamificacao`; a mudança é de uma linha e decorre desta decisão.
+  - ADR-0010, seção 1: o nível 10 começa em 2.579, com os passos arredondados um a um.
+  - ADR-0010, seção 8: com o teto atingido, a conclusão vale zero, sem evento e sem comemoração; o `TaskCheck` ainda responde. Consequência aceita.
+  - ADR-0009, seção 18 (SEG5-1): a regra do nono dígito passa a citar a regex de SEG5-9, `'^(55[0-9]{2})9([6-9][0-9]{7})$'`, que só tira o 9 de celular.
+  - Handoff `20261103-0235-arquiteto-para-banco-de-dados-gamificacao` com a fórmula final (`least`/`greatest`) e um caso de pgTAP.
+- **Arquivos/módulos principais:** `docs/adr/0010-gamificacao-xp-ofensiva-conquistas-ranking.md`, `docs/adr/0009-whatsapp-verificacao-opt-in-resumo-diario.md`, `packages/core/src/gamification/xp.ts`, `packages/core/src/gamification/xp.test.ts`, o handoff acima
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0010 (seções 1, 2 e 8), ADR-0009 (seção 18).
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/gamification/xp.test.ts`.
+- **Verificado:** `pnpm check` passou (core 666 testes em 27 arquivos, contratos 104). Mutação: voltar `capRoom` para `max(0, …)` derruba 1 de 13 em `xp.test.ts`; desfeita.
+- **Não verificado:** nada contra o banco; `occurrence_award_xp` ainda não existe (F6-2).
+- **Pendências / próximos passos:** o `banco-de-dados` aplica a fórmula em F6-2.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:02 (BRT)
+
+- **Branch:** feat/today-goal-ring, criada a partir de feat/phase-6-gamification (293bfe7)
+- **Agente(s):** tarefas-calendario
+- **Resumo:** O anel de Hoje passa a mostrar a meta do dia do ADR-0010 (seções 3 e 10), e o cabeçalho de Hoje ganha o slot da ofensiva. Responde aos handoffs `20261103-0235-arquiteto-para-tarefas-calendario-anel-de-hoje` e `20261103-0243-gamificacao-para-tarefas-calendario-meta-do-dia`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `todayGoal(items, { now, timezone, assigneeId, rules })` em `core/tasks/today.ts`: `dailyGoal(dayCounts(...))` no dia local do perfil, só do usuário. A tela passa todas as ocorrências carregadas, não só `plan.today`, então um prazo vencido hoje (já em "Atrasadas", ou vermelho fora da janela) continua no anel como não cumprido, e o anel não melhora sozinho.
+  - `plan.goal` sai de `planToday`; o único uso era o anel.
+  - `TodayScreen`: o anel mostra `completed` de `needed`, cheio quando a meta é cumprida; o texto abaixo diz a porcentagem (de `gamificationRules.goal.percent`) ou "Meta cumprida". Nova prop `headerStreak`, antes de `headerRight`, para a rota pôr a ofensiva de `gamification`; a feature não a importa.
+  - i18n: `today.goalValue` com `{{completed}} de {{needed}}`, `today.goalHint` com `{{percent}}`, `today.goalMet` novo.
+- **Arquivos/módulos principais:** `packages/core/src/tasks/today.ts`, `packages/core/src/tasks/today.test.ts`, `packages/core/src/index.ts` (uma exportação), `packages/features/tasks/src/TodayScreen.tsx`, `packages/i18n/src/pt-BR/tasks.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. `plan.goal` removido em vez de mantido em paralelo.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/tasks/today.test.ts`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9; core 670 testes em 27 arquivos, 5 novos de `todayGoal`). `pnpm build:web` passou. As E2E de Hoje (`tasks.spec.ts`, `tasks-proof.spec.ts`) esperam `0 de 1` e `1 de 1`, que continuam valendo com uma ocorrência (`needed` 1); nenhuma usava o texto antigo da dica, então não mudaram.
+- **Não verificado:** E2E (não rodadas, sem pilha); a tela no navegador; o slot preenchido, porque a rota (`apps/app`) e o `StreakChip` são da `gamificacao`.
+- **Pendências / próximos passos:** a `gamificacao` passa `headerStreak={<StreakChip />}` em `apps/app/app/(app)/(tabs)/index.tsx`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:08 (BRT)
+
+- **Branch:** feat/gamification-shell, criada a partir de feat/phase-6-gamification (293bfe7)
+- **Agente(s):** gamificacao
+- **Resumo:** A parte de F6-3 a F6-5 que não depende do banco: adapters de vibração e som, preferências por aparelho, i18n, `StreakChip`, `CelebrationHost`, painel de progresso e ranking, todos sobre uma interface de repositório com dados falsos até a F6-2. Nada montado em `apps/app`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/platform`: `canVibrate`/`vibrate` (web `navigator.vibrate`, engole a recusa do navegador; nativo vazio até F8-7) e `canPlayTone`/`playTone` (web Web Audio com oscilador e envelope, sem arquivo; nativo vazio). Sem dependência nova.
+  - `packages/core/src/gamification/ranking.ts`: `rankingEnabled(group, defaultByType)`, a chave de `settings` ou o padrão do tipo, desligado para tipo desconhecido (inclusive `constructor`).
+  - `packages/features/gamification`: `source.ts` com `GamificationSource` (o que as telas leem, mais `subscribe` do Realtime e `setRankingEnabled`), `RankingError` e `fakeGamificationSource`; `gamificationSource` é o único ponto a trocar pelo repositório real. `preferences.ts`: som e vibração no aparelho com os padrões de `gamificationDefaults.celebration`, valor corrompido ou armazenamento bloqueado voltam ao padrão; maior nível comemorado por conta no aparelho, só sobe; `celebrationFeedback`. `hooks.ts` com React Query sob a chave `['gamification']`. `StreakChip` (nada até carregar), `CelebrationHost` (rajada de 600 ms, uma leitura de `user_stats`, `celebrationsFor` do core, nível comemorado semeado com o nível atual na montagem, dia perfeito em tela inteira, cartão fecha sozinho em 6 s), `ProgressPanel` (nível, `XpBar`, teto atingido, ofensiva e proteções, últimos 7 dias, conquistas, chaves de som e vibração desabilitadas onde o aparelho não suporta) e `GroupRanking` (chave só com `can(user, 'group.update', group)`, `ranking_disabled` explicado).
+  - `packages/i18n/src/pt-BR/gamification.json`: nível, ofensiva, teto, últimos dias, as cinco conquistas, ranking, comemorações e preferências.
+  - `pnpm-lock.yaml`: só os links de workspace do pacote da feature.
+- **Arquivos/módulos principais:** `packages/platform/src/{haptics,celebrationSound}{,.web}.ts`, `packages/core/src/gamification/ranking{,.test}.ts`, `packages/features/gamification/src/*`, `packages/i18n/src/{index.ts,pt-BR/gamification.json}`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. Reduzir movimento não desliga som nem vibração: o ADR-0010, seção 8, tira só o confete e o movimento do mascote, que os componentes de `packages/ui` já fazem. O cartão de comemoração fica no centro, para não cobrir o cabeçalho nem a faixa do aviso de notificações.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/feature-gamification test`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 10 de 10; core 672 testes, 6 novos em `ranking.test.ts`; platform 49, 3 novos em `haptics.web.test.ts`; feature 15 em `preferences.test.ts`). `pnpm build:web` passou.
+- **Não verificado:** nenhuma tela foi renderizada (nada está montado em `apps/app` e não houve navegador); o tom da Web Audio e a vibração num aparelho real; nada contra o banco.
+- **Pendências / próximos passos:** depois da F6-2, `packages/data/src/gamification` implementando `GamificationSource` e a troca em `source.ts`; a rota monta `CelebrationHost` no layout, `StreakChip` no slot de Hoje, `ProgressPanel` no `ProfileScreen` e `GroupRanking` no `GroupDetailScreen`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:29 (BRT)
+
+- **Branch:** feat/gamification-db, criada a partir de feat/phase-6-gamification (293bfe7)
+- **Agente(s):** banco-de-dados
+- **Resumo:** F6-2: a gamificação no banco (ADR-0010, handoff `20261103-0235-arquiteto-para-banco-de-dados-gamificacao`). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Espelho `gamification_rules` e `gamification_rules()`.
+  - `xp_events`: `local_date`, os quatro motivos novos, `check` de `local_date` só nos motivos de dia perfeito, índices `(user_id, created_at)`, `(group_id, created_at)` e `(user_id, local_date)`.
+  - `user_stats`, `user_day_stats`, `achievements` (seed da seção 5 na migration), `user_achievements`; RLS de leitura só do dono, `achievements` para todo autenticado, nenhuma escrita do cliente. `total_xp` por trigger `after insert` em `xp_events`.
+  - `occurrence_award_xp`: `proof_bonus` em `done` com prova `unreviewed` ou `approved`; teto diário sob `pg_advisory_xact_lock` por usuário. **Desvio do ADR:** o saldo do dia conta cada ocorrência no mínimo zero; a fórmula literal deixava o caso do arquiteto gravar 600 (handoffs ao `arquiteto` e à `gamificacao`).
+  - `user_day_counts`, `refresh_user_day(user, date)`, `refold_streak(user, from)`, `grant_achievements(user)`, chamadas pelo trigger `task_occurrences_after_status_gamification` (status ou revisão da prova). `close_gamification_days()` no pg_cron (`close-gamification-days`, `*/15 * * * *`).
+  - `group_ranking(p_group_id, p_week_start, p_timezone)` com `forbidden` e `ranking_disabled`, padrão por tipo, `check` de `rankingEnabled` booleano.
+  - Realtime em `xp_events` e `user_achievements`. `daily_summary_source` preenche `streak = { current, goalToday }`.
+  - `recompute_user_gamification(user)` (só `service_role`) e backfill de todos os perfis com `last_closed_date` em ontem. `pnpm db:types`.
+  - Testes: `rls_gamification.test.sql` (96); `rls_proof` desliga o bônus na transação e conhece `group_ranking`; `rls_notifications` lista a publicação nova; `rls_whatsapp` tira `streak` da comparação.
+- **Arquivos/módulos principais:** `supabase/migrations/20261103170000` a `20261103171000`, `supabase/tests/rls_{gamification,proof,notifications,whatsapp}.test.sql`, `packages/data/src/database.types.ts`, quatro handoffs `20261103-0328-banco-de-dados-para-*`
+- **Migrations:** as 11 acima.
+- **Decisões/ADRs:** o saldo do teto por ocorrência com piso zero (a confirmar pelo `arquiteto`).
+- **Como testar:** `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`.
+- **Verificado:** `pnpm db:test` passou (6 arquivos, 1474 testes); `pnpm db:check-permissions` passou (`Gamification rules in sync`); `pnpm check` passou. Os 11 casos canônicos e as quatro metas da seção 3 passam no pgTAP. Mutações, uma por barreira, desfeitas com `db reset`: saldo do teto por soma simples dá 600 (1 falha); sem o lock (1 falha); `user_day_stats` legível por todos (2 falhas); ranking sempre ligado (3 falhas); conquista revogada ao reabrir (falha o teste do laço). Duas sessões reais concluindo ao mesmo tempo com 290 de saldo gravaram só 10.
+- **Não verificado:** `pnpm functions:test` falha em 4 testes de prova que contam 1 evento e agora veem 2 (o bônus), fora do meu escopo (handoff ao `backend-funcoes`). `pnpm e2e` não rodou nenhum teste: 7 specs falham ao carregar `supabase/functions/_shared/local-stack.mjs` ("Cannot use 'import.meta' outside a module"), arquivos que esta branch não toca. Projeto hospedado.
+- **Pendências / próximos passos:** `capRoom` com a regra por ocorrência (`gamificacao`); texto da seção 2 (`arquiteto`); `footer` do resumo (`notificacoes-whatsapp`); o job novo no `e2e/global-setup.ts` (`qa-testes`); revisão de `revisor-seguranca`.
+
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:39 (BRT)
 
 - **Branch:** docs/gamification-cap-per-occurrence, criada a partir de feat/phase-6-gamification (29bcc26)
@@ -2098,25 +2186,6 @@
 - **Não verificado:** `pnpm functions:test`, E2E `e2e/whatsapp.spec.ts` com perfil de ofensiva conhecida (sem pilha), mensagem real na Meta.
 - **Pendências / próximos passos:** os comentários de `dailySummarySourceSchema.streak` e `dailySummaryRenderSchema.footer` em `packages/contracts` ainda dizem "até a Fase 6" (`arquiteto`).
 
-### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:41 (BRT)
-
-- **Branch:** fix/shopping-db-security, criada a partir de feat/phase-7-shopping (ebf34ea)
-- **Agente(s):** banco-de-dados
-- **Resumo:** SEG7-2 a SEG7-6 da revisão de segurança da Fase 7 no banco (ADR-0011, seção 16), em quatro migrations novas. Responde aos handoffs `20261103-0328-arquiteto-para-banco-de-dados-compras-seguranca` e `20261103-0321-revisor-seguranca-para-banco-de-dados-compras`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
-- **Alterações:**
-  - SEG7-2: `app_settings.shopping_rules` ganha `maxOpenListsPerScope: 50`. `create_shopping_list` conta as listas `open` do grupo, ou as pessoais `open` de quem chama, sob `pg_advisory_xact_lock` por escopo, antes de inserir (com `p_from_list_id` também): `lists_full` (`54000`) no teto. Finalizadas não contam.
-  - SEG7-5: na mesma função, a visibilidade da origem é conferida antes do `for share`; lista alheia e inexistente dão `forbidden`.
-  - SEG7-3: `check` validado `*_plain_check` nas seis colunas de texto de compras, com a classe explícita do ADR.
-  - SEG7-4: abaixo de outro trigger, os guardas só deixam passar o que uma ação de FK faz (as colunas do ADR viram nulo e nada mais muda, comparado por `to_jsonb`). O `delete` em cascata de item não precisa de desvio: a lista já sumiu, então não há `list_completed`; um `delete` de profundidade 2 com a lista finalizada presente é recusado.
-  - SEG7-6: `NaN`, `Infinity` e `-Infinity` dão `invalid_argument` em `adjust_shopping_item_quantity` e `add_catalog_item_to_list`.
-- **Arquivos/módulos principais:** `supabase/migrations/2026110318{0000,0100,0200,0300}_shopping_*.sql`, `supabase/tests/rls_shopping_security.test.sql`
-- **Migrations:** `20261103180000_shopping_open_lists_cap`, `20261103180100_shopping_plain_text_checks`, `20261103180200_shopping_guards_fk_actions_only`, `20261103180300_shopping_delta_finite`.
-- **Decisões/ADRs:** nenhuma nova; ADR-0011, seção 16.
-- **Como testar:** `bash docs/agentes/ferramentas/pilha-b.sh db`, `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`.
-- **Verificado (pilha B, só Postgres):** `pnpm db:test` 7 arquivos, 1556 testes, todos passando (os 135 de `rls_shopping` intactos; 43 novos em `rls_shopping_security`). `pnpm db:check-permissions` em `supabase_db_azkaban-b`, Shopping rules em sincronia. `pnpm db:types` sem diferença. `pnpm check` passou. Mutação, uma por barreira, todas mortas: teto com `+ 1` (3 falhas), o `check` da nota sem U+2066 a U+2069 (1 falha), o desvio antigo por profundidade em `shopping_lists_guard` (6 falhas).
-- **Não verificado:** a ordem "visibilidade antes do `for share`" (SEG7-5) e a trava por escopo sob concorrência real ficaram na leitura do código: o pgTAP roda numa sessão só. Sem mutante separado no guarda de itens (os testes de item com trigger de profundidade 2 existem, mas o mutante do guarda de listas os derrubou em cascata). Sem E2E, Realtime ou projeto hospedado.
-- **Pendências / próximos passos:** `compras`: texto de `lists_full` e o erro de texto inválido nos formulários (handoff do `arquiteto`). Humano: valor 50 (seção 15, item 11).
-
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:44 (BRT)
 
 - **Branch:** feat/gamification-live, criada a partir de feat/phase-6-gamification (29bcc26)
@@ -2135,24 +2204,6 @@
 - **Verificado:** `pnpm check` passou (17 de 17 e 10 de 10; core 680 testes, `xp.test.ts` 17). `pnpm build:web` passou. `playwright test --list` carrega as 4 specs novas. Mutações, desfeitas: soma simples sem o piso por ocorrência derruba 2 de 17; agrupar pelo `id` do evento em vez da ocorrência derruba 3 de 17.
 - **Não verificado:** a E2E não rodou, porque a pilha A estava ocupada pelo QA da Fase 7 durante toda a tarefa; o repositório nunca falou com um banco real; nenhuma tela foi aberta num navegador.
 - **Pendências / próximos passos:** rodar `e2e/gamification.spec.ts` com a pilha A livre. O comentário de `20261103170400_occurrence_award_xp_cap.sql` ainda diz que `capRoom` soma sem o piso, mas a migration já foi integrada e não se edita.
-
-### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:49 (BRT)
-
-- **Branch:** chore/qa-phase-7, criada a partir de feat/phase-7-shopping (`ebf34ea`)
-- **Agente(s):** qa-testes
-- **Resumo:** QA da Fase 7 (lista de compras) no estado integrado. `e2e/shopping.spec.ts` rodou pela primeira vez, com um ajuste e mais cobertura; spec nova com o percurso das telas de compras em três larguras e dois temas. Nenhum bloqueio; quatro achados para o `compras`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
-- **Alterações:**
-  - `e2e/shopping.spec.ts`: o zero do stepper é "0 pacote" (CLDR de pt-BR põe 0 em `one`), e a volta da lista para as listas é pelo "Voltar" (a lista é rota de pilha, sem barra de abas). Coberto a mais: "salvar no catálogo" pelo dono e o item no "Editar catálogo"; o membro sem `shopping.manage_catalog` não vê o interruptor; "Adicionado por" com o nome; lista pessoal do membro, com o interruptor no catálogo pessoal, que o dono do grupo não acha nem pelo endereço nem nas próprias listas.
-  - `e2e/shopping-layout.spec.ts` (nova): listas, catálogo, montar, montar com item avulso aberto, no mercado, finalizada, histórico e lista inexistente a 320, 375 e 1280 px, claro e escuro (alvos de 44 px, sem rolagem lateral, texto sem corte, anel de foco); a barra de seis abas em cada largura (rótulo dentro da própria aba, sem sobreposição); `title` de cada tela; `catalog_item_exists` e `forbidden` na tela; um membro novo sem lista nem histórico de exemplo.
-  - `e2e/walk.ts`: o percurso que estava dentro de `whatsapp.spec.ts`, agora compartilhado, conferindo também `radio` e `checkbox`.
-  - Handoff `20261103-0349-qa-testes-para-compras-achados-da-fase-7`: QA7-1 (média) sem excluir nem renomear lista, e `lists_full` manda excluir; QA7-2 (baixa) "Falta 0 item" na lista vazia; QA7-3 (baixa) erro do catálogo fica na tela depois de fechar a folha; QA7-4 (baixa) nota do item sem tela.
-- **Arquivos/módulos principais:** `e2e/shopping.spec.ts`, `e2e/shopping-layout.spec.ts`, `e2e/walk.ts`, `e2e/whatsapp.spec.ts`, `docs/agentes/handoffs/`
-- **Migrations:** nenhuma
-- **Decisões/ADRs:** nenhuma.
-- **Como testar:** pilha A, `pnpm exec supabase db reset`, `pnpm exec playwright test e2e/shopping.spec.ts e2e/shopping-layout.spec.ts e2e/calendar.spec.ts`; `pnpm e2e` com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória.
-- **Verificado (pilha A, banco limpo):** `shopping.spec.ts` e `calendar.spec.ts` ajustado: 7 de 7; `shopping.spec.ts` 4 vezes em paralelo (`--repeat-each=4 --workers=4`): 4 de 4, com o stepper simultâneo somando 5. `pnpm e2e` completo uma vez, com a chave VAPID: 72 passaram, 0 falhas, 1 pulado (o que só roda sem a chave). `pnpm check` passou.
-- **Não verificado:** as folhas (unidade e edição do catálogo) não entram no percurso; `list_completed` numa escrita concorrente com o finalizar só no pgTAP; leitor de tela real, Safari, iOS e Android; projeto hospedado. Sem mutação. SEG7-2 a SEG7-6 no banco e SEG7-1/SEG7-3 nas telas seguem com os outros agentes e não foram conferidos.
-- **Pendências / próximos passos:** `compras`: QA7-1 a QA7-4. F7-5 (vínculo com tarefa nas telas e XP de compra) não entregue; o XP depende da Fase 6. `docs/agentes/QUADRO.md` ainda mostra a Fase 7 inteira como "a fazer" (orquestrador). Pilha A parada.
 
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:49 (BRT)
 
@@ -2185,26 +2236,6 @@
 - **Verificado:** leitura das 11 migrations, do ADR-0010, de `set_occurrence_status`, `auto_miss_occurrences`, das políticas de `groups`, `profiles` e `xp_events`, e da fonte de dados da feature; `pnpm check`.
 - **Não verificado:** nenhum PoC de banco (sem pilha nesta passada; cinco listados no handoff ao `banco-de-dados`); o repositório real e a montagem nas rotas de `gamificacao`, em andamento; o filtro do Realtime no cliente; o projeto hospedado.
 - **Pendências / próximos passos:** segunda passada na pilha, com os PoCs de banco e o repositório de `gamificacao` (inclusive `setRankingEnabled`, que lê, mescla e grava `groups.settings` e pode perder uma chave gravada ao mesmo tempo).
-
-### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:58 (BRT)
-
-- **Branch:** fix/shopping-qa7 (a partir de `feat/phase-7-shopping`, `a5ae390`)
-- **Agente(s):** compras
-- **Resumo:** QA7-1 a QA7-4 do QA da Fase 7: renomear e excluir lista, status da lista vazia, erro do catálogo que sobrava ao fechar a folha, e a nota do item.
-- **Alterações:**
-  - QA7-1: `ShoppingRepository.updateList` e `deleteList` (`update` e `delete` sob a RLS, com `select('id')`; se nenhuma linha volta, o erro é `forbidden`, porque a RLS não dá erro). Na lista aberta, "Renomear lista" (folha com `shoppingNameSchema`; o erro do banco aparece dentro da folha) e "Excluir lista" com `ConfirmButton`. Na finalizada, só "Excluir lista", porque o banco recusa `update` em lista `completed`. Quem vê os botões: `canManageList`, espelho de `can_manage_shopping_list` (criador ainda membro, ou `shopping.manage_lists`, ou o dono na pessoal). Excluir volta para `/shopping` antes de recarregar. `errors.lists_full` passa a dizer "Finalize ou exclua uma".
-  - QA7-2: lista sem itens diz "A lista está vazia." (`list.empty`) no status, em vez de "Falta 0 item".
-  - QA7-3: `save.reset()` no `onClose` da folha do catálogo.
-  - QA7-4: botão "Nota" ao lado da unidade, no modo montar, abre uma folha com um campo. `parseNote` aplica `shoppingNoteSchema`; em branco limpa (null). A nota aparece sob o nome no modo montar e, como antes, no modo no mercado. É um `update` comum, e a última escrita vale (ADR-0011, seção 5).
-  - Testes de unidade: `canManageList`, `parseNote` e os textos novos; no `data`, `updateList` e `deleteList` com o cliente simulado (sem linha vira `forbidden`; o código do banco é repassado).
-  - E2E: caso novo em `e2e/shopping.spec.ts` (lista vazia, membro sem os botões, nota escrita pelo membro e vista pelo dono, renomear ao vivo, excluir com confirmação e "não encontrada" no outro navegador).
-- **Arquivos/módulos principais:** `packages/data/src/shopping/`, `packages/features/shopping/src/` (`shopping.ts`, `ShoppingListScreen.tsx`, `BuildMode.tsx`, `ShoppingCatalogScreen.tsx`), `packages/i18n/src/pt-BR/shopping.json`, `e2e/shopping.spec.ts`
-- **Migrations:** nenhuma
-- **Decisões/ADRs:** nenhuma nova; segue o ADR-0011, seções 3 a 6. Contratos sem mudança (`shoppingListUpdateInputSchema` e `shoppingNoteSchema` já existiam).
-- **Como testar:** `pnpm check`; com a pilha livre, `pnpm exec supabase db reset` e `pnpm exec playwright test e2e/shopping.spec.ts`.
-- **Verificado:** `pnpm check` passou (feature-shopping 16 testes, data 11, core 630, contracts 127, entre outros); `pnpm build:web` passou. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
-- **Não verificado:** a E2E nova não rodou, porque a pilha A estava ocupada pelo QA da Fase 6. Nada foi visto no navegador (layout das folhas novas a 320 px, tema escuro). Sem mutação. iOS e Android não testados.
-- **Pendências / próximos passos:** rodar `e2e/shopping.spec.ts` (e `shopping-layout.spec.ts`, que pode passar a cobrir as folhas novas) na próxima janela da pilha. O zero no singular das unidades ("0 pacote") ficou como está, à espera do humano.
 
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:00 (BRT)
 
@@ -2304,37 +2335,6 @@
 - **Não verificado:** a espera real entre duas sessões do PoC 5 (o teste lê o modo do lock por `pgrowlocks` numa sessão só); o tempo do código antigo no PoC 2 (sem piso, mas já com uma dobra por comando, foram 979 ms); se o `Intl` aceita zonas que `pg_timezone_names` recusa (o inverso o `db:check-permissions` já confere); E2E e Edge Functions; o projeto hospedado.
 - **Pendências / próximos passos:** integrar junto com a troca do repositório do ranking, de `groupRankingInputSchema` e de `capRoom` pelo `gamificacao`; até lá o repositório manda `p_timezone` e o PostgREST não acha a função.
 
-### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:30 (BRT)
-
-- **Branch:** fix/shopping-seed-test (a partir de `feat/phase-7-shopping`, `4f48f91`)
-- **Agente(s):** banco-de-dados
-- **Resumo:** o teste 4 de `rls_shopping.test.sql` exigia exatamente 44 itens em todo catálogo do banco e quebrava depois da E2E ("salvar no catálogo" deixa 45). Agora prova que todo grupo e todo perfil têm cada item do seed, pelo nome, arquivado ou não.
-- **Alterações:**
-  - `supabase/tests/rls_shopping.test.sql`: a asserção global cruza `groups` e `profiles` com `shopping_catalog_seed` e conta os pares sem item de mesmo nome no escopo. Itens extras e arquivados não contam, conforme o ADR-0011 (seção 2: catálogos antigos são do admin, e arquivar mantém a linha). O plano continua em 135.
-  - As demais contagens deste arquivo e de `rls_shopping_security.test.sql` já são restritas aos grupos e usuários criados no próprio teste; nada mais mudou.
-- **Arquivos/módulos principais:** `supabase/tests/rls_shopping.test.sql`
-- **Migrations:** nenhuma
-- **Decisões/ADRs:** nenhuma; segue o ADR-0011, seção 2.
-- **Como testar:** pilha B (`pilha-b.sh db`), `pnpm exec supabase db reset`, `pnpm db:test`; depois inserir um item extra num catálogo de grupo, arquivar um item de grupo e um pessoal, e rodar `pnpm db:test` de novo.
-- **Verificado:** `pnpm db:test` limpo: 7 arquivos, 1556 testes, PASS. Com a sobra simulada (ids aleatórios; catálogo de grupo com 45 itens e 1 arquivado, pessoal com 44 e 1 arquivado): 1556 testes, PASS. Numa transação desfeita, apagar "Café" de um catálogo de grupo faz a consulta nova acusar 1 faltante. Pilha B parada no fim. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
-- **Não verificado:** a E2E da pilha A não rodou de novo seguida de `pnpm db:test`; a sobra foi simulada à mão.
-- **Pendências / riscos:** a asserção casa pelo nome, então um item do seed renomeado num banco de desenvolvimento (sem cópia arquivada) a faz falhar; `db reset` resolve. Fora do escopo pedido, `rls_whatsapp.test.sql` tem asserções globais: `enqueue_daily_summaries()` = 4 conta perfis do banco todo, e os filtros `like '%0000000001%'` pegam qualquer UUID que contenha essa sequência (um UUID que inventei na primeira simulação, `...000000000001`, quebrou o teste 142). Com os ids aleatórios da E2E isso é improvável, mas sobras com resumo diário ativo quebrariam o teste.
-
-### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:32 (BRT)
-
-- **Branch:** feat/phase-7-shopping
-- **Agente(s):** orquestrador
-- **Resumo:** Fase 7 (lista de compras) fechada, sem a F7-5 (vincular a tarefa e XP de compra), que depende da Fase 6 e entra depois de integrar as duas. A fase rodou em paralelo com a 6, a partir da Fase 5 fechada.
-- **Alterações:**
-  - Integradas: ADR-0011, contratos, config e seed (`arquiteto`); migrations, RLS, RPCs e Realtime (`banco-de-dados`); chaves de permissão (`auth-grupos`); núcleo, adapter `shareText`, telas, repositório real, rotas, aba e catálogo (`compras`); barra de seis abas a 320 px (`design-system`); QA (`qa-testes`, QA7-1 a QA7-4 corrigidos); revisão de segurança com PoCs (`revisor-seguranca`, SEG7-1 a SEG7-6 corrigidos); teste do seed sem depender do estado da E2E.
-  - `docs/agentes/ferramentas/log-merge.cjs` (orquestrador): num conflito, monta o LOG a partir das versões inteiras de cada lado (índice do git), porque o git deixava fora do conflito um título igual nos dois lados e um corpo ficava sem título. Testado num repositório descartável. A única entrada antiga afetada é a de 2026-11-01 10:06, com dois corpos sob um título, anterior à ferramenta; fica como está (entradas antigas não se editam).
-  - `docs/agentes/QUADRO.md`: F7-1 a F7-4 e F7-6 feitas; F7-5 a fazer.
-- **Decisões/ADRs:** aceitos pelo orquestrador os desvios do `banco-de-dados` (trava em vez de `on conflict`, stepper até 9999, guardas só para ações de FK, escopo antes do estado) e as decisões da seção 16 do ADR-0011 (teto de 50 listas abertas, texto de compras sem controles, tarefa ilegível como vínculo ausente).
-- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`; `bash docs/agentes/ferramentas/verificar-fase.sh <checkout> <log>` com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória.
-- **Verificado:** em `c1c109a` (antes da correção do teste do seed): install, `db:start`, `db reset`, `db:test` (1556), `db:check-permissions`, `turbo typecheck test --force`, lint, `boundaries`, `build:web`, `functions:test`, E2E duas vezes com 73 ok, 0 falhas e 1 pulado (o "sem chave VAPID"). O `db:test` depois da E2E falhou só no teste 4 de `rls_shopping` (exigia 44 itens exatos, e a E2E salva um item no catálogo); corrigido em `fix/shopping-seed-test`, que passou em banco limpo e com a sobra simulada. Varredura de segredos no diff `feat/phase-5-whatsapp..`: nada.
-- **Não verificado:** o `db:test` depois de uma E2E real com o teste novo (fica para a verificação da integração das Fases 6 e 7); Realtime de compras só pela E2E; Share nativo, Safari, iOS e Android; projeto hospedado; CI do PR.
-- **Pendências / próximos passos:** PR para `feat/phase-5-whatsapp`; F7-5 depois da Fase 6; perguntas ao humano da seção 15 do ADR-0011.
-
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:38 (BRT)
 
 - **Branch:** chore/security-phase-6, com `git merge feat/phase-6-gamification` (f12607f, avanço rápido)
@@ -2356,6 +2356,26 @@
 - **Verificado:** os cinco PoCs e o resíduo acima; `pnpm check`. Pilha B parada no fim.
 - **Não verificado:** a espera real de um `insert` durante o lote do job em duas sessões (conferido pelo código e pela semântica de `for no key update`); `pnpm db:test` inteiro; o Realtime em execução; o projeto hospedado.
 - **Pendências / próximos passos:** nenhuma de segurança na Fase 6.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:58 (BRT)
+
+- **Branch:** docs/phase-8-adr, criada a partir de feat/phase-7-shopping (d02fc82)
+- **Agente(s):** arquiteto
+- **Resumo:** ADR-0012 da Fase 8 (LGPD, limites de uso, fila offline e polimento), com contratos, config e um handoff por agente, para a fase correr em paralelo. Trata as tabelas da Fase 6 como existentes. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `docs/adr/0012-polimento-lgpd-limites-offline.md`: exportar (Edge Function `account-export`, JSON por `accountExportSchema`, 25 seções de todas as fases, fotos por URL assinada de 1 hora, o que fica de fora e por quê); excluir (`account-delete`, login recente por `amr`, grupo com outros membros bloqueia, grupo só da pessoa sai junto, objetos e provas dela antes de `auth.admin.deleteUser`, o que cascateia e o que fica sem nome, `account_deletions`); revogar o aceite da prova com marca própria; tela de transparência com os itens dos ADRs 0005 a 0011; retenção consolidada; limites do GoTrue no painel e `consume_rate_limit` no Postgres (janela fixa, `PT429`); fila offline pelo TanStack Query com mutações persistidas, só status e itens de compras, `requestId` no stepper e `processed_requests`; escopo e critérios de F8-1, F8-6 e F8-7 (o que dá sem conta paga e o que é do humano); opções de hospedagem sem custo; backlog; faixas de versão das migrations.
+  - Achado: as Fases 6 e 7 usam os mesmos prefixos de migration (`20261103170000` a `20261103180300`). Decisão na seção 14: renomear as da Fase 7 antes do merge.
+  - `packages/contracts/src/privacy.ts` (novo, com teste): seções e envelope da exportação, pedido, prévia, resultado e erros da exclusão. `common.ts`: `rateLimitedErrorCode`. `shopping.ts`: `requestId` opcional no stepper, com teste.
+  - `packages/config/src/limits.ts` (novo, com teste): `rateLimitRules` (espelho `rate_limit_rules`), `offlineDefaults`, `privacyDefaults`.
+  - `docs/arquitetura.md`: seção de privacidade, limites e fila offline. `docs/implantacao.md`: valores de Auth de produção, nunca `supabase config push`, SMTP próprio.
+  - Handoffs `20261103-0456-arquiteto-para-*` para `banco-de-dados`, `backend-funcoes`, `auth-grupos`, `tarefas-calendario`, `compras`, `design-system`, `notificacoes-whatsapp` e `qa-testes`.
+- **Arquivos/módulos principais:** `docs/adr/0012-*.md`, `packages/contracts/src/{privacy,common,shopping}*.ts`, `packages/config/src/limits*.ts`, `docs/arquitetura.md`, `docs/implantacao.md`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** ADR-0012.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (lint, boundaries, typecheck de todos os pacotes, testes; contracts 134, config 22; `functions:imports` 8 de 8). Testes de `data`, `feature-shopping` e `core` forçados sem cache: 11, 16 e 630.
+- **Não verificado:** que o CLI recusa as versões repetidas das Fases 6 e 7 (dedução pela regra de versão do CLI; ninguém rodou a base integrada); `amr` com `timestamp` no GoTrue local; `PT429` virando 429 no PostgREST local; os limites e as regras do servidor de e-mail embutido e os preços de Expo, Google, Apple, Netlify e Cloudflare, que são de memória e o ADR manda conferir; `auth.audit_log_entries`. Sem mutação.
+- **Pendências / próximos passos:** `banco-de-dados` renomeia as migrations da Fase 7 na integração e depois as faixas da seção 14; `gamificationRules.closeJob.batchSize` para 64 na config depois da integração (arquiteto); `pnpm db:check-permissions` acusa `rate_limit_rules` até a migration; perguntas da seção 17 ao humano.
 
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 05:00 (BRT)
 

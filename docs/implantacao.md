@@ -85,6 +85,9 @@ URL do webhook, para o App Dashboard da Meta: `https://<ref>.supabase.co/functio
 - **Auth:** confirmação de email ligada. O `config.toml` local a mantém desligada, e isso não vale para produção.
 - **Auth:** senha mínima 8.
 - **Auth:** URLs de redirecionamento sem curinga. As do `config.toml` usam `/**` só para desenvolvimento.
+- **Auth, nunca `supabase config push`:** o `config.toml` é da pilha local, permissivo de propósito para a E2E (`max_frequency = "1s"`, confirmação desligada, curingas). Os valores de produção são postos no painel (ADR-0012, seção 4).
+- **Auth, Rate Limits:** intervalo entre e-mails ao mesmo endereço de 60 s; entradas e cadastros, 30 a cada 5 minutos por IP; verificações de OTP, 30 a cada 5 minutos por IP; renovações, 150 a cada 5 minutos por IP. Com SMTP próprio, 30 e-mails por hora.
+- **Auth, SMTP próprio:** o servidor de e-mail embutido só entrega para a equipe do projeto e por volta de 2 por hora. Sem SMTP próprio, ninguém de fora recebe o link mágico. Decisão do humano (ADR-0012, seção 17, item 6).
 - **API, Exposed schemas:** só `public` e `graphql_public`. `net`, `cron` e `vault` nunca entram (ADR-0005, seção 12).
 - **`pg_graphql`:** o app não usa GraphQL. Confira que `/graphql/v1` não mostra nada além do que a RLS já mostra pelo REST, e desligue a extensão se não houver motivo para mantê-la.
 

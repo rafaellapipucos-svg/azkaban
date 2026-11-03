@@ -2,8 +2,10 @@
 // stack (pilha-b.sh) never reaches the first one. No stack needed.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { test } from 'node:test';
-import { apiUrl, dbContainer, project, stackFrom } from './local-stack.mjs';
+import { fileURLToPath } from 'node:url';
+import { apiUrl, dbContainer, findConfig, project, stackFrom } from './local-stack.mjs';
 
 const real = readFileSync(new URL('../../config.toml', import.meta.url), 'utf8');
 // The committed file, also when this checkout runs on the second stack: `ligar` undone.
@@ -53,4 +55,10 @@ test('a config without the keys is refused, not guessed', () => {
 
 test('the exports follow this checkout', () => {
   assert.deepEqual({ apiUrl, project, dbContainer }, stackFrom(real, process.env));
+});
+
+test('the config is found from any folder inside the checkout, not only its root', () => {
+  const file = fileURLToPath(new URL('../../config.toml', import.meta.url));
+  assert.equal(findConfig(fileURLToPath(new URL('.', import.meta.url))), file);
+  assert.equal(findConfig(dirname(dirname(file))), file);
 });

@@ -36,9 +36,12 @@ Este ADR decide o que `gamificacao`, `banco-de-dados` e `design-system` precisam
 O ADR-0005 (seção 11) deixou para esta fase: quem cria tarefas, inclusive futuras, e as conclui na hora ganha XP sem limite. Bloquear a conclusão antecipada não fecha o furo, porque reagendar para hoje é permitido e trapaça e uso legítimo ("lavei o carro um dia antes") têm a mesma forma. A defesa é um **teto diário**:
 
 - `gamificationRules.xp.dailyCap` (300): o saldo dos motivos de `cappedXpEventReasons` (todos, menos os dois de dia perfeito) que um usuário soma no **dia local do perfil em que o evento é gravado** não passa do teto.
+- **Saldo do dia por ocorrência, com piso zero** (atualizado em 2026-11-03): os eventos com teto gravados hoje são agrupados por `coalesce(occurrence_id, id do evento)`, cada grupo é somado, e o saldo do dia é `Σ max(0, saldo do grupo)`.
 - Em `occurrence_award_xp`, depois da compensação: `espaço = min(teto, max(0, teto − saldo do dia))`. O base recebe `min(base, espaço)`, e o bônus de prova, o que sobrar. Valor zero não gera evento, regra que já existe.
-- Compensar libera espaço no mesmo dia. Isso não abre brecha: reconcluir só devolve o que a ocorrência vale, e a média por dia fica no teto.
-- **O espaço nunca passa do teto.** Reabrir hoje 300 pontos de ontem deixa o saldo de hoje em −300; sem o `min`, o espaço viraria 600. O teto existe contra farm, e uma compensação de outro dia não vira crédito para hoje. `capRoom`, de `packages/core`, e o banco usam a mesma fórmula.
+- Reabrir algo concluído hoje libera o espaço dele, porque a ocorrência volta a zero. Isso não abre brecha: reconcluir só devolve o que a ocorrência vale, e a média por dia fica no teto.
+- **Uma compensação de outro dia não vira crédito para hoje.** A soma simples falhava: reabrir hoje 300 pontos de ontem deixa a soma de hoje em −300, e cada uma de 21 conclusões difíceis (30 cada) cabia no espaço, gravando 600 pontos de conclusões no dia. O `min` só limitava uma conclusão, não o dia. Com o piso por ocorrência, os grupos das ocorrências reabertas valem 0, e as conclusões novas param em 300: a 11ª não grava nada. A mutação com a soma simples no pgTAP do `banco-de-dados` dá 600.
+- Reconcluir hoje o que foi reaberto de outro dia não consome o teto de hoje, porque a ocorrência só volta a zero. O saldo líquido do dia continua no teto.
+- `capRoom`, de `packages/core`, e o banco usam a mesma regra.
 - Duas transições do mesmo usuário ao mesmo tempo passariam juntas pelo teto. `occurrence_award_xp` toma `pg_advisory_xact_lock` por usuário antes de somar.
 - O dia perfeito fica fora do teto: é um por dia e já tem valor fixo.
 - A Fase 7 herda o teto para `shopping_completed`, salvo decisão em contrário no ADR-0011.
@@ -178,7 +181,8 @@ Definidas em `achievements` por seed, legíveis por todo usuário autenticado. C
 - **Conclusão com o teto atingido:** vale zero, nenhum evento é gravado (seção 2), e o `CelebrationHost` não comemora. O `TaskCheck` ainda dá o retorno imediato, e a tela mostra que o teto foi atingido. Consequência aceita: inventar outro gatilho faria `tasks` conhecer `gamification`, ou comemoraria um XP que não existe.
 - **Tipos** (`celebrationKindSchema`): `occurrence_partial` (mascote feliz, sem confete: a honestidade também conta), `occurrence_done` (confete curto e mascote comemorando), `streak_milestone` (em `gamificationDefaults.streakMilestones`), `perfect_day` (tela inteira de dia perfeito, pelo evento `perfect_day`), `level_up` e `achievement`. Juntos, mostra o maior e lista os outros.
 - Subir de nível de novo depois de reabrir não comemora outra vez: o aparelho guarda o maior nível já comemorado.
-- **Reduzir movimento** (`useReducedMotion`, de `packages/ui`): sem confete e sem animação do mascote; o texto e o mascote parado continuam.
+- **Reduzir movimento** (`useReducedMotion`, de `packages/ui`): sem confete e sem animação do mascote; o texto e o mascote parado continuam. Não desliga som nem vibração, que têm as próprias chaves (decisão de `gamificacao`, a confirmar pelo humano).
+- **Cartão de comemoração:** fica no centro, para não cobrir o cabeçalho nem a faixa do aviso de notificações, e fecha sozinho em 6 s.
 - **Som:** desligado por padrão. Na web, um tom curto gerado pela Web Audio, sem arquivo e sem licença. No nativo, nada até F8-7.
 - **Vibração:** ligada por padrão, por adapter `haptics` em `packages/platform`. Na web, `navigator.vibrate` quando existe (Android; o iPhone não tem). No nativo, `expo-haptics` entra em F8-7, com o build nativo; até lá, nada.
 - Preferências de som e vibração ficam no aparelho, por `gamificationDefaults.celebration`.
@@ -232,6 +236,7 @@ Todos são valores em config, seed ou uma linha de matriz, e voltam atrás sem p
 7. **Curva de nível:** 100 pontos para o nível 2, crescendo 25% por nível.
 8. **Som** desligado e **vibração** ligada por padrão.
 9. **Conquistas** da seção 5, e "semana perfeita" como sete dias perfeitos seguidos, sem contar os vazios.
+10. **Reduzir movimento** não desliga som nem vibração (seção 8).
 
 ## Alternativas
 

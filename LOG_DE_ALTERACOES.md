@@ -1897,3 +1897,20 @@
 - **Verificado:** `pnpm db:test` passou (6 arquivos, 1474 testes); `pnpm db:check-permissions` passou (`Gamification rules in sync`); `pnpm check` passou. Os 11 casos canônicos e as quatro metas da seção 3 passam no pgTAP. Mutações, uma por barreira, desfeitas com `db reset`: saldo do teto por soma simples dá 600 (1 falha); sem o lock (1 falha); `user_day_stats` legível por todos (2 falhas); ranking sempre ligado (3 falhas); conquista revogada ao reabrir (falha o teste do laço). Duas sessões reais concluindo ao mesmo tempo com 290 de saldo gravaram só 10.
 - **Não verificado:** `pnpm functions:test` falha em 4 testes de prova que contam 1 evento e agora veem 2 (o bônus), fora do meu escopo (handoff ao `backend-funcoes`). `pnpm e2e` não rodou nenhum teste: 7 specs falham ao carregar `supabase/functions/_shared/local-stack.mjs` ("Cannot use 'import.meta' outside a module"), arquivos que esta branch não toca. Projeto hospedado.
 - **Pendências / próximos passos:** `capRoom` com a regra por ocorrência (`gamificacao`); texto da seção 2 (`arquiteto`); `footer` do resumo (`notificacoes-whatsapp`); o job novo no `e2e/global-setup.ts` (`qa-testes`); revisão de `revisor-seguranca`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:39 (BRT)
+
+- **Branch:** docs/gamification-cap-per-occurrence, criada a partir de feat/phase-6-gamification (29bcc26)
+- **Agente(s):** arquiteto
+- **Resumo:** Aceita no ADR-0010 a regra do teto por ocorrência que o `banco-de-dados` aplicou na F6-2 (handoff `20261103-0328-banco-de-dados-para-arquiteto-teto-por-ocorrencia`) e registra duas decisões de comemoração do `gamificacao`. Só texto. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - ADR-0010, seção 2: o saldo do dia é `Σ max(0, saldo da ocorrência hoje)`, agrupando por `coalesce(occurrence_id, id do evento)`, com o `min` mantido; o exemplo de reabrir 300 de ontem e concluir 21 difíceis, que a soma simples deixava chegar a 600; reconcluir hoje o reaberto de outro dia não consome o teto.
+  - ADR-0010, seção 8: reduzir movimento não desliga som nem vibração (decisão de `gamificacao`, a confirmar pelo humano, também no item 10 da seção 13); o cartão de comemoração fica no centro e fecha sozinho em 6 s.
+  - Handoff `20261103-0235-arquiteto-para-banco-de-dados-gamificacao`: item 3 e o teste do teto com compensação de outro dia com a regra nova.
+- **Arquivos/módulos principais:** `docs/adr/0010-gamificacao-xp-ofensiva-conquistas-ranking.md`, `docs/agentes/handoffs/20261103-0235-arquiteto-para-banco-de-dados-gamificacao.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0010, seções 2, 8 e 13, atualizadas.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou.
+- **Não verificado:** nada de código; o `capRoom` do core está sendo ajustado pelo `gamificacao` em outra branch, e a migration do banco não foi relida contra o texto.
+- **Pendências / próximos passos:** confirmar com o humano o item 10 da seção 13.

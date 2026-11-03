@@ -1931,3 +1931,20 @@
 - **Verificado:** `whatsapp.test.ts` 53 testes; `pnpm check` passou (core 684 testes; `functions:imports` 8 de 8).
 - **Não verificado:** `pnpm functions:test`, E2E `e2e/whatsapp.spec.ts` com perfil de ofensiva conhecida (sem pilha), mensagem real na Meta.
 - **Pendências / próximos passos:** os comentários de `dailySummarySourceSchema.streak` e `dailySummaryRenderSchema.footer` em `packages/contracts` ainda dizem "até a Fase 6" (`arquiteto`).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:51 (BRT)
+
+- **Branch:** chore/security-phase-6, criada a partir de feat/phase-6-gamification (93321a5)
+- **Agente(s):** revisor-seguranca
+- **Resumo:** Primeira passada da revisão de segurança da Fase 6 (gamificação), só leitura e sem pilha, sobre `feat/phase-5-whatsapp..feat/phase-6-gamification`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Achados: SEG6-1 (média) trocar `profiles.timezone` reabre o teto diário; SEG6-2 (média) ocorrência de 2000 faz `refold_streak` dobrar milhares de dias por linha e trava o vermelho automático de todos; SEG6-3 (baixa) reconcluir num grupo o XP privado de outro dia não consome o teto; SEG6-4 (baixa) `group_ranking` com semana e fuso livres dá o XP diário por diferença e expõe a história ao ligar; SEG6-5 (baixa) `close_gamification_days` com `for update` em `profiles` segura os `insert` com chave estrangeira e um perfil com erro para o lote; SEG6-6 (informativo) `DELETE` de `user_achievements` pelo Realtime leva o `user_id`; LGPD para F8-3.
+  - Bom: RLS das quatro tabelas, `revoke` das funções internas, ranking com filiação antes de tudo, ex-membros e privadas fora, `rankingEnabled` só por `group.update`, lock antes da soma, compensação do bônus de prova, dia perfeito idempotente, `daily_summary_source` só com dados do próprio usuário, nenhum segredo no diff.
+  - Handoffs `20261103-0350-revisor-seguranca-para-banco-de-dados-gamificacao` e `20261103-0350-revisor-seguranca-para-arquiteto-gamificacao`.
+- **Arquivos/módulos principais:** os dois handoffs acima
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma; SEG6-1, SEG6-3 e SEG6-4 pedem decisão do `arquiteto` no ADR-0010.
+- **Como testar:** PoC de SEG6-1 em Node puro (Intl, mesma janela da migration): 10.500 pontos em 24 h com 35 zonas IANA, contra o teto de 300.
+- **Verificado:** leitura das 11 migrations, do ADR-0010, de `set_occurrence_status`, `auto_miss_occurrences`, das políticas de `groups`, `profiles` e `xp_events`, e da fonte de dados da feature; `pnpm check`.
+- **Não verificado:** nenhum PoC de banco (sem pilha nesta passada; cinco listados no handoff ao `banco-de-dados`); o repositório real e a montagem nas rotas de `gamificacao`, em andamento; o filtro do Realtime no cliente; o projeto hospedado.
+- **Pendências / próximos passos:** segunda passada na pilha, com os PoCs de banco e o repositório de `gamificacao` (inclusive `setRankingEnabled`, que lê, mescla e grava `groups.settings` e pode perder uma chave gravada ao mesmo tempo).

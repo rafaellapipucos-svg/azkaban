@@ -3,7 +3,24 @@ export { authRepository, type Session } from './auth';
 export { profilesRepository } from './profiles';
 export { groupsRepository } from './groups';
 export { contextsRepository } from './contexts';
-export { TaskError, taskErrorCode, tasksRepository } from './tasks';
+export {
+  occurrenceStatusAction,
+  TaskError,
+  taskErrorCode,
+  tasksRepository,
+  type TaskFailureCode,
+} from './tasks';
+export {
+  defineOfflineAction,
+  discardOfflineQueue,
+  dismissOfflineDiscard,
+  offlineQueueFull,
+  useOfflineDiscards,
+  useOfflinePendingCount,
+  useOfflineQueue,
+  type OfflineActionSpec,
+  type OfflineDiscard,
+} from './offline';
 export {
   ProofError,
   proofFailureCode,

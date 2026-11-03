@@ -21,6 +21,7 @@ import { tasksConfig } from './config';
 import { capitalize, errorKey } from './format';
 import { useNotice, useOccurrenceLists, useStatusChange } from './hooks';
 import type { ProofEntry } from './OccurrenceRow';
+import { OfflineQueueNotice } from './OfflineQueueNotice';
 import { QuickCreate } from './QuickCreate';
 import { ContextGroups, Section } from './Sections';
 
@@ -116,6 +117,7 @@ export function TodayScreen({
         </View>
 
         {created ? <Body role="status">{t('today.created')}</Body> : null}
+        <OfflineQueueNotice />
         {status.error ? <ErrorText>{t(errorKey(status.error))}</ErrorText> : null}
         {failed ? (
           <View style={{ gap: tokens.spacing[2] }}>

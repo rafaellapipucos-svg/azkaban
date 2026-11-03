@@ -269,12 +269,9 @@ test('every screen: names, contrast, targets, reflow, zoom, keyboard and reduced
   const total = Object.values(notes).reduce((n, items) => n + items.length, 0);
   console.log(`a11y: ${screens} screens x 6 + zoom + keyboard; ${total} problems`);
   await test.info().attach('a11y.json', { body: JSON.stringify(notes, null, 1) });
-  // Known on 2026-11-03, each in a handoff; the rest fails. Remove a line when its fix lands.
-  const known = [
-    /^sideways at 200%: \/(|calendar|area\/work|shopping|profile): 76px$/, // QA8-6, six tabs
-    /^contrast: \/calendar \d+px light: \d 3\.31:1$/, // QA8-4, day counts
-    /^contrast: \/team\/[\w-]+ \d+px dark: – 2\.34:1$/, // QA8-4, the dash for no data
-  ];
+  // Known problems, each with a handoff, as one pattern per line; the rest fails. Empty since QA8-4
+  // to QA8-7 were fixed on 2026-11-03. Remove a line when its fix lands.
+  const known: RegExp[] = [];
   const unknown = Object.entries(notes)
     .flatMap(([key, items]) => items.map((item) => `${key}: ${item}`))
     .filter((line) => !known.some((pattern) => pattern.test(line)));

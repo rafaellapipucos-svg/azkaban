@@ -2940,6 +2940,25 @@
 - **Não verificado:** nenhuma E2E nem pilha; `expo serve` servindo o `dist` com as rotas de `output: 'single'`; que o refetch das linhas é a causa da segunda leitura de `profiles` e `groups` (só pela leitura do código); o projeto hospedado.
 - **Pendências / próximos passos:** os três handoffs. A variável da `webServer` em `playwright.config.ts` fica com o `qa-testes`, com revisão do arquiteto no PR.
 
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:16 (BRT)
+
+- **Branch:** `fix/contrast-and-zoom` (de `feat/phase-8-polish`, `c2d46b5`)
+- **Agente(s):** design-system
+- **Resumo:** QA8-4 (contraste do calendário e de Equipe) e a parte da barra de abas de QA8-6 (zoom de 200%). Os tokens já passavam; o problema estava em como eram usados.
+- **Alterações:**
+  - QA8-4, calendário: o 3,31:1 não vinha da contagem, e sim do número dos dias de outro mês, desenhado em `text` com `opacity-50` sobre `surface` (3,30:1 no cálculo). A célula de outro mês agora tem borda tracejada e o número em `muted`/`muted-dark`, sem opacidade: 6,85:1 no claro e 7,75:1 no escuro. A borda tracejada é a pista de forma, além da cor.
+  - QA8-4, Equipe: o "–" de sem dado usava `text-muted` sem a variante escura (2,34:1 em `surface-dark`). Ganhou `dark:text-muted-dark`: 7,75:1.
+  - `tokens.test.ts`: todo par de texto e fundo em uso (ADR-0012, seção 9, item 2): `text`, `muted`, `primary` e `danger` sobre `background` e `surface`, as variantes escuras sobre os fundos escuros, cada `on*` sobre o seu preenchimento e o branco sobre as seis cores de contexto. O pacote foi de 44 para 69 testes, todos passando.
+  - QA8-6, barra: `TabBar` passa a rolar para o lado dentro de si quando a largura não basta. A 188 px CSS (375 px a 200%) a página não rola mais (antes 76 px); a barra rola 123 px por dentro, cada aba tem pelo menos 44 px e o rótulo aparece inteiro. A 320, 375 e 1280 px nada muda: mesmas larguras das abas e nenhuma rolagem. Focar a última aba a traz para a vista.
+  - `e2e/a11y.spec.ts`: tiradas da lista `known` as duas linhas de QA8-4 e a de QA8-6 da barra. Fica a dos dias da semana cortados, de `tarefas-calendario`.
+- **Arquivos/módulos principais:** `packages/ui/src/TabBar.tsx`, `packages/ui/src/tokens.test.ts`, `packages/features/calendar/src/MonthView.tsx`, `packages/features/tasks/src/TeamScreen.tsx`, `e2e/a11y.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. Só ícone não resolvia a barra: seis alvos de 44 px somam 264 px, mais que 188.
+- **Como testar:** `pnpm check`; `/design-system` com `pnpm dev` a 188 e 160 px; pilha A, `pnpm exec playwright test e2e/a11y.spec.ts --project=app`.
+- **Verificado:** `pnpm check` (17 de 17 e 11 de 11); `pnpm build:web` com um `.env.local` provisório apontando para a pilha local (apagado depois); `/design-system` no servidor de dev com o Chromium do Playwright, claro e escuro, a 1280, 375, 320, 188 e 160 px, e com zoom real de 200% (`deviceScaleFactor` 2) a 375 e 320 px: rolagem da página 0 em todos.
+- **Não verificado:** `e2e/a11y.spec.ts` (sem pilha); o calendário e Equipe no navegador (pedem sessão), então as razões novas vêm do cálculo dos tokens, não da tela; nativo (iOS e Android); leitor de tela na barra que rola. A hora é UTC menos 3: o PowerShell foi bloqueado nesta sessão.
+- **Pendências / próximos passos:** `MonthView.tsx` e `TeamScreen.tsx` são de `tarefas-calendario`, que também mexe em `MonthView.tsx` (QA8-5 e os dias da semana): pode haver conflito pequeno na integração. A 320 px e no zoom, os rótulos de abas vizinhas ficam encostados ("TrabalhoDoméstico"); já era assim a 320 px, e um respiro entre abas faria a barra rolar a 320.
+
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:21 (BRT)
 
 - **Branch:** `perf/celebration-stats-cache` (base `feat/phase-8-polish`)
@@ -2952,6 +2971,19 @@
 - **Não verificado:** E2E e pilha (sem pilha nesta tarefa); que `user_stats` sai uma vez ao abrir Hoje. Sem teste de unidade: o pacote não tem ambiente de componente, e a chave única vem do objeto compartilhado.
 - **Hora:** o PowerShell foi barrado no worktree; a hora é UTC menos 3.
 - **Pendências / próximos passos:** a E2E acima na pilha A.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:21 (BRT)
+
+- **Branch:** `fix/calendar-contrast-merge` (de `feat/phase-8-polish`, `07ad55a`), com `fix/contrast-and-zoom` integrada por `git merge --no-ff`
+- **Agente(s):** tarefas-calendario
+- **Resumo:** resolução dos conflitos entre `fix/calendar-a11y` (já em `feat/phase-8-polish`) e `fix/contrast-and-zoom`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/features/calendar/src/MonthView.tsx`: ficou a estrutura do alvo de 44 px (`Pressable` com `p-0.5` e a caixa num `View` interno). A mudança de contraste do `design-system` foi aplicada nela: a caixa de outro mês usa `border-dashed` no lugar de `opacity-50`, e o número usa `text-muted dark:text-muted-dark`.
+  - `e2e/a11y.spec.ts`: a lista `known` ficou vazia (`const known: RegExp[] = []`), porque QA8-4 a QA8-7 estão corrigidos. O mecanismo continua.
+  - `LOG_DE_ALTERACOES.md`: conflito resolvido com `log-merge.cjs`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 12 de 12; 1 130 testes de unidade; `functions:imports` 10 de 10). `pnpm build:web` passou.
+- **Não verificado:** `e2e/a11y.spec.ts` (sem pilha); o calendário no navegador; nativo.
+- **Pendências / próximos passos:** rodar `pnpm exec playwright test e2e/a11y.spec.ts --project=app` na pilha A. Com `known` vazia, qualquer resto de QA8-4 a QA8-7 faz a spec falhar.
 
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:22 (BRT)
 

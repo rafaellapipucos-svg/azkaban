@@ -3778,3 +3778,19 @@
 - **Verificado:** em `9ba9d1a`, banco limpo: db:test 1957/1957 antes e depois da E2E, db:check-permissions, lint, fronteiras, build:web, functions:test 225/225, E2E 97 passaram e 1 pulado nas duas rodadas, bundle 403 564 B (teto 427 641), expo-doctor 20/20. O passo typecheck+test caiu por `ENOTEMPTY` no cache compartilhado do vitest; repetido passou (30/30) e a causa foi corrigida em `eabd6f6`; depois disso `turbo run typecheck test --force` e `pnpm check` passaram em `6eea146`.
 - **Não verificado:** nativo (deep link, NetInfo, haptics, push nativo, token Expo), API real da Expo, CI no Linux, hospedado. A E2E completa não foi repetida depois de `9ba9d1a` (as mudanças seguintes são do modo build da E2E e do script de teste).
 - **Pendências / próximos passos:** PR do backlog para `feat/phase-8-polish`; respostas do humano em BL-24 a BL-38.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 13:18 (BRT)
+
+- **Branch:** fix/ci-shopping-offline-queue (a partir de `feat/backlog-after-phase-8`, `7599d7f`)
+- **Agente(s):** qa-testes
+- **Resumo:** a falha do CI em `e2e/shopping.spec.ts:219` (run 41666765649, `waitForResponse` de `adjust_shopping_item_quantity` estourando 30 s) vem do limite de ação, não do produto. A espera começa antes do `goto` da aba nova e cobre todo o arranque a frio dela; agora tem `timeout: 60_000`, o mesmo da navegação. A espera gêmea em `e2e/offline-queue.spec.ts` recebeu o mesmo limite.
+- **Alterações:**
+  - Evidência: o CI não guardou trace (o job não sobe `test-results/`; handoff para o arquiteto). Medido localmente, a RPC sai entre 0,5 e 0,9 s depois do `newPage`, também com 4 workers e as specs pesadas (performance, proof-capture, a11y) rodando em paralelo. Com a CPU da aba nova a 20x (`Emulation.setCPUThrottlingRate`), o `load` chega em ~18 s, o `goto` termina em ~21 s e a RPC sai entre 31 e 34 s: 4/4 caíram com o mesmo `TimeoutError` do CI. Com `timeout: 60_000`, a espera passou nas 4 (33 a 43 s). A 20x, o resto do teste ainda estoura os 15 s do `expect`, o que é esperado com essa lentidão.
+  - Sem regressão: entre `9ba9d1a` e `7599d7f` só mudaram a config do modo build e os scripts do vitest. O `actionTimeout` (`6dd6224`) já estava em `9ba9d1a`, então as duas rodadas locais de lá já passaram com o limite de 30 s, numa máquina rápida. BL-17 (`network.web.ts`) e BL-10 (`functionRetryFetch`, que só repete `/functions/v1/`) não tocam no envio da fila.
+- **Arquivos/módulos principais:** `e2e/shopping.spec.ts`, `e2e/offline-queue.spec.ts`, `docs/agentes/handoffs/20261103-1318-qa-testes-para-arquiteto-traces-da-e2e-no-ci.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma; o `actionTimeout` global continua em 30 s, como pede o comentário da config.
+- **Como testar:** `pnpm exec playwright test e2e/shopping.spec.ts:219 e2e/offline-queue.spec.ts --no-deps --repeat-each=5`.
+- **Verificado:** o comando acima, 15/15 passaram; as rodadas com sonda de tempo e CPU lenta descritas acima (sonda removida antes do commit). `pnpm check` passou.
+- **Não verificado:** a linha do tempo real do CI (sem trace), então não está provado que o atraso lá ficou entre 30 e 60 s em vez de uma parada; se voltar a falhar com 60 s, é parada, e o trace pedido no handoff vai mostrar onde. CI no Linux. Suíte E2E completa. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** handoff do upload de traces no CI para o arquiteto.

@@ -64,7 +64,8 @@ test('a status marked offline survives closing the tab and reaches the database 
   await page.close();
   await context.setOffline(false);
   const next = await context.newPage();
-  const sent = next.waitForResponse('**/rest/v1/rpc/set_occurrence_status');
+  // Spans the new tab's whole cold start, like the shopping one: the navigation's 60 s.
+  const sent = next.waitForResponse('**/rest/v1/rpc/set_occurrence_status', { timeout: 60_000 });
   await next.goto('/');
   expect((await sent).status()).toBe(200);
   await expect.poll(() => savedQueue(context)).not.toContain('occurrence-status');

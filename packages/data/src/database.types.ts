@@ -293,16 +293,36 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
-                },"profiles": {
+                },"phone_verifications": {
                   Row: {
-                    "created_at": string,"display_name": string,"id": string,"locale": string,"proof_consent_at": string | null,"proof_consent_version": number | null,"quiet_hours_end": string | null,"quiet_hours_start": string | null,"timezone": string,"updated_at": string
+                    "attempts": number,"code_hash": string,"consumed_at": string | null,"created_at": string,"expires_at": string,"id": string,"phone_e164": string,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"display_name": string,"id": string,"locale"?: string,"proof_consent_at"?: string | null,"proof_consent_version"?: number | null,"quiet_hours_end"?: string | null,"quiet_hours_start"?: string | null,"timezone"?: string,"updated_at"?: string
+                    "attempts"?: number,"code_hash": string,"consumed_at"?: string | null,"created_at"?: string,"expires_at": string,"id"?: string,"phone_e164": string,"user_id": string
                   }
                   Update: {
-                    "created_at"?: string,"display_name"?: string,"id"?: string,"locale"?: string,"proof_consent_at"?: string | null,"proof_consent_version"?: number | null,"quiet_hours_end"?: string | null,"quiet_hours_start"?: string | null,"timezone"?: string,"updated_at"?: string
+                    "attempts"?: number,"code_hash"?: string,"consumed_at"?: string | null,"created_at"?: string,"expires_at"?: string,"id"?: string,"phone_e164"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "phone_verifications_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"profiles": {
+                  Row: {
+                    "created_at": string,"daily_summary_deadline_days": number,"daily_summary_enabled": boolean,"daily_summary_include_overdue": boolean,"daily_summary_last_date": string | null,"daily_summary_skip_empty": boolean,"daily_summary_time": string,"display_name": string,"id": string,"locale": string,"phone_e164": string | null,"phone_verified_at": string | null,"proof_consent_at": string | null,"proof_consent_version": number | null,"quiet_hours_end": string | null,"quiet_hours_start": string | null,"timezone": string,"updated_at": string,"whatsapp_opt_in_at": string | null,"whatsapp_opt_in_version": number | null,"whatsapp_opt_out_at": string | null,"whatsapp_opt_out_source": string | null,"is_whatsapp_ready": boolean | null
+                  }
+                  ComputedFields: "is_whatsapp_ready"
+                  Insert: {
+                    "created_at"?: string,"daily_summary_deadline_days"?: number,"daily_summary_enabled"?: boolean,"daily_summary_include_overdue"?: boolean,"daily_summary_last_date"?: string | null,"daily_summary_skip_empty"?: boolean,"daily_summary_time"?: string,"display_name": string,"id": string,"locale"?: string,"phone_e164"?: string | null,"phone_verified_at"?: string | null,"proof_consent_at"?: string | null,"proof_consent_version"?: number | null,"quiet_hours_end"?: string | null,"quiet_hours_start"?: string | null,"timezone"?: string,"updated_at"?: string,"whatsapp_opt_in_at"?: string | null,"whatsapp_opt_in_version"?: number | null,"whatsapp_opt_out_at"?: string | null,"whatsapp_opt_out_source"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"daily_summary_deadline_days"?: number,"daily_summary_enabled"?: boolean,"daily_summary_include_overdue"?: boolean,"daily_summary_last_date"?: string | null,"daily_summary_skip_empty"?: boolean,"daily_summary_time"?: string,"display_name"?: string,"id"?: string,"locale"?: string,"phone_e164"?: string | null,"phone_verified_at"?: string | null,"proof_consent_at"?: string | null,"proof_consent_version"?: number | null,"quiet_hours_end"?: string | null,"quiet_hours_start"?: string | null,"timezone"?: string,"updated_at"?: string,"whatsapp_opt_in_at"?: string | null,"whatsapp_opt_in_version"?: number | null,"whatsapp_opt_out_at"?: string | null,"whatsapp_opt_out_source"?: string | null
                   }
                   Relationships: [
                     
@@ -559,6 +579,46 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"whatsapp_console_messages": {
+                  Row: {
+                    "created_at": string,"id": string,"message": NonNullable<Json>,"to_e164": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"id"?: string,"message": NonNullable<Json>,"to_e164": string
+                  }
+                  Update: {
+                    "created_at"?: string,"id"?: string,"message"?: NonNullable<Json>,"to_e164"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"whatsapp_messages": {
+                  Row: {
+                    "created_at": string,"error_code": string | null,"id": string,"outbox_id": string | null,"provider": string,"provider_message_id": string,"purpose": string,"recipient_wa_id": string | null,"status": string,"status_at": string,"template": string | null,"user_id": string | null
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "created_at"?: string,"error_code"?: string | null,"id"?: string,"outbox_id"?: string | null,"provider": string,"provider_message_id": string,"purpose": string,"recipient_wa_id"?: string | null,"status"?: string,"status_at"?: string,"template"?: string | null,"user_id"?: string | null
+                  }
+                  Update: {
+                    "created_at"?: string,"error_code"?: string | null,"id"?: string,"outbox_id"?: string | null,"provider"?: string,"provider_message_id"?: string,"purpose"?: string,"recipient_wa_id"?: string | null,"status"?: string,"status_at"?: string,"template"?: string | null,"user_id"?: string | null
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "whatsapp_messages_outbox_id_fkey"
+      columns: ["outbox_id"]
+isOneToOne: false
+      referencedRelation: "notification_outbox"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "whatsapp_messages_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"xp_events": {
                   Row: {
                     "amount": number,"created_at": string,"group_id": string | null,"id": string,"occurrence_id": string | null,"reason": string,"user_id": string
@@ -636,13 +696,22 @@ isOneToOne: false
 { Args: { "p_task": Omit<Database["public"]['Tables']["tasks"]['Row'], Database["public"]['Tables']["tasks"]['ComputedFields']>,"p_user": string }; Returns: boolean
                            },
 "claim_notification_batch":
-{ Args: { "p_lease_seconds": number,"p_limit": number,"p_max_delay_hours": number }; Returns: Json
+{ Args: { "p_channels"?: (string)[],"p_lease_seconds": number,"p_limit": number,"p_max_delay_hours": number }; Returns: Json
                            },
 "claim_proof_challenge":
 { Args: { "p_nonce": string,"p_user_id": string }; Returns: Json
                            },
 "commit_proof":
 { Args: { "p_accuracy_m": number,"p_app_version": string,"p_captured_at_device": string,"p_distance_m": number,"p_flags": (string)[],"p_height_px": number,"p_nonce": string,"p_platform": string,"p_sha256": string,"p_size_bytes": number,"p_storage_path": string,"p_user_agent": string,"p_user_id": string,"p_width_px": number }; Returns: Json
+                           },
+"confirm_phone_verification":
+{ Args: { "p_code": string }; Returns: Json
+                           },
+"daily_summary_is_empty":
+{ Args: { "p_source": Json }; Returns: boolean
+                           },
+"daily_summary_source":
+{ Args: { "p_local_date": string,"p_timezone": string,"p_user": string }; Returns: Json
                            },
 "delete_expired_notifications":
 { Args: Record<PropertyKey, never>; Returns: number
@@ -658,6 +727,9 @@ isOneToOne: false
                            },
 "edit_task":
 { Args: { "p_head_rrule": string,"p_occurrence_id": string,"p_rrule": string,"p_scope": Database["public"]['Enums']["task_edit_scope"],"p_task": Json }; Returns: (string)[]
+                           },
+"enqueue_daily_summaries":
+{ Args: Record<PropertyKey, never>; Returns: number
                            },
 "enqueue_due_reminders":
 { Args: Record<PropertyKey, never>; Returns: number
@@ -696,6 +768,9 @@ isOneToOne: false
 "is_valid_timezone":
 { Args: { "p_timezone": string }; Returns: boolean
                            },
+"is_whatsapp_ready":
+{ Args: { "p": Omit<Database["public"]['Tables']["profiles"]['Row'], Database["public"]['Tables']["profiles"]['ComputedFields']> }; Returns: boolean
+                           },
 "issue_proof_challenge":
 { Args: { "p_occurrence_id": string }; Returns: Json
                            },
@@ -721,6 +796,12 @@ isOneToOne: false
               "name": string
             }[]
                            },
+"phone_limit_wait":
+{ Args: { "p_max": number,"p_times": (string)[],"p_window": string }; Returns: number
+                           },
+"profile_timezone":
+{ Args: { "p_timezone": string }; Returns: string
+                           },
 "proof_assert_open":
 { Args: { "p_at": string,"p_issued_at": string,"p_occ": Omit<Database["public"]['Tables']["task_occurrences"]['Row'], Database["public"]['Tables']["task_occurrences"]['ComputedFields']>,"p_user": string }; Returns: undefined
                            },
@@ -744,8 +825,14 @@ isOneToOne: false
 "record_proof_consent":
 { Args: { "p_version": number }; Returns: undefined
                            },
+"record_whatsapp_statuses":
+{ Args: { "p_events": Json }; Returns: number
+                           },
 "register_push_subscription":
 { Args: { "p_auth": string,"p_endpoint": string,"p_p256dh": string,"p_user_agent": string }; Returns: string
+                           },
+"remove_phone":
+{ Args: Record<PropertyKey, never>; Returns: undefined
                            },
 "report_notification_results":
 { Args: { "p_results": Json }; Returns: number
@@ -799,6 +886,9 @@ isOneToOne: false
         isOneToOne: true
         isSetofReturn: false
       } },
+"start_phone_verification":
+{ Args: { "p_phone": string,"p_user_id": string }; Returns: Json
+                           },
 "task_rules":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
@@ -809,10 +899,22 @@ isOneToOne: false
                            },
 "transfer_group_ownership":
 { Args: { "new_owner_id": string,"target_group_id": string }; Returns: undefined
+                           },
+"whatsapp_opt_in":
+{ Args: { "p_consent_version": number }; Returns: undefined
+                           },
+"whatsapp_opt_out":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
+"whatsapp_rules":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
+"whatsapp_stop_by_wa_id":
+{ Args: { "p_wa_id": string }; Returns: number
                            }
           }
           Enums: {
-            "delivery_channel": "web_push"|"whatsapp","group_role": "owner"|"admin"|"member","notification_outbox_status": "pending"|"sending"|"sent"|"failed"|"cancelled"|"expired","notification_type": "task_reminder"|"occurrence_missed"|"occurrence_resolved"|"proof_in_review"|"proof_disputed","occurrence_actor": "assignee"|"editor"|"deleter"|"system"|"reviewer","occurrence_status": "pending"|"done"|"partial"|"missed"|"cancelled","proof_review_status": "unreviewed"|"in_review"|"approved"|"disputed","schedule_type": "timed"|"all_day"|"deadline","task_difficulty": "easy"|"medium"|"hard","task_edit_scope": "this"|"this_and_following"|"all","task_priority": "low"|"normal"|"high","task_visibility": "group"|"private"
+            "delivery_channel": "web_push"|"whatsapp","group_role": "owner"|"admin"|"member","notification_outbox_status": "pending"|"sending"|"sent"|"failed"|"cancelled"|"expired","notification_type": "task_reminder"|"occurrence_missed"|"occurrence_resolved"|"proof_in_review"|"proof_disputed"|"daily_summary","occurrence_actor": "assignee"|"editor"|"deleter"|"system"|"reviewer","occurrence_status": "pending"|"done"|"partial"|"missed"|"cancelled","proof_review_status": "unreviewed"|"in_review"|"approved"|"disputed","schedule_type": "timed"|"all_day"|"deadline","task_difficulty": "easy"|"medium"|"hard","task_edit_scope": "this"|"this_and_following"|"all","task_priority": "low"|"normal"|"high","task_visibility": "group"|"private"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -932,7 +1034,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "delivery_channel": ["web_push", "whatsapp"],"group_role": ["owner", "admin", "member"],"notification_outbox_status": ["pending", "sending", "sent", "failed", "cancelled", "expired"],"notification_type": ["task_reminder", "occurrence_missed", "occurrence_resolved", "proof_in_review", "proof_disputed"],"occurrence_actor": ["assignee", "editor", "deleter", "system", "reviewer"],"occurrence_status": ["pending", "done", "partial", "missed", "cancelled"],"proof_review_status": ["unreviewed", "in_review", "approved", "disputed"],"schedule_type": ["timed", "all_day", "deadline"],"task_difficulty": ["easy", "medium", "hard"],"task_edit_scope": ["this", "this_and_following", "all"],"task_priority": ["low", "normal", "high"],"task_visibility": ["group", "private"]
+            "delivery_channel": ["web_push", "whatsapp"],"group_role": ["owner", "admin", "member"],"notification_outbox_status": ["pending", "sending", "sent", "failed", "cancelled", "expired"],"notification_type": ["task_reminder", "occurrence_missed", "occurrence_resolved", "proof_in_review", "proof_disputed", "daily_summary"],"occurrence_actor": ["assignee", "editor", "deleter", "system", "reviewer"],"occurrence_status": ["pending", "done", "partial", "missed", "cancelled"],"proof_review_status": ["unreviewed", "in_review", "approved", "disputed"],"schedule_type": ["timed", "all_day", "deadline"],"task_difficulty": ["easy", "medium", "hard"],"task_edit_scope": ["this", "this_and_following", "all"],"task_priority": ["low", "normal", "high"],"task_visibility": ["group", "private"]
           }
         }
 } as const

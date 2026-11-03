@@ -55,3 +55,11 @@ describe.each([
     expect(contrast(fill, card)).toBeGreaterThanOrEqual(3);
   });
 });
+
+// XpBar: the fill stands out from its track (3:1, WCAG 1.4.11).
+it.each([
+  ['light', colors.primary, colors.border],
+  ['dark', colors['primary-light'], colors['border-dark']],
+])('xp bar fill against the track, %s', (_theme, fill, track) => {
+  expect(contrast(fill, track)).toBeGreaterThanOrEqual(3);
+});

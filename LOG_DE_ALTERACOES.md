@@ -1747,6 +1747,26 @@
 - **Não verificado:** nada com a pilha. `pnpm db:check-permissions` acusa `gamification_rules` até a migration de F6-2. Os casos canônicos foram conferidos à mão, não em código.
 - **Pendências / próximos passos:** os cinco handoffs. Para o humano: os nove itens da seção 13 do ADR-0010. Para o orquestrador: a divisão sugerida das tarefas F6 no relatório.
 
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:46 (BRT)
+
+- **Branch:** feat/gamification-ui-kit, criada a partir de feat/phase-6-gamification (1340eaf)
+- **Agente(s):** design-system
+- **Resumo:** Componentes visuais da gamificação (handoff `20261103-0235-arquiteto-para-design-system-gamificacao`, ADR-0010, seção 8), todos em `/design-system`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `Confetti` (rajada curta, cores de `tokens.confetti`, `onDone`; com reduzir movimento não desenha e chama `onDone` na hora; espera a resposta do sistema antes de decidir), `CelebrationCard` (mascote, título, detalhe, `others`, botão de fechar; `role="alert"` e `announceForAccessibility`; `occurrence_partial` sem confete e com mascote feliz), `PerfectDayScreen` (Modal de tela inteira, nomeado, Esc fecha, foco volta), `XpBar` (barra de progresso com rótulo e valor), `StreakBadge` (fogo e número, proteção com escudo e contagem, rótulo falado, fogo apagado em 0, pressionável opcional) e `AchievementBadge` (concedida ou bloqueada por cadeado, círculo tracejado e texto de estado, não só cor).
+  - `Mascot` ganha `animate`: pulo em `celebrating`, balanço em `worried`, parado com reduzir movimento. Padrão desligado, então as telas que já usam o mascote não mudam.
+  - `useMotionPreference` (interno): `null` até o sistema responder; `useReducedMotion` passa a usá-lo, sem mudar o comportamento.
+  - Tokens: `motion.mascot`, `motion.celebrate`, `confetti` (quantidade e cores da paleta), `sizes.mascotLarge`, `mascotJump`, `mascotShake`, `xpBar`, `achievement`, `confettiPiece`.
+  - `celebration.ts`: as decisões puras (plano do confete, movimento do mascote, aparência por tipo, peças determinísticas), com teste.
+  - Textos de demonstração em `ui.json`.
+- **Arquivos/módulos principais:** `packages/ui/src/{Confetti,CelebrationCard,PerfectDayScreen,XpBar,StreakBadge,AchievementBadge,Mascot,celebration,useReducedMotion,tokens,DesignSystemScreen,index}.ts(x)`, `packages/i18n/src/pt-BR/ui.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** animação com o `Animated` do React Native, como `ProgressRing` e `TaskCheck`, e confete com `View`s, em vez do `react-native-reanimated` e do `react-native-svg` citados no ADR: o Reanimated não é dependência de `packages/ui`, e acrescentá-lo mudaria o lockfile. O resultado na tela é o mesmo.
+- **Como testar:** `pnpm check`; `/design-system` em `pnpm dev`, seção Gamificação, com e sem reduzir movimento.
+- **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9); `packages/ui` com 31 testes em 2 arquivos (20 novos em `celebration.test.ts`, 2 de contraste da `XpBar`). `pnpm build:web` passou. No Chromium headless (Playwright avulso, fora da suíte E2E, com `.env.local` falso apontando para um Supabase local desligado, apagado depois), `/design-system` a 375 px claro com movimento, 375 px escuro com reduzir movimento e 1280 px claro: sem erro de console; o cartão é `alert`; o dia perfeito é `dialog` nomeado e fecha com Esc; com reduzir movimento as 28 peças de confete não existem.
+- **Não verificado:** iOS e Android (anúncio por `announceForAccessibility`, `Modal` em tela cheia, borda tracejada); leitor de tela real; E2E.
+- **Pendências / próximos passos:** a `gamificacao` monta o `CelebrationHost` com estes componentes; o `StreakBadge` entra no slot do cabeçalho de Hoje.
+
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:47 (BRT)
 
 - **Branch:** feat/gamification-core, criada a partir de feat/phase-6-gamification (1340eaf)

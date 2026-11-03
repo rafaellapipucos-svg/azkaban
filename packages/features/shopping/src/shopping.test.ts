@@ -1,15 +1,26 @@
-import { shoppingCategories, shoppingErrorCodeSchema, shoppingUnits } from '@azkaban/contracts';
+import {
+  shoppingCategories,
+  shoppingErrorCodeSchema,
+  shoppingNameSchema,
+  shoppingUnits,
+} from '@azkaban/contracts';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { canShop, readMode, shoppingErrorKey, shoppingPaths } from './shopping';
+import {
+  canShop,
+  readMode,
+  shoppingErrorKey,
+  shoppingPaths,
+  shoppingTextErrorKey,
+} from './shopping';
 
 const messages = JSON.parse(
   readFileSync(
     join(import.meta.dirname, '..', '..', '..', 'i18n', 'src', 'pt-BR', 'shopping.json'),
     'utf8',
   ),
-) as Record<'errors' | 'categories' | 'units' | 'unitNames', Record<string, string>>;
+) as Record<'errors' | 'categories' | 'units' | 'unitNames' | 'form', Record<string, string>>;
 
 describe('shoppingErrorKey', () => {
   it('every code of the contract has its own message, so none falls to the generic one', () => {
@@ -58,5 +69,27 @@ describe('access and address', () => {
     expect(readMode('nonsense')).toBe('build');
     expect(shoppingPaths.list('l1', 'market')).toBe('/shopping/l1?mode=market');
     expect(shoppingPaths.history('g1')).toBe('/shopping/history?group=g1');
+  });
+});
+
+describe('shoppingTextErrorKey', () => {
+  const key = (value: string) => shoppingTextErrorKey(shoppingNameSchema.safeParse(value));
+
+  it('says why a line break or control character is refused', () => {
+    for (const value of [
+      'Arroz\nLeite',
+      'Arroz\tLeite',
+      ...[0x202e, 0x2028].map((c) => `Arroz${String.fromCodePoint(c)}Leite`),
+    ]) {
+      expect(key(value), JSON.stringify(value)).toBe('form.invalidText');
+    }
+    expect(messages.form.invalidText).toBeTruthy();
+  });
+
+  it('stays quiet for valid, empty or too long text, where the button is just off', () => {
+    expect(key('Arroz')).toBeNull();
+    expect(key(' Arroz\n')).toBeNull();
+    expect(key('')).toBeNull();
+    expect(key('a'.repeat(500))).toBeNull();
   });
 });

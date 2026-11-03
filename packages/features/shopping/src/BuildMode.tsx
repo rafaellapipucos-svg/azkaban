@@ -1,7 +1,7 @@
 import { shoppingDefaults } from '@azkaban/config';
 import {
-  nameSchema,
   shoppingCategories,
+  shoppingNameSchema,
   shoppingQuantityMax,
   shoppingUnits,
   type ShoppingCatalogItem,
@@ -17,6 +17,7 @@ import {
   Button,
   Chip,
   ChipRow,
+  ErrorText,
   Input,
   Muted,
   Sheet,
@@ -29,6 +30,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { shoppingKeys, usePendingDeltas, useQuantityText, useSetItem } from './hooks';
+import { shoppingTextErrorKey } from './shopping';
 
 type Props = {
   listId: string;
@@ -131,7 +133,8 @@ export function BuildMode({
     await queryClient.invalidateQueries({ queryKey: shoppingKeys.items(listId) });
   };
 
-  const typed = nameSchema.safeParse(query);
+  const typed = shoppingNameSchema.safeParse(query);
+  const invalid = shoppingTextErrorKey(typed);
   const known = exactMatch([...live, ...items], query);
 
   return (
@@ -143,6 +146,7 @@ export function BuildMode({
         onChangeText={setQuery}
         returnKeyType="search"
       />
+      {invalid ? <ErrorText>{t(invalid)}</ErrorText> : null}
       {typed.success && !known ? (
         <CustomItem
           key={typed.data}

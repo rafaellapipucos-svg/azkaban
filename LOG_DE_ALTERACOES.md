@@ -1905,3 +1905,21 @@
 - **Verificado:** `pnpm check` passou (lint, boundaries, typecheck, testes; contracts 127, config 19; `functions:imports` 8 de 8). Mutação: 8 mutantes (tirar U+2028/2029, `\p{Cc}`, encurtar cada ponta das duas faixas de direção, tirar a regra do nome, da nota e do emoji), todos mortos.
 - **Não verificado:** `pnpm db:check-permissions` vai acusar `shopping_rules` até a migration do `banco-de-dados`. A classe explícita do `check` não rodou no Postgres. Telas não mudaram.
 - **Pendências / próximos passos:** `banco-de-dados`: espelho, teto, `check`s, SEG7-4 a SEG7-6. `compras`: SEG7-1 na navegação, `shoppingNameSchema` nos formulários, texto de `lists_full`. Humano: itens 11 e 12 da seção 15.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:37 (BRT)
+
+- **Branch:** fix/shopping-client-security, criada a partir de feat/phase-7-shopping (ebf34ea)
+- **Agente(s):** compras
+- **Resumo:** lado do cliente da revisão de segurança da Fase 7 (ADR-0011, seção 16): formulários de compras com `shoppingNameSchema` e mensagem de texto inválido (SEG7-3), texto de `lists_full` revisado e a regra do SEG7-1 registrada onde o vínculo entra no app. Responde ao handoff `20261103-0328-arquiteto-para-compras-compras-seguranca`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `BuildMode` (busca e item avulso), `ShoppingCatalogScreen` (renomear) e `ShoppingListsScreen` (nova lista) trocam `nameSchema` por `shoppingNameSchema`. Com quebra de linha, tabulação, controle ou controle de direção no meio do texto, aparece "Use só uma linha, sem caracteres especiais." (`form.invalidText`) e o botão fica desligado; vazio ou longo demais segue só desligando o botão. `shoppingTextErrorKey` decide pela falha do `refine` do contrato (único `custom`), sem repetir o padrão.
+  - Nota e emoji: o app não tem campo para nenhum dos dois (sempre `null` ao adicionar; o catálogo não edita emoji). Nada a validar na tela até um campo existir; o contrato e o `check` já recusam.
+  - `errors.lists_full`: "Já há listas abertas demais aqui. Finalize uma para criar outra." Tirei o "ou exclua": o app não tem como excluir lista. Sem o número, como `list_full` e `catalog_full`. Criar lista e "nova lista a partir desta" já mostram o erro pelo `shoppingErrorKey`.
+  - SEG7-1: nenhuma tela usa `linkedTaskId` hoje (o vínculo é F7-5, a fazer), então não há "abrir a tarefa" nem oferta ao finalizar para esconder. Regra registrada em comentário no mapeamento de `packages/data`, para F7-5: ler a tarefa antes e, sem linha sob RLS, agir como sem vínculo, nunca "não encontrado".
+- **Arquivos/módulos principais:** `packages/features/shopping/src/{BuildMode,ShoppingCatalogScreen,ShoppingListsScreen}.tsx`, `packages/features/shopping/src/shopping{,.test}.ts`, `packages/i18n/src/pt-BR/shopping.json`, `packages/data/src/shopping/index.ts`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova; aplica a seção 16 do ADR-0011.
+- **Como testar:** `pnpm check`; `pnpm dev`, colar "Arroz⏎Leite" na busca de uma lista, no nome de lista nova ou ao renomear no catálogo.
+- **Verificado:** `pnpm check` passou (17 de 17 e 10 de 10; feature-shopping 9, com 2 novos; core 630, contracts 127, data 9; dependency-cruiser sem violações). `pnpm build:web` passou.
+- **Não verificado:** telas não abertas no navegador; E2E não rodou (sem pilha; nenhum texto usado em `e2e/shopping.spec.ts` mudou). `lists_full` não exercitado contra o banco (a migration é do `banco-de-dados`). Sem mutação.
+- **Pendências / próximos passos:** F7-5 aplica o SEG7-1 ao construir o vínculo, nos dois lados (lista e tarefa).

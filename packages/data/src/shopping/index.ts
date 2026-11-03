@@ -88,6 +88,9 @@ const toList = (row: ListRow): ShoppingList => ({
   ownerUserId: row.owner_user_id,
   name: row.name,
   status: row.status,
+  // May name a task the reader cannot see (ADR-0011, section 16, SEG7-1). A screen that offers the
+  // task reads it first and, when RLS returns no row, acts as if there were no link: no "open the
+  // task", no offer on completing, never a "not found".
   linkedTaskId: row.linked_task_id,
   createdBy: row.created_by,
   createdAt: row.created_at,

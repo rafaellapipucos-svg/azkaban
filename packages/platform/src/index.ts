@@ -28,7 +28,7 @@ export type {
 } from './geolocation';
 
 export { activateOnSpace, useRestoreFocus, type SpaceActivation } from './keyboard';
-export { useOnline } from './network';
+export { onConnectionChange, useOnline } from './network';
 export { useDocumentTitle } from './documentTitle';
 export { readSessionValue, writeSessionValue } from './sessionValue';
 export { shareText, type ShareResult } from './shareText';

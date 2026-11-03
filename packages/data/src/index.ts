@@ -1,4 +1,5 @@
 export { initData } from './client';
+export { followDeviceConnection } from './connection';
 export { authRepository, type Session } from './auth';
 export { profilesRepository } from './profiles';
 export { PrivacyError, privacyRepository, retryWait, type PrivacyFailureCode } from './privacy';

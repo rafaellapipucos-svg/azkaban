@@ -1540,3 +1540,21 @@
   - O log da função tem só `whatsapp_console`, `phone_verification_*` e contagens; nenhum telefone nem código.
 - **Não verificado:** a E2E (fica com o QA da fase); nada contra a Meta; o `MetaCloudProvider` dentro do Edge Runtime; o código das funções não passa por `tsc` (o `supabase/` está fora do typecheck e do ESLint, como antes).
 - **Pendências / próximos passos:** os dois handoffs. `qa-testes`: o resumo pela E2E lê `whatsapp_console_messages`; perfis prontos na E2E pedem `enqueue-daily-summaries` desligado (já apontado pelo `banco-de-dados`).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:11 (BRT)
+
+- **Branch:** chore/qa-phase-5, criada a partir de feat/phase-5-whatsapp (e140adc)
+- **Agente(s):** qa-testes
+- **Resumo:** QA da Fase 5 no estado integrado. `e2e/whatsapp.spec.ts` rodou pela primeira vez e passou a cobrir o fluxo crítico inteiro do resumo diário com o `ConsoleProvider`, inclusive o PARAR pelo webhook assinado; um segundo teste percorre as telas do WhatsApp a 320, 375 e 1280 px, claro e escuro, com os erros do contrato. Três achados de uso para o `notificacoes-whatsapp`, nenhum bloqueio. Hora derivada de UTC menos 3 (PowerShell barrado no worktree).
+- **Alterações:**
+  - `e2e/global-setup.ts`: desliga também `enqueue-daily-summaries` durante a suíte; e recusa rodar, com erro em português, se o `project_id` de `supabase/config.toml` não for `azkaban` (com a pilha B de `docs/agentes/ferramentas/pilha-b.sh` ligada no checkout, a suíte falaria com a A pela porta 8091 e pelo `.env.development.local`).
+  - `e2e/whatsapp.spec.ts`: o perfil vai para um fuso longe da meia-noite (São Paulo ou Tóquio, 12 h de diferença), para o resumo no minuto atual e a tarefa de daqui a um minuto ficarem no mesmo dia local; o resumo não aparece no aviso ao vivo e aparece no sino como "Resumo do dia"; PARAR pelo `whatsapp-webhook` assinado com o segredo local de demonstração grava o opt-out `webhook` e a confirmação na caixa de saída; religar só pelo app; desligar pelo app grava `app`. Teste novo: número inválido, contagem regressiva que anda, código incompleto, código expirado (validade recuada pela service role), 429 do reenvio depois de recarregar, aviso e opt-in; em cada passo, sem rolagem lateral, controles da tela com 44 px ou mais, texto sem corte e foco visível por teclado; nenhum telefone em URL pedida pela página; `title` da tela.
+  - `e2e/notifications-jobs.spec.ts`: QA4-5 conferido na E2E (em `/notifications`, um lembrete novo entra na lista e o aviso ao vivo fica vazio).
+  - Handoff `20261103-0210-qa-testes-para-notificacoes-whatsapp-achados-da-fase-5` (QA5-1 média: a tela do código some ao recarregar e o reenvio fica travado por 60 s; QA5-2 baixa: o 429 do reenvio diz "Muitos códigos pedidos"; QA5-3 baixa: o número aparece cru em E.164).
+- **Arquivos/módulos principais:** `e2e/global-setup.ts`, `e2e/whatsapp.spec.ts`, `e2e/notifications-jobs.spec.ts`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`, `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm e2e` (com uma chave pública VAPID no ambiente, rodam os testes de push).
+- **Verificado:** `whatsapp.spec.ts` 2 de 2; `notifications-jobs` com `--no-deps` 4 de 4. `pnpm e2e` completo uma vez, banco limpo, com a chave VAPID gerada em memória e passada só ao processo: 70 passaram, 1 pulado (o "sem chave"), nenhuma falha. Os 7 jobs de `cron.job` ativos depois. `pnpm check` passou (17 de 17 e 9 de 9).
+- **Não verificado:** contraste medido (só visto em captura); leitor de tela; Safari e iPhone de verdade (o QA5-1 foi reproduzido com `page.reload()`); o 429 do limite de 24 h e o 502 do provedor pela tela; a Meta. O erro da pilha B no `global-setup` só foi conferido na expressão, não com o `config.toml` trocado.
+- **Pendências / próximos passos:** QA5-1 a QA5-3, pelo handoff. `QUADRO.md`: F5-1 a F5-6 ainda "a fazer", e o F5-5 diz `backend-funcoes`, mas o job do resumo é SQL do `banco-de-dados` (ADR-0009, seção 5); é do orquestrador.

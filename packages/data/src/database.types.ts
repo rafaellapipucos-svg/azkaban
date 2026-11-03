@@ -295,14 +295,14 @@ isOneToOne: false
                   ]
                 },"phone_verifications": {
                   Row: {
-                    "attempts": number,"code_hash": string,"consumed_at": string | null,"created_at": string,"expires_at": string,"id": string,"phone_e164": string,"user_id": string
+                    "attempts": number,"code_hash": string,"consumed_at": string | null,"created_at": string,"expires_at": string,"id": string,"phone_e164": string,"user_id": string | null
                   }
                   ComputedFields: never
                   Insert: {
-                    "attempts"?: number,"code_hash": string,"consumed_at"?: string | null,"created_at"?: string,"expires_at": string,"id"?: string,"phone_e164": string,"user_id": string
+                    "attempts"?: number,"code_hash": string,"consumed_at"?: string | null,"created_at"?: string,"expires_at": string,"id"?: string,"phone_e164": string,"user_id"?: string | null
                   }
                   Update: {
-                    "attempts"?: number,"code_hash"?: string,"consumed_at"?: string | null,"created_at"?: string,"expires_at"?: string,"id"?: string,"phone_e164"?: string,"user_id"?: string
+                    "attempts"?: number,"code_hash"?: string,"consumed_at"?: string | null,"created_at"?: string,"expires_at"?: string,"id"?: string,"phone_e164"?: string,"user_id"?: string | null
                   }
                   Relationships: [
                     {

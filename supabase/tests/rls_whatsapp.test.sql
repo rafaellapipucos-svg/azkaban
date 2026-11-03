@@ -4,7 +4,7 @@
 -- every window inside one day, so the result does not depend on when the suite runs.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(132);
+select plan(142);
 
 create function pg_temp.u(p text) returns uuid language sql as $$
   select ('00000000-0000-0000-0000-' || lpad(p, 12, '0'))::uuid;
@@ -331,6 +331,18 @@ update public.phone_verifications set created_at = created_at - interval '61 sec
 select pg_temp.service();
 select ok(public.start_phone_verification(pg_temp.u('e'), '+5511999990009') ? 'code', 'once one leaves the rolling day, it may');
 select pg_temp.pg();
+-- SEG5-4: Gil asks five codes for a number and deletes his account; the number keeps its count.
+insert into auth.users (id, email, raw_user_meta_data)
+select pg_temp.u(k), k || '@test.local', jsonb_build_object('display_name', 'User ' || k) from unnest(array['211', '212']) k;
+select pg_temp.code(pg_temp.u('211'), '+5511999990007', '000000', make_interval(mins => m)) from generate_series(1, 5) m;
+delete from auth.users where id = pg_temp.u('211');
+select is((select count(*) from public.phone_verifications where phone_e164 = '+5511999990007' and user_id is null), 5::bigint,
+  'the codes outlive the deleted account, without its id');
+select pg_temp.service();
+select is(public.start_phone_verification(pg_temp.u('212'), '+5511999990007') ->> 'error', 'phone_rate_limited',
+  'so another account gets no sixth code for that number within the day');
+select pg_temp.pg();
+delete from auth.users where id = pg_temp.u('212');
 
 -- ===== Opt-in and opt-out =====
 select pg_temp.login(pg_temp.u('e'));
@@ -420,25 +432,54 @@ select throws_ok($$select public.record_whatsapp_statuses('{}')$$, '22023', 'inv
 select pg_temp.pg();
 
 -- ===== PARAR =====
--- Duda and Eva share a number. Fred's profile has the ninth digit, and Meta answered without it. Alice
+-- Duda and Eva share a number. Fred's profile has the ninth digit, and Meta answers without it. Alice
 -- has the same number and already left.
 select pg_temp.ready(pg_temp.u('e'), '+5511999990001');
 select pg_temp.ready(pg_temp.u('f'), '+5511988887777');
 update public.profiles set phone_e164 = '+5511999990001', phone_verified_at = now(), whatsapp_opt_in_at = now() - interval '1 day',
   whatsapp_opt_in_version = 1, whatsapp_opt_out_at = now() - interval '1 hour', whatsapp_opt_out_source = 'app'
 where id = pg_temp.u('a');
-insert into public.whatsapp_messages (user_id, purpose, template, provider, provider_message_id, recipient_wa_id) values
-  (pg_temp.u('f'), 'notification', 'daily_summary_v1', 'meta', 'wamid.f', '551188887777');
 select pg_temp.service();
 select is(public.whatsapp_stop_by_wa_id('5511999990001'), 2, 'PARAR stops every ready account of the number');
 select is(public.whatsapp_stop_by_wa_id('5511999990001'), 0, 'repeated, it changes nobody');
-select is(public.whatsapp_stop_by_wa_id('551188887777'), 1, 'a wa_id without the ninth digit finds the profile by its messages');
+select is(public.whatsapp_stop_by_wa_id('551188887777'), 1, 'a wa_id without the ninth digit finds the profile, with no message sent');
 select is(public.whatsapp_stop_by_wa_id('5511000000000'), 0, 'an unknown number changes nothing');
 select throws_ok($$select public.whatsapp_stop_by_wa_id('+5511999990001')$$, '22023', 'invalid_argument', 'a wa_id is digits only');
 select pg_temp.pg();
 select is((select string_agg(coalesce(whatsapp_opt_out_source, '-') || ':' || (whatsapp_opt_out_at = now())::text, ',' order by id)
   from public.profiles where id in (pg_temp.u('a'), pg_temp.u('d'), pg_temp.u('e'), pg_temp.u('f'))),
   'app:false,webhook:true,webhook:true,webhook:true', 'from the webhook, now; who had already left keeps the date');
+
+-- SEG5-1: only the current phone stops. Gil asked a code for a mistyped number, then verified and opted in
+-- the right one; Hugo changed numbers; Iara shares Gil's number; Jair saved his without the ninth digit;
+-- Kaio's 9-digit number does not start with 9; Lia is outside Brazil, with the shape of a Brazilian mobile.
+insert into auth.users (id, email, raw_user_meta_data)
+select pg_temp.u(k), k || '@test.local', jsonb_build_object('display_name', 'User ' || k)
+from unnest(array['201', '202', '203', '204', '205', '206']) k;
+insert into public.whatsapp_messages (user_id, purpose, template, provider, provider_message_id, recipient_wa_id) values
+  (pg_temp.u('201'), 'phone_code', 'phone_code_v1', 'meta', 'wamid.g1', '5511977776666'),
+  (pg_temp.u('202'), 'notification', 'daily_summary_v1', 'meta', 'wamid.h1', '551166665555');
+select pg_temp.ready(pg_temp.u('201'), '+5511988880001');
+select pg_temp.ready(pg_temp.u('202'), '+5511988880002');
+select pg_temp.ready(pg_temp.u('203'), '+5511988880001');
+select pg_temp.ready(pg_temp.u('204'), '+551188880004');
+select pg_temp.ready(pg_temp.u('205'), '+5511888880005');
+select pg_temp.ready(pg_temp.u('206'), '+4411988887777');
+select pg_temp.service();
+select is(public.whatsapp_stop_by_wa_id('5511977776666'), 0, 'the mistyped number that got a code stops nobody');
+select is(public.whatsapp_stop_by_wa_id('551166665555') + public.whatsapp_stop_by_wa_id('5511966665555'), 0,
+  'nor the old number, in either form');
+select pg_temp.pg();
+select is(pg_temp.is_ready(pg_temp.u('201')) and pg_temp.is_ready(pg_temp.u('202')), true, 'and both stay on');
+select pg_temp.service();
+select is(public.whatsapp_stop_by_wa_id('551188880001'), 2,
+  'the current number without the ninth digit stops every ready account of it');
+select is(public.whatsapp_stop_by_wa_id('5511988880004'), 1, 'with the ninth digit, it finds a number saved without it');
+select is(public.whatsapp_stop_by_wa_id('551188880005'), 0, 'only a leading 9 is the ninth digit');
+select is(public.whatsapp_stop_by_wa_id('441188887777'), 0, 'outside Brazil there is no ninth digit');
+select is(public.whatsapp_stop_by_wa_id('4411988887777'), 1, 'only the same digits');
+select pg_temp.pg();
+delete from auth.users where id in (select pg_temp.u(k) from unnest(array['201', '202', '203', '204', '205', '206']) k);
 
 -- ===== enqueue_notification =====
 select pg_temp.ready(pg_temp.u('d'), '+5511999990001');

@@ -1923,3 +1923,22 @@
 - **Verificado:** `pnpm check` passou (17 de 17 e 10 de 10; feature-shopping 9, com 2 novos; core 630, contracts 127, data 9; dependency-cruiser sem violações). `pnpm build:web` passou.
 - **Não verificado:** telas não abertas no navegador; E2E não rodou (sem pilha; nenhum texto usado em `e2e/shopping.spec.ts` mudou). `lists_full` não exercitado contra o banco (a migration é do `banco-de-dados`). Sem mutação.
 - **Pendências / próximos passos:** F7-5 aplica o SEG7-1 ao construir o vínculo, nos dois lados (lista e tarefa).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:41 (BRT)
+
+- **Branch:** fix/shopping-db-security, criada a partir de feat/phase-7-shopping (ebf34ea)
+- **Agente(s):** banco-de-dados
+- **Resumo:** SEG7-2 a SEG7-6 da revisão de segurança da Fase 7 no banco (ADR-0011, seção 16), em quatro migrations novas. Responde aos handoffs `20261103-0328-arquiteto-para-banco-de-dados-compras-seguranca` e `20261103-0321-revisor-seguranca-para-banco-de-dados-compras`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - SEG7-2: `app_settings.shopping_rules` ganha `maxOpenListsPerScope: 50`. `create_shopping_list` conta as listas `open` do grupo, ou as pessoais `open` de quem chama, sob `pg_advisory_xact_lock` por escopo, antes de inserir (com `p_from_list_id` também): `lists_full` (`54000`) no teto. Finalizadas não contam.
+  - SEG7-5: na mesma função, a visibilidade da origem é conferida antes do `for share`; lista alheia e inexistente dão `forbidden`.
+  - SEG7-3: `check` validado `*_plain_check` nas seis colunas de texto de compras, com a classe explícita do ADR.
+  - SEG7-4: abaixo de outro trigger, os guardas só deixam passar o que uma ação de FK faz (as colunas do ADR viram nulo e nada mais muda, comparado por `to_jsonb`). O `delete` em cascata de item não precisa de desvio: a lista já sumiu, então não há `list_completed`; um `delete` de profundidade 2 com a lista finalizada presente é recusado.
+  - SEG7-6: `NaN`, `Infinity` e `-Infinity` dão `invalid_argument` em `adjust_shopping_item_quantity` e `add_catalog_item_to_list`.
+- **Arquivos/módulos principais:** `supabase/migrations/2026110318{0000,0100,0200,0300}_shopping_*.sql`, `supabase/tests/rls_shopping_security.test.sql`
+- **Migrations:** `20261103180000_shopping_open_lists_cap`, `20261103180100_shopping_plain_text_checks`, `20261103180200_shopping_guards_fk_actions_only`, `20261103180300_shopping_delta_finite`.
+- **Decisões/ADRs:** nenhuma nova; ADR-0011, seção 16.
+- **Como testar:** `bash docs/agentes/ferramentas/pilha-b.sh db`, `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`.
+- **Verificado (pilha B, só Postgres):** `pnpm db:test` 7 arquivos, 1556 testes, todos passando (os 135 de `rls_shopping` intactos; 43 novos em `rls_shopping_security`). `pnpm db:check-permissions` em `supabase_db_azkaban-b`, Shopping rules em sincronia. `pnpm db:types` sem diferença. `pnpm check` passou. Mutação, uma por barreira, todas mortas: teto com `+ 1` (3 falhas), o `check` da nota sem U+2066 a U+2069 (1 falha), o desvio antigo por profundidade em `shopping_lists_guard` (6 falhas).
+- **Não verificado:** a ordem "visibilidade antes do `for share`" (SEG7-5) e a trava por escopo sob concorrência real ficaram na leitura do código: o pgTAP roda numa sessão só. Sem mutante separado no guarda de itens (os testes de item com trigger de profundidade 2 existem, mas o mutante do guarda de listas os derrubou em cascata). Sem E2E, Realtime ou projeto hospedado.
+- **Pendências / próximos passos:** `compras`: texto de `lists_full` e o erro de texto inválido nos formulários (handoff do `arquiteto`). Humano: valor 50 (seção 15, item 11).

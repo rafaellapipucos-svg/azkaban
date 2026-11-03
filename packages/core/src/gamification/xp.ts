@@ -36,8 +36,8 @@ const capped = new Set<string>(cappedXpEventReasons);
 /**
  * Room left under the daily cap (ADR-0010 section 2), from the events written today in the local
  * day of the profile: `max(0, cap − balance of the capped reasons)`. A compensation written today
- * frees room today, even for XP from another day, as the database counts it. 0 means the cap was
- * reached.
+ * frees room today, even for XP from another day, as the database counts it, but never past the
+ * cap: an earlier day's XP undone today is not credit. 0 means the cap was reached.
  */
 export function capRoom(
   eventsToday: readonly Pick<XpEvent, 'reason' | 'amount'>[],
@@ -45,7 +45,7 @@ export function capRoom(
 ): number {
   let balance = 0;
   for (const { reason, amount } of eventsToday) if (capped.has(reason)) balance += amount;
-  return Math.max(0, dailyCap - balance);
+  return Math.min(dailyCap, Math.max(0, dailyCap - balance));
 }
 
 /** What the cap lets through: the base first, then the bonus with what is left. */

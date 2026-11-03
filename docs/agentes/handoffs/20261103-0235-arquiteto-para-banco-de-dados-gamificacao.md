@@ -24,7 +24,7 @@ Uma migration por mudança, com pgTAP. Seções do ADR entre parênteses.
 
 1. **Espelho:** `app_settings.gamification_rules` = `gamificationRules`.
 2. **`xp_events`** (1): `local_date date`; `check` de `reason` com os quatro motivos novos; `check` de que `local_date` é preenchida exatamente em `perfect_day` e `perfect_day_reverted`; índices `(user_id, created_at)` e `(group_id, created_at)`.
-3. **`occurrence_award_xp`** (1 e 2): depois da compensação, `pg_advisory_xact_lock` por usuário; espaço no teto = `max(0, dailyCap − saldo dos motivos com teto gravados hoje no fuso do perfil)`; base com `min(base, espaço)`; `proof_bonus` com o que sobrar, só em `done` com `current_proof_id`. `in_review` segue sem nada. A lista dos motivos com teto é `cappedXpEventReasons`.
+3. **`occurrence_award_xp`** (1 e 2): depois da compensação, `pg_advisory_xact_lock` por usuário; espaço no teto = `least(dailyCap, greatest(0, dailyCap − saldo dos motivos com teto gravados hoje no fuso do perfil))` (atualizado em 2026-11-03: o espaço nunca passa do teto, nem quando uma compensação de XP de outro dia deixa o saldo de hoje negativo; é a fórmula de `capRoom`); base com `min(base, espaço)`; `proof_bonus` com o que sobrar, só em `done` com `current_proof_id`. `in_review` segue sem nada. A lista dos motivos com teto é `cappedXpEventReasons`.
 4. **Tabelas** (4, 5 e 7): `user_stats` (`userStatsSchema`), `user_day_stats` (`userDayStatsSchema`, chave `(user_id, local_date)`), `achievements` com seed da seção 5, `user_achievements` (chave `(user_id, achievement_key)`). RLS: select só do dono nas três do usuário, select para `authenticated` em `achievements`; nenhuma escrita do cliente; cascata por `user_id`.
 5. **`total_xp`** (4): trigger `after insert` em `xp_events`, upsert somando `amount`.
 6. **`refresh_user_day(user, date)`, `refold_streak(user, from)` e `grant_achievements(user)`** (3, 4 e 5): chamadas no `after update of status` de `task_occurrences`, para o dia da ocorrência no fuso do perfil do responsável (`scheduled_due` em `deadline`, `scheduled_start` nos outros). Contagens: não canceladas, tarefa pessoal ou grupo de que ainda é membro, `in_review` como `done`. Conta inteira para a meta. Bônus do dia por conciliação com o saldo de `local_date`, nunca em dia futuro.
@@ -40,6 +40,7 @@ Uma migration por mudança, com pgTAP. Seções do ADR entre parênteses.
 - A tabela de casos canônicos da seção 3, montando os dias com ocorrências, e as quatro metas do fim da seção.
 - Concluir e reabrir 20 vezes: saldo da ocorrência 0, saldo do dia perfeito 0 ou 20, `user_achievements` com uma linha.
 - Teto: 11 tarefas difíceis (30 cada) no mesmo dia dão 300; a 11ª não grava evento; reabrir uma libera espaço só até o valor dela.
+- Teto com compensação de outro dia: reabrir hoje 300 pontos de ontem e concluir 21 tarefas difíceis hoje grava no máximo 300 pontos de conclusões hoje, nunca 600.
 - Duas sessões concluindo ao mesmo tempo não passam do teto.
 - Bônus de prova: na hora sem aprovação; só na aprovação com `in_review`; compensado na contestação.
 - Dia perfeito por fuso: um perfil em Tóquio e outro em São Paulo com a mesma ocorrência às 23h UTC.

@@ -1786,3 +1786,23 @@
 - **Verificado:** `pnpm check` passou. 60 testes novos em 4 arquivos (665 no core). Os 11 casos canônicos da seção 3 e os exemplos de meta são testes. Mutações, uma por regra, desfeitas: teto `max(0, …)` para `max(1, …)` derruba 2; meta `>=` para `>` derruba 24; quebra da ofensiva trocada por `streak − 1` derruba 4; proteção `> 0` para `>= 0` derruba 7; curva `>=` para `>` derruba 3.
 - **Não verificado:** nada contra o banco (F6-2 não começou); a paridade com o SQL depende de o pgTAP usar a mesma tabela.
 - **Pendências / próximos passos:** F6-3 a F6-5 depois de F6-2 e do design system. As três perguntas do handoff ao `arquiteto`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:49 (BRT)
+
+- **Branch:** docs/gamification-adr-fixes, criada a partir de feat/phase-6-gamification (af89f8c)
+- **Agente(s):** arquiteto
+- **Resumo:** Respostas ao handoff `20261103-0243-gamificacao-para-arquiteto-adr-0010-ajustes` e o texto do nono dígito no ADR-0009. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - ADR-0010, seção 2: `espaço = min(teto, max(0, teto − saldo do dia))`. Uma compensação de XP de outro dia não vira crédito: o espaço nunca passa do teto.
+  - `packages/core/src/gamification/xp.ts` (`capRoom`) com o `min`, e um teste novo em `xp.test.ts`. O core é do `gamificacao`; a mudança é de uma linha e decorre desta decisão.
+  - ADR-0010, seção 1: o nível 10 começa em 2.579, com os passos arredondados um a um.
+  - ADR-0010, seção 8: com o teto atingido, a conclusão vale zero, sem evento e sem comemoração; o `TaskCheck` ainda responde. Consequência aceita.
+  - ADR-0009, seção 18 (SEG5-1): a regra do nono dígito passa a citar a regex de SEG5-9, `'^(55[0-9]{2})9([6-9][0-9]{7})$'`, que só tira o 9 de celular.
+  - Handoff `20261103-0235-arquiteto-para-banco-de-dados-gamificacao` com a fórmula final (`least`/`greatest`) e um caso de pgTAP.
+- **Arquivos/módulos principais:** `docs/adr/0010-gamificacao-xp-ofensiva-conquistas-ranking.md`, `docs/adr/0009-whatsapp-verificacao-opt-in-resumo-diario.md`, `packages/core/src/gamification/xp.ts`, `packages/core/src/gamification/xp.test.ts`, o handoff acima
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0010 (seções 1, 2 e 8), ADR-0009 (seção 18).
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/gamification/xp.test.ts`.
+- **Verificado:** `pnpm check` passou (core 666 testes em 27 arquivos, contratos 104). Mutação: voltar `capRoom` para `max(0, …)` derruba 1 de 13 em `xp.test.ts`; desfeita.
+- **Não verificado:** nada contra o banco; `occurrence_award_xp` ainda não existe (F6-2).
+- **Pendências / próximos passos:** o `banco-de-dados` aplica a fórmula em F6-2.

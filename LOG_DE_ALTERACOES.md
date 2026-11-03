@@ -3731,3 +3731,18 @@
   - `pnpm check` passou.
 - **Não verificado:** nativo (o aviso nativo é outro, do React Native); CI no Linux; Windows com `fsutil behavior set disablelastaccess 1`, que tiraria as mudanças falsas do Metro (configuração da máquina, não do repositório). Hora pela hora local do Git Bash (PowerShell barrado).
 - **Pendências / próximos passos:** o aviso falso de "Refreshing..." no Windows continua no dev (sem efeito no produto); se incomodar, o humano pode desligar a atualização do último acesso no NTFS.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 12:18 (BRT)
+
+- **Branch:** fix/e2e-build-public-env (a partir de `feat/backlog-after-phase-8`, `9ba9d1a`)
+- **Agente(s):** arquiteto
+- **Resumo:** Com `E2E_BUILD=1`, o build passa a receber `EXPO_PUBLIC_APP_NAME`, `EXPO_PUBLIC_APP_SCHEME` e `EXPO_PUBLIC_VAPID_PUBLIC_KEY` de `apps/app/.env.example` quando o shell e `.env.development.local` não os têm. Fecha a pendência da entrada de 11:57 (`ZodError` no cadastro).
+- **Alterações:**
+  - `playwright.config.ts`, só no modo build: camada mais baixa é `.env.example` sem as chaves `EXPO_PUBLIC_SUPABASE_*` (os placeholders dele apontariam para o projeto hospedado), depois `.env.development.local`, depois o shell. A checagem da URL local segue igual; nova checagem para a ausência de `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, com erro claro antes do build. O modo padrão (`pnpm dev`) não mudou.
+- **Arquivos/módulos principais:** `playwright.config.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma
+- **Como testar:** sem pilha, `E2E_BUILD=1 pnpm exec playwright test --list` (sem env: erro da URL; só com a URL local: erro da chave; com as duas: lista os 98 testes). Com a pilha, `E2E_BUILD=1 pnpm e2e`.
+- **Verificado:** os três casos de `--list` acima; o modo padrão lista os 98 testes; script avulso (não versionado) importou o `playwright.config.ts` com um `.env.development.local` temporário só com as duas chaves do Supabase e passou `webServer.env` por `parseClientEnv`: válido, `Azkaban`/`azkaban`, `EXPO_NO_DOTENV=1`. `pnpm check` passou.
+- **Não verificado:** o build e a suíte de fato (`pnpm build:web` + E2E), por não haver pilha livre. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** nenhuma.

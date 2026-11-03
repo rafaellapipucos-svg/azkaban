@@ -1,7 +1,7 @@
 import '../global.css';
 import { useSession } from '@azkaban/feature-auth';
 import { stopPushWhenSignedOut } from '@azkaban/feature-notifications';
-import { initData } from '@azkaban/data';
+import { initData, useOfflineQueue } from '@azkaban/data';
 import { initI18n } from '@azkaban/i18n';
 import { useSystemColorScheme } from '@azkaban/ui';
 import { Nunito_600SemiBold, Nunito_800ExtraBold, useFonts } from '@expo-google-fonts/nunito';
@@ -19,6 +19,8 @@ const queryClient = new QueryClient();
 export default function RootLayout() {
   useSystemColorScheme();
   const { session, loading } = useSession();
+  // Restores, saves and sends the signed-in user's offline queue (ADR-0012, section 5).
+  useOfflineQueue(queryClient, session?.user.id ?? null);
   const [fontsLoaded] = useFonts({ Nunito_600SemiBold, Nunito_800ExtraBold });
   if (!fontsLoaded || loading) return null;
   return (

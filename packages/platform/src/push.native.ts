@@ -67,7 +67,15 @@ export async function currentPushSubscription(
   return null;
 }
 
-export async function unsubscribePush(): Promise<void> {}
+/**
+ * Stops this device from receiving, as `unsubscribe` does in a browser: the token outlives a lost
+ * session, so without this a signed-out phone keeps getting the old account's push. A later
+ * `nativePushToken` registers again, maybe with a new token. Without the flag, nothing to stop.
+ */
+export async function unsubscribePush(): Promise<void> {
+  if (pushSupport() !== 'supported') return;
+  await Notifications.unregisterForNotificationsAsync();
+}
 
 export async function nativePushToken(
   channel: AndroidPushChannel,

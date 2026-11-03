@@ -10,6 +10,7 @@ const fake = vi.hoisted(() => ({
   requestPermissionsAsync: vi.fn(),
   getExpoPushTokenAsync: vi.fn(),
   setNotificationChannelAsync: vi.fn(async () => null),
+  unregisterForNotificationsAsync: vi.fn(async () => undefined),
 }));
 vi.mock('@azkaban/config', () => ({ features: fake.features }));
 vi.mock('expo-constants', () => ({ default: { expoConfig: { extra: fake.extra } } }));
@@ -21,6 +22,7 @@ vi.mock('expo-notifications', () => ({
   requestPermissionsAsync: fake.requestPermissionsAsync,
   getExpoPushTokenAsync: fake.getExpoPushTokenAsync,
   setNotificationChannelAsync: fake.setNotificationChannelAsync,
+  unregisterForNotificationsAsync: fake.unregisterForNotificationsAsync,
 }));
 
 const channel = { id: 'default', name: 'Lembretes e avisos' };
@@ -29,7 +31,7 @@ const load = async () => {
   return import('./push.native');
 };
 
-describe('nativePushToken', () => {
+describe('native push', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
@@ -92,5 +94,15 @@ describe('nativePushToken', () => {
     expect(await push.nativePushToken(channel)).toBeNull();
     expect(fake.getExpoPushTokenAsync).not.toHaveBeenCalled();
     expect(push.pushPermission()).toBe('denied');
+  });
+
+  it('unsubscribePush stops the device from receiving, only with the flag on', async () => {
+    fake.extra.eas = { projectId: 'p1' };
+    await (await load()).unsubscribePush();
+    expect(fake.unregisterForNotificationsAsync).not.toHaveBeenCalled();
+
+    fake.features.nativePush = true;
+    await (await load()).unsubscribePush();
+    expect(fake.unregisterForNotificationsAsync).toHaveBeenCalledOnce();
   });
 });

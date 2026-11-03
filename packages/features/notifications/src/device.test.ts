@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { notificationsConfig } from './config';
-import { enableThisDevice, stopPushWhenSignedOut } from './device';
+import { enableThisDevice, forgetThisDevice, stopPushWhenSignedOut } from './device';
 
 const { items, listeners, unsubscribePush, push, repository } = vi.hoisted(() => ({
   items: new Map<string, string>(),
   listeners: [] as ((session: unknown) => void)[],
   unsubscribePush: vi.fn(async () => true),
   push: { nativePushToken: vi.fn(), subscribePush: vi.fn() },
-  repository: { registerDevice: vi.fn(), registerNativeDevice: vi.fn() },
+  repository: { registerDevice: vi.fn(), registerNativeDevice: vi.fn(), removeDevice: vi.fn() },
 }));
 
 vi.mock('@azkaban/data', () => ({
@@ -112,6 +112,25 @@ describe('enableThisDevice', () => {
     push.nativePushToken.mockResolvedValue(native);
     repository.registerNativeDevice.mockRejectedValue(new Error('invalid_push_subscription'));
     await expect(enable()).resolves.toBe('failed');
+    expect(items.has(key)).toBe(false);
+  });
+});
+
+describe('forgetThisDevice', () => {
+  it('with the session alive, deletes this row, then stops the device, even if the delete fails', async () => {
+    const order: string[] = [];
+    repository.removeDevice.mockImplementation(async () => {
+      order.push('delete');
+      throw new Error('offline');
+    });
+    unsubscribePush.mockImplementation(async () => {
+      order.push('unsubscribe');
+      return true;
+    });
+    items.set(key, JSON.stringify({ userId: 'u1', deviceId: 'native-row' }));
+    await forgetThisDevice();
+    expect(repository.removeDevice).toHaveBeenCalledWith('native-row');
+    expect(order).toEqual(['delete', 'unsubscribe']);
     expect(items.has(key)).toBe(false);
   });
 });

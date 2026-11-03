@@ -3484,3 +3484,19 @@
 - **Verificado:** testes novos com `expo-notifications`, `expo-constants` e repositório falsos: `push.native.test.ts` (flag desligada não pede permissão; sem `projectId` não tenta e avisa; com tudo, cria o canal, pede e devolve o token; negado guarda `denied`), `notifications.test.ts` do data (RPC e argumentos; token fora do contrato não chama a RPC; erro da RPC sobe) e `device.test.ts` (nativo não toca o Web Push; sem token vai pelo web; sem nada, `dismissed`; recusa do repositório, `failed`). `pnpm check` passou.
 - **Não verificado:** nativo real (sem build, sem conta Expo/Firebase/Apple, sem `projectId`): o pedido de permissão, o token e o recebimento. Sem pilha e sem E2E (BL-22). A RPC só foi exercitada com cliente falso.
 - **Pendências / próximos passos:** ligar `features.nativePush` só com as contas do BL-29. No nativo, `syncThisDevice` não registra o token de novo ao abrir (o token Expo é estável; registrar ao abrir se a Expo passar a trocá-lo). Uma sessão que expira sem o botão Sair deixa a linha `expo` viva, porque o token não morre como o endpoint web: avaliar `unregisterForNotificationsAsync` em `stopPushWhenSignedOut` antes de ligar a flag.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:48 (BRT)
+
+- **Branch:** fix/native-push-signout, criada a partir de feat/backlog-after-phase-8 (fcdf1e2)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** fecha a pendência do BL-19. No nativo, o fim de sessão por qualquer caminho faz o aparelho parar de receber push da conta anterior. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/platform/src/push.native.ts`: `unsubscribePush` passou a chamar `Notifications.unregisterForNotificationsAsync()`, o equivalente nativo do `unsubscribe` do navegador, e só quando `pushSupport()` é `supported` (flag e `projectId`). Sem a flag continua sem fazer nada. Um `nativePushToken` posterior registra de novo, porque `getExpoPushTokenAsync` chama `getDevicePushTokenAsync`; pode vir um token novo, que a RPC registra por upsert.
+  - Os dois caminhos de fim de sessão já passam por `unsubscribePush`, então não houve código novo neles. No botão Sair, `forgetThisDevice` apaga a própria linha com a sessão viva pelo `removeDevice` (o mesmo `delete` com RLS `push_subscriptions_delete_own` do web, que vale para a linha `expo`) e só depois para o aparelho. Na sessão perdida, `stopPushWhenSignedOut` para o aparelho; a linha fica até a Expo responder `DeviceNotRegistered` e o despacho apagá-la, como o 410 no web. O comentário de `device.ts` diz isso.
+- **Arquivos/módulos principais:** `packages/platform/src/push.native.ts`, `push.native.test.ts`, `packages/features/notifications/src/device.ts`, `device.test.ts`
+- **Migrations:** nenhuma. Não faltou nada ao banco: o `delete` por id já existe.
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm --filter @azkaban/platform --filter @azkaban/feature-notifications test`; `pnpm check`.
+- **Verificado:** `push.native.test.ts`: sem a flag, `unsubscribePush` não chama `unregisterForNotificationsAsync`; com ela, chama uma vez. `device.test.ts`: `forgetThisDevice` apaga a linha e depois para o aparelho, mesmo se o `delete` falhar; o caso de sessão perdida que já existia confere que `unsubscribePush` é chamado. `pnpm check` passou.
+- **Não verificado:** aparelho real. Não foi conferido no aparelho se `unregisterForNotificationsAsync` corta a entrega no Android (FCM `deleteToken`) e no iOS, nem que a Expo responde `DeviceNotRegistered` depois. A documentação da Expo marca a função como `@docsMissing`. Sem pilha e sem E2E.
+- **Pendências / próximos passos:** conferir em aparelho, com as contas do BL-29, antes de ligar `features.nativePush`.

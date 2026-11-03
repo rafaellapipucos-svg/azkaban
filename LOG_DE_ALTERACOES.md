@@ -3984,3 +3984,20 @@
 - **Verificado:** pilha A (`db:reset`): `e2e/accounts.spec.ts` + `e2e/privacy.spec.ts` com `--repeat-each=3`, 30/30. Nenhuma outra spec entra por link. `pnpm check` passou.
 - **Não verificado:** link de outra conta com sessão ativa no web (vai para `/profile?link=other-account`) e link da mesma conta não têm E2E; até esta correção esses ramos nunca rodavam no web. Nativo e hospedado não testados (a raiz nativa `azkaban:///` já tinha barra). Hora pelo UTC−3 (PowerShell barrado).
 - **Pendências / próximos passos:** E2E de "outra conta não troca a sessão" no web, se o orquestrador quiser.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 18:15 (BRT)
+
+- **Branch:** test/web-link-other-account (a partir de `feat/launch-decisions`, `658272b`)
+- **Agente(s):** qa-testes
+- **Resumo:** E2E da opção A' do BL-38 (ADR-0004) no web: link de outra conta não troca a sessão ativa; link da mesma conta entra sem aviso.
+- **Alterações:**
+  - `e2e/accounts.spec.ts`: o código que pedia o link e o lia no Mailpit virou o ajudante `requestLink` (espera uma mensagem a mais que antes, então serve para uma conta que já recebeu e-mail); o teste "magic link signs the user in" passa a usá-lo.
+  - Teste novo "a link of another account keeps the signed-in account": A cadastrada; o link de B é pedido em outro contexto do navegador e aberto na aba de A. Confere `/profile?link=other-account`, a mensagem `profile.linkOtherAccount`, o nome de A no perfil e a URL sem `access_token`.
+  - Teste novo "a link of the same account keeps the session without the notice": A abre um link de A; fica na Hoje, URL sem `access_token` nem `other-account`, perfil com o nome de A e sem a mensagem.
+- **Arquivos/módulos principais:** `e2e/accounts.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova; cobre ADR-0004 e a decisão A' do BL-38.
+- **Como testar:** com a pilha A, `pnpm exec playwright test e2e/accounts.spec.ts --project=app --no-deps`.
+- **Verificado:** pilha A depois de `pnpm db:reset`. Os três testes de link com `--repeat-each=3`: 9/9. `e2e/accounts.spec.ts` inteiro: 7/7. Mutação: com o guarda de outra conta de `setSessionFromLink` desligado (`packages/data/src/auth/index.ts`), o teste de outra conta caiu (URL `http://localhost:8091/`, a sessão virou a de B) e o da mesma conta passou; arquivo restaurado pelo git. `pnpm check` passou.
+- **Não verificado:** build de produção (`E2E_BUILD=1`), nativo e hospedado; link de outra conta aberto por uma aba já carregada (evento `url`), só a abertura por navegação. Nenhum bug de produto achado. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** nenhuma.

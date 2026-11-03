@@ -72,9 +72,9 @@ Deno.serve(async (req) => {
     }
 
     // With a number configured, only its changes count, whatever the provider: the app secret alone
-    // would let every number of the account through. `console` drops the key from its parsed env, so
-    // it is read here; `meta` has already required it in shape.
-    const phoneNumberId = Deno.env.get('WHATSAPP_PHONE_NUMBER_ID') || undefined;
+    // would let every number of the account through. Optional on `console`, required on `meta`; a
+    // malformed one has already left WhatsApp not configured (BL-4).
+    const phoneNumberId = env.WHATSAPP_PHONE_NUMBER_ID;
     const work = readWebhook(webhook.data, phoneNumberId, whatsappDefaults.stopWords, {
       status: whatsappWebhookStatusSchema,
       message: whatsappWebhookMessageSchema,

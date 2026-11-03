@@ -81,8 +81,9 @@
   "today": {
     "title": "Hoje",
     "goal": "Meta do dia",
-    "goalValue": "{{done}} de {{total}}",
-    "goalHint": "Tarefas de hoje que você já fez.",
+    "goalValue": "{{completed}} de {{needed}}",
+    "goalHint": "Faça {{percent}}% das tarefas de hoje, contando as atrasadas.",
+    "goalMet": "Meta cumprida. Bom trabalho!",
     "xp": "{{count}} XP hoje",
     "created": "Pronto! A tarefa foi criada.",
     "noContext": "Para criar tarefas, primeiro crie um contexto: um lugar da sua vida, como Casa ou Escritório.",

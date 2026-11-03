@@ -1,5 +1,5 @@
-import { taskRules } from '@azkaban/config';
-import { canManageGroupTask, earnedXp, planToday } from '@azkaban/core';
+import { gamificationRules, taskRules } from '@azkaban/config';
+import { canManageGroupTask, earnedXp, planToday, todayGoal } from '@azkaban/core';
 import { contextsRepository, useCurrentUser } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import {
@@ -25,14 +25,17 @@ import { QuickCreate } from './QuickCreate';
 import { ContextGroups, Section } from './Sections';
 
 /**
- * The start screen: everything of the day across areas, grouped by context. `headerRight` sits
- * beside the title, where the route puts the notification bell (ADR-0008, section 7).
+ * The start screen: everything of the day across areas, grouped by context. `headerStreak` and
+ * `headerRight` sit beside the title, where the route puts the streak (ADR-0010, section 10) and
+ * the notification bell (ADR-0008, section 7): features do not import each other.
  */
 export function TodayScreen({
   onProof,
+  headerStreak,
   headerRight,
 }: {
   onProof?: ProofEntry;
+  headerStreak?: ReactNode;
   headerRight?: ReactNode;
 }) {
   const { t, i18n } = useTranslation('tasks');
@@ -56,6 +59,10 @@ export function TodayScreen({
         canManageGroup: (groupId) => canManageGroupTask(user, groupId),
       }),
     [items, now, timezone, user],
+  );
+  const goal = useMemo(
+    () => todayGoal(items, { now, timezone, assigneeId: user.id, rules: gamificationRules.goal }),
+    [items, now, timezone, user.id],
   );
   const xp = earnedXp(plan.today, user.id, taskRules.xp);
   const actions = {
@@ -81,6 +88,7 @@ export function TodayScreen({
             <Title>{t('today.title')}</Title>
             <Muted>{capitalize(dateText)}</Muted>
           </View>
+          {headerStreak}
           {headerRight}
         </View>
 
@@ -89,13 +97,17 @@ export function TodayScreen({
           className="flex-row items-center rounded-lg border-2 border-border bg-surface p-4 dark:border-border-dark dark:bg-surface-dark"
         >
           <ProgressRing
-            progress={plan.goal.total === 0 ? 0 : plan.goal.done / plan.goal.total}
+            progress={goal.progress}
             label={t('today.goal')}
-            valueText={t('today.goalValue', plan.goal)}
+            valueText={t('today.goalValue', goal)}
           />
           <View className="flex-1" style={{ gap: tokens.spacing[1] }}>
             <Body className="font-heavy">{t('today.goal')}</Body>
-            <Muted>{t('today.goalHint')}</Muted>
+            <Muted>
+              {goal.met
+                ? t('today.goalMet')
+                : t('today.goalHint', { percent: gamificationRules.goal.percent })}
+            </Muted>
             <Text className="font-heavy text-md text-primary dark:text-primary-light">
               <Text aria-hidden>⭐ </Text>
               {t('today.xp', { count: xp })}

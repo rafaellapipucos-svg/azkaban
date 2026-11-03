@@ -1806,3 +1806,21 @@
 - **Verificado:** `pnpm check` passou (core 666 testes em 27 arquivos, contratos 104). Mutação: voltar `capRoom` para `max(0, …)` derruba 1 de 13 em `xp.test.ts`; desfeita.
 - **Não verificado:** nada contra o banco; `occurrence_award_xp` ainda não existe (F6-2).
 - **Pendências / próximos passos:** o `banco-de-dados` aplica a fórmula em F6-2.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:02 (BRT)
+
+- **Branch:** feat/today-goal-ring, criada a partir de feat/phase-6-gamification (293bfe7)
+- **Agente(s):** tarefas-calendario
+- **Resumo:** O anel de Hoje passa a mostrar a meta do dia do ADR-0010 (seções 3 e 10), e o cabeçalho de Hoje ganha o slot da ofensiva. Responde aos handoffs `20261103-0235-arquiteto-para-tarefas-calendario-anel-de-hoje` e `20261103-0243-gamificacao-para-tarefas-calendario-meta-do-dia`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `todayGoal(items, { now, timezone, assigneeId, rules })` em `core/tasks/today.ts`: `dailyGoal(dayCounts(...))` no dia local do perfil, só do usuário. A tela passa todas as ocorrências carregadas, não só `plan.today`, então um prazo vencido hoje (já em "Atrasadas", ou vermelho fora da janela) continua no anel como não cumprido, e o anel não melhora sozinho.
+  - `plan.goal` sai de `planToday`; o único uso era o anel.
+  - `TodayScreen`: o anel mostra `completed` de `needed`, cheio quando a meta é cumprida; o texto abaixo diz a porcentagem (de `gamificationRules.goal.percent`) ou "Meta cumprida". Nova prop `headerStreak`, antes de `headerRight`, para a rota pôr a ofensiva de `gamification`; a feature não a importa.
+  - i18n: `today.goalValue` com `{{completed}} de {{needed}}`, `today.goalHint` com `{{percent}}`, `today.goalMet` novo.
+- **Arquivos/módulos principais:** `packages/core/src/tasks/today.ts`, `packages/core/src/tasks/today.test.ts`, `packages/core/src/index.ts` (uma exportação), `packages/features/tasks/src/TodayScreen.tsx`, `packages/i18n/src/pt-BR/tasks.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. `plan.goal` removido em vez de mantido em paralelo.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/tasks/today.test.ts`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9; core 670 testes em 27 arquivos, 5 novos de `todayGoal`). `pnpm build:web` passou. As E2E de Hoje (`tasks.spec.ts`, `tasks-proof.spec.ts`) esperam `0 de 1` e `1 de 1`, que continuam valendo com uma ocorrência (`needed` 1); nenhuma usava o texto antigo da dica, então não mudaram.
+- **Não verificado:** E2E (não rodadas, sem pilha); a tela no navegador; o slot preenchido, porque a rota (`apps/app`) e o `StreakChip` são da `gamificacao`.
+- **Pendências / próximos passos:** a `gamificacao` passa `headerStreak={<StreakChip />}` em `apps/app/app/(app)/(tabs)/index.tsx`.

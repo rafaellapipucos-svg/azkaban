@@ -61,6 +61,7 @@ export {
   localDayRange,
   planArea,
   planToday,
+  todayGoal,
   type AreaPlan,
   type TodayPlan,
 } from './tasks/today';

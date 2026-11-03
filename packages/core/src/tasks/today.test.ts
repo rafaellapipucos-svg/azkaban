@@ -1,7 +1,7 @@
 import type { OccurrenceListItem } from '@azkaban/contracts';
 import { describe, expect, it } from 'vitest';
 import { buildDays } from './calendarDay';
-import { earnedXp, groupByContext, localDayRange, planArea, planToday } from './today';
+import { earnedXp, groupByContext, localDayRange, planArea, planToday, todayGoal } from './today';
 import type { XpRules } from './xp';
 
 const SP = 'America/Sao_Paulo';
@@ -72,13 +72,12 @@ describe('localDayRange', () => {
 });
 
 describe('planToday', () => {
-  it('puts the day in time order and counts the goal', () => {
+  it('puts the day in time order', () => {
     const result = plan([
       item('b', { scheduledStart: '2026-11-04T20:00:00.000Z' }),
       item('a', { status: 'done' }),
     ]);
     expect(result.today.map(({ id }) => id)).toEqual(['a', 'b']);
-    expect(result.goal).toEqual({ done: 1, total: 2 });
   });
 
   it('keeps the order it was given for items that start together, whatever their status', () => {
@@ -250,10 +249,57 @@ describe('earnedXp', () => {
   });
 });
 
-describe('a done that waits for an admin (ADR-0007)', () => {
-  it('counts as done in the goal of the day', () => {
-    const result = plan([item('a', { status: 'done', proofReviewStatus: 'in_review' }), item('b')]);
-    expect(result.goal).toEqual({ done: 1, total: 2 });
+describe('todayGoal, the ring of Hoje (ADR-0010 section 10)', () => {
+  const goal = { percent: 80, countPartial: true };
+  const ring = (items: OccurrenceListItem[], at = now) =>
+    todayGoal(items, { now: at, timezone: SP, assigneeId: 'me', rules: goal });
+  // Due today at 09:00 in Sao Paulo, an hour before `now`, and still pending.
+  const passed = item(
+    'passed',
+    {
+      scheduledStart: '2026-11-04T11:00:00.000Z',
+      scheduledDue: '2026-11-04T12:00:00.000Z',
+      overdueAt: '2026-11-04T12:00:00.000Z',
+    },
+    { scheduleType: 'deadline' },
+  );
+
+  it('keeps a deadline that passed this morning as not done', () => {
+    const items = [passed, item('a', { status: 'done' })];
+    expect(plan(items).overdue.map(({ id }) => id)).toEqual(['passed']);
+    expect(ring(items)).toEqual({ planned: 2, completed: 1, needed: 2, met: false, progress: 0.5 });
+  });
+
+  it('does not get better by itself as the day goes on', () => {
+    const items = [passed, item('a', { status: 'done' })];
+    expect(ring(items, new Date('2026-11-05T02:00:00.000Z'))).toEqual(ring(items));
+  });
+
+  it('counts only the occurrences of the user, on the local day of the profile', () => {
+    const items = [
+      item('mine', { status: 'done' }),
+      item('theirs', { assigneeId: 'other' }),
+      // 23:00 of the 4th in Sao Paulo, already the 5th in UTC
+      item('late-night', { scheduledStart: '2026-11-05T02:00:00.000Z' }),
+      item('tomorrow', { scheduledStart: '2026-11-05T04:00:00.000Z' }),
+      item('cancelled', { status: 'cancelled' }),
+    ];
+    expect(ring(items)).toMatchObject({ planned: 2, completed: 1 });
+  });
+
+  it('is full once the goal is met, the yellow and a done waiting for an admin counting', () => {
+    const items = [
+      item('a', { status: 'done' }),
+      item('b', { status: 'done', proofReviewStatus: 'in_review' }),
+      item('c', { status: 'done' }),
+      item('d', { status: 'partial' }),
+      item('e'),
+    ];
+    expect(ring(items)).toEqual({ planned: 5, completed: 4, needed: 4, met: true, progress: 1 });
+  });
+
+  it('is empty and not met with nothing planned', () => {
+    expect(ring([])).toEqual({ planned: 0, completed: 0, needed: 0, met: false, progress: 0 });
   });
 });
 

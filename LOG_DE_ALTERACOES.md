@@ -3173,3 +3173,19 @@
 - **Verificado:** meta 2 no build: 14, 14, 14, `user_stats` uma vez; 12 de 12 na spec de desempenho com a barreira ligada; `e2e/gamification.spec.ts` 5 de 5 (servidor de dev); `pnpm check` passou.
 - **Não verificado:** `pnpm e2e` completa; nativo; hospedado; a spec de gamificação no build de produção.
 - **Pendências / próximos passos:** nenhuma deste handoff.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 09:50 (BRT)
+
+- **Branch:** docs/phase-8-close (a partir de `feat/phase-8-polish`, `aed3526`)
+- **Agente(s):** orquestrador
+- **Resumo:** fecha a Fase 8 (polimento). Tudo integrado em `feat/phase-8-polish`, verificação final verde em banco limpo; QUADRO com F8-1, F8-2 e F8-11 feitos, F8-8 segue bloqueado pela decisão de hospedagem.
+- **Alterações:**
+  - `docs/agentes/QUADRO.md`: F8-1 e F8-2 passam a feito; nova linha F8-11 (QA8-1 a QA8-9, segunda passada de segurança, metas no build).
+  - Integrados desde as 08:20: estatísticas da comemoração pelo cache, `useCurrentUser` fresco por 60 s, limpeza do cache com remontagem na troca de usuário (SEG8-2P-2), contraste do calendário com a lista `known` da a11y vazia, canal Realtime com tópico próprio (QA8-1), passo de push (QA8-8), ordem dos bloqueios de `accept_invite` (SEG8-2P-1, migration `20261104160000`), testes de RLS isolados das linhas da E2E, modo `E2E_BUILD=1` com servidor estático e env só local, `user_stats` uma vez em Hoje.
+- **Arquivos/módulos principais:** `docs/agentes/QUADRO.md`, `LOG_DE_ALTERACOES.md`.
+- **Migrations:** nenhuma neste bloco (a da Fase 8 é `20261104160000_accept_invite_lock_order.sql`, do banco-de-dados).
+- **Decisões/ADRs:** ADR-0012 §10 corrigido pelo arquiteto (`serve-build.mjs` no lugar de `expo serve`).
+- **Como testar:** `docs/agentes/ferramentas/verificar-fase.sh` com uma chave VAPID pública gerada em memória em `EXPO_PUBLIC_VAPID_PUBLIC_KEY`; `pnpm bundle:size`; `E2E_BUILD=1 pnpm exec playwright test e2e/performance.spec.ts --project=app --workers=1 --repeat-each=3` com a pilha A sozinha.
+- **Verificado:** em `aed3526`, banco limpo: install, db:start, db:reset, db:test 1911/1911, db:check-permissions, typecheck e unidade, lint, fronteiras, build:web, functions:test, E2E 94 passaram e 1 pulado nas duas rodadas, db:test depois da E2E 1911/1911. Maior JS 400 915 B (teto 427 641). Metas no build: 14 chamadas REST em Hoje, Hoje com 200 em 451 ms, mês em 251 ms, "No mercado" em 200 ms, confete sem quadro acima de 50 ms. Segunda passada de segurança sem achado alto ou médio. Varredura de segredos limpa.
+- **Não verificado:** nativo, navegador real fora do Playwright, hospedado, Lighthouse (meta 5), leitor de tela real. A falha intermitente de a11y em `/sign-up` (uma vez, primeira verificação) não se repetiu; a nota da spec agora nomeia o elemento.
+- **Pendências / próximos passos:** PR da Fase 8 para `feat/phase-6-gamification`; respostas do humano do ADR-0012 §17 (hospedagem, SMTP, base legal, contas de loja e push); backlog.

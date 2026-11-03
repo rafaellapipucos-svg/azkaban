@@ -407,6 +407,128 @@ isOneToOne: false
       referencedColumns: ["key"]
     }
                   ]
+                },"shopping_catalog_items": {
+                  Row: {
+                    "archived_at": string | null,"category": Database["public"]['Enums']["shopping_category"],"created_at": string,"default_unit": Database["public"]['Enums']["shopping_unit"],"emoji": string | null,"group_id": string | null,"id": string,"name": string,"owner_user_id": string | null,"sort_order": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "archived_at"?: string | null,"category": Database["public"]['Enums']["shopping_category"],"created_at"?: string,"default_unit": Database["public"]['Enums']["shopping_unit"],"emoji"?: string | null,"group_id"?: string | null,"id"?: string,"name": string,"owner_user_id"?: string | null,"sort_order"?: number
+                  }
+                  Update: {
+                    "archived_at"?: string | null,"category"?: Database["public"]['Enums']["shopping_category"],"created_at"?: string,"default_unit"?: Database["public"]['Enums']["shopping_unit"],"emoji"?: string | null,"group_id"?: string | null,"id"?: string,"name"?: string,"owner_user_id"?: string | null,"sort_order"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "shopping_catalog_items_group_id_fkey"
+      columns: ["group_id"]
+isOneToOne: false
+      referencedRelation: "groups"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "shopping_catalog_items_owner_user_id_fkey"
+      columns: ["owner_user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"shopping_catalog_seed": {
+                  Row: {
+                    "category": Database["public"]['Enums']["shopping_category"],"default_unit": Database["public"]['Enums']["shopping_unit"],"emoji": string,"name": string,"sort_order": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "category": Database["public"]['Enums']["shopping_category"],"default_unit": Database["public"]['Enums']["shopping_unit"],"emoji": string,"name": string,"sort_order": number
+                  }
+                  Update: {
+                    "category"?: Database["public"]['Enums']["shopping_category"],"default_unit"?: Database["public"]['Enums']["shopping_unit"],"emoji"?: string,"name"?: string,"sort_order"?: number
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"shopping_list_items": {
+                  Row: {
+                    "added_at": string,"added_by": string | null,"catalog_item_id": string | null,"category": Database["public"]['Enums']["shopping_category"],"checked_at": string | null,"checked_by": string | null,"emoji": string | null,"id": string,"list_id": string,"name": string,"note": string | null,"quantity": number,"unit": Database["public"]['Enums']["shopping_unit"]
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "added_at"?: string,"added_by"?: string | null,"catalog_item_id"?: string | null,"category": Database["public"]['Enums']["shopping_category"],"checked_at"?: string | null,"checked_by"?: string | null,"emoji"?: string | null,"id"?: string,"list_id": string,"name": string,"note"?: string | null,"quantity": number,"unit": Database["public"]['Enums']["shopping_unit"]
+                  }
+                  Update: {
+                    "added_at"?: string,"added_by"?: string | null,"catalog_item_id"?: string | null,"category"?: Database["public"]['Enums']["shopping_category"],"checked_at"?: string | null,"checked_by"?: string | null,"emoji"?: string | null,"id"?: string,"list_id"?: string,"name"?: string,"note"?: string | null,"quantity"?: number,"unit"?: Database["public"]['Enums']["shopping_unit"]
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "shopping_list_items_added_by_fkey"
+      columns: ["added_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "shopping_list_items_catalog_item_id_fkey"
+      columns: ["catalog_item_id"]
+isOneToOne: false
+      referencedRelation: "shopping_catalog_items"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "shopping_list_items_checked_by_fkey"
+      columns: ["checked_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "shopping_list_items_list_id_fkey"
+      columns: ["list_id"]
+isOneToOne: false
+      referencedRelation: "shopping_lists"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"shopping_lists": {
+                  Row: {
+                    "completed_at": string | null,"completed_by": string | null,"created_at": string,"created_by": string | null,"group_id": string | null,"id": string,"linked_task_id": string | null,"name": string,"owner_user_id": string | null,"status": Database["public"]['Enums']["shopping_list_status"]
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "completed_at"?: string | null,"completed_by"?: string | null,"created_at"?: string,"created_by"?: string | null,"group_id"?: string | null,"id"?: string,"linked_task_id"?: string | null,"name": string,"owner_user_id"?: string | null,"status"?: Database["public"]['Enums']["shopping_list_status"]
+                  }
+                  Update: {
+                    "completed_at"?: string | null,"completed_by"?: string | null,"created_at"?: string,"created_by"?: string | null,"group_id"?: string | null,"id"?: string,"linked_task_id"?: string | null,"name"?: string,"owner_user_id"?: string | null,"status"?: Database["public"]['Enums']["shopping_list_status"]
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "shopping_lists_completed_by_fkey"
+      columns: ["completed_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "shopping_lists_created_by_fkey"
+      columns: ["created_by"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "shopping_lists_group_id_fkey"
+      columns: ["group_id"]
+isOneToOne: false
+      referencedRelation: "groups"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "shopping_lists_linked_task_id_fkey"
+      columns: ["linked_task_id"]
+isOneToOne: false
+      referencedRelation: "tasks"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "shopping_lists_owner_user_id_fkey"
+      columns: ["owner_user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"task_occurrences": {
                   Row: {
                     "assignee_id": string,"auto_miss_at": string,"current_proof_id": string | null,"id": string,"late": boolean,"overdue_at": string,"proof_review_status": Database["public"]['Enums']["proof_review_status"] | null,"scheduled_due": string,"scheduled_start": string,"status": Database["public"]['Enums']["occurrence_status"],"status_changed_at": string | null,"status_changed_by": string | null,"status_reason": string | null,"task_id": string,"occurrence_award_xp": undefined | null
@@ -660,6 +782,50 @@ isOneToOne: false
             "accept_invite":
 { Args: { "invite_code": string }; Returns: string
                            },
+"add_catalog_item_to_list":
+{ Args: { "p_catalog_item_id": string,"p_delta": number,"p_list_id": string }; Returns: {
+              "added_at": string,
+"added_by": string | null,
+"catalog_item_id": string | null,
+"category": Database["public"]['Enums']["shopping_category"],
+"checked_at": string | null,
+"checked_by": string | null,
+"emoji": string | null,
+"id": string,
+"list_id": string,
+"name": string,
+"note": string | null,
+"quantity": number,
+"unit": Database["public"]['Enums']["shopping_unit"]
+            }
+                          SetofOptions: {
+        from: "*"
+        to: "shopping_list_items"
+        isOneToOne: true
+        isSetofReturn: false
+      } },
+"adjust_shopping_item_quantity":
+{ Args: { "p_delta": number,"p_item_id": string }; Returns: {
+              "added_at": string,
+"added_by": string | null,
+"catalog_item_id": string | null,
+"category": Database["public"]['Enums']["shopping_category"],
+"checked_at": string | null,
+"checked_by": string | null,
+"emoji": string | null,
+"id": string,
+"list_id": string,
+"name": string,
+"note": string | null,
+"quantity": number,
+"unit": Database["public"]['Enums']["shopping_unit"]
+            }
+                          SetofOptions: {
+        from: "*"
+        to: "shopping_list_items"
+        isOneToOne: true
+        isSetofReturn: false
+      } },
 "auto_miss_occurrences":
 { Args: Record<PropertyKey, never>; Returns: number
                            },
@@ -678,6 +844,9 @@ isOneToOne: false
 "can_edit_task":
 { Args: { "p_task_id": string }; Returns: boolean
                            },
+"can_manage_shopping_list":
+{ Args: { "p_list_id": string }; Returns: boolean
+                           },
 "can_receive_notification":
 { Args: { "p_occurrence_id": string,"p_type": Database["public"]['Enums']["notification_type"],"p_user": string }; Returns: boolean
                            },
@@ -686,6 +855,9 @@ isOneToOne: false
                            },
 "can_view_proof":
 { Args: { "p_proof": Omit<Database["public"]['Tables']["task_proofs"]['Row'], Database["public"]['Tables']["task_proofs"]['ComputedFields']> }; Returns: boolean
+                           },
+"can_view_shopping_list":
+{ Args: { "p_list_id": string }; Returns: boolean
                            },
 "can_view_task":
 { Args: { "p_task": Omit<Database["public"]['Tables']["tasks"]['Row'], Database["public"]['Tables']["tasks"]['ComputedFields']> }; Returns: boolean
@@ -704,9 +876,47 @@ isOneToOne: false
 "commit_proof":
 { Args: { "p_accuracy_m": number,"p_app_version": string,"p_captured_at_device": string,"p_distance_m": number,"p_flags": (string)[],"p_height_px": number,"p_nonce": string,"p_platform": string,"p_sha256": string,"p_size_bytes": number,"p_storage_path": string,"p_user_agent": string,"p_user_id": string,"p_width_px": number }; Returns: Json
                            },
+"complete_shopping_list":
+{ Args: { "p_list_id": string }; Returns: {
+              "completed_at": string | null,
+"completed_by": string | null,
+"created_at": string,
+"created_by": string | null,
+"group_id": string | null,
+"id": string,
+"linked_task_id": string | null,
+"name": string,
+"owner_user_id": string | null,
+"status": Database["public"]['Enums']["shopping_list_status"]
+            }
+                          SetofOptions: {
+        from: "*"
+        to: "shopping_lists"
+        isOneToOne: true
+        isSetofReturn: false
+      } },
 "confirm_phone_verification":
 { Args: { "p_code": string }; Returns: Json
                            },
+"create_shopping_list":
+{ Args: { "p_from_list_id"?: string,"p_group_id": string,"p_id": string,"p_name": string }; Returns: {
+              "completed_at": string | null,
+"completed_by": string | null,
+"created_at": string,
+"created_by": string | null,
+"group_id": string | null,
+"id": string,
+"linked_task_id": string | null,
+"name": string,
+"owner_user_id": string | null,
+"status": Database["public"]['Enums']["shopping_list_status"]
+            }
+                          SetofOptions: {
+        from: "*"
+        to: "shopping_lists"
+        isOneToOne: true
+        isSetofReturn: false
+      } },
 "daily_summary_is_empty":
 { Args: { "p_source": Json }; Returns: boolean
                            },
@@ -860,6 +1070,9 @@ isOneToOne: false
         isOneToOne: true
         isSetofReturn: false
       } },
+"seed_shopping_catalog":
+{ Args: { "p_group_id": string,"p_owner_user_id": string }; Returns: undefined
+                           },
 "set_member_role":
 { Args: { "new_role": Database["public"]['Enums']["group_role"],"target_group_id": string,"target_user_id": string }; Returns: undefined
                            },
@@ -886,6 +1099,31 @@ isOneToOne: false
         isOneToOne: true
         isSetofReturn: false
       } },
+"set_shopping_item_checked":
+{ Args: { "p_checked": boolean,"p_item_id": string }; Returns: {
+              "added_at": string,
+"added_by": string | null,
+"catalog_item_id": string | null,
+"category": Database["public"]['Enums']["shopping_category"],
+"checked_at": string | null,
+"checked_by": string | null,
+"emoji": string | null,
+"id": string,
+"list_id": string,
+"name": string,
+"note": string | null,
+"quantity": number,
+"unit": Database["public"]['Enums']["shopping_unit"]
+            }
+                          SetofOptions: {
+        from: "*"
+        to: "shopping_list_items"
+        isOneToOne: true
+        isSetofReturn: false
+      } },
+"shopping_rules":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "start_phone_verification":
 { Args: { "p_phone": string,"p_user_id": string }; Returns: Json
                            },
@@ -914,7 +1152,7 @@ isOneToOne: false
                            }
           }
           Enums: {
-            "delivery_channel": "web_push"|"whatsapp","group_role": "owner"|"admin"|"member","notification_outbox_status": "pending"|"sending"|"sent"|"failed"|"cancelled"|"expired","notification_type": "task_reminder"|"occurrence_missed"|"occurrence_resolved"|"proof_in_review"|"proof_disputed"|"daily_summary","occurrence_actor": "assignee"|"editor"|"deleter"|"system"|"reviewer","occurrence_status": "pending"|"done"|"partial"|"missed"|"cancelled","proof_review_status": "unreviewed"|"in_review"|"approved"|"disputed","schedule_type": "timed"|"all_day"|"deadline","task_difficulty": "easy"|"medium"|"hard","task_edit_scope": "this"|"this_and_following"|"all","task_priority": "low"|"normal"|"high","task_visibility": "group"|"private"
+            "delivery_channel": "web_push"|"whatsapp","group_role": "owner"|"admin"|"member","notification_outbox_status": "pending"|"sending"|"sent"|"failed"|"cancelled"|"expired","notification_type": "task_reminder"|"occurrence_missed"|"occurrence_resolved"|"proof_in_review"|"proof_disputed"|"daily_summary","occurrence_actor": "assignee"|"editor"|"deleter"|"system"|"reviewer","occurrence_status": "pending"|"done"|"partial"|"missed"|"cancelled","proof_review_status": "unreviewed"|"in_review"|"approved"|"disputed","schedule_type": "timed"|"all_day"|"deadline","shopping_category": "produce"|"bakery"|"meat"|"dairy"|"pantry"|"beverages"|"frozen"|"cleaning"|"hygiene"|"other","shopping_list_status": "open"|"completed","shopping_unit": "unit"|"kg"|"g"|"l"|"pack"|"box"|"dozen","task_difficulty": "easy"|"medium"|"hard","task_edit_scope": "this"|"this_and_following"|"all","task_priority": "low"|"normal"|"high","task_visibility": "group"|"private"
           }
           CompositeTypes: {
             [_ in never]: never
@@ -1034,7 +1272,7 @@ export const Constants = {
           }
         },"public": {
           Enums: {
-            "delivery_channel": ["web_push", "whatsapp"],"group_role": ["owner", "admin", "member"],"notification_outbox_status": ["pending", "sending", "sent", "failed", "cancelled", "expired"],"notification_type": ["task_reminder", "occurrence_missed", "occurrence_resolved", "proof_in_review", "proof_disputed", "daily_summary"],"occurrence_actor": ["assignee", "editor", "deleter", "system", "reviewer"],"occurrence_status": ["pending", "done", "partial", "missed", "cancelled"],"proof_review_status": ["unreviewed", "in_review", "approved", "disputed"],"schedule_type": ["timed", "all_day", "deadline"],"task_difficulty": ["easy", "medium", "hard"],"task_edit_scope": ["this", "this_and_following", "all"],"task_priority": ["low", "normal", "high"],"task_visibility": ["group", "private"]
+            "delivery_channel": ["web_push", "whatsapp"],"group_role": ["owner", "admin", "member"],"notification_outbox_status": ["pending", "sending", "sent", "failed", "cancelled", "expired"],"notification_type": ["task_reminder", "occurrence_missed", "occurrence_resolved", "proof_in_review", "proof_disputed", "daily_summary"],"occurrence_actor": ["assignee", "editor", "deleter", "system", "reviewer"],"occurrence_status": ["pending", "done", "partial", "missed", "cancelled"],"proof_review_status": ["unreviewed", "in_review", "approved", "disputed"],"schedule_type": ["timed", "all_day", "deadline"],"shopping_category": ["produce", "bakery", "meat", "dairy", "pantry", "beverages", "frozen", "cleaning", "hygiene", "other"],"shopping_list_status": ["open", "completed"],"shopping_unit": ["unit", "kg", "g", "l", "pack", "box", "dozen"],"task_difficulty": ["easy", "medium", "hard"],"task_edit_scope": ["this", "this_and_following", "all"],"task_priority": ["low", "normal", "high"],"task_visibility": ["group", "private"]
           }
         }
 } as const

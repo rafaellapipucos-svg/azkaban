@@ -3676,3 +3676,18 @@
   - `pnpm check` passou.
 - **Não verificado:** SIGTERM/SIGHUP reais (no Windows só emitidos à mão; SIGHUP real é fechar o terminal); a E2E completa depois das mudanças desta branch (só as specs afetadas e o `jobs`); a origem da transição em a11y (handoff); nativo; CI no Linux. Hora derivada de UTC menos 3 (PowerShell barrado).
 - **Pendências / próximos passos:** `design-system`: handoff `20261103-1115` (transição com reduce). `tarefas-calendario`: handoff `20261103-1125` ("Nova tarefa" antes dos contextos). `qa-testes`: avaliar `actionTimeout` na config (um clique parado espera os 900 s da a11y). Quem rodar uma spec só deve usar `--no-deps` para não rodar o `jobs` junto.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 11:30 (BRT)
+
+- **Branch:** `test/playwright-action-timeout`, criada a partir de `feat/backlog-after-phase-8` (`765f4b4`)
+- **Agente(s):** qa-testes
+- **Resumo:** pendência do BL-22: a config do Playwright não tinha `actionTimeout`, e um clique preso esperou os 900 s da a11y. Agora ação e navegação têm limite próprio.
+- **Alterações:**
+  - `playwright.config.ts`: `use.actionTimeout: 30_000` e `use.navigationTimeout: 60_000`, com o motivo no comentário. A ação também limita `waitForResponse` e `waitForEvent`: 30 s é a maior espera que as specs dão a uma resposta do servidor (`proof-validate`, `answered` nas specs de prova), com folga sobre os 15 s do `expect`. A navegação espera o `load`, e no `pnpm dev` a primeira página de cada worker espera o Metro montar o pacote (não medido, mas abaixo dos 90 s do teste, que vinham bastando): 60 s. Nenhuma spec passa `timeout` maior numa ação; o único `timeout` de ação explícito é o de 2 s do `gamification` (menor, continua valendo).
+- **Arquivos/módulos principais:** `playwright.config.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. Spec que precisar de mais passa `timeout` naquela chamada; os globais não sobem.
+- **Como testar:** `pnpm exec playwright test --list`; `pnpm e2e` com a pilha A.
+- **Verificado:** `--list` dá 98 testes em 26 arquivos, igual à config de `765f4b4`. `pnpm check` passou (17 de 17 e 12 de 12).
+- **Não verificado:** a E2E não rodou (a pilha A está com o `design-system`, por pedido); o tempo real do primeiro pacote do Metro frio contra os 60 s. Hora derivada de UTC menos 3 (PowerShell barrado).
+- **Pendências / próximos passos:** na próxima E2E completa, conferir se alguma navegação ou espera de resposta bate nos limites; se bater, `timeout` naquela chamada.

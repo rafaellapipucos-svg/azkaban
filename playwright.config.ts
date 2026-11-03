@@ -55,6 +55,14 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   use: {
     baseURL,
+    // Without these a stuck click waits out the whole test, 900 s in the a11y walk (BL-22). The action
+    // limit also bounds `waitForResponse` and `waitForEvent`: 30 s matches the longest wait the specs
+    // give a server answer (`proof-validate`, `answered` in the proof specs), with room over the 15 s of
+    // `expect`. Navigation waits for the `load` event, and in `pnpm dev` the first page of each worker
+    // waits for Metro to build the bundle, unmeasured but under the 90 s test limit that held so far: 60 s.
+    // A spec that needs more passes `timeout` on that call; do not raise these.
+    actionTimeout: 30_000,
+    navigationTimeout: 60_000,
     trace: 'retain-on-failure',
     // Every context starts as a device that already saw the push step after signing in (ADR-0012,
     // section 13, item 2), so it does not stand in front of Hoje; `push-setup.spec.ts` clears it.

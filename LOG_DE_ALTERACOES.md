@@ -3039,3 +3039,26 @@
 - **Verificado:** leitura do diff inteiro relevante para segurança; varredura de segredos no diff e na árvore de `42b955d`; grep de fronteiras e de chamadas ao Supabase em features, ui, core e rotas.
 - **Não verificado:** nada rodou contra banco (sem pilha): os pgTAP de SEG8-1 a SEG8-4 e o deadlock de SEG8-2P-1 são leitura, sem PoC; `pnpm check` não rodou (só o LOG mudou); os PNGs novos de marca não foram inspecionados por metadados; o hospedado.
 - **Pendências / próximos passos:** nenhum handoff (nada alto ou médio). SEG8-2P-1 e SEG8-2P-2 podem entrar no backlog de polimento se o humano quiser.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:32 (BRT)
+
+- **Branch:** `fix/realtime-channel-reuse` (de `feat/phase-8-polish`, `c2d46b5`)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** QA8-1 e QA8-8 do handoff `20261103-0745`. Cada assinatura de `subscribeCaughtUp` ganha um tópico próprio, e o passo de push depois do primeiro login aparece na E2E e não volta depois de "Agora não". Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `subscribeCaughtUp` assina `name:<n>`, com um contador por módulo: o `RealtimeClient.channel` devolvia o canal vivo de mesmo tópico, e o `.on('postgres_changes')` depois do `subscribe()` dava `throw` (QA8-1). Vale para o sino, a gamificação e as compras. O cliente falso de `realtime.test.ts` agora se comporta como o `realtime-js` 2.118 (mesmo tópico devolve o mesmo canal; `on` depois de `subscribe` lança), com um caso de duas assinaturas vivas com o mesmo nome e de remontar antes do `removeChannel`. Sem a correção, o caso falha com o erro do QA.
+  - QA8-8, três causas em sequência. (1) No headless shell do Playwright, `Notification.permission` fica `denied` mesmo depois de `grantPermissions` (só `permissions.query` vira `granted`); a spec emula o `default` de um navegador que nunca perguntou. (2) O passo tinha dois títulos iguais (`h1` da tela e `h2` do cartão); o `PushSetupCard` ganhou `titled`, falso no passo. (3) "Agora não" voltava ao passo: Hoje guardava o `true` da oferta com `staleTime: Infinity` e empurrava `/push-setup` de novo ao remontar; o passo agora grava `false` nessa consulta quando marca a oferta. A spec também confere que a URL saiu de `/push-setup`.
+  - `e2e/shopping.spec.ts`: com o QA8-1 corrigido, a pilha guarda a lista duas vezes (lista > tarefa > lista) e o `getByText` do dono achava as duas; as duas conferências usam `text`/`contains` (só o visível), como o resto das specs.
+- **Arquivos/módulos principais:** `packages/data/src/realtime.ts`, `packages/data/src/realtime.test.ts`, `packages/features/notifications/src/PushSetupStep.tsx`, `packages/features/notifications/src/PushSetupCard.tsx`, `e2e/push-setup.spec.ts`, `e2e/shopping.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm check`; pilha A, `pnpm exec supabase db reset`, `pnpm exec playwright test e2e/shopping.spec.ts e2e/notifications-bell.spec.ts e2e/gamification.spec.ts --project=app --repeat-each=4 --workers=4`; e `e2e/push-setup.spec.ts` com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` no ambiente.
+- **Verificado:**
+  - `pnpm check` passou (17 de 17 e 11 de 11; `functions:imports` 10 de 10).
+  - Logo depois do `db reset`, as três specs de Realtime com `--repeat-each=4 --workers=4`: antes do ajuste da spec de compras, 40 ok e 4 falhas, todas no `getByText` duplicado e nenhuma com `cannot add`; depois, 44 de 44.
+  - `push-setup.spec.ts` com uma chave VAPID gerada em memória, só no ambiente do comando: 4 de 4 com `--repeat-each=4`.
+  - `notifications-preferences.spec.ts` com a chave: 3 ok e 1 pulado (o caso sem chave).
+  - `a11y.spec.ts` com a chave: falhou só em `contrast: /calendar 320px dark: 3.31:1`, que é o QA8-4 aparecendo também no escuro (a lista `known` só tem o claro). Nada em `/push-setup`.
+  - Pilha A parada com `supabase stop`, sem `--all`; pilha B não tocada.
+- **Não verificado:** a `pnpm e2e` completa; Chromium completo (o novo headless não abriu aqui, `spawn UNKNOWN`), então o `denied` do headless shell foi visto só no shell; navegador real e nativo; mutação além do caso novo de `realtime.test.ts`.
+- **Pendências / próximos passos:** `design-system`: a linha de QA8-4 em `known` de `a11y.spec.ts` precisa cobrir o escuro também, ou o contraste ser corrigido.

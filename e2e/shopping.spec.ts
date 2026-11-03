@@ -1,6 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import {
   button,
+  contains,
   groupWithMember,
   newUser,
   signUp,
@@ -298,13 +299,14 @@ test('a list made from a task links both ways; a member who cannot read the task
   await expect(memberPage.getByRole('button', { name: /^Abrir a tarefa/ })).toHaveCount(0);
   await expect(memberPage.getByText(/não encontrad/)).toHaveCount(0);
 
-  // Completing with fewer than three items checked says there is no XP, and the task is still offered
+  // Completing with fewer than three items checked says there is no XP, and the task is still offered.
+  // The owner's stack holds the list twice (list > task > list): only the one on top counts.
   await expect(
-    ownerPage.getByText('Com menos de 3 itens marcados, a compra finaliza sem XP.'),
+    text(ownerPage, 'Com menos de 3 itens marcados, a compra finaliza sem XP.'),
   ).toBeVisible();
   await button(ownerPage, 'Finalizar compra').click();
   await button(ownerPage, 'Confirmar: finalizar').click();
-  await expect(ownerPage.getByText(/^Finalizada em /)).toBeVisible();
+  await expect(contains(ownerPage, /^Finalizada em /)).toBeVisible();
   await expect(button(ownerPage, `Abrir a tarefa: ${title}`)).toBeVisible();
   await expect(memberPage.getByText(/^Finalizada em /)).toBeVisible();
   await expect(memberPage.getByRole('button', { name: /^Abrir a tarefa/ })).toHaveCount(0);

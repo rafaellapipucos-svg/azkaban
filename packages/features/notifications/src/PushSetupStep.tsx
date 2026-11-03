@@ -3,7 +3,7 @@ import { useCurrentUser } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import { onPushOpened, pushPermission, pushSupport, storage } from '@azkaban/platform';
 import { Button, Screen, Title } from '@azkaban/ui';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { notificationsConfig } from './config';
@@ -12,6 +12,7 @@ import { PushSetupCard, thisDeviceQueryKey } from './PushSetupCard';
 import { shouldOfferPushSetup } from './pushOffer';
 
 const markOffered = () => storage.setItem(notificationsConfig.pushOfferedKey, '1');
+const offerQueryKey = (userId: string) => ['push-setup-offer', userId];
 
 /**
  * True once, after signing in, while this device never showed the push step and it has something to
@@ -20,7 +21,7 @@ const markOffered = () => storage.setItem(notificationsConfig.pushOfferedKey, '1
 export function usePushSetupOffer(vapidPublicKey: string | undefined): boolean {
   const { user } = useCurrentUser();
   const offer = useQuery({
-    queryKey: ['push-setup-offer', user.id],
+    queryKey: offerQueryKey(user.id),
     queryFn: async () =>
       shouldOfferPushSetup({
         vapidPublicKey,
@@ -50,13 +51,16 @@ export function PushSetupStep({
     queryFn: () => thisDeviceId(user.id),
     enabled: Boolean(user.id),
   });
+  const queryClient = useQueryClient();
+  // Hoje asks once and keeps the answer: without this, going back to it opens the step again.
   useEffect(() => {
     void markOffered();
-  }, []);
+    queryClient.setQueryData(offerQueryKey(user.id), false);
+  }, [queryClient, user.id]);
   return (
     <Screen title={t('setup.title')}>
       <Title>{t('setup.title')}</Title>
-      <PushSetupCard vapidPublicKey={vapidPublicKey} />
+      <PushSetupCard vapidPublicKey={vapidPublicKey} titled={false} />
       <Button
         variant="secondary"
         label={thisDevice.data ? t('setup.continue') : t('setup.notNow')}

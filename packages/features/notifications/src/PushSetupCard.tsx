@@ -12,7 +12,14 @@ export const thisDeviceQueryKey = (userId: string) => ['push-this-device', userI
  * Turns push on in this browser, or says why it cannot (ADR-0008, section 9). Without a public key,
  * push does not exist in this environment and the card is not shown.
  */
-export function PushSetupCard({ vapidPublicKey }: { vapidPublicKey?: string }) {
+/** `titled={false}` where the screen's own title already says it (the step after signing in). */
+export function PushSetupCard({
+  vapidPublicKey,
+  titled = true,
+}: {
+  vapidPublicKey?: string;
+  titled?: boolean;
+}) {
   const { t } = useTranslation('notifications');
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
@@ -66,7 +73,7 @@ export function PushSetupCard({ vapidPublicKey }: { vapidPublicKey?: string }) {
 
   return (
     <View className="gap-2 rounded-lg border-2 border-border bg-surface p-4 dark:border-border-dark dark:bg-surface-dark">
-      <Subtitle>{t('setup.title')}</Subtitle>
+      {titled ? <Subtitle>{t('setup.title')}</Subtitle> : null}
       {status()}
     </View>
   );

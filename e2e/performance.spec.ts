@@ -67,9 +67,9 @@ test('Hoje with 50 occurrences makes few REST calls, and 200 draw fast with the 
   );
   test.info().annotations.push({ type: 'rest calls, Hoje with 50', description: calls.join(' ') });
   console.log(`F8-6 goal 2: ${calls.length} REST calls opening Hoje with 50 occurrences`, calls);
-  // The goal is 14 (ADR-0012, section 10, QA8-3). Not a barrier yet: the build of 2026-11-03 made
-  // 15, `user_stats` twice (handoff to `gamificacao`). The barrier is "no N+1": no path more than 3
-  // times, whatever the number of occurrences.
+  // The goal is 14 (ADR-0012, section 10, QA8-3), `user_stats` once since `statsStaleMs`. The other
+  // barrier is "no N+1": no path more than 3 times, whatever the number of occurrences.
+  expect(calls.length).toBeLessThanOrEqual(14);
   const perPath = new Map<string, number>();
   for (const path of calls) perPath.set(path, (perPath.get(path) ?? 0) + 1);
   expect(Math.max(...perPath.values())).toBeLessThanOrEqual(3);

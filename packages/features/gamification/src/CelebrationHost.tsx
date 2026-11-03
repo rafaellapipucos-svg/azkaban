@@ -45,7 +45,7 @@ export function CelebrationHost() {
     let timer: ReturnType<typeof setTimeout> | undefined;
     // Bursts are handled one after the other, each against the stats the one before left. Null when
     // the first read failed: that burst then compares with itself and celebrates only its own rows.
-    // The baseline rides on the StreakChip's request in flight (QA8-3); `flush` reads the server.
+    // The baseline and the StreakChip share one read (QA8-3, `statsStaleMs`); `flush` reads the server.
     let before: Promise<Stats | null> = queryClient
       .fetchQuery(statsQuery)
       .then(async (row) => {

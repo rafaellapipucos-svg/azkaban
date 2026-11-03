@@ -3154,3 +3154,22 @@
 - **Verificado:** os três casos acima, e o padrão sem `E2E_BUILD` (95 testes listados). Servidor com um `dist` falso: `/`, `/sign-up` e `%E0%A4%A` dão `index.html`; `/sub/a.js` com `text/javascript`; `/../secret.txt`, `/%2e%2e/secret.txt`, `/..%2f..%2f...` e `/..%5c..%5c...` não saem de `dist`; o servidor segue de pé depois do `%` malformado. `pnpm check` passou.
 - **Não verificado:** o build real com `E2E_BUILD=1` e a spec de desempenho (sem pilha, por pedido); se o cache do Metro reaproveita uma transformação com valores do hospedado de um `build:web` anterior (o pacote do `qa-testes` saiu com `127.0.0.1:54421`, mas sem `EXPO_NO_DOTENV`). O servidor escuta em todas as interfaces, como o `expo start`; não muda para `localhost` sem testar a resolução IPv4/IPv6 do Playwright.
 - **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 09:31 (BRT)
+
+- **Branch:** perf/user-stats-once (a partir de `feat/phase-8-polish`, `3d8fbaa`)
+- **Agente(s):** gamificacao
+- **Resumo:** abrir Hoje lê `user_stats` uma vez só (handoff `20261103-0930-qa-testes-para-gamificacao-user-stats-duas-vezes`). A meta 2 de F8-6 cai de 15 para 14 chamadas REST no build e vira barreira.
+- **Alterações:**
+  - `packages/config/src/gamification.ts`: `gamificationDefaults.statsStaleMs` (30 s), valor de cliente, sem espelho no banco.
+  - `packages/features/gamification/src/hooks.ts`: `statsQuery` ganha `staleTime: statsStaleMs`. O `StreakChip` monta depois da leitura de base do `CelebrationHost` e usa o dado dela. Continua indo ao servidor: a leitura de cada rajada (`flush` chama `source.getStats()` direto), a invalidação de `gamificationKey` depois de cada rajada e a de `['gamification','stats']` depois de cada mutação bem-sucedida (`invalidateQueries` refaz a consulta seja qual for o `staleTime`). A troca de usuário limpa o cache (`userChange.ts`), então a base nunca é de outra conta.
+  - `packages/features/gamification/src/CelebrationHost.tsx`: só o comentário da base.
+  - `packages/features/gamification/src/hooks.test.ts` (novo): duas `fetchQuery` seguidas fazem uma leitura; depois de invalidar, lê de novo. Falha sem o `staleTime`.
+  - `e2e/performance.spec.ts`: por exceção autorizada pelo orquestrador, `expect(calls.length).toBeLessThanOrEqual(14)` na meta 2. Nada mais em `e2e/`.
+- **Arquivos/módulos principais:** os acima.
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova; cumpre ADR-0012, seção 10, meta 2.
+- **Como testar:** pilha A sozinha, `E2E_BUILD=1 pnpm exec playwright test e2e/performance.spec.ts --project=app --workers=1 --repeat-each=3`; `pnpm exec playwright test e2e/gamification.spec.ts --project=app`.
+- **Verificado:** meta 2 no build: 14, 14, 14, `user_stats` uma vez; 12 de 12 na spec de desempenho com a barreira ligada; `e2e/gamification.spec.ts` 5 de 5 (servidor de dev); `pnpm check` passou.
+- **Não verificado:** `pnpm e2e` completa; nativo; hospedado; a spec de gamificação no build de produção.
+- **Pendências / próximos passos:** nenhuma deste handoff.

@@ -96,19 +96,18 @@ test('finishing tasks: XP, the celebration with confetti, the goal ring, the str
   await expect(days.getByRole('listitem')).toHaveText(/: Dia perfeito$/);
 });
 
-// QA6C-1, handoff 20261103-0453-qa-testes-para-gamificacao-cartao-bloqueia-a-tela: the card's
-// full-screen wrapper takes every tap while the card is up (6 s), so nothing else on the screen
-// works. Remove `test.fail()` when it is fixed.
+// QA6C-1: the card's wrapper covers the screen and must let taps through while the card is up (6 s).
+// The card sits over the middle of the list, so the tap goes to the button below it.
 test('while the celebration card is up, the rest of Hoje still takes taps', async ({ page }) => {
-  test.fail();
   await signUpWithContext(page, newUser('Toque'));
   await quickCreate(page, 'Varrer a sala');
+  // A second one, so the first is not a perfect day, whose screen does take the whole screen.
   await quickCreate(page, 'Tirar o lixo');
   await finish(page, 'Varrer a sala');
   await expect(celebration(page)).toHaveCount(1);
-  // Well inside the card's 6 s, and far from it.
-  await check(page, 'Tirar o lixo', 'Pendente').click({ timeout: 2_000 });
-  await expect(check(page, 'Tirar o lixo', 'Feito')).toBeVisible();
+  // Well inside the card's 6 s, and clear of it.
+  await button(page, 'Nova tarefa').click({ timeout: 2_000 });
+  await expect(page.getByLabel('O que precisa ser feito?')).toBeVisible();
 });
 
 test.describe('with reduced motion', () => {

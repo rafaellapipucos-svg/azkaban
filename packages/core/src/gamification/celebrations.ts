@@ -89,3 +89,18 @@ export function celebrationsFor(
     celebratedLevel: Math.max(options.celebratedLevel, level),
   };
 }
+
+/**
+ * Adds a burst that arrived while a card is still up to what it shows, without repeats and in the
+ * same order as `celebrationsFor`. The XP event and the achievement are written together but reach
+ * the client in separate Realtime messages, sometimes past the burst window (QA6C-3).
+ */
+export function mergeCelebrations(
+  shown: readonly Celebration[],
+  next: readonly Celebration[],
+): Celebration[] {
+  const seen = new Set(shown.map((c) => JSON.stringify(c)));
+  return [...shown, ...next.filter((c) => !seen.has(JSON.stringify(c)))].sort(
+    (a, b) => rank(b.kind) - rank(a.kind),
+  );
+}

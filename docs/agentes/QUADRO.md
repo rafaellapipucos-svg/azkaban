@@ -87,13 +87,15 @@ O provedor real (Meta) fica para o humano decidir (ADR-0009, seções 10 e 16); 
 
 ## Fase 6: Gamificação
 
-| ID   | Título                                         | Agente         | Status  | Depende de | Branch | Handoff |
-| ---- | ---------------------------------------------- | -------------- | ------- | ---------- | ------ | ------- |
-| F6-1 | Motor de XP, níveis e ofensiva em core         | gamificacao    | a fazer | F2-12      | —      | —       |
-| F6-2 | Migrations e seeds de user_stats e conquistas  | banco-de-dados | a fazer | F6-1       | —      | —       |
-| F6-3 | Anel de meta, telas de progresso e conquistas  | gamificacao    | a fazer | F6-2       | —      | —       |
-| F6-4 | Comemorações: mascote, confete, som e vibração | gamificacao    | a fazer | F6-3       | —      | —       |
-| F6-5 | Ranking opcional por grupo                     | gamificacao    | a fazer | F6-3       | —      | —       |
+| ID   | Título                                                                                                    | Agente                                                                                | Status | Depende de  | Branch                                                                            | Handoff                                                                      |
+| ---- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ------ | ----------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| F6-1 | ADR-0010, contratos e config; motor puro de XP, nível, meta, ofensiva, teto e comemorações em core        | arquiteto, gamificacao                                                                | feito  | F2-12       | docs/gamification-adr, feat/gamification-core                                     | 20261103-0235-arquiteto-para-*-gamificacao.md                                |
+| F6-2 | Migrations: xp_events, user_stats, dias, conquistas, teto, ranking, job de fechamento, Realtime, backfill | banco-de-dados                                                                        | feito  | F6-1        | feat/gamification-db, fix/gamification-db-security                                | 20261103-0235-arquiteto-para-banco-de-dados-gamificacao.md                   |
+| F6-3 | Anel de meta em Hoje, chip de ofensiva, painel de progresso e conquistas no Perfil                        | gamificacao, tarefas-calendario                                                       | feito  | F6-2        | feat/today-goal-ring, feat/gamification-shell, feat/gamification-live             | 20261103-0243-gamificacao-para-tarefas-calendario-meta-do-dia.md             |
+| F6-4 | Comemorações: mascote, confete, cartão, dia perfeito, som e vibração (web), reduzir movimento             | design-system, gamificacao                                                            | feito  | F6-3        | feat/gamification-ui-kit, feat/gamification-shell, fix/celebration-pointer-events | 20261103-0235-arquiteto-para-design-system-gamificacao.md                    |
+| F6-5 | Ranking opcional por grupo (desligado em empresa)                                                         | gamificacao, banco-de-dados                                                           | feito  | F6-3        | feat/gamification-live, fix/gamification-*-security                               | —                                                                            |
+| F6-6 | Ofensiva no rodapé do resumo diário do WhatsApp                                                           | notificacoes-whatsapp                                                                 | feito  | F6-2        | feat/summary-streak-footer                                                        | 20261103-0328-banco-de-dados-para-notificacoes-whatsapp-ofensiva-no-claim.md |
+| F6-7 | QA e revisão de segurança (QA6-1 a QA6-5, QA6C-1 a QA6C-3, SEG6-1 a SEG6-8)                               | qa-testes, revisor-seguranca, arquiteto, banco-de-dados, gamificacao, backend-funcoes | feito  | F6-1 a F6-6 | chore/qa-phase-6*, chore/security-phase-6, fix/*                                  | 20261103-0350-revisor-seguranca-para-*-gamificacao.md                        |
 
 ## Fase 7: Lista de compras
 

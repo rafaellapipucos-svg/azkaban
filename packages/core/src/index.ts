@@ -163,6 +163,7 @@ export { applyCap, capRoom, occurrenceXpWithBonus, type OccurrenceAward } from '
 export { rankingEnabled } from './gamification/ranking';
 export {
   celebrationsFor,
+  mergeCelebrations,
   reachedAchievements,
   type Celebration,
 } from './gamification/celebrations';

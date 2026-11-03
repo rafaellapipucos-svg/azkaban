@@ -30,11 +30,10 @@ async function photoTaskForMember(owner: Page, title: string) {
   await owner.getByRole('switch', { name: APPROVAL }).click();
   await button(owner, 'Salvar').click();
   await expect(owner.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
-  // The form starts at the next hour with leads of 30 and 0 minutes: from :30 on, the reminder cron
-  // (every minute, also locally) would ring the member's bell, which this test counts.
-  const quiet = await admin.from('tasks').update({ reminders: [] }).eq('title', title);
-  expect(quiet.error).toBeNull();
 }
+
+/** The visible screen, without the live notice, which sits outside it and can repeat a line. */
+const screen = (page: Page) => page.locator('[role="main"]:visible');
 
 test('a photo to review rings the admin bell live, opens the review and clears in every tab', async ({
   browser,
@@ -64,8 +63,8 @@ test('a photo to review rings the admin bell live, opens the review and clears i
   await expect(ownerPage.getByRole('heading', { name: 'Avisos', exact: true })).toBeVisible();
   await expect(ownerPage).toHaveTitle(/^Avisos · /);
   await expect(ownerPage.locator('[role="main"]:visible')).toHaveCount(1);
-  await expect(ownerPage.getByText('Não lido', { exact: false })).toBeVisible();
-  await ownerPage.getByText(title, { exact: true }).locator('visible=true').first().click();
+  await expect(screen(ownerPage).getByText('Não lido', { exact: false })).toBeVisible();
+  await screen(ownerPage).getByText(title, { exact: true }).first().click();
   await expect(ownerPage).toHaveURL(new RegExp(`/proofs/${proofId}$`));
   await expect(bell(secondTab, 0)).toBeVisible();
 
@@ -75,8 +74,8 @@ test('a photo to review rings the admin bell live, opens the review and clears i
   await reviewProof(spot.createdBy, proofId, { dispute: 'partial', note: 'Faltou secar' });
   await expect(bell(memberPage, 1)).toBeVisible();
   await bell(memberPage, 1).click();
-  await expect(memberPage.getByText('Sua foto foi contestada')).toBeVisible();
-  await expect(memberPage.getByText(`${title} passou para Tentei.`)).toBeVisible();
+  await expect(screen(memberPage).getByText('Sua foto foi contestada')).toBeVisible();
+  await expect(screen(memberPage).getByText(`${title} passou para Tentei.`)).toBeVisible();
 
   const left = await admin
     .from('group_members')

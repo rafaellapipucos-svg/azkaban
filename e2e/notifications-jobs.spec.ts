@@ -10,9 +10,9 @@ import {
 import { button, check, clientOf, newUser, sendProof, signUp } from './proof-fixtures';
 
 // Needs `pnpm db:start`. The two SQL jobs of ADR-0008 (red by default, section 10; reminders,
-// section 4) are called directly, because the test cannot wait for pg_cron. Both are global: they
-// act on every row of the database, as the cron tick does, so the other specs that keep a past
-// occurrence pending shield it first (`shieldFromAutoMiss` in proof-fixtures).
+// section 4) are called directly, because the test cannot wait for pg_cron, which is off during the
+// run (e2e/global-setup.ts). Both are global: they act on every row of the database, as the cron tick
+// does, so this spec runs after the others (the `jobs` project in playwright.config.ts).
 
 const ZONE = 'America/Sao_Paulo';
 const todayLocal = () => new Intl.DateTimeFormat('en-CA', { timeZone: ZONE }).format(new Date());
@@ -320,7 +320,7 @@ test('a reminder that is due rings the bell once, and not for a done or archived
   await expect(bell(page, 1)).toBeVisible();
   await expect(toastOf(page).getByText('Daqui a 10 minutos.')).toBeVisible();
   await bell(page, 1).click();
-  await page.getByText(due.title, { exact: true }).locator('visible=true').first().click();
+  await page.locator('[role="main"]:visible').getByText(due.title, { exact: true }).first().click();
   await expect(page).toHaveURL(new RegExp(`/tasks/${due.occurrenceId}$`));
   await page.goto('/');
   await expect(bell(page, 0)).toBeVisible();

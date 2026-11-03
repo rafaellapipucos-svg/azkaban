@@ -49,3 +49,17 @@ export const privacyDefaults = {
   /** `account_deletions` rows older than this are pruned by the next deletion. */
   deletionLogRetentionDays: 365,
 } as const;
+
+/**
+ * Mirrored in public.app_settings under the key `privacy_rules` (ADR-0012, section 3, SEG8-2P-3), so
+ * changing a value here needs a migration too.
+ */
+export const privacyRules = {
+  /**
+   * An open `account_deletions` row makes `accept_invite` refuse the owner's groups only this long
+   * after its `requested_at`, which `begin_account_deletion` sets again on every attempt. Longer than
+   * any run of `account-delete` (an Edge Function stops at 400 s at most); past it, the run that left
+   * the row is gone, and `finish_account_deletion` checks the owned groups again anyway.
+   */
+  openDeletionHoldMinutes: 30,
+} as const;

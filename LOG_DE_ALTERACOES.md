@@ -1806,3 +1806,26 @@
 - **Verificado:** `pnpm check` passou (core 666 testes em 27 arquivos, contratos 104). Mutação: voltar `capRoom` para `max(0, …)` derruba 1 de 13 em `xp.test.ts`; desfeita.
 - **Não verificado:** nada contra o banco; `occurrence_award_xp` ainda não existe (F6-2).
 - **Pendências / próximos passos:** o `banco-de-dados` aplica a fórmula em F6-2.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:29 (BRT)
+
+- **Branch:** feat/gamification-db, criada a partir de feat/phase-6-gamification (293bfe7)
+- **Agente(s):** banco-de-dados
+- **Resumo:** F6-2: a gamificação no banco (ADR-0010, handoff `20261103-0235-arquiteto-para-banco-de-dados-gamificacao`). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Espelho `gamification_rules` e `gamification_rules()`.
+  - `xp_events`: `local_date`, os quatro motivos novos, `check` de `local_date` só nos motivos de dia perfeito, índices `(user_id, created_at)`, `(group_id, created_at)` e `(user_id, local_date)`.
+  - `user_stats`, `user_day_stats`, `achievements` (seed da seção 5 na migration), `user_achievements`; RLS de leitura só do dono, `achievements` para todo autenticado, nenhuma escrita do cliente. `total_xp` por trigger `after insert` em `xp_events`.
+  - `occurrence_award_xp`: `proof_bonus` em `done` com prova `unreviewed` ou `approved`; teto diário sob `pg_advisory_xact_lock` por usuário. **Desvio do ADR:** o saldo do dia conta cada ocorrência no mínimo zero; a fórmula literal deixava o caso do arquiteto gravar 600 (handoffs ao `arquiteto` e à `gamificacao`).
+  - `user_day_counts`, `refresh_user_day(user, date)`, `refold_streak(user, from)`, `grant_achievements(user)`, chamadas pelo trigger `task_occurrences_after_status_gamification` (status ou revisão da prova). `close_gamification_days()` no pg_cron (`close-gamification-days`, `*/15 * * * *`).
+  - `group_ranking(p_group_id, p_week_start, p_timezone)` com `forbidden` e `ranking_disabled`, padrão por tipo, `check` de `rankingEnabled` booleano.
+  - Realtime em `xp_events` e `user_achievements`. `daily_summary_source` preenche `streak = { current, goalToday }`.
+  - `recompute_user_gamification(user)` (só `service_role`) e backfill de todos os perfis com `last_closed_date` em ontem. `pnpm db:types`.
+  - Testes: `rls_gamification.test.sql` (96); `rls_proof` desliga o bônus na transação e conhece `group_ranking`; `rls_notifications` lista a publicação nova; `rls_whatsapp` tira `streak` da comparação.
+- **Arquivos/módulos principais:** `supabase/migrations/20261103170000` a `20261103171000`, `supabase/tests/rls_{gamification,proof,notifications,whatsapp}.test.sql`, `packages/data/src/database.types.ts`, quatro handoffs `20261103-0328-banco-de-dados-para-*`
+- **Migrations:** as 11 acima.
+- **Decisões/ADRs:** o saldo do teto por ocorrência com piso zero (a confirmar pelo `arquiteto`).
+- **Como testar:** `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`.
+- **Verificado:** `pnpm db:test` passou (6 arquivos, 1474 testes); `pnpm db:check-permissions` passou (`Gamification rules in sync`); `pnpm check` passou. Os 11 casos canônicos e as quatro metas da seção 3 passam no pgTAP. Mutações, uma por barreira, desfeitas com `db reset`: saldo do teto por soma simples dá 600 (1 falha); sem o lock (1 falha); `user_day_stats` legível por todos (2 falhas); ranking sempre ligado (3 falhas); conquista revogada ao reabrir (falha o teste do laço). Duas sessões reais concluindo ao mesmo tempo com 290 de saldo gravaram só 10.
+- **Não verificado:** `pnpm functions:test` falha em 4 testes de prova que contam 1 evento e agora veem 2 (o bônus), fora do meu escopo (handoff ao `backend-funcoes`). `pnpm e2e` não rodou nenhum teste: 7 specs falham ao carregar `supabase/functions/_shared/local-stack.mjs` ("Cannot use 'import.meta' outside a module"), arquivos que esta branch não toca. Projeto hospedado.
+- **Pendências / próximos passos:** `capRoom` com a regra por ocorrência (`gamificacao`); texto da seção 2 (`arquiteto`); `footer` do resumo (`notificacoes-whatsapp`); o job novo no `e2e/global-setup.ts` (`qa-testes`); revisão de `revisor-seguranca`.

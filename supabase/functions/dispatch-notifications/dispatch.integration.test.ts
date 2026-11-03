@@ -20,6 +20,8 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { whatsappRules } from '../../../packages/config/src/whatsapp.ts';
 import { apiUrl as API } from '../_shared/local-stack.mjs';
 import { runDispatch, type Batch, type OutboundMessage, type Report } from './dispatch.ts';
+import type { NativePushMessage } from '../../../packages/contracts/src/notifications.ts';
+import { NativePushChannel } from './native-push.ts';
 import { browser, decrypt, vapidPair, type Browser } from './test-kit.ts';
 import { loadVapid, toBase64Url, WebPushChannel, type VapidKeys } from './web-push.ts';
 
@@ -178,6 +180,21 @@ describe('dispatch-notifications', () => {
     ).id as string;
   }
 
+  /** A device of the app (ADR-0012, section 11), straight into the table like the browsers. */
+  async function subscribeDevice(name: string): Promise<string> {
+    return ok(
+      await admin
+        .from('push_subscriptions')
+        .insert({
+          user_id: userId,
+          kind: 'expo',
+          expo_token: `ExponentPushToken[${name}-${randomUUID()}]`,
+        })
+        .select('id')
+        .single(),
+    ).id as string;
+  }
+
   const outbox = async (id: string) =>
     ok(
       await admin
@@ -195,8 +212,23 @@ describe('dispatch-notifications', () => {
    * One run of the loop with the fake push service. `answers` is by the name in the endpoint; any
    * other endpoint (a row of someone else's) gets 201.
    */
-  async function dispatch(answers: Record<string, Answer>, lease = defaults.lease) {
+  async function dispatch(
+    answers: Record<string, Answer>,
+    lease = defaults.lease,
+    /** Expo's ticket by the name in the token; any other device gets `ok`. */
+    tickets: Record<string, unknown> = {},
+  ) {
     const delivered: Delivered[] = [];
+    const devices: string[] = [];
+    const expo = (async (_url: string, init: RequestInit) => {
+      const messages = JSON.parse(String(init.body)) as { to: string }[];
+      const data = messages.map(({ to }) => {
+        const name = to.slice('ExponentPushToken['.length).split('-')[0]!;
+        devices.push(name);
+        return tickets[name] ?? { status: 'ok', id: randomUUID() };
+      });
+      return new Response(JSON.stringify({ data }), { status: 200 });
+    }) as typeof fetch;
     const fake = (async (url: string, init: RequestInit) => {
       const name = new URL(url).pathname.split('/').at(-1)!.split('-')[0]!;
       const answer = answers[name] ?? 201;
@@ -235,6 +267,12 @@ describe('dispatch-notifications', () => {
           ttl: { pushTtlSeconds: 86_400, minPushTtlSeconds: 60 },
           fetch: fake,
           timeoutMs: 5000,
+          native: new NativePushChannel({
+            // The function renders with nativePushMessageSchema, which Node cannot import.
+            render: (m, to) => ({ to, title: m.taskTitle }) as unknown as NativePushMessage,
+            fetch: expo,
+            timeoutMs: 5000,
+          }),
         }),
       ],
       batchSize: defaults.batch,
@@ -242,7 +280,7 @@ describe('dispatch-notifications', () => {
       retry,
       concurrency: 10,
     });
-    return { delivered, totals };
+    return { delivered, devices, totals };
   }
 
   const secondsUntil = (instant: string) => (Date.parse(instant) - Date.now()) / 1000;
@@ -465,6 +503,40 @@ describe('dispatch-notifications', () => {
     assert.ok(left[0]!.last_success_at);
     assert.ok(!left.some((s) => s.id === dead));
     assert.deepEqual(delivered.map((d) => d.endpoint).sort(), ['alive', 'dead']);
+  });
+
+  test('a browser and a device of the same user: each by its own service, neither failure stops the other', async () => {
+    const gone = { status: 'error', details: { error: 'DeviceNotRegistered' } };
+    type Case = { web: number; device: unknown; kept: string[] };
+    const cases: Record<string, Case> = {
+      both: { web: 201, device: { status: 'ok', id: 'x' }, kept: ['web', 'device'] },
+      deviceGone: { web: 201, device: gone, kept: ['web'] },
+      browserGone: { web: 410, device: { status: 'ok', id: 'x' }, kept: ['device'] },
+    };
+    for (const [label, expected] of Object.entries(cases)) {
+      await clearSubscriptions();
+      const ids = { web: await subscribe('mixweb'), device: await subscribeDevice('mixapp') };
+      const row = await enqueue();
+      const { delivered, devices } = await dispatch({ mixweb: expected.web }, defaults.lease, {
+        mixapp: expected.device,
+      });
+      const after = await outbox(row.outboxId);
+      assert.equal(after.status, 'sent', label);
+      assert.deepEqual(
+        delivered.map((d) => d.endpoint),
+        ['mixweb'],
+        `${label}: the browser by Web Push`,
+      );
+      assert.deepEqual(devices, ['mixapp'], `${label}: the device by Expo`);
+      const left = await subscriptions();
+      assert.deepEqual(
+        left.map((s) => s.id).sort(),
+        expected.kept.map((k) => ids[k as 'web' | 'device']).sort(),
+        `${label}: kept`,
+      );
+      // Only the ones that took it count as a success.
+      for (const s of left) assert.ok(s.last_success_at, `${label}: last_success_at`);
+    }
   });
 
   test('a host off the list is checked again by the function, never requested, and kept', async () => {

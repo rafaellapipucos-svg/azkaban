@@ -23,7 +23,21 @@ export type Database = {
           }
         },"public": {
           Tables: {
-            "achievements": {
+            "account_deletions": {
+                  Row: {
+                    "completed_at": string | null,"groups_deleted": number,"id": string,"objects_deleted": number,"proofs_deleted": number,"requested_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "completed_at"?: string | null,"groups_deleted"?: number,"id"?: string,"objects_deleted"?: number,"proofs_deleted"?: number,"requested_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "completed_at"?: string | null,"groups_deleted"?: number,"id"?: string,"objects_deleted"?: number,"proofs_deleted"?: number,"requested_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"achievements": {
                   Row: {
                     "icon": string,"key": string,"kind": string,"sort_order": number,"threshold": number
                   }
@@ -383,14 +397,14 @@ isOneToOne: false
                   ]
                 },"proof_consents": {
                   Row: {
-                    "accepted_at": string,"user_id": string,"version": number
+                    "accepted_at": string,"id": string,"revoked_at": string | null,"user_id": string,"version": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "accepted_at"?: string,"user_id": string,"version": number
+                    "accepted_at"?: string,"id"?: string,"revoked_at"?: string | null,"user_id": string,"version": number
                   }
                   Update: {
-                    "accepted_at"?: string,"user_id"?: string,"version"?: number
+                    "accepted_at"?: string,"id"?: string,"revoked_at"?: string | null,"user_id"?: string,"version"?: number
                   }
                   Relationships: [
                     {
@@ -902,6 +916,9 @@ isOneToOne: false
             "accept_invite":
 { Args: { "invite_code": string }; Returns: string
                            },
+"account_deletion_preview":
+{ Args: { "p_user": string }; Returns: Json
+                           },
 "add_catalog_item_to_list":
 { Args: { "p_catalog_item_id": string,"p_delta": number,"p_list_id": string,"p_request_id"?: string }; Returns: {
               "added_at": string,
@@ -948,6 +965,9 @@ isOneToOne: false
       } },
 "auto_miss_occurrences":
 { Args: Record<PropertyKey, never>; Returns: number
+                           },
+"begin_account_deletion":
+{ Args: { "p_user": string }; Returns: Json
                            },
 "call_dispatch_notifications":
 { Args: Record<PropertyKey, never>; Returns: undefined
@@ -998,6 +1018,9 @@ isOneToOne: false
                            },
 "commit_proof":
 { Args: { "p_accuracy_m": number,"p_app_version": string,"p_captured_at_device": string,"p_distance_m": number,"p_flags": (string)[],"p_height_px": number,"p_nonce": string,"p_platform": string,"p_sha256": string,"p_size_bytes": number,"p_storage_path": string,"p_user_agent": string,"p_user_id": string,"p_width_px": number }; Returns: Json
+                           },
+"complete_account_deletion":
+{ Args: { "p_retention_days": number,"p_user": string }; Returns: Json
                            },
 "complete_shopping_list":
 { Args: { "p_list_id": string }; Returns: {
@@ -1075,6 +1098,12 @@ isOneToOne: false
                            },
 "exclude_kept_days":
 { Args: { "p_task_id": string }; Returns: undefined
+                           },
+"export_user_data":
+{ Args: { "p_user": string }; Returns: Json
+                           },
+"finish_account_deletion":
+{ Args: { "p_objects_deleted": number,"p_user": string }; Returns: Json
                            },
 "gamification_history_floor":
 { Args: { "p_created_at": string,"p_tz": string }; Returns: string
@@ -1225,6 +1254,9 @@ isOneToOne: false
         isOneToOne: true
         isSetofReturn: false
       } },
+"revoke_proof_consent":
+{ Args: Record<PropertyKey, never>; Returns: undefined
+                           },
 "seed_shopping_catalog":
 { Args: { "p_group_id": string,"p_owner_user_id": string }; Returns: undefined
                            },

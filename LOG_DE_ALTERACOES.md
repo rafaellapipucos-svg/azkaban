@@ -1746,3 +1746,23 @@
 - **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9 tarefas; `functions:imports` 8 de 8). Contratos: 104 testes em 5 arquivos, 12 novos em `gamification.test.ts`.
 - **Não verificado:** nada com a pilha. `pnpm db:check-permissions` acusa `gamification_rules` até a migration de F6-2. Os casos canônicos foram conferidos à mão, não em código.
 - **Pendências / próximos passos:** os cinco handoffs. Para o humano: os nove itens da seção 13 do ADR-0010. Para o orquestrador: a divisão sugerida das tarefas F6 no relatório.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:47 (BRT)
+
+- **Branch:** feat/gamification-core, criada a partir de feat/phase-6-gamification (1340eaf)
+- **Agente(s):** gamificacao
+- **Resumo:** F6-1: motor puro da gamificação em `packages/core/src/gamification`, especificação executável do ADR-0010 para as telas e para o pgTAP de F6-2. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `levelForXp(totalXp, curve)`: nível pela curva, cada passo arredondado sozinho; curva inválida lança `RangeError`.
+  - `dailyGoal(counts, goal)`: meta por conta inteira, `needed` = `ceil(planned × percent / 100)`, amarelo conta com `countPartial`. `dayCounts(items, { timezone, date, assigneeId })` pelo `occurrenceDay`, `summarizeDay` e `isPerfectDay` de `core/tasks`, sem canceladas, repetidas nem de outro responsável.
+  - `foldStreak(days, { today, rules })`: dobra da seção 3; dia sem linha é vazio, hoje aberto não quebra, proteção ganha a cada múltiplo até o máximo e gasta em dia fechado sem meta. Devolve o estado de cada dia dado, `freezeUsed` incluído.
+  - `occurrenceXpWithBonus` (base de `occurrenceXp` mais `proofBonus` em `done` com prova `unreviewed` ou `approved`), `capRoom(eventsToday, dailyCap)` por `cappedXpEventReasons` e `applyCap` (base primeiro, bônus com o resto).
+  - `reachedAchievements(achievements, progress)` e `celebrationsFor(before, after, { events, achievementKeys, streakMilestones, celebratedLevel, levelCurve })`, do maior para o menor, com o nível comemorado uma vez por aparelho.
+  - Handoffs `20261103-0243-gamificacao-para-arquiteto-adr-0010-ajustes` e `20261103-0243-gamificacao-para-tarefas-calendario-meta-do-dia`.
+- **Arquivos/módulos principais:** `packages/core/src/gamification/{level,streak,xp,celebrations}.ts` e testes, `packages/core/src/index.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. `dayCounts` recebe um objeto com `assigneeId`, diferente da assinatura do handoff. O nível 10 começa em 2.579, não 2.580 como diz o ADR (handoff ao `arquiteto`).
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/gamification`.
+- **Verificado:** `pnpm check` passou. 60 testes novos em 4 arquivos (665 no core). Os 11 casos canônicos da seção 3 e os exemplos de meta são testes. Mutações, uma por regra, desfeitas: teto `max(0, …)` para `max(1, …)` derruba 2; meta `>=` para `>` derruba 24; quebra da ofensiva trocada por `streak − 1` derruba 4; proteção `> 0` para `>= 0` derruba 7; curva `>=` para `>` derruba 3.
+- **Não verificado:** nada contra o banco (F6-2 não começou); a paridade com o SQL depende de o pgTAP usar a mesma tabela.
+- **Pendências / próximos passos:** F6-3 a F6-5 depois de F6-2 e do design system. As três perguntas do handoff ao `arquiteto`.

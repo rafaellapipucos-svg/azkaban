@@ -4001,3 +4001,19 @@
 - **Verificado:** pilha A depois de `pnpm db:reset`. Os três testes de link com `--repeat-each=3`: 9/9. `e2e/accounts.spec.ts` inteiro: 7/7. Mutação: com o guarda de outra conta de `setSessionFromLink` desligado (`packages/data/src/auth/index.ts`), o teste de outra conta caiu (URL `http://localhost:8091/`, a sessão virou a de B) e o da mesma conta passou; arquivo restaurado pelo git. `pnpm check` passou.
 - **Não verificado:** build de produção (`E2E_BUILD=1`), nativo e hospedado; link de outra conta aberto por uma aba já carregada (evento `url`), só a abertura por navegação. Nenhum bug de produto achado. Hora pelo UTC−3 (PowerShell barrado).
 - **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 18:34 (BRT)
+
+- **Branch:** feat/launch-decisions (a partir de `main`, `33132dc`)
+- **Agente(s):** orquestrador
+- **Resumo:** aplica as respostas do humano aos BL-24 a BL-38. Antes disso, a cadeia de PRs #1 a #10 foi mergeada na `main` com autorização do humano (o #8 entrou pelo #9, que já trazia as Fases 6 e 7 reconciliadas).
+- **Alterações:**
+  - `docs/agentes/QUADRO.md`: status de BL-24 a BL-38 conforme as respostas; novos BL-39 (patches do SDK 58 depois da quarentena do pnpm) e BL-40 (identificador Android).
+  - Integrados: decisões nos ADRs; Hostinger em `app.tabolao.com` (`.htaccess` testado em Apache, deploy por FTPS só depois de CI verde na `main`, guia na seção 8 de `docs/implantacao.md`); login web A' com E2E e mutação; controlador e `privacidade@tabolao.com` nas telas; "0 pacotes" no app e nas funções; SEG6-6 com chave substituta; esconder o conteúdo do push (banco, funções e interruptor); `expo-doctor` determinístico (`EXPO_OFFLINE=1`).
+- **Arquivos/módulos principais:** `docs/agentes/QUADRO.md`, `LOG_DE_ALTERACOES.md`.
+- **Migrations:** nenhuma neste bloco (as das decisões são `20261105140000`, `20261106100000` e `20261106100100`).
+- **Decisões/ADRs:** ADR-0004, 0007, 0008, 0009, 0010, 0011 e 0012 registram as respostas.
+- **Como testar:** `docs/agentes/ferramentas/verificar-fase.sh` com `EXPO_PUBLIC_VAPID_PUBLIC_KEY` em memória e `NATIVE_PUSH_PROVIDER=fake` no `.env` local das funções; `pnpm bundle:size`; `pnpm expo:doctor`.
+- **Verificado:** em `c6ff56a`, banco limpo: db:test 1990/1990 antes e depois da E2E, db:check-permissions, typecheck e unidade, lint, fronteiras, build:web, functions:test 228/228, E2E 99 passaram e 1 pulado nas duas rodadas, bundle 404 609 B, expo-doctor 20/20. Varredura de segredos sem achados.
+- **Não verificado:** deploy real na Hostinger (falta o humano criar os Secrets), Brevo, projeto hospedado, nativo.
+- **Pendências / próximos passos:** PR para a `main`; com o humano: `supabase login`, Hostinger e Brevo; BL-39 depois de 2026-11-04 14:10; BL-40.

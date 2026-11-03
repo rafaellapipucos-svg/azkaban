@@ -2102,3 +2102,20 @@
 - **Verificado:** os cinco PoCs e o resíduo acima; `pnpm check`. Pilha B parada no fim.
 - **Não verificado:** a espera real de um `insert` durante o lote do job em duas sessões (conferido pelo código e pela semântica de `for no key update`); `pnpm db:test` inteiro; o Realtime em execução; o projeto hospedado.
 - **Pendências / próximos passos:** nenhuma de segurança na Fase 6.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 05:00 (BRT)
+
+- **Branch:** chore/qa-phase-6-close, criada a partir de feat/phase-6-gamification (f12607f)
+- **Agente(s):** qa-testes
+- **Resumo:** fechamento do QA da Fase 6, com as correções SEG6 e QA6 integradas. A tela de dia perfeito travou só uma spec, corrigida no próprio teste; a E2E agora confere o teto de 24 h, o ranking só da semana e desde que foi ligado, o chip sem XP, "0 dias" e "Últimos dias". Um defeito novo, QA6C-1 (o cartão de comemoração bloqueia a tela), num handoff ao `gamificacao`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `e2e/tasks.spec.ts`: "quick create…" espera a tela de dia perfeito (`dialog` "Dia perfeito!") depois de concluir a única tarefa e a fecha em "Continuar". Foi a única spec que travou; um ajudante geral não se pagou.
+  - `e2e/gamification.spec.ts`: `quickCreate` espera a tarefa na lista, não só o aviso (o do anterior podia estar aberto); "Últimos dias" com uma linha só, a de hoje (QA6-5); ranking ignora 50 XP de 8 dias atrás com grupo ligado e membro há 30 dias, e ignora o XP ganho na empresa antes de ligar (SEG6-4); no teto, 4 de 5 tarefas cumprem a meta e o chip vai a "1 dia de ofensiva" sem evento nem conquista nova (QA6-3); o "sem comemoração" do teto passa a contar uma vez, porque o `toHaveCount(0)` repetia até o cartão fechar sozinho e escondia a conquista "Primeira tarefa", agora concedida antes; teste novo de QA6C-1 com `test.fail()`.
+  - Handoff `20261103-0453-qa-testes-para-gamificacao-cartao-bloqueia-a-tela`: QA6C-1 (média), QA6C-2 e QA6C-3 (baixas).
+- **Arquivos/módulos principais:** `e2e/tasks.spec.ts`, `e2e/gamification.spec.ts`, o handoff acima
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma; QA6C-2 pede ao `arquiteto` alinhar o texto do ADR-0010 sobre comemoração no teto.
+- **Como testar:** `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm exec playwright test e2e/gamification.spec.ts e2e/tasks.spec.ts --project=app`; `pnpm e2e` com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória.
+- **Verificado:** `pnpm e2e` completo uma vez, com a chave VAPID e antes do teste de QA6C-1: 72 ok, 2 falhas, 1 pulado (o "sem chave VAPID"). As falhas são de `notifications-jobs` ("the red-by-default job…", com o "Fechar aviso" coberto pelo invólucro do cartão, causa confirmada; e "a reminder that is due…", causa provável a mesma, não confirmada). As 4 de `notifications-jobs` passaram antes, sozinhas (`--no-deps`). Depois, `gamification.spec.ts` 5 de 5 (um esperado-falho) e `tasks.spec.ts` "quick create…" 1 de 1. `pnpm functions:test` 178 de 178 (rodou duas vezes; a primeira saída não foi capturada). `pnpm check` passou (17 de 17 e 10 de 10; core 692; `functions:imports` 8 de 8). Pilha A parada com `supabase stop`.
+- **Não verificado:** a E2E completa depois do teste de QA6C-1 (só a spec); a causa da segunda falha de `notifications-jobs`; QA6C-3 não se repetiu; a "Semana perfeita" com a tela de dia perfeito; leitor de tela real, Safari, iPhone; projeto hospedado. Sem mutação.
+- **Pendências / próximos passos:** QA6C-1 com o `gamificacao`; depois dele, tirar o `test.fail()` e rodar a E2E completa, que deve voltar a verde em `notifications-jobs`. `docs/agentes/QUADRO.md` é do orquestrador.

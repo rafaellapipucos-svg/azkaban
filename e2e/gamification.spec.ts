@@ -23,6 +23,8 @@ async function quickCreate(page: Page, title: string) {
   await page.getByLabel('O que precisa ser feito?').fill(title);
   await button(page, 'Criar').click();
   await expect(page.getByText('Pronto! A tarefa foi criada.')).toBeVisible();
+  // The notice of the one before may still be up: the task itself is the proof.
+  await expect(check(page, title, 'Pendente')).toBeVisible();
 }
 
 /** Green, and past the save: the database has written the XP by then, or decided not to. */
@@ -88,6 +90,25 @@ test('finishing tasks: XP, the celebration with confetti, the goal ring, the str
   await expect(first.getByText(/^Concedida em /)).toBeVisible();
   const week = page.getByRole('listitem').filter({ hasText: 'Uma semana de ofensiva' });
   await expect(week.getByText('Bloqueada')).toBeVisible();
+  // "Últimos dias" starts on the day the account was made, today (QA6-5).
+  const days = text(page, 'Últimos dias').locator('xpath=following-sibling::*[@role="list"]');
+  await expect(days.getByRole('listitem')).toHaveCount(1);
+  await expect(days.getByRole('listitem')).toHaveText(/: Dia perfeito$/);
+});
+
+// QA6C-1, handoff 20261103-0453-qa-testes-para-gamificacao-cartao-bloqueia-a-tela: the card's
+// full-screen wrapper takes every tap while the card is up (6 s), so nothing else on the screen
+// works. Remove `test.fail()` when it is fixed.
+test('while the celebration card is up, the rest of Hoje still takes taps', async ({ page }) => {
+  test.fail();
+  await signUpWithContext(page, newUser('Toque'));
+  await quickCreate(page, 'Varrer a sala');
+  await quickCreate(page, 'Tirar o lixo');
+  await finish(page, 'Varrer a sala');
+  await expect(celebration(page)).toHaveCount(1);
+  // Well inside the card's 6 s, and far from it.
+  await check(page, 'Tirar o lixo', 'Pendente').click({ timeout: 2_000 });
+  await expect(check(page, 'Tirar o lixo', 'Feito')).toBeVisible();
 });
 
 test.describe('with reduced motion', () => {
@@ -106,8 +127,10 @@ test.describe('with reduced motion', () => {
 test('the ranking: on by default in a family group, off in a company until an admin turns it on', async ({
   page,
 }) => {
-  await signUp(page, newUser('Rank'));
+  const user = newUser('Rank');
+  await signUp(page, user);
   await expect(page.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
+  const id = userId(user);
 
   // Family: on, with the week's XP from the group's tasks
   const family = await newGroup(page, 'Família R');
@@ -125,11 +148,37 @@ test('the ranking: on by default in a family group, off in a company until an ad
   await expect(row.getByText('1º')).toBeVisible();
   await expect(row.getByText('10 XP')).toBeVisible();
 
+  // Only the current week (SEG6-4): with the group on and the member in it for a month, 50 XP from 8
+  // days ago, always before this week's start, stay out. The trigger owns `ranking_enabled_at`.
+  const [familyId] = sql(
+    `select m.group_id from public.group_members m join public.groups g on g.id = m.group_id
+     where m.user_id = '${id}' and g.name = 'Família R'`,
+  );
+  sql(`begin;
+    alter table public.groups disable trigger groups_set_ranking_enabled_at;
+    update public.groups set ranking_enabled_at = now() - interval '30 days' where id = '${familyId}';
+    alter table public.groups enable trigger groups_set_ranking_enabled_at;
+    update public.group_members set joined_at = now() - interval '30 days'
+      where group_id = '${familyId}' and user_id = '${id}';
+    insert into public.xp_events (user_id, group_id, amount, reason, created_at)
+      values ('${id}', '${familyId}', 50, 'occurrence_done', now() - interval '8 days');
+    commit;`);
+  await page.reload();
+  await expect(row.getByText('10 XP')).toBeVisible();
+
   // Company: off by default, explained, and the owner can turn it on
-  await newGroup(page, 'Empresa R', 'Empresa');
+  const company = await newGroup(page, 'Empresa R', 'Empresa');
   const toggle = page.getByRole('switch', { name: 'Ranking no grupo' });
   await expect(toggle).toHaveAttribute('aria-checked', 'false');
   await expect(text(page, 'O ranking está desligado neste grupo.')).toBeVisible();
+  // XP earned in the group while the ranking is off does not count once it is on (SEG6-4).
+  await newContext(page, 'Escritório R', 'Empresa R');
+  await quickCreate(page, 'Enviar o relatório');
+  await finish(page, 'Enviar o relatório');
+  expect(
+    sql(`select count(*) from public.xp_events where user_id = '${id}' and group_id is not null`),
+  ).toEqual(['3']);
+  await page.goto(company);
   await toggle.click();
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
   await expect(text(page, emptyRanking)).toBeVisible();
@@ -142,22 +191,36 @@ test('at the daily cap a finished task writes no XP and is not celebrated, and t
   await signUpWithContext(page, user);
   const id = userId(user);
   // 300 earned within the last 24 hours, as the database would have written it. The window moves, so
-  // this holds at any hour, midnight included.
-  sql(
-    `insert into public.xp_events (user_id, amount, reason) values ('${id}', 300, 'occurrence_done')`,
-  );
+  // this holds at any hour, midnight included. "Primeira tarefa" is granted apart from the XP, so it
+  // is given beforehand: its card would be a celebration of its own.
+  sql(`begin;
+    insert into public.xp_events (user_id, amount, reason) values ('${id}', 300, 'occurrence_done');
+    insert into public.user_achievements (user_id, achievement_key) values ('${id}', 'first_task');
+    commit;`);
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
-  // Two tasks, so finishing one does not make the day perfect, which is outside the cap.
-  await quickCreate(page, 'Passear com o cão');
-  await quickCreate(page, 'Ligar para a avó');
-  await finish(page, 'Passear com o cão');
-  await expect(goal(page)).toHaveAttribute('aria-valuetext', '1 de 2');
+  // Five tasks: four meet the goal (80%, so the ring counts to 4) without making the day perfect,
+  // which is outside the cap.
+  const titles = ['Passear com o cão', 'Ligar para a avó', 'Pagar a luz', 'Molhar a horta', 'Ler'];
+  for (const title of titles) await quickCreate(page, title);
+  await finish(page, titles[0]!);
+  await expect(goal(page)).toHaveAttribute('aria-valuetext', '1 de 4');
 
   expect(sql(`select count(*) from public.xp_events where user_id = '${id}'`)).toEqual(['1']);
-  // Past the burst window, nothing to celebrate.
+  // Past the burst window, nothing to celebrate. Counted once: `toHaveCount(0)` would retry until a
+  // card closed by itself.
   await page.waitForTimeout(2_000);
-  await expect(celebration(page)).toHaveCount(0);
+  expect(await celebration(page).count()).toBe(0);
+
+  // The goal met moves the streak with no XP and no achievement, so nothing comes by Realtime, and
+  // the chip still follows (QA6-3).
+  for (const title of titles.slice(1, 4)) await finish(page, title);
+  await expect(goal(page)).toHaveAttribute('aria-valuetext', '4 de 4');
+  await expect(page.getByRole('button', { name: '1 dia de ofensiva' })).toBeVisible();
+  expect(sql(`select count(*) from public.xp_events where user_id = '${id}'`)).toEqual(['1']);
+  expect(sql(`select count(*) from public.user_achievements where user_id = '${id}'`)).toEqual([
+    '1',
+  ]);
 
   await page.getByRole('tab', { name: 'Perfil' }).click();
   await expect(

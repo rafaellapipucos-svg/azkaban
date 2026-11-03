@@ -1,6 +1,6 @@
 # ADR-0002: Monorepo e fronteiras entre módulos
 
-**Status:** proposto, aguardando validação do humano na Fase 0.
+**Status:** aceito na aprovação da Fase 0.
 
 ## Contexto
 

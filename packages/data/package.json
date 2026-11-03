@@ -9,6 +9,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@azkaban/contracts": "workspace:*",
+    "@azkaban/platform": "workspace:*",
     "@supabase/supabase-js": "catalog:"
   }
 }

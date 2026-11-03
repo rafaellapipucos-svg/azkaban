@@ -1,0 +1,37 @@
+{
+  "areas": {
+    "work": "Trabalho",
+    "home": "Doméstico"
+  },
+  "list": {
+    "areaLabel": "Área",
+    "contextLabel": "Contexto",
+    "all": "Todos",
+    "empty": "Nenhum contexto aqui ainda. Crie um para cada lugar da sua vida.",
+    "new": "Novo contexto",
+    "personal": "Pessoal",
+    "group": "Grupo: {{name}}"
+  },
+  "form": {
+    "newTitle": "Novo contexto",
+    "editTitle": "Editar contexto",
+    "name": "Nome",
+    "nameInvalid": "Digite um nome.",
+    "icon": "Emoji",
+    "iconInvalid": "Escolha um emoji.",
+    "area": "Área",
+    "owner": "De quem é",
+    "justMe": "Só eu",
+    "color": "Cor",
+    "archive": "Arquivar",
+    "archiveConfirm": "Confirmar arquivamento"
+  },
+  "colors": {
+    "violet": "Violeta",
+    "teal": "Verde-água",
+    "coral": "Coral",
+    "rose": "Rosa",
+    "blue": "Azul",
+    "slate": "Cinza"
+  }
+}

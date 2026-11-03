@@ -43,4 +43,4 @@ O tema usa `darkMode: 'class'`, porque o modo `media` dispara erro na web no Nat
 
 ## Banco
 
-Desenvolvimento em Supabase local (`pnpm db:start`, exige Docker). O projeto hospedado recebe migrations por `supabase db push --db-url "$SUPABASE_DB_URL"`, e só após revisão.
+Desenvolvimento em Supabase local (`pnpm db:start`, exige Docker): `apps/app/.env.development.local` aponta o `pnpm dev` para ele. O projeto hospedado recebe migrations por `supabase db push --db-url "$SUPABASE_DB_URL"`, e só após revisão.

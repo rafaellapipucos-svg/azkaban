@@ -1,0 +1,60 @@
+{
+  "list": {
+    "title": "Grupos",
+    "empty": "Você ainda não está em nenhum grupo. Crie um ou entre com um código.",
+    "new": "Criar grupo",
+    "codeLabel": "Código do convite",
+    "join": "Entrar com código",
+    "codeInvalid": "O código tem 10 letras e números."
+  },
+  "types": {
+    "family": "Família",
+    "company": "Empresa",
+    "other": "Outro"
+  },
+  "form": {
+    "title": "Novo grupo",
+    "name": "Nome do grupo",
+    "nameInvalid": "Digite o nome do grupo.",
+    "type": "Tipo de grupo",
+    "submit": "Criar grupo"
+  },
+  "detail": {
+    "members": "Membros",
+    "you": "você",
+    "rename": "Salvar nome",
+    "makeAdmin": "Tornar administrador",
+    "makeMember": "Tornar membro",
+    "remove": "Remover",
+    "removeConfirm": "Confirmar: remove e cancela os convites ativos",
+    "transfer": "Passar a posse",
+    "transferConfirm": "Confirmar: você vira administrador",
+    "leave": "Sair do grupo",
+    "leaveConfirm": "Confirmar saída",
+    "delete": "Excluir grupo",
+    "deleteConfirm": "Confirmar exclusão"
+  },
+  "invites": {
+    "title": "Convites",
+    "empty": "Nenhum convite ativo.",
+    "createMember": "Convidar membro",
+    "createAdmin": "Convidar administrador",
+    "code": "Código",
+    "expires": "Vale até {{date}}",
+    "roleLabel": "Entra como {{role}}",
+    "copyLink": "Copiar link",
+    "copied": "Link copiado.",
+    "qrLabel": "QR code do convite",
+    "revoke": "Cancelar convite",
+    "revokeConfirm": "Confirmar cancelamento"
+  },
+  "join": {
+    "title": "Convite",
+    "description": "Você foi convidado para {{group}} como {{role}}.",
+    "invalid": "Este convite não vale mais. Peça um novo a quem convidou você.",
+    "accept": "Aceitar",
+    "decline": "Agora não",
+    "signInFirst": "Entre na sua conta para aceitar o convite.",
+    "signIn": "Entrar"
+  }
+}

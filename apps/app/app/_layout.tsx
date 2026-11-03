@@ -1,14 +1,35 @@
 import '../global.css';
+import { useSession } from '@azkaban/feature-auth';
+import { initData } from '@azkaban/data';
 import { initI18n } from '@azkaban/i18n';
 import { useSystemColorScheme } from '@azkaban/ui';
 import { Nunito_600SemiBold, Nunito_800ExtraBold, useFonts } from '@expo-google-fonts/nunito';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
+import { env } from '../src/env';
 
 initI18n();
+initData(env.EXPO_PUBLIC_SUPABASE_URL, env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+
+const queryClient = new QueryClient();
 
 export default function RootLayout() {
   useSystemColorScheme();
+  const { session, loading } = useSession();
   const [fontsLoaded] = useFonts({ Nunito_600SemiBold, Nunito_800ExtraBold });
-  if (!fontsLoaded) return null;
-  return <Stack screenOptions={{ headerShown: false }} />;
+  if (!fontsLoaded || loading) return null;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(app)" />
+        <Stack.Protected guard={!session}>
+          <Stack.Screen name="welcome" />
+          <Stack.Screen name="sign-in" />
+          <Stack.Screen name="sign-up" />
+        </Stack.Protected>
+        <Stack.Screen name="join/[code]" />
+        <Stack.Screen name="design-system" />
+      </Stack>
+    </QueryClientProvider>
+  );
 }

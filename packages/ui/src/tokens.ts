@@ -1,11 +1,16 @@
 export const colors = {
   primary: '#6B2FE0',
+  'primary-light': '#C9B2FF',
   primaryEdge: '#4B1DA8',
   onPrimary: '#FFFFFF',
+  danger: '#C8283D',
+  dangerEdge: '#8F1626',
   background: '#FBF8FF',
   'background-dark': '#16121F',
   surface: '#FFFFFF',
   'surface-dark': '#241E33',
+  border: '#E4E0EC',
+  'border-dark': '#3A3350',
   text: '#1F1830',
   'text-dark': '#F5F1FC',
   muted: '#5F5673',
@@ -24,6 +29,26 @@ export const colors = {
   onCancelled: '#FFFFFF',
 } as const;
 
+// Stored by name in areas.color_token and contexts.color_token. All pass AA with white text.
+export const contextColors = {
+  violet: '#6B2FE0',
+  teal: '#0B7A75',
+  coral: '#C2410C',
+  rose: '#BE185D',
+  blue: '#1D4FD8',
+  slate: '#475569',
+} as const;
+
+export type ContextColorToken = keyof typeof contextColors;
+
+export const mascotColors = {
+  body: '#7C4DFF',
+  belly: '#D9CCFF',
+  leaf: '#22B573',
+  ink: '#1F1830',
+  blush: '#FF8FA3',
+} as const;
+
 export const radii = { md: 16, lg: 24, full: 999 } as const;
 
 export const spacing = { 1: 4, 2: 8, 3: 12, 4: 16, 6: 24, 8: 32 } as const;
@@ -33,4 +58,6 @@ export const fontFamily = {
   heavy: 'Nunito_800ExtraBold',
 } as const;
 
-export const fontSize = { sm: 14, md: 16, xl: 32 } as const;
+export const fontSize = { sm: 14, md: 16, lg: 20, xl: 32 } as const;
+
+export const layout = { maxContentWidth: 560, tabBarHeight: 64 } as const;

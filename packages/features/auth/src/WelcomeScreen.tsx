@@ -1,23 +1,25 @@
 import { useTranslation } from '@azkaban/i18n';
-import { StatusBadge } from '@azkaban/ui';
+import { Button, Mascot, Muted, Screen, Title } from '@azkaban/ui';
+import { useRouter } from 'expo-router';
 import { Text, View } from 'react-native';
 
 export function WelcomeScreen({ appName }: { appName: string }) {
   const { t } = useTranslation('auth');
+  const router = useRouter();
   return (
-    <View className="flex-1 items-center justify-center gap-4 bg-background p-6 dark:bg-background-dark">
-      <Text className="font-heavy text-md text-primary dark:text-text-dark">{appName}</Text>
-      <Text role="heading" className="text-center font-heavy text-xl text-text dark:text-text-dark">
-        {t('welcome.title')}
-      </Text>
-      <Text className="text-center font-body text-md text-muted dark:text-muted-dark">
-        {t('welcome.subtitle')}
-      </Text>
-      <View className="flex-row flex-wrap justify-center gap-2 pt-4">
-        <StatusBadge status="done" />
-        <StatusBadge status="partial" />
-        <StatusBadge status="missed" />
+    <Screen>
+      <View className="flex-1 items-center justify-center gap-4">
+        <Mascot mood="happy" size={160} />
+        <Text className="font-heavy text-md text-primary dark:text-primary-light">{appName}</Text>
+        <Title className="text-center">{t('welcome.title')}</Title>
+        <Muted className="text-center">{t('welcome.subtitle')}</Muted>
       </View>
-    </View>
+      <Button label={t('welcome.start')} onPress={() => router.push('/sign-up')} />
+      <Button
+        variant="secondary"
+        label={t('welcome.haveAccount')}
+        onPress={() => router.push('/sign-in')}
+      />
+    </Screen>
   );
 }

@@ -13,6 +13,9 @@
     "@azkaban/i18n": "workspace:*",
     "nativewind": "^4.2.7",
     "react": "catalog:",
-    "react-native": "catalog:"
+    "react-hook-form": "^7.91.0",
+    "react-native": "catalog:",
+    "react-native-safe-area-context": "^5.11.0",
+    "react-native-svg": "^15.16.0"
   }
 }

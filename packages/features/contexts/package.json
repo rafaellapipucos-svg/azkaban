@@ -8,5 +8,18 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@azkaban/config": "workspace:*",
+    "@azkaban/contracts": "workspace:*",
+    "@azkaban/core": "workspace:*",
+    "@azkaban/data": "workspace:*",
+    "@azkaban/i18n": "workspace:*",
+    "@azkaban/ui": "workspace:*",
+    "@hookform/resolvers": "^7.0.0",
+    "@tanstack/react-query": "^5.105.0",
+    "expo-router": "^58.0.29",
+    "react": "catalog:",
+    "react-hook-form": "^7.91.0",
+    "react-native": "catalog:"
+  }
 }

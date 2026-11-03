@@ -23,6 +23,9 @@ pnpm db:start           # Supabase local (exige Docker)
 pnpm db:reset           # recria o banco local com migrations + seeds
 pnpm db:migration <nome> # nova migration
 pnpm db:types           # gera os tipos do banco em packages/data
+pnpm db:test            # testes de RLS (pgTAP)
+pnpm db:check-permissions # compara a matriz do banco com packages/core
+pnpm e2e                # Playwright (exige `pnpm db:start`)
 ```
 
 ## Regras de arquitetura

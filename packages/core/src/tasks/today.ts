@@ -1,4 +1,5 @@
 import type { OccurrenceListItem } from '@azkaban/contracts';
+import { dailyGoal, dayCounts, type DailyGoal, type GoalRules } from '../gamification/streak';
 import { DAY_MS, dateOfWall, instantOf, localDateOf, wallMidnight } from '../recurrence/zone';
 import { isOverdue, isStillResolvable } from './late';
 import { occurrenceXp, type XpRules } from './xp';
@@ -37,8 +38,6 @@ export type TodayPlan = {
   today: OccurrenceListItem[];
   /** Pending deadlines that fall due after today, within the window, nearest first. */
   soon: OccurrenceListItem[];
-  /** The daily goal: green ones out of everything planned for today. */
-  goal: { done: number; total: number };
 };
 
 /**
@@ -58,7 +57,7 @@ export function planToday(
   const today = localDateOf(timezone, now.getTime());
   const lastSoonDay = dateOfWall(wallMidnight(today) + dueSoonDays * DAY_MS);
   const seen = new Set<string>();
-  const plan: TodayPlan = { overdue: [], today: [], soon: [], goal: { done: 0, total: 0 } };
+  const plan: TodayPlan = { overdue: [], today: [], soon: [] };
 
   for (const item of items) {
     if (seen.has(item.id) || item.status === 'cancelled') continue;
@@ -83,11 +82,26 @@ export function planToday(
   plan.overdue.sort(byStart);
   plan.today.sort(byStart);
   plan.soon.sort((a, b) => Date.parse(a.scheduledDue) - Date.parse(b.scheduledDue));
-  plan.goal = {
-    done: plan.today.filter(({ status }) => status === 'done').length,
-    total: plan.today.length,
-  };
   return plan;
+}
+
+/**
+ * The ring of Hoje: the daily goal of `assigneeId` (ADR-0010, sections 3 and 10) over every
+ * occurrence whose local day in the zone of the profile is today, the ones already listed as
+ * overdue included, so a deadline that passed this morning still counts as not done. Pass all the
+ * items of the screen, not only `plan.today`.
+ */
+export function todayGoal(
+  items: readonly OccurrenceListItem[],
+  {
+    now,
+    timezone,
+    assigneeId,
+    rules,
+  }: { now: Date; timezone: string; assigneeId: string; rules: GoalRules },
+): DailyGoal {
+  const date = localDateOf(timezone, now.getTime());
+  return dailyGoal(dayCounts(items, { timezone, date, assigneeId }), rules);
 }
 
 export type AreaPlan = {

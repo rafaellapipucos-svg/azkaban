@@ -3260,3 +3260,22 @@
 - **Verificado:** `pnpm check` passou.
 - **Não verificado:** o mesmo da entrada anterior (sem pilha, sem E2E, sem navegador).
 - **Pendências / próximos passos:** o arquiteto pode alinhar a linha do sino na tabela do ADR-0012 §3 a "ex-membro".
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:09 (BRT)
+
+- **Branch:** feat/ui-confirm-disabled-tabs, criada a partir de feat/backlog-after-phase-8 (3e48b9e)
+- **Agente(s):** design-system
+- **Resumo:** BL-9. `ConfirmButton` ganha `disabled` e a barra de abas ganha respiro entre rótulos a 320 px e no zoom. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `ConfirmButton`: `disabled` repassado ao `Button` (que já põe `disabled` e `aria-disabled` no `Pressable`, de onde sai o `accessibilityState.disabled`). Nenhum dos dois passos dispara; uma confirmação armada é desfeita quando o botão desliga (ajuste de estado durante o render, sem efeito), e ao religar começa do primeiro passo.
+  - `Button` desligado (todas as variantes) deixa de usar `opacity-60`, que deixava branco sobre `primary` perto de 3:1: agora `muted` sobre `surface` (e `muted-dark` sobre `surface-dark`), pares que `tokens.test.ts` já mede (6,85:1 e 7,75:1), com borda tracejada como pista além da cor. O carregando continua com a variante e a opacidade sob o indicador.
+  - A escolha do visual saiu para `buttonLook.tsx` (função pura, testável sem React Native; `.tsx` porque o Tailwind só varre `.tsx`).
+  - `TabBar`: rótulos no peso `body` em vez de `heavy` e `paddingHorizontal: spacing[1] / 2` em cada aba, então vizinhas nunca encostam. Medido no Chromium, as seis abas ocupam 318 de 320 px (com o peso `heavy` seriam 326 e a barra rolaria).
+  - `/design-system`: um `ConfirmButton` desligado ao lado do normal.
+- **Arquivos/módulos principais:** `packages/ui/src/{Button.tsx,buttonLook.tsx,buttonLook.test.ts,TabBar.tsx,DesignSystemScreen.tsx,tokens.test.ts}`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. O visual desligado mudou para todo `Button`, não só para o `ConfirmButton`: é o mesmo componente, e o problema de contraste era o mesmo.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/ui test`; `/design-system` com `pnpm dev` a 320 px e a 640 px com zoom de 200%.
+- **Verificado:** `pnpm check` passou (17 de 17 e 12 de 12; ui 76 testes, eram 69; `functions:imports` 10 de 10); `pnpm build:web` exportou, com um `.env.local` provisório copiado do checkout principal (apagado depois). `/design-system` no servidor de dev com o Chromium do Playwright: a 320 px (e 320 CSS com `deviceScaleFactor` 2) rolagem da página 0, da barra 0, menor espaço entre rótulos 5 px (antes 2), nenhum rótulo cortado, abas de 44 a 64 px de largura e 64 de altura; a 1280 e 375 px nada rola; a 188 e 160 CSS px a página não rola, a barra rola por dentro como antes e o espaço entre rótulos é 4 px (antes 0). O `ConfirmButton` desligado: `aria-disabled="true"`, texto `#5F5673` sobre branco, borda tracejada, opacidade 1; dois cliques não mudam o rótulo; o normal arma no primeiro clique.
+- **Não verificado:** `e2e/a11y.spec.ts` e a E2E em geral (sem pilha; fica para o BL-22); tema escuro na tela (só pelos tokens); nativo (iOS e Android, onde a largura das fontes pode variar e os 2 px de folga a 320 px podem virar rolagem curta da barra); leitor de tela. Sem teste de componente para o desarme do `ConfirmButton`: o pacote não tem ambiente de React.
+- **Pendências / próximos passos:** BL-18 (compras troca o `Button` desligado pelo `ConfirmButton` com `disabled`).

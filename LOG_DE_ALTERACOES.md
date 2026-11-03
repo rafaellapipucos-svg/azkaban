@@ -2561,3 +2561,20 @@
 - **Verificado:** `pnpm check` passou (17 de 17 e 11 de 11; `functions:imports` 10 de 10, com as duas funções novas); `account.test.ts` 15 de 15. Mutações nos handlers, por script, 11 de 11 mortas: `signedInUser` aceitando `getUser` com erro, exportação sem a checagem do usuário nulo, `amr` sempre recente, segundos lidos como ms, `<` no lugar de `<=`, primeiro `timestamp` no lugar do maior, prévia sem a checagem, ação `task_create` no lugar de `data_export`, `PT429` tratado como falha, erro do limite ignorado, `hint` ignorado.
 - **Não verificado:** os dois testes de integração não rodaram (sem pilha, por decisão do orquestrador): que o GoTrue local traz `timestamp` em `amr` e o mantém no refresh (o teste confere), o formato real de `auth.audit_log_entries` depois de `deleteUser`, as URLs assinadas servindo a foto, o 429 real e a conta apagada de fato; o boot das funções no Edge Runtime (só o `import-maps`); o projeto hospedado.
 - **Pendências / próximos passos:** rodar `pnpm functions:test` com a pilha; `auth-grupos` faz as telas (handoff acima).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:27 (BRT)
+
+- **Branch:** feat/shopping-xp-db, criada a partir de feat/phase-8-polish (d2c8d4e)
+- **Agente(s):** banco-de-dados
+- **Resumo:** F7-5b do ADR-0011, seção 9: o XP de compra ao finalizar a lista, `shopping_completed`, com os limites contra farm. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `xp_events.shopping_list_id` (`on delete set null`), `check` de que só `shopping_completed` aponta para lista e de que ele não tem ocorrência, e `unique` parcial `(shopping_list_id) where reason = 'shopping_completed'`.
+  - Trigger `after update of status` em `shopping_lists`, `open` → `completed`: `shopping_list_award_xp`, para `completed_by`, no grupo da lista (nulo na pessoal), com `shoppingRules.xp.amount`. Sem XP com menos de `minCheckedItems` itens marcados, nem além de `maxRewardedPerDay` listas premiadas no dia local do perfil; o valor cabe no teto da janela de 24 h, com o mesmo saldo e a mesma trava por usuário de `occurrence_award_xp`.
+  - pgTAP `rls_shopping_xp.test.sql`, 16 testes. Tipos regerados.
+- **Arquivos/módulos principais:** `supabase/migrations/20261104140000_shopping_xp.sql`, `supabase/tests/rls_shopping_xp.test.sql`, `packages/data/src/database.types.ts`
+- **Migrations:** 20261104140000_shopping_xp. Aplicada só na pilha B local.
+- **Decisões/ADRs:** o XP de compra entra no teto (ADR-0010, seção 2; `cappedXpEventReasons` e o saldo de `occurrence_award_xp` já o listavam). O evento sem ocorrência é um par sozinho no saldo; como é sempre positivo e nunca compensado, o piso zero não tira nada, e não há caminho de farm por ali. Lista do grupo conta para o ranking, a pessoal não (grupo nulo). Uma lista que bate no teto não grava evento e não conta entre as duas do dia. Residual aceito: trocar o fuso move o dia local e pode premiar mais listas, ainda limitadas pelo teto de 300 em 24 h. O espelho de `shopping_rules` já tinha `xp`. O trigger só escreve em `xp_events` (e `user_stats`), nunca nas tabelas de compras, então o desvio de SEG7-4 não fica no caminho.
+- **Como testar:** `pnpm db:reset`, `pnpm db:test`, `pnpm db:check-permissions`, `pnpm check`.
+- **Verificado:** `pnpm db:test` 12 arquivos, 1886 testes, PASS; `pnpm db:check-permissions` em sincronia (`supabase_db_azkaban-b`); `pnpm check` passou (17 de 17). Mutações, cada uma numa transação desfeita, 5 de 5 mortas: mínimo 2 em vez de 3, contar itens não marcados, sem limite por dia, contar dias anteriores, sem o `unique`. Controle sem mutação, 16 de 16.
+- **Não verificado:** o projeto hospedado; a corrida de duas finalizações simultâneas da mesma pessoa (só a trava, sem teste concorrente); a tela e a comemoração do evento novo.
+- **Pendências / próximos passos:** `xpEventSchema` e o comentário de `xpEventReasonSchema` em `packages/contracts/src/tasks.ts` ainda chamam `shopping_completed` de reservado e não têm `shoppingListId` (o Zod descarta a coluna a mais, nada quebra).

@@ -78,14 +78,11 @@ test('a status marked offline survives closing the tab and reaches the database 
   await expect(next.getByText('Pendente → Feito')).toHaveCount(1);
 });
 
-// Offline, the sign-out mutation itself pauses (default `networkMode`), so "Sair e descartar" spins
-// and the queue stays on the disk. Expected to fail until the `networkMode` decision lands; then drop
-// `test.fail`.
+// Offline: signing out must not wait for the network itself (`networkMode` outside the queue).
 test('signing out with changes still waiting asks first, then drops them', async ({
   context,
   page,
 }) => {
-  test.fail(true, 'networkMode: the sign-out mutation pauses offline');
   await page.goto('/sign-up');
   await page.getByLabel('Seu nome').fill('Saída');
   await page.getByLabel('E-mail', { exact: true }).fill(`saida-${randomUUID()}@example.com`);

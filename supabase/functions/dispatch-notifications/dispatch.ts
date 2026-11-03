@@ -1,7 +1,12 @@
 // The loop of dispatch-notifications (ADR-0008, section 6): claim, send, report, until the budget.
-// A channel is one implementation of NotificationChannel; WhatsApp joins in Phase 5 as another one,
-// without touching the claim, the report, the backoff or the quiet hours. No imports, so Node runs the
-// tests: the database calls and the channels come in as arguments.
+// A channel is one implementation of NotificationChannel: Web Push, and WhatsApp (ADR-0009, section 2)
+// without touching the claim, the report, the backoff or the quiet hours. Only type imports, which
+// Node erases, so it runs the tests: the database calls and the channels come in as arguments.
+import type {
+  DailySummarySource,
+  WhatsAppOutbound,
+} from '../../../packages/contracts/src/whatsapp.ts';
+import type { WhatsAppProvider } from '../_shared/whatsapp/provider.ts';
 
 export type Subscription = { id: string; endpoint: string; p256dh: string; auth: string };
 
@@ -21,12 +26,27 @@ export type OutboundMessage = {
   scheduledFor: string;
   /** Empty outside `web_push`. */
   subscriptions: Subscription[];
+  /** The profile's zone, and the occurrence as it is now (ADR-0009, section 9). */
+  timezone: string;
+  overdueAt: string | null;
+  occurrenceStatus: string | null;
+  /** E.164, only on `whatsapp`. */
+  phone: string | null;
+  /** Only for `daily_summary`. */
+  summary: DailySummarySource | null;
 };
 
 type Subscriptions = { delivered?: string[]; gone?: string[] };
+/** What the report hands to `whatsapp_messages` for a sent WhatsApp row. */
+export type WhatsAppSent = {
+  providerMessageId: string;
+  waId: string | null;
+  template: string | null;
+  provider: WhatsAppProvider['name'];
+};
 /** The four results of ADR-0008, section 6, with what each subscription did when there are many. */
 export type SendResult =
-  | ({ kind: 'sent' } & Subscriptions)
+  | ({ kind: 'sent'; whatsapp?: WhatsAppSent } & Subscriptions)
   | ({ kind: 'retry'; code: string; retryAfterSeconds?: number } & Subscriptions)
   | ({ kind: 'failed'; code: string } & Subscriptions)
   | { kind: 'gone'; subscriptionIds: string[] };
@@ -44,6 +64,7 @@ export type Report = {
   retryAfterSeconds?: number;
   deliveredSubscriptionIds?: string[];
   goneSubscriptionIds?: string[];
+  whatsapp?: WhatsAppSent;
 };
 
 export type RetryRules = { maxAttempts: number; baseDelaySeconds: number; maxDelaySeconds: number };
@@ -72,7 +93,14 @@ export function toReport(message: OutboundMessage, result: SendResult, retry: Re
     ...(result.delivered?.length ? { deliveredSubscriptionIds: result.delivered } : {}),
     ...(result.gone?.length ? { goneSubscriptionIds: result.gone } : {}),
   };
-  if (result.kind === 'sent') return { outboxId, status: 'sent', ...lists };
+  if (result.kind === 'sent') {
+    return {
+      outboxId,
+      status: 'sent',
+      ...lists,
+      ...(result.whatsapp && { whatsapp: result.whatsapp }),
+    };
+  }
   if (result.kind === 'failed' || message.attempts >= retry.maxAttempts) {
     return { outboxId, status: 'failed', code: result.code, ...lists };
   }
@@ -83,6 +111,43 @@ export function toReport(message: OutboundMessage, result: SendResult, retry: Re
     retryAfterSeconds: backoffSeconds(message.attempts, result.retryAfterSeconds, retry),
     ...lists,
   };
+}
+
+/**
+ * The WhatsApp channel (ADR-0009, section 2). `render` turns the claimed row into the message, and
+ * throws for a row it cannot render, which the loop fails as `send_error`: repeating would not fix it.
+ * A provider that throws (the console's insert, never Meta's, which answers codes) is a retry: nothing
+ * reached anyone, and the backoff and `maxAttempts` bound it like a network error.
+ */
+export class WhatsAppChannel implements NotificationChannel {
+  readonly channel = 'whatsapp';
+  readonly #provider: WhatsAppProvider;
+  readonly #render: (message: OutboundMessage) => WhatsAppOutbound;
+
+  constructor(provider: WhatsAppProvider, render: (message: OutboundMessage) => WhatsAppOutbound) {
+    this.#provider = provider;
+    this.#render = render;
+  }
+
+  async send(message: OutboundMessage): Promise<SendResult> {
+    const outbound = this.#render(message);
+    let result: Awaited<ReturnType<WhatsAppProvider['send']>>;
+    try {
+      result = await this.#provider.send(outbound);
+    } catch {
+      return { kind: 'retry', code: 'wa_provider_error' };
+    }
+    if (result.kind !== 'accepted') return result;
+    return {
+      kind: 'sent',
+      whatsapp: {
+        providerMessageId: result.providerMessageId,
+        waId: result.waId,
+        template: outbound.kind === 'text' ? null : outbound.template,
+        provider: this.#provider.name,
+      },
+    };
+  }
 }
 
 export type Batch = {

@@ -6,8 +6,13 @@
  * here: it always records, and these rules are about the channels that ring outside the app.
  */
 export const notificationRules = {
-  /** Channels the dispatcher delivers today. `whatsapp` joins in Phase 5, with its opt-in. */
-  activeChannels: ['web_push'],
+  /** Channels the dispatcher delivers. `whatsapp` needs a verified phone and the opt-in (ADR-0009). */
+  activeChannels: ['web_push', 'whatsapp'],
+  /**
+   * The only types that may go by WhatsApp, each with an approved template. A preference row for any
+   * other type and `whatsapp` writes nothing to the outbox.
+   */
+  whatsappTypes: ['daily_summary'],
   /** What each type does on a channel the user never chose. A row in notification_preferences wins. */
   defaultChannels: {
     task_reminder: { web_push: true, whatsapp: false },
@@ -15,6 +20,8 @@ export const notificationRules = {
     occurrence_resolved: { web_push: false, whatsapp: false },
     proof_in_review: { web_push: true, whatsapp: false },
     proof_disputed: { web_push: true, whatsapp: false },
+    /** Written only for a profile ready for WhatsApp, with the summary on (ADR-0009, section 4). */
+    daily_summary: { web_push: false, whatsapp: true },
   },
   /** Default of a new profile, local time of the profile. Both null in the profile means none. */
   defaultQuietHours: { start: '22:00', end: '07:00' },

@@ -1,11 +1,22 @@
 // Fails when the database differs from its mirrors in code: the permission matrix in packages/core,
-// occurrenceTransitions in packages/contracts, and taskRules, proofRules and notificationRules in packages/config. Needs `pnpm db:start`.
+// occurrenceTransitions in packages/contracts, and taskRules, proofRules, notificationRules and whatsappRules in
+// packages/config. Needs `pnpm db:start`.
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
+// The stack of this checkout, never a fixed name: a second stack (`docs/agentes/ferramentas/pilha-b.sh`)
+// changes project_id in its working copy, and a check run there must not touch the other one.
+const projectId = readFileSync('supabase/config.toml', 'utf8').match(
+  /^project_id\s*=\s*"([^"]+)"/m,
+)?.[1];
+const container = process.env.DB_CONTAINER || `supabase_db_${projectId}`;
+if (!process.env.DB_CONTAINER && !projectId)
+  throw new Error('project_id not found in supabase/config.toml');
+console.log(`Container: ${container}`);
+
 const query = (sql) =>
-  execSync(`docker exec supabase_db_azkaban psql -U postgres -At -c "${sql}"`)
+  execSync(`docker exec ${container} psql -U postgres -At -c "${sql}"`)
     .toString()
     .trim()
     .split(/\r?\n/)
@@ -101,6 +112,21 @@ if (!notificationRow || canonical(JSON.parse(notificationRow)) !== canonical(not
   failed = true;
 } else {
   console.log('Notification rules in sync.');
+}
+
+// WhatsApp rules (ADR-0009): consent version, verification limits, the daily summary, retention.
+const { whatsappRules } = await load('packages/config/src/whatsapp.ts');
+const [whatsappRow] = query(
+  "select value::text from public.app_settings where key = 'whatsapp_rules'",
+);
+if (!whatsappRow || canonical(JSON.parse(whatsappRow)) !== canonical(whatsappRules)) {
+  console.error('WhatsApp rules out of sync.', {
+    database: whatsappRow,
+    code: canonical(whatsappRules),
+  });
+  failed = true;
+} else {
+  console.log('WhatsApp rules in sync.');
 }
 
 // Time zones: the database takes a name only if Intl reads it too, or taskSchema.parse would fail on a

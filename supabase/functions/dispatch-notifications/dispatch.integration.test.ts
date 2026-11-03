@@ -5,10 +5,11 @@
 //   pnpm functions:test
 //
 // Two parts. The deployed function is called over HTTP for what does not need keys: the cron secret,
-// and, with the VAPID secrets empty as in .env.example, that it refuses before claiming anything. The
-// loop itself (claim, Web Push, report) runs here in Node against the real database functions, with
-// a fake `fetch` standing in for every push service: no request leaves this machine, and the VAPID
-// pair and the browser keys are made in memory for this run.
+// and, with the VAPID secrets empty as in .env.example, that the push waits while the daily summary
+// goes out by WhatsApp through the ConsoleProvider (ADR-0009, section 2). The Web Push loop itself
+// (claim, Web Push, report) runs here in Node against the real database functions, with a fake
+// `fetch` standing in for every push service: no request leaves this machine, and the VAPID pair and
+// the browser keys are made in memory for this run.
 //
 // The claim takes every due row of the database, so each case looks only at its own rows. The keys
 // below are the universal demo keys of every local Supabase stack, not secrets.
@@ -16,11 +17,11 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { after, before, describe, test } from 'node:test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { apiUrl as API } from '../_shared/local-stack.mjs';
 import { runDispatch, type Batch, type OutboundMessage, type Report } from './dispatch.ts';
 import { browser, decrypt, vapidPair, type Browser } from './test-kit.ts';
 import { loadVapid, toBase64Url, WebPushChannel, type VapidKeys } from './web-push.ts';
 
-const API = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54421';
 const SERVICE =
   process.env.SUPABASE_SERVICE_ROLE_KEY ??
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU';
@@ -218,6 +219,7 @@ describe('dispatch-notifications', () => {
             p_limit: defaults.batch,
             p_lease_seconds: lease,
             p_max_delay_hours: defaults.maxDelayHours,
+            p_channels: ['web_push'],
           }),
         ) as Omit<Batch, 'messages' | 'invalid'> & { items: OutboundMessage[] };
         return { ...data, messages: data.items, invalid: [] };
@@ -255,40 +257,134 @@ describe('dispatch-notifications', () => {
     assert.equal((await fetch(FUNCTION_URL, { method: 'GET' })).status, 405);
   });
 
-  test('without the VAPID secrets it answers 500 and claims nothing', async () => {
+  test('without the VAPID secrets the push waits, and the daily summary goes out by WhatsApp', async () => {
     await clearSubscriptions();
     // A host off the list, so even a function with keys sends nothing out of this machine.
     await subscribe('idle', 'push.example.com');
-    const row = await enqueue();
+    const push = await enqueue();
+
+    // A profile ready for WhatsApp, with one task today, and its summary as the job enqueues it.
+    const phone = `+55119${String(Math.floor(Math.random() * 1e8)).padStart(8, '0')}`;
+    const now = new Date().toISOString();
+    ok(
+      await admin
+        .from('profiles')
+        .update({
+          phone_e164: phone,
+          phone_verified_at: now,
+          whatsapp_opt_in_at: now,
+          whatsapp_opt_in_version: 1,
+          // Off for the job, so the cron adds no summary of its own if the suite runs near 8h.
+          daily_summary_enabled: false,
+        })
+        .eq('id', userId),
+    );
+    const today = ok(
+      await admin
+        .from('tasks')
+        .insert({
+          context_id: contextId,
+          created_by: userId,
+          assignee_id: userId,
+          title: 'Relatório do resumo',
+          schedule_type: 'timed',
+          // Now: today in any zone, and overdue only at the end of the local day.
+          start_at: now,
+          duration_min: 30,
+          timezone: 'UTC',
+          rrule: null,
+          exdates: [],
+          reminders: [],
+          requires_photo_proof: false,
+          requires_admin_approval: false,
+          requires_partial_reason: false,
+          difficulty: 'easy',
+          priority: 'normal',
+          visibility: 'private',
+        })
+        .select('id')
+        .single(),
+    );
+    const notificationId = ok(
+      await admin.rpc('enqueue_notification', {
+        p_user: userId,
+        p_type: 'daily_summary',
+        p_occurrence_id: null,
+        p_group_id: null,
+        p_data: { localDate: now.slice(0, 10) },
+        p_event_key: `test-${randomUUID()}`,
+      }),
+    ) as string;
+    const rows = ok(
+      await admin
+        .from('notification_outbox')
+        .select('id, channel')
+        .eq('notification_id', notificationId),
+    );
+    assert.deepEqual(
+      rows.map((r) => r.channel),
+      ['whatsapp'],
+    );
+    const summaryId = rows[0]!.id as string;
+
     const res = await fetch(FUNCTION_URL, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-cron-secret': CRON_SECRET },
       body: '{}',
     });
     const body = await res.json();
-    const after = await outbox(row.outboxId);
-    if (res.status === 200) {
+    assert.equal(res.status, 200, JSON.stringify(body));
+
+    const pushAfter = await outbox(push.outboxId);
+    if (pushAfter.status === 'pending') {
+      // The push was not claimed: no attempt spent, no error.
+      assert.equal(pushAfter.attempts, 0);
+      assert.equal(pushAfter.last_error, null);
+    } else {
       // Someone filled the VAPID secrets of supabase/functions/.env: then this checks the wiring of
       // the deployed function instead (zod, buildPushPayload, the i18n file, the host check).
-      assert.equal(after.status, 'failed', JSON.stringify(body));
-      assert.equal(after.last_error, 'push_endpoint_not_allowed');
-      return;
+      assert.equal(pushAfter.status, 'failed', JSON.stringify(body));
+      assert.equal(pushAfter.last_error, 'push_endpoint_not_allowed');
     }
-    assert.deepEqual(
-      { status: res.status, body },
-      {
-        status: 500,
-        body: { error: 'vapid_not_configured' },
-      },
+
+    const summaryAfter = await outbox(summaryId);
+    assert.equal(summaryAfter.status, 'sent', JSON.stringify(summaryAfter));
+    const line = ok(
+      await admin
+        .from('whatsapp_messages')
+        .select('user_id, purpose, template, provider, provider_message_id, status')
+        .eq('outbox_id', summaryId),
     );
-    assert.equal(after.status, 'pending');
-    assert.equal(after.attempts, 0);
+    assert.equal(line.length, 1);
+    assert.equal(line[0]!.user_id, userId);
+    assert.equal(line[0]!.purpose, 'notification');
+    assert.equal(line[0]!.template, 'daily_summary_v1');
+    assert.equal(line[0]!.provider, 'console');
+    assert.match(line[0]!.provider_message_id as string, /^console\./);
+
+    const sent = ok(
+      await admin.from('whatsapp_console_messages').select('message').eq('to_e164', phone),
+    ).map((r) => r.message);
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].kind, 'template');
+    assert.equal(sent[0].template, 'daily_summary_v1');
+    assert.equal(sent[0].language, 'pt_BR');
+    assert.deepEqual(Object.keys(sent[0].params).sort(), [
+      'date',
+      'deadlines',
+      'footer',
+      'overdue',
+      'today',
+    ]);
+    assert.match(sent[0].params.today, /Relatório do resumo/);
+
     ok(
       await admin
         .from('notification_outbox')
         .update({ status: 'cancelled' })
-        .eq('id', row.outboxId),
+        .eq('id', push.outboxId),
     );
+    ok(await admin.from('tasks').delete().eq('id', today.id));
   });
 
   test('each answer of the push service leaves the outbox and the subscription as ADR-0008 says', async () => {
@@ -406,6 +502,7 @@ describe('dispatch-notifications', () => {
         p_limit: defaults.batch,
         p_lease_seconds: 2,
         p_max_delay_hours: defaults.maxDelayHours,
+        p_channels: ['web_push'],
       }),
     );
     assert.equal((await outbox(row.outboxId)).status, 'sending');

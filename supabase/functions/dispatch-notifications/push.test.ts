@@ -11,7 +11,9 @@ import {
   type OutboundMessage,
   type Report,
   type SendResult,
+  WhatsAppChannel,
 } from './dispatch.ts';
+import type { WhatsAppProvider } from '../_shared/whatsapp/provider.ts';
 import { makeTranslate, type Messages } from './translate.ts';
 import {
   classify,
@@ -377,6 +379,106 @@ describe('dispatch loop', () => {
   });
 });
 
+describe('WhatsApp channel', () => {
+  const outbound = {
+    kind: 'template' as const,
+    to: '+5511912345678',
+    template: 'daily_summary_v1',
+    language: 'pt_BR',
+    params: { date: 'segunda' },
+  };
+  const provider = (send: WhatsAppProvider['send']): WhatsAppProvider => ({
+    name: 'console',
+    send,
+  });
+  const row = { ...message([]), channel: 'whatsapp', phone: '+5511912345678' };
+
+  test('accepted is sent, and the report carries what whatsapp_messages needs', async () => {
+    const seen: unknown[] = [];
+    const channel = new WhatsAppChannel(
+      provider(async (m) => {
+        seen.push(m);
+        return { kind: 'accepted', providerMessageId: 'console.1', waId: null };
+      }),
+      () => outbound,
+    );
+    const result = await channel.send(row);
+    assert.deepEqual(seen, [outbound]);
+    assert.deepEqual(toReport(row, result, retry), {
+      outboxId: 'outbox-1',
+      status: 'sent',
+      whatsapp: {
+        providerMessageId: 'console.1',
+        waId: null,
+        template: 'daily_summary_v1',
+        provider: 'console',
+      },
+    });
+  });
+
+  test("the provider's retry and failed pass through with their codes", async () => {
+    const limited = new WhatsAppChannel(
+      provider(async () => ({ kind: 'retry', code: 'wa_130429', retryAfterSeconds: 300 })),
+      () => outbound,
+    );
+    assert.deepEqual(toReport(row, await limited.send(row), retry), {
+      outboxId: 'outbox-1',
+      status: 'retry',
+      code: 'wa_130429',
+      retryAfterSeconds: 300,
+    });
+    const refused = new WhatsAppChannel(
+      provider(async () => ({ kind: 'failed', code: 'wa_131026' })),
+      () => outbound,
+    );
+    assert.deepEqual(toReport(row, await refused.send(row), retry), {
+      outboxId: 'outbox-1',
+      status: 'failed',
+      code: 'wa_131026',
+    });
+  });
+
+  test('a provider that throws (the console insert) is a retry; a render that throws fails the row', async () => {
+    const reports: Report[] = [];
+    const run = (channel: WhatsAppChannel) =>
+      runDispatch({
+        claim: async () => ({
+          messages: [row],
+          invalid: [],
+          expired: 0,
+          cancelled: 0,
+          deferred: 0,
+        }),
+        report: async (r) => reports.push(...r),
+        channels: [channel],
+        batchSize: 10,
+        budgetMs: 1000,
+        retry,
+        concurrency: 1,
+      });
+    await run(
+      new WhatsAppChannel(
+        provider(async () => {
+          throw new Error('insert failed');
+        }),
+        () => outbound,
+      ),
+    );
+    await run(
+      new WhatsAppChannel(
+        provider(async () => ({ kind: 'accepted', providerMessageId: 'x', waId: null })),
+        () => {
+          throw new Error('whatsapp_type_not_allowed');
+        },
+      ),
+    );
+    assert.deepEqual(reports, [
+      { outboxId: 'outbox-1', status: 'retry', code: 'wa_provider_error', retryAfterSeconds: 60 },
+      { outboxId: 'outbox-1', status: 'failed', code: 'send_error' },
+    ]);
+  });
+});
+
 describe('translate', () => {
   const messages = JSON.parse(
     readFileSync(
@@ -430,6 +532,11 @@ function message(
     attempts: 1,
     scheduledFor: '2026-11-02T12:00:00Z',
     subscriptions,
+    timezone: 'America/Sao_Paulo',
+    overdueAt: null,
+    occurrenceStatus: null,
+    phone: null,
+    summary: null,
   };
 }
 

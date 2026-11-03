@@ -1340,6 +1340,64 @@
 - **Não verificado:** E2E (fica com o orquestrador). Hora tirada de UTC menos 3, porque o PowerShell foi bloqueado.
 - **Pendências / próximos passos:** nenhuma desta correção.
 
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 00:33 (BRT)
+
+- **Branch:** docs/whatsapp-adr, criada a partir de feat/phase-4-notifications (e54968d)
+- **Agente(s):** arquiteto
+- **Resumo:** F5-1. ADR-0009 decide o WhatsApp da Fase 5: provedor (`console` por padrão, Meta só por decisão do humano), canal na outbox, verificação de telefone por código no próprio WhatsApp, opt-in e opt-out, resumo diário, templates, webhook, custos, LGPD e o prazo do vermelho no push (handoff 1451). Contratos, config e handoffs publicados. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `docs/adr/0009-whatsapp-verificacao-opt-in-resumo-diario.md` (novo); remissão no ADR-0008, seção 11; seção "WhatsApp" em `docs/arquitetura.md`.
+  - `packages/contracts/src/whatsapp.ts` e `whatsapp.test.ts` (novos): E.164, código, pedido e confirmação (a confirmação devolve o erro em vez de levantar, para não desfazer a contagem de tentativas), opt-in, estado, preferências do resumo, fonte e saída da função pura, parâmetro de template (sem controle, U+2028/2029 nem mais de quatro espaços), mensagem e resultado do provedor, status, assinatura, o mínimo do webhook e os códigos de erro.
+  - `packages/config/src/whatsapp.ts` (novo): `whatsappRules` (espelho `whatsapp_rules`) e `whatsappDefaults`. `whatsapp-env.ts` (novo): `parseWhatsAppEnv`, `console` quando vazio, os quatro segredos obrigatórios com `meta`. `notifications.ts`: `activeChannels` com `whatsapp`, `whatsappTypes: ['daily_summary']`, `defaultChannels.daily_summary`.
+  - `supabase/functions/.env.example`: os cinco nomes `WHATSAPP_*`, sem valor.
+  - Handoffs `20261103-0030-arquiteto-para-{banco-de-dados,backend-funcoes,notificacoes-whatsapp}-whatsapp`.
+- **Arquivos/módulos principais:** `docs/adr/0009-*.md`, `packages/contracts/src/whatsapp.ts`, `packages/config/src/{whatsapp,whatsapp-env,notifications}.ts`
+- **Migrations:** nenhuma; espelhos e tabelas são do `banco-de-dados`.
+- **Decisões/ADRs:** ADR-0009. Só o resumo diário vai por WhatsApp; job do resumo em SQL a cada minuto, idempotente por usuário e data local; fonte lida no claim; linha do sino nasce lida; claim com `p_channels`; PARAR pela mensagem inteira normalizada, também por `wa_id`; `whatsapp_messages` sem acesso do cliente; E2E lê o código e o resumo em `whatsapp_console_messages` (só service role, 1 dia). Prazo no push: o claim devolve `overdueAt`, `occurrenceStatus` e `timezone`. `daily_summary` entra em `notificationTypeSchema` pelo `notificacoes-whatsapp`, pré-aprovado, porque quebra o `switch` de core.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/contracts exec vitest run src/whatsapp.test.ts`.
+- **Verificado:** `pnpm install --frozen-lockfile` e `pnpm check` passaram (contracts 89, config 13, core 556). Mutação: a regex de E.164 sem âncoras faz 4 testes falharem; restaurada. Documentação da Meta lida por `curl` em 2026-11-03 (preços, componentes, autenticação, TTL, webhook, status, erros, limites, opt-in, categorias).
+- **Não verificado:** na documentação atual da Meta, a regra de quebra de linha, tab e espaços dentro do parâmetro (só aparece o erro genérico 132018), um limite por parâmetro, a tabela em reais e o número de teste gratuito. Nada rodou contra a pilha nem contra a Meta. `pnpm db:check-permissions` vai acusar `notification_rules` e `whatsapp_rules` até a migration.
+- **Pendências / próximos passos:** os três handoffs. Humano: os 12 itens da seção 16 do ADR-0009, e se e quando ligar a Meta (seção 10). Sugestão ao orquestrador: um item de banco na Fase 5 e o F5-5 dividido entre banco (job SQL) e funções (canal).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 00:46 (BRT)
+
+- **Branch:** feat/whatsapp-providers, criada a partir de feat/phase-5-whatsapp (ae862e3)
+- **Agente(s):** backend-funcoes
+- **Resumo:** item 1 e as partes puras do item 4 do handoff `20261103-0030-arquiteto-para-backend-funcoes-whatsapp`: provedores do WhatsApp e as peças do webhook que não dependem do banco, com testes em Node. Nenhuma função servida nova, nenhuma chamada à Meta. Hora derivada de UTC menos 3 (PowerShell bloqueado no worktree).
+- **Alterações:**
+  - `_shared/whatsapp/provider.ts`: `WhatsAppProvider` (com `name`, para a coluna `provider` de `whatsapp_messages`), `ConsoleProvider` (a escrita em `whatsapp_console_messages` entra como a função `record`, injetada; o log tem só tipo e template; `console.<uuid>`; uma escrita que falha lança) e `MetaCloudProvider` (payloads `template` com parâmetros nomeados, `code` no corpo e no botão `url` índice 0, `text` sem prévia; `redirect: 'manual'`; `AbortSignal.timeout(sendTimeoutMs)`; mapa de respostas da seção 1; resposta lida até 64 KiB com `readLimited`; o token fica num campo privado e nenhum erro é repassado). `createWhatsAppProvider(parseWhatsAppEnv(...), { fetch, record })` escolhe a implementação; vazio é `console`.
+  - `_shared/whatsapp/webhook.ts`: `challengeAnswer` (GET, `sameSecret`, desafio `[A-Za-z0-9_-]{1,128}`), `validSignature` (`crypto.subtle.verify` sobre os bytes brutos), `normalizeReply`/`isStop` e `readWebhook` (filtro `field = messages` e `phone_number_id`, status para `{ providerMessageId, status, at, errorCode }`, `wa_id` das paradas sem repetição, contagem de ignorados).
+  - `_shared/import-maps.test.ts`: percorre, sem Deno e sem a pilha, o grafo de imports de execução de cada função a partir do `index.ts`, pelo `deno.json`, e falha num import que o Edge Runtime não resolveria. Tirar o mapeamento de `tasks/late` do despacho faz o teste falhar com o mesmo caminho do erro de ontem.
+  - `sameSecret` foi para `_shared/secret.ts` e `retryAfterSeconds` para `_shared/retry-after.ts`, para Node importá-los sem `supabase-js`; `http.ts` e `web-push.ts` reexportam, sem mudança para quem usa.
+  - `functions:test` ganha os três arquivos novos.
+- **Arquivos/módulos principais:** `supabase/functions/_shared/{whatsapp/*,import-maps.test.ts,secret.ts,retry-after.ts,http.ts}`, `supabase/functions/dispatch-notifications/web-push.ts`, `package.json`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova. Os módulos só têm imports relativos com extensão (os tipos do contrato são `import type`, apagados), então nenhum `deno.json` muda agora. O `deno.json` do `whatsapp-webhook` e do `phone-verification` entra com o `index.ts`, na integração; o teste do grafo cobra os mapeamentos (`whatsapp.ts` puxa `common`, `notifications`, `tasks` e `recurrence`). Não criei pasta de função sem `index.ts` para não arriscar o `db:start`, que não pude rodar.
+- **Como testar:** `node --test supabase/functions/_shared/import-maps.test.ts supabase/functions/_shared/whatsapp/provider.test.ts supabase/functions/_shared/whatsapp/webhook.test.ts`; com a pilha, `pnpm functions:test`.
+- **Verificado:** 38 testes novos passaram (6 do grafo, 18 do provedor, 14 do webhook); com `push.test.ts` e `checks.test.ts`, 75 de 75 em Node. `tsc` estrito à parte nos arquivos novos, sem erro. `pnpm check` passou. Mutações, desfeitas: `validSignature` aceitando HMAC diferente faz 2 testes falharem; `challengeAnswer` aceitando qualquer token não vazio, 1.
+- **Não verificado:** `pnpm functions:test` completo, `db:start` e E2E (pilha ocupada pela Fase 4). O código não rodou no Deno nem no Edge Runtime. O formato real de erro e de sucesso da Meta só foi conferido contra a documentação; nada foi enviado.
+- **Pendências / próximos passos:** itens 2 e 3 e a integração do item 4, depois das migrations do `banco-de-dados`. Os nomes dos campos de `record_whatsapp_statuses` (`providerMessageId`, `status`, `at`, `errorCode`) são proposta, a combinar com ele.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 00:48 (BRT)
+
+- **Branch:** feat/whatsapp-core, criada a partir de feat/phase-5-whatsapp (ae862e3)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** Itens 1 a 3 do handoff `20261103-0030-arquiteto-para-notificacoes-whatsapp-whatsapp`, a parte sem banco: `daily_summary` no contrato, no core e no sino; `buildDailySummary`, `normalizePhone` e `isWhatsAppReady` em core; o prazo do vermelho no push (ADR-0009, seção 9); as chaves de i18n; e a coluna WhatsApp das preferências só para `whatsappTypes`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/contracts/src/notifications.ts`: `daily_summary` em `notificationTypeSchema` e `notificationItemSchema` (pré-aprovado). `dailySummaryNotificationDataSchema` mudou de `whatsapp.ts` para cá: `whatsapp.ts` importa `notifications.ts`, e o ciclo deixaria um lado indefinido.
+  - `packages/core/src/notifications/pushPayload.ts`: caso `daily_summary` (título "Resumo do dia", `notificationUrl` dá `/`); `notificationText` exportado, o texto que o sino e o push compartilham; `PushSource` com `timezone`, `overdueAt` e `occurrenceStatus` opcionais; `buildPushPayload(source, requiresPhoto, t, late?)`, que acrescenta `lateUntil` ao vermelho do job dentro da janela, no fuso do perfil. `buildPushPayload` lança para `daily_summary`, porque `internalPathSchema` recusa `/`.
+  - `packages/core/src/notifications/whatsapp.ts` (novo): `buildDailySummary` (Hoje agrupado por área e contexto na ordem da fonte, atrasadas com o dia de origem, prazos com o dia da semana e "amanhã"/"em N dias", "+N" do que não cabe, limpeza de controle e de espaços, textos curtos no vazio, fecho neutro, saída por `dailySummaryRenderSchema`), `isDailySummaryEmpty`, `cleanParam`, `normalizePhone` e `isWhatsAppReady`. Testes em `whatsapp.test.ts` e no `pushPayload.test.ts`.
+  - `packages/features/notifications`: o sino usa `notificationText` com o fuso e o idioma (o prazo saiu do hook e foi para o core); o aviso ao vivo ignora a linha já lida; as preferências mostram o WhatsApp só para `notificationRules.whatsappTypes` e tiram `daily_summary` do push.
+  - `packages/data/src/notifications/index.ts`: cast em `setPreference` até a migration do `banco-de-dados` pôr `daily_summary` no enum e regenerar `database.types.ts`.
+  - `packages/i18n/src/pt-BR/notifications.json`: `push.daily_summary`, `types.daily_summary`, `whatsapp.summary.*` (com os nomes das áreas, porque o `t` do despacho só lê este arquivo), `whatsapp.stopReply`, `whatsapp.consent.v1.*` (rascunho do aviso) e chaves das telas (`phone`, `code`, `errors`, `status`, `dailySummary`).
+  - Handoff `20261103-0050-notificacoes-whatsapp-para-backend-funcoes-resumo-e-prazo-no-despacho`, com as chaves do import map.
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova. O resumo não tem caminho de push: `internalPathSchema` recusa `/`, e a tela não oferece o push para ele.
+- **Como testar:** `pnpm --filter @azkaban/core exec vitest run src/notifications`; `pnpm check`.
+- **Verificado:** `pnpm install --frozen-lockfile`; `pnpm check` passou (17 de 17 e 9 de 9 tarefas; core 590 testes, contracts 89).
+- **Não verificado:** a pilha, o despacho no Deno e a E2E (pilha ocupada pela Fase 4); as telas no navegador. As chaves do resumo no core são testadas com uma cópia; o JSON real só é exercitado pelo despacho, quando o `backend-funcoes` ligar o canal.
+- **Pendências / próximos passos:** `backend-funcoes`, pelo handoff (import map e campos novos no `render`). `banco-de-dados`: enum com `daily_summary` e tipos regenerados; aí o cast sai. Telas e repositório do WhatsApp (itens 4 e 5) depois das RPCs. Texto do aviso de consentimento para o humano revisar.
+
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 00:53 (BRT)
 
 - **Branch:** fix/e2e-phase-4-close, criada a partir de feat/phase-4-notifications (3b428b2)
@@ -1374,3 +1432,328 @@
 - **Verificado:** primeira rodada em `e54968d`: tudo passou menos `functions:test` e as duas E2E, que pararam no preflight (`dispatch-notifications` 503, `Module not found .../core/src/tasks/late` no log do contêiner). Segunda, em `3b428b2`, completa: install, `db:start`, `db reset`, `db:test` 1227 de 1227 (antes e depois da E2E), `db:check-permissions`, `turbo typecheck test --force` (core 556, contracts 52, platform 46, ui 11, app 8, config 7, data 7, proof 6, notifications 2), lint, `boundaries`, `build:web`, `functions:test` 114 de 114; E2E 67 ok e 1 falha, depois 66 ok e 2 falhas (seletor pegando o aviso ao vivo; lembrete do cron no meio do teste). Final, em `e6f9c5a`: lint, `db reset`, E2E duas vezes com 68 ok, 0 falhas e 1 pulado (o "sem chave VAPID"), `db:test` 1227 de 1227 depois, e os 6 jobs do cron ativos de novo. Varredura de segredos no diff `feat/phase-3-proof..feat/phase-4-notifications`: só a chave demo pública da pilha local (já presente na Fase 3) e o vetor de teste da RFC 8291; os `.env.example` só têm nomes.
 - **Não verificado:** push real em aparelho (Android, desktop, iPhone pela Tela de Início), registro do `sw.js` no navegador, cabeçalhos do `_headers` (só a Netlify os aplica), CI do PR, projeto hospedado.
 - **Pendências / próximos passos:** PR para `feat/phase-3-proof`; perguntas ao humano da seção 4 do handoff 1505; Fase 5 em `feat/phase-5-whatsapp`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 01:35 (BRT)
+
+- **Branch:** feat/whatsapp-db, criada a partir de feat/phase-5-whatsapp (da2fd5d)
+- **Agente(s):** banco-de-dados
+- **Resumo:** Itens 1 a 10 do handoff `20261103-0030-arquiteto-para-banco-de-dados-whatsapp` (ADR-0009), com as mudanças pedidas pelo orquestrador: espelhos, `daily_summary` no enum, colunas de `profiles`, verificação de telefone, opt-in e opt-out, `whatsapp_messages` e a caixa de saída do console, status e PARAR, gravação, claim e report com WhatsApp e o prazo do vermelho, job do resumo, retenção e tipos. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Espelhos `whatsapp_rules` e `notification_rules` (`activeChannels` com `whatsapp`, `whatsappTypes`, `defaultChannels.daily_summary`). O bloco de `whatsapp_rules` entrou em `scripts/check-permission-mirror.mjs`.
+  - `profiles`: telefone, verificação, opt-in e opt-out, com `check`s de par e "sem consentimento sem telefone". As cinco `daily_summary_*` têm os padrões de `whatsappRules` e são as únicas colunas novas com `grant update`. `daily_summary_last_date` é do sistema.
+  - `phone_verifications` (sem `grant`), `start_phone_verification` (só `service_role`), `confirm_phone_verification` e `remove_phone` (`authenticated`).
+    - O código não é gravado: só o SHA-256 de `id:código`.
+    - A confirmação devolve o erro em vez de levantar exceção, então toda tentativa conta, e a sexta falha mesmo com o código certo.
+    - Limites: reenvio, por usuário e por número, em 24 horas corridas. `retryAfterSeconds` é a espera do limite que pesa mais.
+  - `whatsapp_opt_in`, `whatsapp_opt_out` e `is_whatsapp_ready`, a única definição de "perfil pronto", usada pela gravação, pelo job, pelo claim e pelo PARAR.
+  - `whatsapp_messages` e `whatsapp_console_messages`: RLS ligada, sem política e sem privilégio para `anon` e `authenticated`. `record_whatsapp_statuses` (o status só avança, e `failed` vale sobre qualquer um) e `whatsapp_stop_by_wa_id` (pelos dígitos do telefone ou por um `wa_id` já visto).
+  - `enqueue_notification`: linha `whatsapp` só com o tipo em `whatsappTypes` e o perfil pronto. O `daily_summary` não tem ocorrência nem grupo, nasce lido e nunca vai por push.
+  - `claim_notification_batch(p_limit, p_lease_seconds, p_max_delay_hours, p_channels text[] default '{web_push}')`:
+    - rechecagens `whatsapp_not_ready`, `whatsapp_type_not_allowed` e `summary_empty`;
+    - o resumo expira por `catchUpMinutes` e não passa pelo silêncio;
+    - cada item ganha `timezone`, `overdueAt`, `occurrenceStatus`, `phone` e `summary`. A fonte vem de `daily_summary_source`, com os mesmos baldes de "Hoje" e o acesso do sino.
+  - `report_notification_results` grava `whatsapp_messages` a partir de `whatsapp: { providerMessageId, waId, template, provider? }`.
+  - `enqueue_daily_summaries()`, com pg_cron a cada minuto, idempotente pela coluna e pela chave. A retenção diária passa a cobrir códigos (48 h), linhas de entrega (30 dias) e o console (1 dia).
+  - `supabase/tests/rls_whatsapp.test.sql` (novo, 132 testes). Em `rls_notifications` e `rls_proof`, só o que mudou: a assinatura do claim, o espelho, a forma do item e a lista de funções abertas.
+  - `packages/data/src/database.types.ts` regenerado.
+  - Handoffs `20261103-0135-banco-de-dados-para-backend-funcoes-rpcs-whatsapp` e `20261103-0135-banco-de-dados-para-notificacoes-whatsapp-rpcs-e-colunas`.
+- **Migrations:** 20261103120000_whatsapp_rules, 20261103120100_notification_type_daily_summary, 20261103120200_profile_whatsapp, 20261103120300_whatsapp_opt_in, 20261103120400_phone_verifications, 20261103120500_whatsapp_messages, 20261103120600_enqueue_notification_whatsapp, 20261103120700_claim_whatsapp, 20261103120800_daily_summaries_job, 20261103120900_whatsapp_retention. Aplicadas só no banco local.
+- **Decisões/ADRs:** nenhum ADR novo. Escolhas desta entrega:
+  - `whatsapp_messages.user_id` aceita nulo só no `stop_reply`, porque o número pode estar em várias contas;
+  - `provider` é opcional no report, deduzido do prefixo `console.`;
+  - o fuso do perfil é conferido pela exceção do Postgres, e não por `is_valid_timezone`, que custa ~18 ms por chamada (`pg_timezone_names`): caro demais para todo perfil a cada minuto;
+  - `p_channels` tem padrão `{web_push}` só para o despacho atual continuar subindo;
+  - o `template` usa `char_length <= 512` e não `{1,512}`, porque a regex do Postgres para em 255 repetições.
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`, `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`.
+- **Verificado:**
+  - `pnpm db:test`: 1359 de 1359, em 5 arquivos.
+  - `pnpm db:check-permissions`: passou, com `Notification rules in sync` e `WhatsApp rules in sync`.
+  - `pnpm functions:test`: 152 de 152.
+  - `pnpm check`: 17 de 17 e 9 de 9.
+  - `pnpm e2e`, uma vez: 67 passaram e 2 foram pulados (os de push sem chave VAPID no ambiente). Os 7 jobs do cron estavam ativos no fim.
+  - Mutações, uma por barreira, todas pegas e desfeitas:
+    - `grant select` em `whatsapp_messages`: 2 falhas;
+    - sem o limite de tentativas: 2;
+    - sem o limite de envios por usuário: 1;
+    - claim sem `whatsapp_not_ready`: 1;
+    - gravação sem o perfil pronto: 1;
+    - status que volta: 4.
+  - O cron real `enqueue-daily-summaries` rodou 8 vezes sem erro.
+  - Sem o cast de `setPreference`, `tsc --noEmit` em `packages/data` passa. O arquivo não é meu e foi restaurado.
+- **Não verificado:**
+  - nada contra a Meta nem contra as funções novas, que ainda não existem;
+  - o despacho real com `p_channels` e os campos novos;
+  - o resumo perto da meia-noite com o cron parado. É perda aceita pelo ADR, e os testes evitam esse horário de propósito.
+- **Pendências / próximos passos:**
+  - `backend-funcoes` e `notificacoes-whatsapp`: seguir os handoffs.
+  - `notificacoes-whatsapp`: tirar o cast de `setPreference`.
+  - `qa-testes`: desligar também `enqueue-daily-summaries` em `e2e/global-setup.ts` quando a E2E do WhatsApp criar perfis prontos.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 01:47 (BRT)
+
+- **Branch:** feat/whatsapp-screens, criada a partir de feat/whatsapp-db (eabbf0e)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** Itens 4 e 5 do handoff `20261103-0030-arquiteto-para-notificacoes-whatsapp-whatsapp` (repositório e telas do WhatsApp em `/settings/notifications`) e QA4-5 (o aviso ao vivo não repete a lista em `/notifications`). E2E do fluxo escrita, não rodada. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/data/src/notifications/index.ts`: `getWhatsApp` (estado e preferências do resumo numa leitura de `profiles`, horário cortado para `HH:mm`), `setDailySummary` (as cinco `daily_summary_*`), `requestPhoneCode` (`phone-verification`; 429 e 502 voltam como o corpo do contrato, o resto lança), `confirmPhoneCode`, `whatsappOptIn`, `whatsappOptOut` e `removePhone`. Saiu o cast de `setPreference`.
+  - `packages/features/notifications/src/whatsappFlow.ts` (novo, com testes): o passo da tela (`phone`, `code`, `consent`, `on`; número verificado vence um código na tela, e um aceite de versão antiga pede o aviso de novo), `secondsUntil`, `waitParts` (segundos, minutos ou horas, para cima) e `whatsappErrorKey` (código do contrato, como texto ou mensagem de erro do RPC; o resto é genérico).
+  - `WhatsAppSection.tsx` (novo), no fim de `NotificationPreferencesScreen`, aparece também sem chave VAPID: número (código do país 55 por padrão, `normalizePhone`), código (`codeLength` dígitos, `one-time-code`, reenvio com contagem até `resendAt` ou `retryAfterSeconds`, trocar o número), aviso `whatsapp.consent.v<consentVersion>.*` e ativação, e, ativo, o resumo (ligado, horário, atrasadas, dias de prazo de 0 a `maxDeadlineDays`, pular dia vazio, um botão Salvar), desligar e remover o número (com confirmação).
+  - `NotificationPreferencesScreen.tsx`: as chaves por canal ficam só no push. O único tipo do WhatsApp é o resumo, ligado e desligado por `daily_summary_enabled` na seção nova, para a mesma escolha não morar em dois lugares.
+  - `NotificationToaster.tsx` (QA4-5): em `/notifications` o aviso não aparece, e o que estava aberto some ao entrar ou sair dela. A região `role="status"` continua montada.
+  - `packages/i18n/src/pt-BR/notifications.json`: `whatsapp.intro`, `phone.countryInvalid`, `code.invalid`/`change`, `retryIn`, `wait.*`, `errors.generic`, `status.removeConfirm`, `dailySummary.days`/`save`/`saved`; saiu `code.resendIn_*`.
+  - `e2e/whatsapp.spec.ts` (novo, não rodado): número inválido recusado, código lido em `whatsapp_console_messages`, código errado, confirmação, aviso e opt-in, horário do resumo pela tela, `enqueue_daily_summaries` e o despacho, o resumo na mesma tabela com o título da tarefa, a linha do sino nascida lida, desligar e remover.
+- **Arquivos/módulos principais:** `packages/data/src/notifications/index.ts`, `packages/features/notifications/src/{WhatsAppSection.tsx,whatsappFlow.ts,NotificationPreferencesScreen.tsx,NotificationToaster.tsx}`, `packages/i18n/src/pt-BR/notifications.json`, `e2e/whatsapp.spec.ts`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova. A preferência `(daily_summary, whatsapp)` de `notification_preferences` não tem mais chave na tela; vale o padrão (ligada) e o liga/desliga é `daily_summary_enabled`.
+- **Como testar:** `pnpm --filter @azkaban/feature-notifications exec vitest run`; `pnpm check`; com a pilha e `phone-verification` servida, `pnpm exec playwright test e2e/whatsapp.spec.ts`.
+- **Verificado:** `pnpm install --frozen-lockfile`; `pnpm check` passou (17 de 17 e 9 de 9; feature-notifications 10 testes, 8 novos); `pnpm build:web` exportou.
+- **Não verificado:** nada rodou contra a pilha (com o `backend-funcoes`) nem contra `phone-verification`, que ainda não existe. As telas não foram vistas no navegador (a seção precisa de sessão e de banco), nem em 375 px, nem no escuro. A E2E nova não rodou.
+- **Pendências / próximos passos:** `qa-testes`: rodar e ajustar `e2e/whatsapp.spec.ts` depois do `backend-funcoes`, e desligar `enqueue-daily-summaries` em `e2e/global-setup.ts`. Texto do aviso de consentimento para o humano revisar.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 01:53 (BRT)
+
+- **Branch:** feat/whatsapp-functions, criada a partir de feat/whatsapp-db (eabbf0e)
+- **Agente(s):** backend-funcoes
+- **Resumo:** Itens 2 a 5 do handoff `20261103-0030-arquiteto-para-backend-funcoes-whatsapp`, com as assinaturas do handoff `20261103-0135` e o despacho do `20261103-0050`: o canal WhatsApp no despacho, o prazo do vermelho no push, e as funções `phone-verification` e `whatsapp-webhook`, com testes contra a pilha. Nada sai para a Meta: o provedor é o `console`. Hora derivada de UTC menos 3 (PowerShell barrado no worktree).
+- **Alterações:**
+  - `dispatch-notifications`:
+    - reivindica só os canais que a execução sabe enviar (`p_channels`): `web_push` só com VAPID, `whatsapp` quando os segredos passam em `parseWhatsAppEnv` (sempre, com `console`). Sem VAPID, os push ficam `pending` sem tentativa gasta, e a resposta é 200. 500 `channels_not_configured` só sem canal nenhum;
+    - `itemSchema` com `timezone`, `overdueAt`, `occurrenceStatus`, `phone` e `summary` (pelo contrato), e uma linha `whatsapp` sem telefone, ou um resumo sem fonte, é `invalid_item`;
+    - `render` do push repassa os três campos e o `late` de `buildPushPayload`, com `taskRules.lateCompletionWindowHours`;
+    - `WhatsAppChannel` em `dispatch.ts`: monta o resumo com `buildDailySummary` (core), o template `whatsappDefaults.templates.dailySummary` e o idioma de `templateLanguages`, e o `sent` leva `whatsapp: { providerMessageId, waId, template, provider }` ao report.
+  - **Decisão: provedor que lança** (só o `ConsoleProvider`, quando o `insert` em `whatsapp_console_messages` falha) é `retry` com `wa_provider_error`, pelo backoff e `maxAttempts` de sempre: nada chegou a ninguém, e repetir não duplica. Falha de montagem continua `failed` com `send_error`. Na `phone-verification`, é 502 `whatsapp_send_failed`.
+  - `phone-verification` (nova, `verify_jwt = true`): usuário pelo Auth, corpo até 1 KiB, `phoneVerificationRequestSchema`, `start_phone_verification` com service role, envio `code` (`phone_code_v1`), linha `phone_code` em `whatsapp_messages`; 200, 400, 401, 429 e 502. O log tem só evento, provedor e código de erro.
+  - `whatsapp-webhook` (nova, `verify_jwt = false`): `GET` por `challengeAnswer`; `POST` com 500 sem segredo, `readLimited` até 1 MiB (413), HMAC dos bytes brutos (401), assinado e inválido é 200, filtro por `phone_number_id` só com `meta`, `record_whatsapp_statuses`, `whatsapp_stop_by_wa_id` e a confirmação `text` (`whatsapp.stopReply`) por tentativa única, só quando algum perfil mudou; linha `stop_reply` sem `user_id`. Erro do banco é 500, para a Meta repetir.
+  - `_shared/contracts.ts` (o `@azkaban/contracts` das funções que carregam WhatsApp) e `_shared/whatsapp/runtime.ts` (segredos e provedor, com a escrita do console pela service role). `deno.json` do despacho com as chaves do grafo novo; das duas funções novas, com as do contrato.
+  - `.env.example`: valores `local-demo-*` só para `WHATSAPP_APP_SECRET` e `WHATSAPP_VERIFY_TOKEN`, comentados, como aprovado pelo orquestrador; o comentário do VAPID diz o comportamento novo.
+  - Testes: `push.test.ts` (3 do canal), `dispatch.integration.test.ts` (o caso "sem VAPID dá 500" virou "sem VAPID o push espera e o resumo sai pelo despacho servido, com o `ConsoleProvider`"), `phone-verification/verification.integration.test.ts` (4) e `whatsapp-webhook/webhook.integration.test.ts` (6), no `functions:test`; as duas funções no `wait-for-functions.mjs`.
+  - Handoffs `20261103-0153-backend-funcoes-para-arquiteto-implantacao-whatsapp` e `20261103-0153-backend-funcoes-para-notificacoes-whatsapp-phone-verification`.
+- **Arquivos/módulos principais:** `supabase/functions/{dispatch-notifications,phone-verification,whatsapp-webhook}/*`, `supabase/functions/_shared/{contracts.ts,whatsapp/runtime.ts,wait-for-functions.mjs}`, `supabase/functions/.env.example`, `supabase/config.toml`, `package.json`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** a do provedor que lança, acima. Idioma do código de verificação: o primeiro de `templateLanguages` (há um só). A confirmação do PARAR é em pt-BR, porque o número pode estar em contas de idiomas diferentes.
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`, `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm functions:test`.
+- **Verificado:**
+  - `pnpm functions:test`: 167 de 167, com a pilha recém-resetada.
+  - `pnpm db:test`: 1359 de 1359. `pnpm check`: passou (17 de 17 e 9 de 9 tarefas).
+  - `_shared/import-maps.test.ts` verde para as sete funções; as três tocadas responderam 204 no preflight logo depois do `db:start`.
+  - Mutações, desfeitas: assinatura ignorada no webhook servido derruba "a POST passes only with the HMAC" (1 falha); a checagem do JWT tirada da `phone-verification` derruba "only a signed-in user may ask" (1); o PARAR por substring derruba 2 testes de unidade e o de integração do PARAR (3).
+  - O log da função tem só `whatsapp_console`, `phone_verification_*` e contagens; nenhum telefone nem código.
+- **Não verificado:** a E2E (fica com o QA da fase); nada contra a Meta; o `MetaCloudProvider` dentro do Edge Runtime; o código das funções não passa por `tsc` (o `supabase/` está fora do typecheck e do ESLint, como antes).
+- **Pendências / próximos passos:** os dois handoffs. `qa-testes`: o resumo pela E2E lê `whatsapp_console_messages`; perfis prontos na E2E pedem `enqueue-daily-summaries` desligado (já apontado pelo `banco-de-dados`).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 01:58 (BRT)
+
+- **Branch:** chore/security-phase-5, criada a partir de feat/phase-5-whatsapp (9f88a68)
+- **Agente(s):** revisor-seguranca
+- **Resumo:** Primeira passada da revisão de segurança da Fase 5 (WhatsApp), sem pilha: as 10 migrations, contratos e config, provedores e peças do webhook, core, repositório e telas. Oito achados, SEG5-1 a SEG5-8: um médio, o resto baixo. `WhatsAppChannel`, `phone-verification` e `whatsapp-webhook` ficam para a segunda passada. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Handoffs `20261103-0158-revisor-seguranca-para-{banco-de-dados,backend-funcoes,notificacoes-whatsapp,arquiteto}-whatsapp`.
+  - SEG5-1 (média, `banco-de-dados`): `whatsapp_stop_by_wa_id` casa qualquer `recipient_wa_id` já visto do usuário, então o PARAR de um número digitado errado (linha `phone_code`) ou antigo desliga quem já usa outro número.
+  - SEG5-2 (baixa, `backend-funcoes`): `normalizeReply` não tira U+200B, U+200E, ZWJ nem largura total, e esses PARAR não param.
+  - SEG5-3 (baixa, `backend-funcoes` e `arquiteto`): o schema do webhook é tudo ou nada, e um elemento fora do formato descarta o lote com os PARAR.
+  - SEG5-4 (baixa, média com F8-3, `banco-de-dados`): `phone_verifications` em cascata zera o limite por número quando a conta é excluída.
+  - SEG5-5 (baixa, `arquiteto`): sem teto global de envios pagos nem lista de países.
+  - SEG5-6 (baixa, `notificacoes-whatsapp` e `arquiteto`): controle bidirecional e URL de títulos de outra pessoa chegam pelo número da empresa.
+  - SEG5-7 (baixa, `arquiteto`): o aviso v1 não cita contextos, a remoção do número nem a política; a exportação de F8-3 não cita `phone_verifications`.
+  - SEG5-8 (baixa, preventivo, `arquiteto` e `backend-funcoes`): nada recusa um segredo `local-demo-` em produção.
+- **Arquivos/módulos principais:** `docs/agentes/handoffs/`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma; sugerida uma seção "Revisão de segurança da Fase 5" no ADR-0009.
+- **Como testar:** os PoCs de banco listados em cada handoff, com a pilha.
+- **Verificado:** `pnpm install --frozen-lockfile`. PoCs em Node puro contra os módulos reais: `isStop` com 13 entradas (4 falsos negativos) e a normalização proposta (8 de 8); `validSignature` com bytes brutos, JSON reserializado, segredo errado, hex maiúsculo e sem cabeçalho; `challengeAnswer` com desafio válido, tag HTML e token não configurado; o regex de `whatsappTextParamSchema` e `cleanParam` com RLO e URL; `normalizePhone` com prefixo `00`. Varredura de segredos no diff: só valores de teste; `.env.example` só com nomes.
+- **Não verificado:** nada rodou no banco (pilha com o `backend-funcoes`), nem `pnpm check` nesta branch (só documentação mudou), nem as telas no navegador. O `WhatsAppChannel`, `phone-verification`, `whatsapp-webhook` e o `verify_jwt` ainda não estavam integrados.
+- **Pendências / próximos passos:** segunda passada com a pilha: PoC do SEG5-1, `confirm_phone_verification` por `GET` e com `Prefer: tx=rollback`, confirmações concorrentes, SEG5-4 apagando o usuário, acesso de `anon` e `authenticated` às três tabelas pela REST, colunas de outro perfil por embed, publicação do Realtime, e as três funções (JWT, limites de corpo, assinatura, logs do contêiner sem telefone, código, `wa_id` ou título).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 01:59 (BRT)
+
+- **Branch:** docs/whatsapp-deploy, criada a partir de feat/phase-5-whatsapp (e140adc)
+- **Agente(s):** arquiteto
+- **Resumo:** Handoff `20261103-0153-backend-funcoes-para-arquiteto-implantacao-whatsapp`: implantação do WhatsApp em `docs/implantacao.md` e as diferenças da implementação no ADR-0009. A guarda dos imports das funções passa a rodar no `pnpm check`, sem pilha. O script do espelho de permissões deriva o contêiner do `project_id`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `docs/implantacao.md`: sem VAPID, o despacho não reivindica push e responde 200; o 500 é `channels_not_configured`, só sem canal nenhum, e um `VAPID_SUBJECT` inválido conta como par ausente. Tabela dos segredos `WHATSAPP_*`, `supabase secrets set` dos dois aleatórios, deploy de `phone-verification` e `whatsapp-webhook`, `verify_jwt` das duas, URL do webhook com o campo `messages`, e a seção 7 "Antes de ligar a Meta", que remete ao ADR-0009, seção 10, com as consultas de conferência.
+  - ADR-0009, seção 17 nova (diferenças da implementação, como a 17 do ADR-0008): provedor que lança vira `retry` com `wa_provider_error`, e montagem que falha continua `failed` com `send_error`; a tela não mostra o WhatsApp na lista de tipos, e o resumo é ligado só por `daily_summary_enabled`, com `(daily_summary, whatsapp)` no padrão (um segundo tipo traz a lista de volta); o resumo nunca vai por push, porque `internalPathSchema` recusa `/` sozinho. As seções 2, 5, 13 e as Consequências remetem para ela.
+  - `package.json`: script `functions:imports` (`node --test` de `_shared/import-maps.test.ts`), no fim de `check`. Roda sem Docker; o CI já roda `pnpm check`.
+  - `scripts/check-permission-mirror.mjs`: o contêiner é `supabase_db_<project_id>` de `supabase/config.toml` do próprio checkout, com `DB_CONTAINER` valendo sobre isso, e o nome sai na primeira linha. Motivo: a pilha B (`docs/agentes/ferramentas/pilha-b.sh`) troca o `project_id` na cópia de trabalho, e nada rodado nela pode tocar a pilha A.
+- **Arquivos/módulos principais:** `docs/implantacao.md`, `docs/adr/0009-whatsapp-verificacao-opt-in-resumo-diario.md`, `package.json`, `scripts/check-permission-mirror.mjs`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** ADR-0009, seção 17.
+- **Como testar:** `pnpm check`; `pnpm functions:imports` sozinho; `node scripts/check-permission-mirror.mjs` mostra `Container: supabase_db_azkaban` com o config normal.
+- **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9 tarefas; `functions:imports` 8 de 8). Mutação: sem a chave de `tasks/late` no `deno.json` do despacho, `pnpm check` falha em "dispatch-notifications: every runtime import resolves through deno.json" (7 de 8), desfeita. O script do espelho imprimiu `Container: supabase_db_azkaban`, e `Container: x` com `DB_CONTAINER=x`. A primeira execução achou a pilha A de pé e fez os `select` de leitura (matriz em dia, 23 linhas); nada foi escrito.
+- **Não verificado:** o hook de pre-commit não roda o `check` (só `lint-staged`), então a guarda pega no CI e no `pnpm check`, não no commit. O texto da implantação não foi executado contra o projeto hospedado.
+- **Pendências / próximos passos:** nenhuma minha.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:07 (BRT)
+
+- **Branch:** docs/whatsapp-deploy, com `feat/phase-5-whatsapp` mesclada (5ed013c)
+- **Agente(s):** arquiteto
+- **Resumo:** Decisões sobre a primeira passada da revisão de segurança da Fase 5 (handoff `20261103-0158-revisor-seguranca-para-arquiteto-whatsapp`), no ADR-0009, seção 18, com a parte de contrato e config feita e um handoff para cada dono. Hora derivada de UTC menos 3.
+- **Alterações:**
+  - `packages/contracts/src/whatsapp.ts`: `whatsappWebhookStatusSchema` e `whatsappWebhookMessageSchema` exportados, e `whatsappWebhookSchema` com `statuses` e `messages` como `unknown[]` (SEG5-3). `whatsappTextParamSchema` recusa U+202A a U+202E e U+2066 a U+2069 (SEG5-6). `phone_country_not_allowed` em `whatsappErrorCodeSchema` (SEG5-5).
+  - `packages/config/src/whatsapp.ts`: `verification.maxSendsPerDay = 200` e `verification.allowedCountryCodes = ['55']` (SEG5-5), padrões a confirmar pelo humano.
+  - `packages/config/src/whatsapp-env.ts`: com `meta`, `WHATSAPP_APP_SECRET` e `WHATSAPP_VERIFY_TOKEN` que começam com `local-demo-` são recusados (SEG5-8).
+  - ADR-0009: seção 18 nova com SEG5-1 a SEG5-8. O PARAR busca só pelo número atual, com a regra do nono dígito. O PARAR com caractere invisível passa a parar. O limite por número sobrevive à exclusão. O teto global e a lista de países ficaram como padrão. A URL no resumo é aceita e registrada, sem controle bidirecional. O aviso v1 muda sem `v2`. As seções 3, 4, 7, 11, 13 e 16 (itens 13 e 14) remetem para ela.
+  - Handoffs `20261103-0206-arquiteto-para-{backend-funcoes,banco-de-dados,notificacoes-whatsapp}-seguranca-whatsapp`.
+  - Merge de `feat/phase-5-whatsapp`, com o conflito do LOG resolvido mantendo as duas entradas em ordem de data.
+- **Arquivos/módulos principais:** `packages/contracts/src/whatsapp.ts` e o teste, `packages/config/src/{whatsapp.ts,whatsapp-env.ts,env.test.ts}`, `docs/adr/0009-whatsapp-verificacao-opt-in-resumo-diario.md`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma; a do espelho é do `banco-de-dados`.
+- **Decisões/ADRs:** ADR-0009, seção 18.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9 tarefas; `functions:imports` 8 de 8). Contratos: 92 testes, com 3 novos (lote com um elemento inválido, dois controles bidirecionais). Config: o teste novo de `local-demo-` com `meta`, e a aceitação com `console`.
+- **Não verificado:** nada com a pilha. `pnpm db:check-permissions` vai acusar `whatsapp_rules` até a migration. O `whatsapp-webhook` ainda lê os elementos sem validá-los, até o `backend-funcoes` seguir o handoff. Até o `notificacoes-whatsapp` mudar `cleanParam`, um título com RLO faz o resumo falhar com `send_error`.
+- **Pendências / próximos passos:** os três handoffs. Para o humano: SEG5-5 (países e teto), a URL do SEG5-6 e o texto do aviso.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:11 (BRT)
+
+- **Branch:** chore/qa-phase-5, criada a partir de feat/phase-5-whatsapp (e140adc)
+- **Agente(s):** qa-testes
+- **Resumo:** QA da Fase 5 no estado integrado. `e2e/whatsapp.spec.ts` rodou pela primeira vez e passou a cobrir o fluxo crítico inteiro do resumo diário com o `ConsoleProvider`, inclusive o PARAR pelo webhook assinado; um segundo teste percorre as telas do WhatsApp a 320, 375 e 1280 px, claro e escuro, com os erros do contrato. Três achados de uso para o `notificacoes-whatsapp`, nenhum bloqueio. Hora derivada de UTC menos 3 (PowerShell barrado no worktree).
+- **Alterações:**
+  - `e2e/global-setup.ts`: desliga também `enqueue-daily-summaries` durante a suíte; e recusa rodar, com erro em português, se o `project_id` de `supabase/config.toml` não for `azkaban` (com a pilha B de `docs/agentes/ferramentas/pilha-b.sh` ligada no checkout, a suíte falaria com a A pela porta 8091 e pelo `.env.development.local`).
+  - `e2e/whatsapp.spec.ts`: o perfil vai para um fuso longe da meia-noite (São Paulo ou Tóquio, 12 h de diferença), para o resumo no minuto atual e a tarefa de daqui a um minuto ficarem no mesmo dia local; o resumo não aparece no aviso ao vivo e aparece no sino como "Resumo do dia"; PARAR pelo `whatsapp-webhook` assinado com o segredo local de demonstração grava o opt-out `webhook` e a confirmação na caixa de saída; religar só pelo app; desligar pelo app grava `app`. Teste novo: número inválido, contagem regressiva que anda, código incompleto, código expirado (validade recuada pela service role), 429 do reenvio depois de recarregar, aviso e opt-in; em cada passo, sem rolagem lateral, controles da tela com 44 px ou mais, texto sem corte e foco visível por teclado; nenhum telefone em URL pedida pela página; `title` da tela.
+  - `e2e/notifications-jobs.spec.ts`: QA4-5 conferido na E2E (em `/notifications`, um lembrete novo entra na lista e o aviso ao vivo fica vazio).
+  - Handoff `20261103-0210-qa-testes-para-notificacoes-whatsapp-achados-da-fase-5` (QA5-1 média: a tela do código some ao recarregar e o reenvio fica travado por 60 s; QA5-2 baixa: o 429 do reenvio diz "Muitos códigos pedidos"; QA5-3 baixa: o número aparece cru em E.164).
+- **Arquivos/módulos principais:** `e2e/global-setup.ts`, `e2e/whatsapp.spec.ts`, `e2e/notifications-jobs.spec.ts`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`, `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm e2e` (com uma chave pública VAPID no ambiente, rodam os testes de push).
+- **Verificado:** `whatsapp.spec.ts` 2 de 2; `notifications-jobs` com `--no-deps` 4 de 4. `pnpm e2e` completo uma vez, banco limpo, com a chave VAPID gerada em memória e passada só ao processo: 70 passaram, 1 pulado (o "sem chave"), nenhuma falha. Os 7 jobs de `cron.job` ativos depois. `pnpm check` passou (17 de 17 e 9 de 9).
+- **Não verificado:** contraste medido (só visto em captura); leitor de tela; Safari e iPhone de verdade (o QA5-1 foi reproduzido com `page.reload()`); o 429 do limite de 24 h e o 502 do provedor pela tela; a Meta. O erro da pilha B no `global-setup` só foi conferido na expressão, não com o `config.toml` trocado.
+- **Pendências / próximos passos:** QA5-1 a QA5-3, pelo handoff. `QUADRO.md`: F5-1 a F5-6 ainda "a fazer", e o F5-5 diz `backend-funcoes`, mas o job do resumo é SQL do `banco-de-dados` (ADR-0009, seção 5); é do orquestrador.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:15 (BRT)
+
+- **Branch:** fix/whatsapp-db-security, criada a partir de feat/phase-5-whatsapp (5ed013c), com o merge de feat/phase-5-whatsapp (d66b135)
+- **Agente(s):** banco-de-dados
+- **Resumo:** SEG5-1 e SEG5-4 do handoff `20261103-0158-revisor-seguranca-para-banco-de-dados-whatsapp` (opção do nono dígito, confirmada no ADR-0009, seção 18) e SEG5-5 do handoff `20261103-0206-arquiteto-para-banco-de-dados-seguranca-whatsapp`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - SEG5-1: `whatsapp_stop_by_wa_id` casa o `wa_id` só com o telefone atual do perfil pronto: os mesmos dígitos ou a variante do nono dígito do Brasil (`55` + DDD + 8 ↔ `55` + DDD + `9` + 8), com os dois lados dobrados para 8 dígitos. Outros países, só igualdade. Saiu a busca pelo histórico de `recipient_wa_id`, e o índice `whatsapp_messages_wa_id_idx`, que só ela lia. Contas com o mesmo número continuam parando juntas.
+  - SEG5-4: `phone_verifications.user_id` anulável, `on delete set null`. Excluir a conta não zera mais o limite por número; as linhas somem pela retenção de 48 h.
+  - SEG5-5: espelho `whatsapp_rules.verification` com `maxSendsPerDay = 200` e `allowedCountryCodes = ["55"]`. `start_phone_verification` devolve `phone_country_not_allowed` para outro país, sem gravar linha, e `phone_rate_limited` no teto global, contando as linhas sem `user_id`. Um só lock consultivo para toda verificação substitui o lock por número, para duas chamadas não passarem juntas pelo teto.
+  - `rls_whatsapp.test.sql`: 15 testes novos (132 para 147). O teste antigo do nono dígito passa sem a linha em `whatsapp_messages`.
+  - `packages/data/src/database.types.ts` regenerado (`phone_verifications.user_id: string | null`).
+- **Arquivos/módulos principais:** `supabase/migrations/`, `supabase/tests/rls_whatsapp.test.sql`, `packages/data/src/database.types.ts`
+- **Migrations:** 20261103150000_whatsapp_stop_current_phone, 20261103150100_phone_verifications_survive_account, 20261103150200_phone_verification_country_and_cap. Aplicadas só na pilha B local.
+- **Decisões/ADRs:** nenhuma nova; segue o ADR-0009, seção 18. A variante do nono dígito vale para qualquer número de 9 dígitos que comece com 9, como pedido, inclusive um fixo de 8 dígitos com um 9 na frente.
+- **Como testar:** `bash docs/agentes/ferramentas/pilha-b.sh db`, `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`, `bash docs/agentes/ferramentas/pilha-b.sh parar`.
+- **Verificado:**
+  - `pnpm db:test`: 1374 de 1374, em 5 arquivos (`rls_whatsapp` 147 de 147).
+  - `pnpm db:check-permissions` na pilha B (`Container: supabase_db_azkaban-b`): tudo em dia, com `WhatsApp rules in sync`.
+  - `pnpm check`: 17 de 17 e 9 de 9, depois do merge.
+  - Mutações, desfeitas: a busca pelo histórico de volta derruba 4 testes; o `on delete cascade` de volta, 2; sem o teto global, 1.
+  - Tudo na pilha B só com o Postgres; a pilha A não foi tocada, e a B foi parada no fim com o `config.toml` devolvido.
+- **Não verificado:** `pnpm functions:test` (a B `db` não tem Edge Runtime; o teste do webhook usa `wa_id` igual aos dígitos do telefone) e a E2E. Até o `backend-funcoes` seguir o handoff 0206, a `phone-verification` não conhece `phone_country_not_allowed`.
+- **Pendências / próximos passos:** `backend-funcoes`: 400 para `phone_country_not_allowed`. Comentário de `whatsapp_messages` ainda diz que `recipient_wa_id` serve ao PARAR; fica como registro da entrega (migration integrada, não editada).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:17 (BRT)
+
+- **Branch:** fix/whatsapp-client-security, criada a partir de feat/phase-5-whatsapp (d66b135), com `feat/phase-5-whatsapp` mesclada depois para trazer o handoff do QA
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** A parte do cliente das decisões da revisão de segurança da Fase 5 (ADR-0009, seção 18: SEG5-5, SEG5-6, SEG5-7 e o `00` do revisor) e os achados QA5-1 a QA5-3 do handoff `20261103-0210-qa-testes-para-notificacoes-whatsapp-achados-da-fase-5`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `cleanParam` tira `\p{Cf}` (controles bidirecionais, largura zero, BOM, marcas LRM e RLM), exceto U+200D, que une os emojis compostos. Testes com U+202A a U+202E, U+2066 a U+2069, U+200B, U+200E, U+200F, U+FEFF, U+2060, e um emoji com ZWJ inteiro; a saída passa no `whatsappTextParamSchema`.
+  - `normalizePhone` lê o `00` do começo como `+`: `0055 11 98765-4321` dá `+5511987654321`.
+  - `formatPhone` em core (QA5-3): `+55 11 91705-8802`, fixo `+55 11 3333-4444`, outro país como está. Usado na dica do código, no aviso e em "Ativo para".
+  - Aviso v1 (SEG5-7): `what` cita as áreas e os contextos; chave nova `phone`, mostrada na tela do aviso. Continua v1.
+  - `whatsapp.errors.phone_country_not_allowed` ("Por enquanto, só números do Brasil (+55)."). O formulário recusa, antes de pedir, um país fora de `allowedCountryCodes`, no campo ou como `+`/`00` no número, e o campo do país mostra esse texto; `whatsapp.phone.countryInvalid` saiu. Teste: todo código de `whatsappErrorCodeSchema` tem texto próprio.
+  - QA5-2: `phone_rate_limited` com `retryAfterSeconds` até `resendSeconds` diz "Espere um pouco para pedir outro código." (`whatsapp.errors.phone_resend_wait`), com a contagem embaixo; o limite de 24 horas continua "Muitos códigos pedidos".
+  - QA5-1: o passo do código fica na sessão da aba: `{ userId, phone, expiresAt, resendAt }` em `azkaban.whatsapp.pendingCode`, nunca o código. Restaurado só para o mesmo usuário e com o código vivo; apagado ao confirmar e ao trocar o número. Adapter novo em `packages/platform`: `readSessionValue` e `writeSessionValue` (`sessionStorage` na web, memória no nativo).
+  - `e2e/whatsapp.spec.ts`: número formatado nos três textos; recarga na tela do código esperando o campo, a dica e o reenvio travado; o 429 do reenvio a partir de uma aba limpa, com o texto novo.
+- **Arquivos/módulos principais:** `packages/core/src/notifications/whatsapp.ts` e o teste, `packages/core/src/index.ts`, `packages/features/notifications/src/{WhatsAppSection.tsx,whatsappFlow.ts,whatsappFlow.test.ts}`, `packages/platform/src/{sessionValue.ts,sessionValue.web.ts,index.ts}`, `packages/i18n/src/pt-BR/notifications.json`, `e2e/whatsapp.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. Um só texto de erro no campo do país enquanto só o Brasil é permitido; com outro país na lista, o texto e o campo precisam mudar.
+- **Como testar:** `pnpm check`; com a pilha, `pnpm exec playwright test e2e/whatsapp.spec.ts --project app`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9 tarefas; core 605 testes, feature-notifications 17, platform 46; `functions:imports` 8 de 8).
+- **Não verificado:** a E2E não rodou (sem pilha); as mudanças da spec foram escritas sem execução. O `cleanParam` novo dentro do Deno do despacho (o regex com `\p{Cf}` e lookahead é padrão). A tela não foi vista no navegador. iOS e Android.
+- **Pendências / próximos passos:** o texto do aviso continua a confirmar pelo humano. A bandeira da Inglaterra e as outras de subdivisão usam caracteres de tag (`\p{Cf}`) e viram a bandeira preta no resumo.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:18 (BRT)
+
+- **Branch:** chore/functions-stack-from-config, criada a partir de feat/phase-5-whatsapp (88c3749), com merge de feat/phase-5-whatsapp (d66b135)
+- **Agente(s):** backend-funcoes
+- **Resumo:** Os testes das funções acham a pilha pelo `supabase/config.toml` do checkout, e não mais por padrões fixos da pilha A. Também SEG5-2, SEG5-3 e SEG5-5 do handoff `20261103-0206-arquiteto-para-backend-funcoes-seguranca-whatsapp`, e o `phone_number_id` sempre passado ao webhook (handoff `20261103-0158-revisor-seguranca-para-backend-funcoes-whatsapp`). Hora derivada de UTC menos 3 (PowerShell barrado no worktree).
+- **Alterações:**
+  - `_shared/local-stack.mjs` (novo): lê o `project_id` e o `port` de `[api]` e exporta `apiUrl`, `project` e `dbContainer` (`supabase_db_<project>`). `SUPABASE_URL`, `COMPOSE_PROJECT` e `DB_CONTAINER` continuam valendo; sem `DB_CONTAINER`, o contêiner segue o `COMPOSE_PROJECT`. Um config sem as duas chaves lança erro, sem adivinhar.
+  - `proof-kit.ts`, `wait-for-functions.mjs` (inclusive a mensagem de erro) e os testes de `dispatch`, `materialize`, `proof-url` e `proof-validate` usam o módulo. Os comentários que citavam `supabase_edge_runtime_azkaban` dizem `<project_id>`.
+  - `_shared/local-stack.test.ts` (novo, no `functions:test`): o config commitado dá `http://127.0.0.1:54421`, `azkaban` e `supabase_db_azkaban`; com as mesmas trocas de `pilha-b.sh` dá `54521`, `azkaban-b` e `supabase_db_azkaban-b`; só o `port` de `[api]` conta; CRLF; o ambiente vence. Passa também num checkout com a B ligada.
+  - SEG5-2: `normalizeReply` com `NFKD` e `\p{Cf}`.
+  - SEG5-3: `readWebhook` recebe os schemas de elemento do contrato e valida cada status e mensagem com `safeParse`; o inválido soma em `ignored`. `webhook.test.ts` carrega os schemas reais do contrato com `registerHooks`, porque os arquivos dele se importam sem extensão.
+  - SEG5-5: `phone-verification` responde 400 `{ error: 'phone_country_not_allowed' }` sem enviar nada.
+  - `whatsapp-webhook`: `WHATSAPP_PHONE_NUMBER_ID` filtra sempre que existe, com qualquer provedor. É lido do ambiente, porque a variante `console` de `parseWhatsAppEnv` descarta a chave.
+- **Arquivos/módulos principais:** `supabase/functions/_shared/{local-stack.mjs,local-stack.test.ts,proof-kit.ts,wait-for-functions.mjs,whatsapp/webhook.ts,whatsapp/webhook.test.ts}`, `supabase/functions/{whatsapp-webhook,phone-verification}/*`, testes de integração de `dispatch`, `materialize`, `proof-url` e `proof-validate`, `package.json`, um comentário em `supabase/config.toml`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova.
+- **Como testar:** `node --test supabase/functions/_shared/local-stack.test.ts supabase/functions/_shared/whatsapp/webhook.test.ts`; `pnpm db:start`, `pnpm exec supabase db reset` e `pnpm functions:test` sem exportar nada; `pnpm check`.
+- **Verificado:**
+  - `pnpm functions:test` na pilha A, sem variáveis, depois de `db reset`: 175 de 176. A única falha é o teste novo do país (200 em vez de 400), porque a migration do `banco-de-dados` ainda não foi integrada. Depois, o teste novo de SEG5-3 do webhook rodou contra a função servida: 7 de 7 no arquivo.
+  - `node --test` de `local-stack`, `import-maps` e `webhook`: 30 de 30. `pnpm check` passou (17 de 17 e 9 de 9).
+  - Mutações, desfeitas: a validação do lote inteiro de volta em `readWebhook` derruba o teste de SEG5-3 (1 falha); `NFD` no lugar de `NFKD` derruba o de SEG5-2 (1 falha).
+- **Não verificado:** a prova na pilha B, que o orquestrador trocou pela A (a B estava com o `banco-de-dados`); o lado B só está no teste de unidade, com o config de exemplo. `phone_country_not_allowed` contra a migration real. A suíte completa não rodou de novo depois do teste de SEG5-3.
+- **Pendências / próximos passos:** a verificação final com a migration do `banco-de-dados` (teste "a number of another country is 400 phone_country_not_allowed"). Para o `arquiteto`, se quiser: a variante `console` de `whatsappEnvSchema` poderia aceitar `WHATSAPP_PHONE_NUMBER_ID` opcional, e a função deixaria de ler o ambiente direto.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:28 (BRT)
+
+- **Branch:** chore/security-phase-5, com feat/phase-5-whatsapp (b2f3e50) integrada
+- **Agente(s):** revisor-seguranca
+- **Resumo:** Segunda passada da revisão de segurança da Fase 5, na pilha B. SEG5-1, SEG5-4 e SEG5-5 fecharam no banco. Dois achados novos, ambos baixos: SEG5-9 (a dobra do nono dígito junta um celular e um fixo vizinhos) e SEG5-10 (o país recusado vira 500 em `phone-verification`). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Handoffs `20261103-0226-revisor-seguranca-para-banco-de-dados-nono-digito` (SEG5-9) e `20261103-0226-revisor-seguranca-para-backend-funcoes-pais-e-webhook` (SEG5-10 e o estado intermediário do SEG5-3).
+- **Arquivos/módulos principais:** `docs/agentes/handoffs/`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `bash docs/agentes/ferramentas/pilha-b.sh funcoes`, `pnpm exec supabase db reset`, e os PoCs descritos nos handoffs.
+- **Verificado (pilha B, banco limpo):**
+  - SEG5-1: o `wa_id` de uma linha `phone_code` de outro número muda 0; o `wa_id` sem o nono dígito do número atual muda 1.
+  - SEG5-4: a linha sobrevive à exclusão da conta com `user_id` nulo; cinco contas criadas e apagadas mandando para o mesmo número, e a sexta recebe `phone_rate_limited` (86400 s).
+  - SEG5-5: `+1` dá `phone_country_not_allowed` no banco; com 200 linhas no dia, a próxima recebe `phone_rate_limited`.
+  - Confirmação: por `GET` falha na transação somente leitura antes de comparar (tentativas continuam 0); com `Prefer: tx=rollback`, a preferência é ignorada e a tentativa conta; 10 tentativas em paralelo contam exatamente 5 (4 `invalid` e 6 `expired`), e o código certo depois disso dá `expired`.
+  - Acesso: `anon` e `authenticated` recebem 42501 nas três tabelas; `profiles` de outro membro sai nulo no embed por `group_members`; `group_member_profiles` só com nome, papel e data; `PATCH` em telefone, opt-in, opt-out e `daily_summary_last_date`, 42501; seis RPCs internas, 42501; só `notifications` na publicação do Realtime.
+  - `phone-verification`, `whatsapp-webhook` e o despacho: os resultados estão no handoff do `backend-funcoes`. O log do Edge Runtime não tem telefone, código, `wa_id` nem texto.
+- **Não verificado:** E2E (proibida na pilha B), `db:test` e `functions:test` completos, navegador, Meta real e projeto hospedado. SEG5-2, SEG5-3 e SEG5-6 não foram reabertos (em andamento), mas o estado integrado do webhook responde 500 a elemento inválido, registrado no handoff.
+- **Pendências / próximos passos:** SEG5-9 com o `banco-de-dados`, SEG5-10 com o `backend-funcoes`. Pilha B parada, `config.toml` restaurado.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:32 (BRT)
+
+- **Branch:** fix/whatsapp-ninth-digit, criada a partir de feat/phase-5-whatsapp (7b5cceb)
+- **Agente(s):** banco-de-dados
+- **Resumo:** SEG5-9 do handoff `20261103-0226-revisor-seguranca-para-banco-de-dados-nono-digito`. A dobra do nono dígito de `whatsapp_stop_by_wa_id` juntava um celular e um fixo com os mesmos oito dígitos finais. Hora derivada de UTC menos 3 (PowerShell barrado no worktree).
+- **Alterações:**
+  - `whatsapp_stop_by_wa_id` só tira o `9` depois do DDD quando o dígito seguinte é de 6 a 9, nos dois lados (`'^(55[0-9]{2})9([6-9][0-9]{7})$'`). Fixos começam com 2 a 5 e o `wa_id` sem o nono dígito só existe para celulares antigos, que começavam com 6 a 9. Grants preservados pelo `create or replace`.
+  - `rls_whatsapp.test.sql` (147 para 151): Bia com o fixo `+551133334444` não é parada por `5511933334444`; Caio com o celular `+5511922223333` não é parado por `551122223333`; os dois continuam prontos; cada um para com os próprios dígitos.
+- **Arquivos/módulos principais:** `supabase/migrations/20261103160000_whatsapp_stop_ninth_digit_mobile_only.sql`, `supabase/tests/rls_whatsapp.test.sql`
+- **Migrations:** `20261103160000_whatsapp_stop_ninth_digit_mobile_only.sql`
+- **Decisões/ADRs:** nenhuma nova. A seção 18 do ADR-0009 cita o padrão antigo; o `arquiteto` ajusta o texto (já dito no handoff do revisor).
+- **Como testar:** `pnpm exec supabase db reset` e `pnpm db:test`.
+- **Verificado:** na pilha B (só Postgres, `supabase_db_azkaban-b`): `db reset`, `pnpm db:test` com 5 arquivos e 1378 testes, todos passando; os de SEG5-1 seguem iguais. `pnpm db:check-permissions` em sincronia. `pnpm check` passou (17 de 17 e 9 de 9). Mutação, desfeita: a regex antiga aplicada no banco derruba os 4 testes novos (102 a 105); restaurada, 151 de 151.
+- **Não verificado:** o webhook servido contra a função nova (sem E2E nem `functions:test`, por pedido do orquestrador).
+- **Pendências / próximos passos:** o texto do ADR-0009, seção 18, com o `arquiteto`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:41 (BRT)
+
+- **Branch:** fix/local-stack-cjs, criada a partir de feat/phase-5-whatsapp (`24f76cd`)
+- **Agente(s):** backend-funcoes
+- **Resumo:** `pnpm e2e` voltou a carregar as specs. O Playwright compila as specs, e com elas `proof-kit.ts` e `local-stack.mjs`, para CommonJS, onde o `import.meta` que achava o `config.toml` não existe: 0 testes em 0 arquivos. Agora `local-stack.mjs` acha `supabase/config.toml` subindo a partir de `process.cwd()`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `findConfig(from)` em `local-stack.mjs`, sem `import.meta`; o ambiente vence o config e um config sem as chaves continua lançando erro.
+  - Teste novo: o config é achado a partir de uma pasta interna e da raiz do checkout.
+- **Arquivos/módulos principais:** `supabase/functions/_shared/local-stack.mjs`, `supabase/functions/_shared/local-stack.test.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. Os comandos precisam rodar de dentro do checkout, como já fazem todos os scripts do `package.json`.
+- **Como testar:** `node --test supabase/functions/_shared/local-stack.test.ts`, `pnpm exec playwright test --list`, `pnpm functions:test` e `pnpm e2e`, na pilha A.
+- **Verificado (pilha A, banco limpo):** antes, `playwright test --list` dava o `SyntaxError` e 0 testes; depois, 71 testes em 18 arquivos. `local-stack.test.ts`: 7 de 7. `pnpm functions:test`: 178 de 178. `pnpm e2e` com uma chave VAPID gerada em memória: 70 passaram, 1 pulado (o que só roda sem a chave). `pnpm check` passa.
+- **Não verificado:** CI, pilha B e projeto hospedado.
+- **Pendências / próximos passos:** nenhuma. Pilha A parada.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:57 (BRT)
+
+- **Branch:** feat/phase-5-whatsapp
+- **Agente(s):** orquestrador
+- **Resumo:** Fase 5 (WhatsApp com provedor de console) fechada. Verificação final em banco limpo toda verde. Nenhuma mensagem real sai: ligar a Meta é decisão do humano (ADR-0009, seções 10 e 16).
+- **Alterações:**
+  - Integradas, nesta ordem: ADR-0009, contratos e config (`arquiteto`); provedores e parsing do webhook (`backend-funcoes`); core do resumo e prazo no push (`notificacoes-whatsapp`); dez migrations (`banco-de-dados`); telas (`notificacoes-whatsapp`); despacho, `phone-verification` e `whatsapp-webhook` (`backend-funcoes`); QA (`qa-testes`); revisão de segurança em duas passadas (`revisor-seguranca`); correções SEG5-1 a SEG5-10 e QA5-1 a QA5-5 pelos donos; implantação e guarda dos imports das funções no `pnpm check` (`arquiteto`).
+  - Pilha B enxuta (`docs/agentes/ferramentas/pilha-b.sh`, aprovada pelo humano): só Postgres (~60 MB) ou só funções (~0,85 GB), com portas 545xx, uma por máquina; os testes de funções, o `db:check-permissions` e a E2E passam a achar a pilha pelo `config.toml` do checkout, e a E2E recusa rodar fora da A.
+  - `docs/agentes/QUADRO.md`: Fase 5 refeita com a divisão real (F5-1 a F5-9) e marcada como feita.
+- **Decisões/ADRs:** aceitas pelo orquestrador e registradas no ADR-0009 (seções 17 e 18): o resumo é ligado só na seção do WhatsApp; o resumo nunca vai por push; provedor que lança vira nova tentativa; PARAR casa só com o telefone atual e a variante do nono dígito de celular; só +55 e teto global de 200 códigos por dia (a confirmar pelo humano). `packages/platform` ganhou `sessionValue` pelo `notificacoes-whatsapp` (fora do escopo dele, aceito).
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`; `bash docs/agentes/ferramentas/verificar-fase.sh <checkout> <log>` com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória no ambiente.
+- **Verificado:** em `8850f41`, todos os 14 passos de `verificar-fase.sh`: `db:test` 1378 de 1378 antes e depois da E2E; `db:check-permissions` em dia (inclui `whatsapp_rules`); `turbo typecheck test --force` (core 605, contracts 92, platform 46, notifications 17, config 15, ui 11, app 8, data 7, proof 6); lint, `boundaries`, `build:web`; `functions:test` 178 de 178; E2E duas vezes com 70 ok, 0 falhas e 1 pulado (o "sem chave VAPID"). Rodadas anteriores pegaram dois defeitos que nenhum agente viu: as specs não carregavam por `import.meta` no ajudante dos testes (corrigido) e, antes disso, o webhook intermediário dando 500 em lote inválido (conferido 200 com `curl` assinado). Varredura de segredos no diff `feat/phase-4-notifications..`: só nomes nos `.env.example` e os `local-demo-` aprovados.
+- **Não verificado:** a Meta de verdade (nada foi enviado), Safari e iPhone, leitor de tela real, CI do PR, projeto hospedado.
+- **Pendências / próximos passos:** PR para `feat/phase-4-notifications`; perguntas ao humano (ADR-0009, seção 16, e SEG5-5/6/7); Fases 6 e 7 já em andamento em `feat/phase-6-gamification` e `feat/phase-7-shopping`.

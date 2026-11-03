@@ -3,7 +3,7 @@ import { useTranslation } from '@azkaban/i18n';
 import { Body, IconButton, Muted, tokens } from '@azkaban/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { useSegments } from 'expo-router';
+import { usePathname, useSegments } from 'expo-router';
 import { Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { notificationsConfig } from './config';
@@ -24,15 +24,20 @@ export function NotificationToaster({ vapidPublicKey }: { vapidPublicKey?: strin
   const open = useOpenItem();
   const insets = useSafeAreaInsets();
   const inTabs = (useSegments() as string[]).includes('(tabs)');
+  // On the bell's own list the notice would repeat its first line (QA4-5): not shown there, and
+  // whatever was up goes away on the way in or out.
+  const onInbox = usePathname() === '/notifications';
+  useEffect(() => setShown(null), [onInbox]);
 
   useEffect(() => {
     if (!user.id) return;
     return notificationsRepository.subscribe(user.id, ({ type, id }) => {
       void queryClient.invalidateQueries({ queryKey: bellKey });
       if (type !== 'insert') return;
+      // A row born read (the daily summary, already told by WhatsApp) is listed, not announced.
       notificationsRepository
         .get(id)
-        .then((item) => item && setShown(item))
+        .then((item) => item && !item.readAt && setShown(item))
         .catch(() => undefined);
     });
   }, [user.id, queryClient]);
@@ -47,7 +52,7 @@ export function NotificationToaster({ vapidPublicKey }: { vapidPublicKey?: strin
     return () => clearTimeout(id);
   }, [shown]);
 
-  const content = shown ? text(shown) : null;
+  const content = shown && !onInbox ? text(shown) : null;
   // Down at the bottom, clear of the header ("Voltar", the bell) and, on a tab, of the tab bar and
   // of the lane of the "Nova tarefa" button above it.
   const bottom =

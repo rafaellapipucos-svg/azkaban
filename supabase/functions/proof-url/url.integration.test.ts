@@ -19,6 +19,7 @@ import {
   type Group,
   type Person,
 } from '../_shared/proof-kit.ts';
+import { apiUrl } from '../_shared/local-stack.mjs';
 import { makeJpeg } from '../proof-validate/jpeg-fixture.ts';
 
 const URL = functionUrl('proof-url');
@@ -100,7 +101,7 @@ describe('proof-url', () => {
   /** The URL of a local stack names the container network; the test reaches it through the gateway. */
   const reachable = (url: string) => {
     const parsed = new globalThis.URL(url);
-    return `${process.env.SUPABASE_URL ?? 'http://127.0.0.1:54421'}${parsed.pathname}${parsed.search}`;
+    return `${apiUrl}${parsed.pathname}${parsed.search}`;
   };
 
   test('the author gets a URL that serves the photo, and the answer has exactly the contract fields', async () => {

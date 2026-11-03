@@ -1,17 +1,28 @@
 import {
+  dailySummaryPreferencesSchema,
   notificationErrorCodeSchema,
   notificationItemSchema,
+  phoneVerificationConfirmResultSchema,
+  phoneVerificationErrorSchema,
+  phoneVerificationRequestSchema,
+  phoneVerificationStartedSchema,
   pushDeviceSchema,
   quietHoursSchema,
+  whatsappStatusSchema,
+  type DailySummaryPreferences,
   type DeliveryChannel,
   type NotificationErrorCode,
   type NotificationItem,
   type NotificationPreference,
   type NotificationType,
   type OccurrenceStatus,
+  type PhoneVerificationConfirmResult,
+  type PhoneVerificationError,
+  type PhoneVerificationStarted,
   type PushDevice,
   type PushSubscriptionInput,
   type QuietHours,
+  type WhatsAppStatus,
 } from '@azkaban/contracts';
 import { currentUserId, db } from '../client';
 
@@ -186,6 +197,91 @@ export const notificationsRepository = {
       .from('profiles')
       .update({ quiet_hours_start: hours?.start ?? null, quiet_hours_end: hours?.end ?? null })
       .eq('id', await currentUserId());
+    if (error) throw error;
+  },
+
+  /** The user's own WhatsApp state and daily summary choices, from one read of `profiles`. */
+  async getWhatsApp(): Promise<{ status: WhatsAppStatus; summary: DailySummaryPreferences }> {
+    const { data, error } = await db()
+      .from('profiles')
+      .select(
+        'phone_e164, phone_verified_at, whatsapp_opt_in_at, whatsapp_opt_in_version, whatsapp_opt_out_at, daily_summary_enabled, daily_summary_time, daily_summary_include_overdue, daily_summary_deadline_days, daily_summary_skip_empty',
+      )
+      .eq('id', await currentUserId())
+      .single();
+    if (error) throw error;
+    return {
+      status: whatsappStatusSchema.parse({
+        phoneE164: data.phone_e164,
+        phoneVerifiedAt: data.phone_verified_at,
+        optInAt: data.whatsapp_opt_in_at,
+        optInVersion: data.whatsapp_opt_in_version,
+        optOutAt: data.whatsapp_opt_out_at,
+      }),
+      summary: dailySummaryPreferencesSchema.parse({
+        enabled: data.daily_summary_enabled,
+        time: hhmm(data.daily_summary_time),
+        includeOverdue: data.daily_summary_include_overdue,
+        deadlineDays: data.daily_summary_deadline_days,
+        skipEmpty: data.daily_summary_skip_empty,
+      }),
+    };
+  },
+
+  /** The five `daily_summary_*` columns, the only ones of WhatsApp the user writes directly. */
+  async setDailySummary(value: DailySummaryPreferences) {
+    const prefs = dailySummaryPreferencesSchema.parse(value);
+    const { error } = await db()
+      .from('profiles')
+      .update({
+        daily_summary_enabled: prefs.enabled,
+        daily_summary_time: prefs.time,
+        daily_summary_include_overdue: prefs.includeOverdue,
+        daily_summary_deadline_days: prefs.deadlineDays,
+        daily_summary_skip_empty: prefs.skipEmpty,
+      })
+      .eq('id', await currentUserId());
+    if (error) throw error;
+  },
+
+  /**
+   * `phone-verification` sends a code by WhatsApp. A refusal of the contract (429, 502) comes back as
+   * its body; anything else, the network included, throws.
+   */
+  async requestPhoneCode(
+    phone: string,
+  ): Promise<PhoneVerificationStarted | PhoneVerificationError> {
+    const { data, error, response } = await db().functions.invoke('phone-verification', {
+      body: phoneVerificationRequestSchema.parse({ phone }),
+    });
+    if (!error) return phoneVerificationStartedSchema.parse(data);
+    const body: unknown = await response?.json().catch(() => null);
+    const refusal = phoneVerificationErrorSchema.safeParse(body);
+    if (refusal.success) return refusal.data;
+    throw error;
+  },
+
+  /** A wrong or dead code is an answer, not an exception (ADR-0009, section 3). */
+  async confirmPhoneCode(code: string): Promise<PhoneVerificationConfirmResult> {
+    const { data, error } = await db().rpc('confirm_phone_verification', { p_code: code });
+    if (error) throw error;
+    return phoneVerificationConfirmResultSchema.parse(data);
+  },
+
+  /** Raises `phone_not_verified` or `invalid_consent_version` as the message. */
+  async whatsappOptIn(consentVersion: number) {
+    const { error } = await db().rpc('whatsapp_opt_in', { p_consent_version: consentVersion });
+    if (error) throw error;
+  },
+
+  async whatsappOptOut() {
+    const { error } = await db().rpc('whatsapp_opt_out');
+    if (error) throw error;
+  },
+
+  /** Clears the phone, its verification and the opt-in. */
+  async removePhone() {
+    const { error } = await db().rpc('remove_phone');
     if (error) throw error;
   },
 

@@ -162,7 +162,7 @@ Uma função SQL, `auto_miss_occurrences()`, chamada pelo pg_cron a cada 5 minut
 
 ### 11. WhatsApp na Fase 5
 
-Entra sem mudar o que foi feito aqui:
+Detalhado no [ADR-0009](0009-whatsapp-verificacao-opt-in-resumo-diario.md), que acrescenta ao claim os canais da execução e campos novos, e decide o prazo do vermelho no push (seção 9 de lá). Entra sem mudar o que foi feito aqui:
 
 - `whatsapp` já está em `deliveryChannelSchema`. A Fase 5 o acrescenta a `notificationRules.activeChannels`, com a migration do espelho.
 - `WhatsAppChannel` implementa `NotificationChannel` em cima de `WhatsAppProvider` (`ConsoleProvider` e `MetaCloudProvider`), com o template e as variáveis montados a partir do mesmo tipo e de `data`.

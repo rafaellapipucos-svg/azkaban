@@ -114,8 +114,20 @@ export {
 export {
   buildPushPayload,
   missedLateUntil,
+  notificationText,
   notificationUrl,
+  type LateContext,
   type PushSource,
   type Translate,
 } from './notifications/pushPayload';
+export {
+  buildDailySummary,
+  cleanParam,
+  formatPhone,
+  isDailySummaryEmpty,
+  isWhatsAppReady,
+  normalizePhone,
+  type SummaryBudgets,
+  type SummaryOptions,
+} from './notifications/whatsapp';
 export { deviceLabel } from './notifications/deviceLabel';

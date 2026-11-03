@@ -180,7 +180,7 @@ select pg_temp.sv('am8', pg_temp.mk('AM8 personal', pg_temp.u('d'), pg_temp.u('d
 select pg_temp.sv('am9', pg_temp.mk('AM9 on time', pg_temp.u('c'), pg_temp.u('d'), now() + interval '3 days')::text);
 
 -- ===== Mirrors and schedules =====
-select is(public.notification_rules() -> 'activeChannels', '["web_push"]'::jsonb, 'notification_rules is mirrored');
+select is(public.notification_rules() -> 'activeChannels', '["web_push", "whatsapp"]'::jsonb, 'notification_rules is mirrored');
 select is(public.notification_rules() -> 'renotifyCooldown' || jsonb_build_object('retention', public.notification_rules() -> 'pushSubscriptionRetentionDays'),
   '{"minutes": 10, "types": ["occurrence_missed", "occurrence_resolved", "proof_disputed"], "retention": 90}'::jsonb,
   'with the cooldown and the retention of browsers');
@@ -204,7 +204,7 @@ select is((select count(*) from pg_policies where tablename = 'notification_outb
 select is(
   (select string_agg(f, ',' order by f) from unnest(array[
     'public.enqueue_notification(uuid, public.notification_type, uuid, uuid, jsonb, text, timestamptz)',
-    'public.enqueue_due_reminders()', 'public.claim_notification_batch(int, int, int)',
+    'public.enqueue_due_reminders()', 'public.claim_notification_batch(int, int, int, text[])',
     'public.report_notification_results(jsonb)', 'public.auto_miss_occurrences()',
     'public.delete_expired_notifications()', 'public.call_dispatch_notifications()',
     'public.can_view_task_for(uuid, public.tasks)',
@@ -213,7 +213,7 @@ select is(
     'public.notification_rules()', 'public.is_allowed_push_endpoint(text)', 'public.push_endpoint_host(text)'
   ]) f where has_function_privilege('authenticated', f, 'execute') or has_function_privilege('anon', f, 'execute')),
   null, 'no internal function of notifications is open to authenticated or anon');
-select is(has_function_privilege('service_role', 'public.claim_notification_batch(int, int, int)', 'execute'), true, 'service role claims');
+select is(has_function_privilege('service_role', 'public.claim_notification_batch(int, int, int, text[])', 'execute'), true, 'service role claims');
 select is(has_function_privilege('service_role', 'public.report_notification_results(jsonb)', 'execute'), true, 'service role reports');
 select is(has_function_privilege('authenticated', 'public.register_push_subscription(text, text, text, text)', 'execute'), true, 'authenticated registers a browser');
 select is(has_function_privilege('anon', 'public.register_push_subscription(text, text, text, text)', 'execute'), false, 'anon does not');
@@ -543,8 +543,10 @@ select is((select jsonb_array_length(r -> 'items') from claim1), 3, 'three rows 
 select is(
   (select i - 'subscriptions' - 'outboxId' - 'notificationId' - 'scheduledFor' from claim1, jsonb_array_elements(r -> 'items') i where i ->> 'outboxId' = pg_temp.g('x5')::text),
   jsonb_build_object('channel', 'web_push', 'type', 'task_reminder', 'data', pg_temp.rem(30), 'occurrenceId', pg_temp.g('r1'),
-    'locale', 'pt-BR', 'taskTitle', 'R1 soon', 'requiresPhotoProof', false, 'attempts', 1),
-  'an item has what the function needs to build the message');
+    'locale', 'pt-BR', 'taskTitle', 'R1 soon', 'requiresPhotoProof', false, 'attempts', 1,
+    'timezone', 'America/Sao_Paulo', 'occurrenceStatus', 'pending', 'phone', null, 'summary', null,
+    'overdueAt', (select overdue_at from public.task_occurrences where id = pg_temp.g('r1'))),
+  'an item has what the function needs to build the message, with the deadline of the red (ADR-0009, section 9)');
 select is(
   (select jsonb_array_length(i -> 'subscriptions') from claim1, jsonb_array_elements(r -> 'items') i where i ->> 'outboxId' = pg_temp.g('x5')::text),
   (select count(*)::int from public.push_subscriptions where user_id = pg_temp.u('d')), 'and every browser of the user');

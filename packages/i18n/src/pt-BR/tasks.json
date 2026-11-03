@@ -115,7 +115,9 @@
     "dayLabel": "Dia",
     "timeLabel": "Horário",
     "create": "Criar",
-    "moreOptions": "Mais opções"
+    "moreOptions": "Mais opções",
+    "loading": "Carregando seus contextos…",
+    "contextsError": "Não deu para carregar seus contextos."
   },
   "form": {
     "newTitle": "Nova tarefa",

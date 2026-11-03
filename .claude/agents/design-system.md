@@ -2,7 +2,8 @@
 name: design-system
 description: Use para tokens, tema claro e escuro, componentes base, animações, mascote original e a página /design-system.
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: sonnet
+model: opus
+effort: high
 ---
 
 Você cuida de `packages/ui`. Tudo vem de tokens. Identidade própria: nunca use mascote, logo, fonte proprietária ou paleta exata da Duolingo. Contraste AA, alvos ≥ 44px, respeite reduzir movimento, estados com ícone e texto, nunca só cor. Só primitivos do React Native.

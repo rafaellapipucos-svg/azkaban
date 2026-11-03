@@ -161,7 +161,8 @@ site_url = "http://localhost:8081"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["http://localhost:8081/**", "http://127.0.0.1:8081/**", "azkaban://**"]
+# 8091 is the E2E server (playwright.config.ts).
+additional_redirect_urls = ["http://localhost:8081/**", "http://127.0.0.1:8081/**", "http://localhost:8091/**", "http://127.0.0.1:8091/**", "azkaban://**"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
@@ -392,8 +393,22 @@ deno_version = 2
 [functions.materialize-occurrences]
 verify_jwt = false
 
+# Photo proofs (ADR-0007). The two user-facing functions keep the gateway's JWT check and then ask
+# Auth for the user themselves, so an anon or service key (a JWT with no user) is refused too. The
+# retention job is the cron's, with `x-cron-secret` only.
+[functions.proof-validate]
+verify_jwt = true
+
+[functions.proof-url]
+verify_jwt = true
+
+[functions.proof-retention]
+verify_jwt = false
+
+# Off: it costs about 600 MB, and its vector container restarted in a loop. Function logs do not depend
+# on it: `docker logs supabase_edge_runtime_azkaban`.
 [analytics]
-enabled = true
+enabled = false
 port = 54427
 # Configure one of the supported backends: `postgres`, `bigquery`.
 backend = "postgres"

@@ -24,7 +24,20 @@
     "justMe": "Só eu",
     "color": "Cor",
     "archive": "Arquivar",
-    "archiveConfirm": "Confirmar arquivamento"
+    "archiveConfirm": "Confirmar arquivamento",
+    "place": "Local (opcional)",
+    "placeHint": "Com um local, a distância da foto de uma tarefa deste contexto é conferida.",
+    "placeAddress": "Endereço",
+    "placeAddressInvalid": "Escreva o endereço.",
+    "placeUseCurrent": "Usar minha localização atual",
+    "placeLocating": "Buscando sua localização...",
+    "placeSet": "Ponto marcado: {{latitude}}, {{longitude}}",
+    "placeNeedsPoint": "Toque em usar minha localização atual para marcar o ponto.",
+    "placeRadius": "Raio",
+    "placeRadiusValue": "{{count}} m",
+    "placeRemove": "Remover o local",
+    "placeDenied": "Sem permissão de localização. Libere nas configurações do navegador ou do aparelho.",
+    "placeUnavailable": "Não deu para saber onde você está. Tente de novo."
   },
   "colors": {
     "violet": "Violeta",

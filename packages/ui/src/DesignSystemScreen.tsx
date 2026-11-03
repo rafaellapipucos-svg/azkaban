@@ -84,6 +84,7 @@ export function DesignSystemScreen() {
           <StatusBadge status="partial" />
           <StatusBadge status="missed" />
           <StatusBadge status="cancelled" />
+          <StatusBadge status="done" reviewing />
         </View>
 
         <Subtitle>{t('designSystem.statusMarks')}</Subtitle>
@@ -91,9 +92,11 @@ export function DesignSystemScreen() {
           {statuses.map((value) => (
             <StatusMark key={`dot-${value}`} status={value} size="dot" />
           ))}
+          <StatusMark status="done" size="dot" reviewing />
           {statuses.map((value) => (
             <StatusMark key={`row-${value}`} status={value} size="row" />
           ))}
+          <StatusMark status="done" size="row" reviewing />
         </View>
 
         <Subtitle>{t('designSystem.progress')}</Subtitle>
@@ -184,6 +187,8 @@ export function DesignSystemScreen() {
             <TaskCheck key={value} status={value} title={t('designSystem.taskTitle')} />
           ))}
           <TaskCheck status="done" late title={t('designSystem.taskTitle')} />
+          <TaskCheck status="done" reviewing title={t('designSystem.taskTitle')} />
+          <TaskCheck status="done" reviewing late title={t('designSystem.taskTitle')} />
         </View>
         <View className="flex-row items-center gap-4">
           <TaskCheck status={status} title={t('designSystem.taskTitle')} onPress={nextStatus} />

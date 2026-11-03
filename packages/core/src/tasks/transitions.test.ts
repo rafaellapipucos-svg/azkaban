@@ -12,16 +12,18 @@ const overdueAt = '2026-11-02T03:00:00.000Z';
 const at = (offsetMs: number) => new Date(Date.parse(overdueAt) + offsetMs);
 
 const base = {
-  occurrence: { status: 'pending' as OccurrenceStatus, overdueAt },
+  occurrence: { status: 'pending' as OccurrenceStatus, overdueAt, proofReviewStatus: null },
   reason: null,
   requiresPartialReason: false,
+  requiresPhotoProof: false,
+  canReviewProof: false,
   lateCompletionWindowHours: 72,
   canManageGroup: false,
   now: at(-HOUR),
 };
 
 const statuses = occurrenceStatusSchema.options;
-const allActors: OccurrenceActor[] = ['assignee', 'editor', 'deleter', 'system'];
+const allActors: OccurrenceActor[] = ['assignee', 'editor', 'deleter', 'system', 'reviewer'];
 const inTable = (from: OccurrenceStatus, to: OccurrenceStatus) => findTransition(from, to);
 
 describe('canTransition: every row of occurrenceTransitions', () => {
@@ -37,7 +39,7 @@ describe('canTransition: every row of occurrenceTransitions', () => {
   it.each(cases)('$from -> $to by $actor: allowed=$allowed', ({ from, to, actor, allowed }) => {
     const result = canTransition({
       ...base,
-      occurrence: { status: from, overdueAt },
+      occurrence: { status: from, overdueAt, proofReviewStatus: null },
       to,
       actors: [actor],
       // partial needs a reason only when the task asks for one
@@ -68,29 +70,34 @@ describe('canTransition: pairs outside the table', () => {
   const pairs = statuses.flatMap((from) => statuses.map((to) => ({ from, to })));
   const outside = pairs.filter(({ from, to }) => !inTable(from, to));
 
-  it('covers the 14 pairs the table leaves out, including staying in place', () => {
+  it('covers the pairs the table leaves out, including staying in place', () => {
     expect(pairs).toHaveLength(25);
     expect(outside).toHaveLength(25 - occurrenceTransitions.length);
   });
 
   it.each(outside)('$from -> $to is invalid for every actor', ({ from, to }) => {
     expect(
-      canTransition({ ...base, occurrence: { status: from, overdueAt }, to, actors: allActors }),
+      canTransition({
+        ...base,
+        occurrence: { status: from, overdueAt, proofReviewStatus: null },
+        to,
+        actors: allActors,
+      }),
     ).toEqual({ ok: false, error: 'invalid_transition' });
   });
 
   it.each([
     ['done', 'partial'],
     ['partial', 'done'],
-  ] as const)('%s and %s do not pass straight into each other (reopen first)', (from, to) => {
-    expect(inTable(from, to)).toBeUndefined();
+  ] as const)('%s to %s is only a review: anyone else reopens first', (from, to) => {
+    expect(inTable(from, to)?.actors).toEqual(['reviewer']);
   });
 
   it('does not let the assignee reopen a missed occurrence', () => {
     expect(
       canTransition({
         ...base,
-        occurrence: { status: 'missed', overdueAt },
+        occurrence: { status: 'missed', overdueAt, proofReviewStatus: null },
         to: 'pending',
         actors: ['assignee'],
       }),
@@ -157,7 +164,10 @@ describe('canTransition: late window', () => {
   });
 
   it('lets a missed occurrence be resolved inside the window, counted from overdueAt', () => {
-    const missed = { ...done, occurrence: { status: 'missed' as const, overdueAt } };
+    const missed = {
+      ...done,
+      occurrence: { status: 'missed' as const, overdueAt, proofReviewStatus: null },
+    };
     expect(canTransition({ ...missed, now: at(windowEnd) })).toEqual({ ok: true, late: true });
     expect(canTransition({ ...missed, now: at(windowEnd + 1) })).toEqual({
       ok: false,
@@ -179,7 +189,7 @@ describe('canTransition: late window', () => {
     expect(
       canTransition({
         ...base,
-        occurrence: { status: 'done', overdueAt },
+        occurrence: { status: 'done', overdueAt, proofReviewStatus: null },
         to: 'pending',
         actors: ['assignee'],
         now,
@@ -199,8 +209,10 @@ describe('canTransition: late window', () => {
 
 describe('availableTransitions', () => {
   const rules = {
-    occurrence: { status: 'pending' as OccurrenceStatus, overdueAt },
+    occurrence: { status: 'pending' as OccurrenceStatus, overdueAt, proofReviewStatus: null },
     requiresPartialReason: true,
+    requiresPhotoProof: false,
+    canReviewProof: false,
     lateCompletionWindowHours: 72,
     canManageGroup: false,
     now: at(-HOUR),
@@ -246,7 +258,7 @@ describe('availableTransitions', () => {
     expect(
       availableTransitions({
         ...rules,
-        occurrence: { status: 'done', overdueAt },
+        occurrence: { status: 'done', overdueAt, proofReviewStatus: null },
         actors: ['assignee'],
       }),
     ).toEqual([{ to: 'pending', requiresReason: false, late: false }]);

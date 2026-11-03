@@ -27,6 +27,8 @@ supabase/  migrations, seeds, Edge Functions, testes de RLS
 - algo fora de `packages/data` importa `@supabase/*`;
 - `packages/` importa `apps/`.
 
+Uma feature pode depender de `@azkaban/platform` no próprio `package.json`, como `tasks`, `groups` e `contexts`. É o caminho previsto nas camadas: o proibido é usar o recurso de plataforma fora de `packages/platform`.
+
 `pnpm lint` (ESLint) proíbe `any`, e globais de navegador (`window`, `document`, `navigator`) fora de `packages/platform`.
 
 ## Configuração e segredos
@@ -47,6 +49,14 @@ Um adapter visual em `packages/platform` tem três arquivos: `Nome.web.tsx`, `No
 
 O arquivo-base é `.tsx` de propósito. Com `.ts`, o Metro o escolhe antes do `.web.tsx`, e com `.d.ts` o `pnpm boundaries` não resolve o import. `.tsx` perde para as duas versões de plataforma e continua resolvido pelo TypeScript e pelo dependency-cruiser.
 
+Um adapter sem tela tem dois arquivos: o sem sufixo é a versão nativa, e o `.web.ts` a substitui no Metro. É o caso de `keyboard`, `sha256` e `geolocation`.
+
+`packages/platform/tsconfig.json` inclui a lib `dom`, porque os adapters `.web` usam `MediaStream`, `canvas` e `navigator`. Só esse pacote vê os tipos do DOM.
+
+## i18n
+
+Variável de tradução não pode ter o nome de uma opção do `t()`. `{{lng}}` é o caso conhecido: o i18next lê `lng` como o idioma de destino, e a tela cai com `lng?.toLowerCase is not a function`. Use `latitude` e `longitude`.
+
 ## Navegação
 
 As abas são Hoje, uma por área vinda do banco, Calendário e Perfil. As áreas dividem a rota `area/[areaKey]`, e `apps/app/src/AppTabBar.tsx` desenha uma aba para cada linha de `areas`. Grupos fica em Perfil, e Equipe, na página do grupo.
@@ -63,6 +73,17 @@ Regras completas no [ADR-0005](adr/0005-tarefas-ocorrencias-recorrencia.md).
 - O cliente lê por RLS, cria tarefa por `insert` e faz o resto pelas RPCs `set_occurrence_status`, `edit_task` e `delete_task`. Triggers gravam histórico e XP em qualquer caminho.
 - Ocorrências recorrentes só nascem na Edge Function `materialize-occurrences`, que usa a recorrência de `packages/core`. A de tarefa avulsa vem de um trigger.
 - `taskRules` (`packages/config`) e `occurrenceTransitions` (`packages/contracts`) têm espelho no banco, como a matriz de permissões. Os dois arquivos não têm importação em tempo de execução, para o Node carregá-los direto em `pnpm db:check-permissions`.
+
+## Prova por foto
+
+Regras completas no [ADR-0007](adr/0007-prova-por-foto.md).
+
+- O cliente nunca fala com o Storage. A RPC `issue_proof_challenge` entrega um nonce, `proof-validate` recebe os bytes e grava com service role, e `commit_proof` cria a prova e leva a ocorrência a `done` em uma transação.
+- `claim_proof_challenge` e `commit_proof` só aceitam `service_role`. O bucket `task-proofs` não tem política para `anon` nem `authenticated`.
+- O trigger de status recusa `done` em tarefa com foto sem uma prova corrente, em qualquer caminho.
+- "Em análise" é `done` com `proof_review_status = 'in_review'`, não um status.
+- Fotos só saem por URL assinada curta, de `proof-url`. Quem vê segue `can_view_proof`, mais restrita que `can_view_task`.
+- `proofRules` (`packages/config`) tem espelho em `app_settings`, chave `proof_rules`.
 
 ## Banco
 

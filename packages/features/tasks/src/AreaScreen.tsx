@@ -21,14 +21,14 @@ import { View } from 'react-native';
 import { tasksConfig } from './config';
 import { dayLabel, errorKey } from './format';
 import { useLastContext, useNotice, useOccurrenceLists, useStatusChange } from './hooks';
-import { OccurrenceRow } from './OccurrenceRow';
+import { OccurrenceRow, type ProofEntry } from './OccurrenceRow';
 import { QuickCreate } from './QuickCreate';
 import { Section } from './Sections';
 
 const ALL = 'all';
 
 /** One area's tab: sub-tabs by context plus "Todos", and the tasks ahead day by day. */
-export function AreaScreen({ areaKey }: { areaKey: string }) {
+export function AreaScreen({ areaKey, onProof }: { areaKey: string; onProof?: ProofEntry }) {
   const { t, i18n } = useTranslation('tasks');
   const router = useRouter();
   const { user, groups } = useCurrentUser();
@@ -67,6 +67,7 @@ export function AreaScreen({ areaKey }: { areaKey: string }) {
   const actions = {
     change: status.change,
     open: (item: { id: string }) => router.push(`/tasks/${item.id}`),
+    proof: onProof && ((item: { id: string }) => onProof(item.id)),
   };
   const rows = (list: typeof plan.overdue) =>
     list.map((item) => {

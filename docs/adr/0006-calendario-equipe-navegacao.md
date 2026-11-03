@@ -1,6 +1,6 @@
 # ADR-0006: Calendário, visão Equipe e navegação
 
-**Status:** aceito pelo arquiteto para a Fase 2, sujeito à validação do humano na aprovação da fase. As faixas da seção 3 são **provisórias**.
+**Status:** aceito. O humano aprovou a Fase 2, inclusive as faixas da seção 3.
 
 ## Contexto
 
@@ -37,7 +37,7 @@ A Fase 6 reutiliza `isPerfectDay` para o XP, sem filtros, com as ocorrências do
 - Sem nada vencido, a taxa é nula e a tela diz isso, em vez de mostrar 0%.
 - A conta é `teamOverview`, em `packages/core`. O banco entrega só os totais.
 
-**Provisório:** verde a partir de 80%, amarelo a partir de 50%, vermelho abaixo. A seção 7.1 pede as três cores, não os cortes, e o humano valida os valores. Eles ficam em `tasksConfig.team.bands`, porque cada módulo tem sua config (seção 5.1).
+Faixas: verde a partir de 80%, amarelo a partir de 50%, vermelho abaixo. A seção 7.1 pede as três cores, não os cortes, e o humano aceitou esses valores ao aprovar a Fase 2. Eles ficam em `tasksConfig.team.bands`, porque cada módulo tem sua config (seção 5.1).
 
 ### 4. `useCurrentUser`
 
@@ -63,7 +63,7 @@ Isto substitui o paliativo do ADR-0004, em que as áreas viviam como chips na te
 - **Aceitar o desencontro de fuso:** não custa nada, mas não resolve o prazo contado como vencido antes da hora.
 - **Hook em um pacote novo:** um `package.json` para um arquivo só.
 - **Manter o hook duplicado:** a duplicata é pequena, mas uma mudança no formato de `can()` teria de acertar as duas.
-- **Faixas em `packages/config` ou no banco:** só a Equipe as lê, e elas ainda vão mudar.
+- **Faixas em `packages/config` ou no banco:** só a Equipe as lê.
 - **Grupos como aba:** com as duas áreas, seriam seis abas em 375px, para uma ação rara.
 
 ## Consequências

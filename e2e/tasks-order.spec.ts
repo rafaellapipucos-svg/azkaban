@@ -42,13 +42,16 @@ test('tasks that start together keep their place when one of them changes status
   // Creation order, not whatever order Postgres happens to return ties in
   expect(await titles(page)).toEqual(names);
 
+  const saved = page.waitForResponse('**/rest/v1/rpc/set_occurrence_status');
   await page.getByRole('checkbox', { name: 'T3: Pendente' }).locator('visible=true').click();
   await expect(
     page.getByRole('checkbox', { name: 'T3: Feito' }).locator('visible=true'),
   ).toBeVisible();
   expect(await titles(page)).toEqual(names);
 
-  // Also after the list is read again from the database
+  // Also after the list is read again from the database. The check is optimistic, and a reload before
+  // the answer would cancel the save.
+  expect((await saved).status()).toBe(200);
   await page.reload();
   await expect(
     page.getByRole('checkbox', { name: 'T3: Feito' }).locator('visible=true'),

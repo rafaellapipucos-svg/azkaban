@@ -2,8 +2,9 @@ import { taskRules } from '@azkaban/config';
 import type { TaskEditScope } from '@azkaban/contracts';
 import {
   buildTaskInput,
+  forgivesOverdue,
   fromRRule,
-  isLateWindowOpen,
+  isOverdue,
   planDelete,
   taskFormValues,
   type TaskFormValues,
@@ -35,7 +36,7 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { View } from 'react-native';
 import { z } from 'zod';
@@ -100,7 +101,18 @@ function ReschedulePanel({ detail, onDone }: { detail: OccurrenceDetail; onDone:
   const { t } = useTranslation('tasks');
   const refresh = useRefreshTasks();
   const { user } = useCurrentUser();
+  const now = useNow();
   const { item, task } = detail;
+  // Moving an overdue occurrence does not clear the delay (ADR-0005 section 11), unless someone who
+  // answers for neither the old nor the new assignee grants a new deadline.
+  const staysOverdue =
+    isOverdue(item, now) &&
+    !forgivesOverdue(user, {
+      groupId: task.groupId,
+      visibility: task.visibility,
+      occurrenceAssigneeId: item.assigneeId,
+      newAssigneeId: task.assigneeId,
+    });
   const timed = task.scheduleType === 'timed';
   const deadline = task.scheduleType === 'deadline';
   const current = taskFormValues(task, item, 'this');
@@ -140,6 +152,7 @@ function ReschedulePanel({ detail, onDone }: { detail: OccurrenceDetail; onDone:
     <Card>
       <Subtitle>{t('detail.reschedule')}</Subtitle>
       {task.rrule ? <Muted>{t('detail.rescheduleRepeats')}</Muted> : null}
+      {staysOverdue ? <Body role="note">{t('detail.overdueNotice')}</Body> : null}
       <DateField
         control={control}
         name="date"
@@ -166,7 +179,17 @@ function ReschedulePanel({ detail, onDone }: { detail: OccurrenceDetail; onDone:
 }
 
 /** Task detail: what it is, what can be done to it now, and what happened before. */
-export function TaskDetailScreen({ occurrenceId }: { occurrenceId: string }) {
+export function TaskDetailScreen({
+  occurrenceId,
+  children,
+}: {
+  occurrenceId: string;
+  /**
+   * The photo flow's entry (a button of `prova-foto`), composed by the route as in ADR-0006. It is
+   * drawn where "Marcar como feito" would be, and only while the user can send the photo.
+   */
+  children?: ReactNode;
+}) {
   const { t, i18n } = useTranslation('tasks');
   const router = useRouter();
   const refresh = useRefreshTasks();
@@ -183,6 +206,12 @@ export function TaskDetailScreen({ occurrenceId }: { occurrenceId: string }) {
     queryKey: ['history', occurrenceId],
     queryFn: () => tasksRepository.listHistory(occurrenceId),
   });
+  const taskId = detail.data?.task.id;
+  const ruleChanges = useQuery({
+    queryKey: ['rule-changes', taskId],
+    queryFn: () => tasksRepository.listRuleChanges(taskId ?? ''),
+    enabled: taskId !== undefined,
+  });
   const contexts = useQuery({ queryKey: ['contexts'], queryFn: contextsRepository.list });
   const groupId = detail.data?.task.groupId ?? null;
   const members = useQuery({
@@ -190,7 +219,9 @@ export function TaskDetailScreen({ occurrenceId }: { occurrenceId: string }) {
     queryFn: () => groupsRepository.listMembers(groupId ?? ''),
     enabled: groupId !== null,
   });
-  const { available, canEdit, canDelete } = useTransitions(detail.data?.item);
+  const { actors, available, canEdit, canDelete, canSendProof, windowOpen } = useTransitions(
+    detail.data?.item,
+  );
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
   const remove = useMutation({
@@ -259,9 +290,12 @@ export function TaskDetailScreen({ occurrenceId }: { occurrenceId: string }) {
   };
   // Pending, past the late window and without a way to "feito": say why, instead of only "Não fiz".
   const windowClosed =
-    item.status === 'pending' &&
-    !isLateWindowOpen(item.overdueAt, taskRules.lateCompletionWindowHours, now) &&
-    !available.some(({ to }) => to === 'done');
+    item.status === 'pending' && !windowOpen && !available.some(({ to }) => to === 'done');
+  const reviewing = item.proofReviewStatus === 'in_review';
+  const disputed = item.proofReviewStatus === 'disputed';
+  // A photo is the only road to green, and it is still open to someone.
+  const awaitsPhoto =
+    task.requiresPhotoProof && !disputed && (item.status === 'pending' || item.status === 'missed');
   const failed =
     status.error ?? (remove.isError ? (taskErrorCode(remove.error) ?? 'generic') : null);
 
@@ -269,8 +303,20 @@ export function TaskDetailScreen({ occurrenceId }: { occurrenceId: string }) {
     <Screen>
       <View style={{ gap: tokens.spacing[2] }} className="items-start">
         <Title>{task.title}</Title>
-        <StatusBadge status={item.status} />
+        <StatusBadge status={item.status} reviewing={reviewing} />
         {item.late && item.status === 'done' ? <Muted>{t('detail.doneLate')}</Muted> : null}
+        {reviewing ? <Muted>{t('detail.inReview')}</Muted> : null}
+        {disputed ? (
+          <View style={{ gap: tokens.spacing[1] }}>
+            <Body className="font-heavy">
+              <Body aria-hidden>⚠ </Body>
+              {t('detail.disputed')}
+            </Body>
+            {item.statusReason ? (
+              <Body>{t('detail.disputedReason', { reason: item.statusReason })}</Body>
+            ) : null}
+          </View>
+        ) : null}
       </View>
 
       <Card>
@@ -304,11 +350,26 @@ export function TaskDetailScreen({ occurrenceId }: { occurrenceId: string }) {
           {task.groupId !== null ? ` ${t('detail.windowClosedGroup')}` : ''}
         </Muted>
       ) : null}
-      <StatusActions
-        item={item}
-        available={available}
-        onChange={(to, reason) => status.change(item, to, reason)}
-      />
+      {awaitsPhoto ? (
+        <View style={{ gap: tokens.spacing[2] }}>
+          <Body>
+            <Body aria-hidden>📷 </Body>
+            {t('detail.proofRequired')}
+          </Body>
+          {canSendProof ? children : null}
+          {/* Past the late window the message above says why; this one is for who is not the assignee. */}
+          {!actors.includes('assignee') ? <Muted>{t('detail.proofOnlyAssignee')}</Muted> : null}
+        </View>
+      ) : null}
+      {disputed && available.length === 0 ? <Muted>{t('detail.disputedLocked')}</Muted> : null}
+      {/* A dispute with nothing to offer already said why above. */}
+      {disputed && available.length === 0 ? null : (
+        <StatusActions
+          item={item}
+          available={available}
+          onChange={(to, reason) => status.change(item, to, reason)}
+        />
+      )}
 
       {panel === 'edit' ? (
         <ScopePrompt mode="edit" onPick={edit} onCancel={() => setPanel(null)} />
@@ -371,12 +432,20 @@ export function TaskDetailScreen({ occurrenceId }: { occurrenceId: string }) {
       {history.data && history.data.length === 0 ? <Muted>{t('history.empty')}</Muted> : null}
       {history.data?.map((entry) => (
         <Card key={entry.id}>
-          <Body>
-            {t('history.entry', {
-              from: t(`status.${entry.fromStatus}`),
-              to: t(`status.${entry.toStatus}`),
-            })}
-          </Body>
+          {/* An approval changes no status: its entry has the same status on both sides. */}
+          {entry.fromStatus === entry.toStatus && entry.proofReviewStatus === 'approved' ? (
+            <Body>{t('history.proofApproved')}</Body>
+          ) : (
+            <Body>
+              {t('history.entry', {
+                from: t(`status.${entry.fromStatus}`),
+                to: t(`status.${entry.toStatus}`),
+              })}
+              {entry.proofReviewStatus === 'in_review' ? ` (${t('history.inReview')})` : ''}
+              {entry.proofReviewStatus === 'disputed' ? ` · ${t('history.proofDisputed')}` : ''}
+              {entry.proofReviewStatus === 'approved' ? ` · ${t('history.proofApproved')}` : ''}
+            </Body>
+          )}
           <Muted className="text-sm">
             {t('history.by', {
               name: nameOf(entry.changedBy),
@@ -384,6 +453,21 @@ export function TaskDetailScreen({ occurrenceId }: { occurrenceId: string }) {
             })}
           </Muted>
           {entry.reason ? <Body>{t('history.reason', { reason: entry.reason })}</Body> : null}
+        </Card>
+      ))}
+
+      {ruleChanges.data?.length ? <Subtitle>{t('rules.title')}</Subtitle> : null}
+      {ruleChanges.data?.map((change) => (
+        <Card key={change.id}>
+          <Body>
+            {capitalize(
+              t('rules.entry', {
+                name: nameOf(change.changedBy),
+                change: t(`rules.${change.field}.${change.toValue}`),
+              }),
+            )}
+          </Body>
+          <Muted className="text-sm">{changeFormat.format(Date.parse(change.changedAt))}</Muted>
         </Card>
       ))}
     </Screen>

@@ -1,7 +1,8 @@
-import { calendarStatuses, weekDays, type DayInfo, type WeekStart } from '@azkaban/core';
+import { weekDays, type DayInfo, type WeekStart } from '@azkaban/core';
 import { useTranslation } from '@azkaban/i18n';
-import { IconButton, Muted, StatusMark, tokens } from '@azkaban/ui';
+import { IconButton, Muted, tokens } from '@azkaban/ui';
 import { Pressable, Text, View } from 'react-native';
+import { DayMarks } from './DayMarks';
 import { ItemList, type DayActions } from './DayParts';
 import { daySummaryLabel, shortDay } from './format';
 
@@ -45,11 +46,7 @@ export function WeekView({ date, today, days, weekStartsOn, actions, onOpenDay }
                 >
                   {shortDay(day, i18n.language)}
                 </Text>
-                {calendarStatuses
-                  .filter((status) => (info?.summary[status] ?? 0) > 0)
-                  .map((status) => (
-                    <StatusMark key={status} status={status} size="dot" />
-                  ))}
+                <DayMarks summary={info?.summary} />
                 {info?.perfect ? (
                   <Text aria-hidden className="text-md">
                     ⭐

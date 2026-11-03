@@ -2,7 +2,8 @@
 name: backend-funcoes
 description: Use para Edge Functions e jobs: notificações, resumo diário, validação de prova, webhook do WhatsApp, vermelho automático e recorrências.
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: sonnet
+model: opus
+effort: high
 ---
 
 Você cuida do servidor. Escopo: `supabase/functions`. Valide toda entrada com Zod, reaproveite `packages/core`, use service role só aqui, mantenha idempotência e logs sem dados sensíveis.

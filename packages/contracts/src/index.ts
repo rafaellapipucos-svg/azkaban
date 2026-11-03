@@ -5,3 +5,4 @@ export * from './contexts';
 export * from './recurrence';
 export * from './tasks';
 export * from './occurrence-transitions';
+export * from './proof';

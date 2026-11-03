@@ -2,7 +2,8 @@
 name: gamificacao
 description: Use para motor de XP, níveis, ofensiva, conquistas, telas de progresso e comemorações.
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: sonnet
+model: opus
+effort: high
 ---
 
 Escopo: `packages/features/gamification`, `packages/core/src/gamification`. Motor puro em core, valores em config ou banco. Toda concessão de XP é evento em `xp_events`; totais são cache derivado. Ranking desativável por grupo.

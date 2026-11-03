@@ -546,3 +546,387 @@
 - **Verificado no estado final:** banco limpo com 425 asserts, espelhos em dia, tipos, 421 testes de core, lint, fronteiras, build web, 12 testes da função e 34 E2E em duas rodadas seguidas.
 - **Não verificado:** CI desta fase, projeto hospedado, deploy da função, iOS, Android e leitor de tela real. A falha de `supabase start` na primeira tentativa desta verificação foi passageira, e a causa não foi investigada.
 - **Pendências / próximos passos:** validação do humano, as duas decisões da seção 11 do ADR-0005, as faixas provisórias da Equipe e a saída de `date-fns-tz`. Antes do deploy, conferir "Exposed schemas" e `pg_graphql` no projeto hospedado.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 17:10 (BRT)
+
+- **Branch:** feat/proof-contracts, criada a partir de feat/phase-3-proof
+- **Agente(s):** arquiteto
+- **Resumo:** Abre a Fase 3 (F3-1): ADR-0007 de prova por foto, contratos, config e handoffs. Registra as decisões do humano na aprovação da Fase 2, com a regra de reagendamento no ADR-0005.
+- **Alterações:**
+  - ADR-0007: a função recebe os bytes e é a única escritora do bucket, com um corpo lido por nonce; desafio por RPC; `commit_proof` atômico, só para service role; barreiras no trigger para qualquer caminho, inclusive `insert`, `edit_task` e service role; "em análise" como `done` com `proof_review_status`; XP retido até aprovar e compensado ao contestar; sem bônus nesta fase, sem bloquear a Fase 6; retenção de 90 dias, com aceite registrado; coordenadas descartadas, guardando só a distância.
+  - ADR-0005, seção 11: reagendar preserva o atraso. `overdue_at` fica depois de passado, `auto_miss_at` acompanha a agenda para o job de F4-6, e só quem tem `task.manage_group` e não responde pela ocorrência concede prazo novo. `edit_task` recusa apagar e recriar uma pendente vencida.
+  - Decisões registradas: XP em massa na Fase 6, faixas de 80% e 50% e janela de 72 h aceitas (ADR-0006), `date-fns-tz` fora (ADR-0001), membro não vê tarefas `group` de colegas (ADR-0005).
+  - Contratos: `packages/contracts/src/proof.ts` (novo), ator `reviewer`, `proofReviewStatusSchema`, quatro pares de `reviewer` em `occurrenceTransitions`, `contextLocationSchema`, `checkApproval` e quatro códigos em `taskErrorCodeSchema`.
+  - Config: `packages/config/src/proof.ts` (novo), com `proofRules` e `proofDefaults`.
+  - Permissão `proof.review` em `matrix.ts`, por pedido do orquestrador. `transitions.test.ts` ajustado aos pares novos. Os dois estão em `packages/core`, fora do escopo do arquiteto.
+  - Campos novos em tipos lidos por `packages/data` nasceram opcionais, para não quebrar o que existe. `tarefas-calendario` os torna obrigatórios ao mapeá-los.
+- **Arquivos/módulos principais:** `docs/adr/0007-prova-por-foto.md`, `docs/adr/0005-tarefas-ocorrencias-recorrencia.md`, `docs/adr/0006-calendario-equipe-navegacao.md`, `docs/adr/0001-stack.md`, `docs/arquitetura.md`, `packages/contracts/src/{proof,tasks,contexts,occurrence-transitions}.ts`, `packages/config/src/proof.ts`, `packages/core/src/permissions/matrix.ts`, handoffs `20261101-1708-*`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0007 (novo) e ADR-0005, seção 11.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check`. Documentação da Supabase lida em 2026-11-01: limites de Edge Functions, códigos de status, limites de arquivo, criação de bucket, URL assinada de upload, controle de acesso do Storage e preços. SHA-256 de 2 MiB em 1,1 ms, no Node desta máquina.
+- **Não verificado:** o limite de corpo de uma Edge Function hospedada, que a documentação não traz, e a CPU real de `proof-validate`. O tamanho das fotos é estimado. `pnpm db:check-permissions` não rodou e vai falhar até F3-2 entregar a matriz e as transições no banco.
+- **Pendências / próximos passos:** F3-2 a F3-7 nos handoffs. O orquestrador acrescenta ao QUADRO as tarefas de `tarefas-calendario` e `proof-url`, e ajusta F8-4, porque o limite de desafios entra em F3-2.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 17:19 (BRT)
+
+- **Branch:** feat/proof-ui, criada a partir de feat/phase-3-proof
+- **Agente(s):** design-system
+- **Resumo:** F3-9: visual do sub-estado "em análise" (`done` com `proofReviewStatus = 'in_review'`) em `TaskCheck`, `StatusBadge` e `StatusMark`, mostrado em `/design-system`.
+- **Alterações:**
+  - Tokens `review`, `onReview` e `reviewEdge`, cada um em par claro e escuro. Verde-claro, com borda mais escura porque o preenchimento sozinho tem 1,3:1 contra o cartão claro.
+  - Propriedade opcional `reviewing` nos três componentes, só vale com `status="done"`. Símbolo `◔` (o `done` é `✓`) e rótulo "Em análise"; o rótulo falado de `TaskCheck` é "Feito, em análise", com variante para atraso.
+  - `packages/ui/src/tokens.test.ts` mede o contraste (WCAG): texto sobre o preenchimento 10,0:1 no claro e 8,9:1 no escuro; borda contra cartão e fundo 4,3:1 no claro (3:1 exigido); borda escura e preenchimento escuro contra o cartão escuro passam 3:1. Primeiro teste de `packages/ui`: `vitest` entrou como devDependency.
+  - Os novos estados aparecem em Estados, Marcadores de estado e Marcador de tarefa, em `/design-system`.
+- **Arquivos/módulos principais:** `packages/ui/src` (`tokens.ts`, `statusSymbol.ts`, `TaskCheck.tsx`, `StatusBadge.tsx`, `StatusMark.tsx`, `DesignSystemScreen.tsx`, `tokens.test.ts`), `packages/i18n/src/pt-BR/ui.json`, `pnpm-lock.yaml`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0007, seção 10. Nenhuma decisão nova.
+- **Como testar:** `pnpm check`, `pnpm build:web` e `/design-system` em 375px, claro e escuro.
+- **Verificado:** `pnpm check` e `pnpm build:web` passam. `/design-system` conferido no Chromium (Playwright) a 375px, claro e escuro, sem erro nem aviso no console e sem rolagem horizontal; rótulos falados dos marcadores lidos do DOM.
+- **Não verificado:** leitor de tela real, simulação de daltonismo e renderização do `◔` em iOS e Android (a fonte é a do sistema, como `✓` e `✗`). O contraste é calculado, não medido em captura de tela.
+- **Pendências / próximos passos:** `tarefas-calendario` e `prova-foto` passam `reviewing` onde mostram o estado (handoff `20261101-1719`). Não há variante para prova contestada: ela vira `partial` ou `missed`, que já existem.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 17:30 (BRT)
+
+- **Branch:** feat/proof-camera, criada a partir de feat/phase-3-proof
+- **Agente(s):** prova-foto
+- **Resumo:** F3-4: adapters de câmera, carimbo, compressão, SHA-256 e geolocalização em `packages/platform`. A tela de captura, o envio e a revisão ficam para depois das Edge Functions.
+- **Alterações:**
+  - `ProofCamera` (base `.tsx`, `.web.tsx`, `.native.tsx`): preview que preenche o pai e `ref.capture(stamp)`, que devolve o JPEG final com carimbo, `width`/`height` lidos do cabeçalho, `sha256` e `capturedAt`. Estados `prompt`, `granted`, `denied` e `unavailable`, com motivo, por `onStatusChange`. Escolha de câmera frontal ou traseira por `facing`. Sem `input type=file`, galeria nem seletor de imagem.
+  - Web: `getUserMedia`, quadro copiado para um `canvas`, carimbo desenhado no mesmo `canvas`, `toBlob`. Cada trilha é parada ao desmontar, ao trocar de câmera e quando o desmonte chega antes da resposta do navegador.
+  - Nativo: `expo-camera` e `react-native-view-shot`, que lê de volta uma view com a foto e o carimbo por cima. A view usa dp tais que dp vezes a densidade dá o tamanho final em pixels, para não criar um bitmap maior que o necessário. Quem manda no carimbo é o mesmo `stampMetrics` da web.
+  - Lógica pura em `photo.ts` e `stamp.ts`: `fitLongEdge`, `readJpegSize` (marcador SOF), `compressionPlan` e `encodeWithinLimits` (qualidade cai antes do tamanho, e o resultado só sai se for um JPEG completo dentro de `proofRules`), texto e geometria do carimbo. Os limites vêm de `photoLimits`, montado de `packages/config/src/proof.ts`.
+  - `sha256Hex`: `crypto.subtle` na web, `expo-crypto` no nativo.
+  - `readLocation` e `getLocationPermission`: uma leitura, sem rastreio, com `timeoutMs`, estados de permissão e precisão. Nunca lança.
+  - Dependências por `expo install`: `expo-camera ~58.0.14`, `expo-crypto ~58.0.7`, `expo-location ~58.0.20`, `react-native-view-shot 6.1.1`. `@azkaban/config` virou dependência de `platform`.
+  - `packages/platform/tsconfig.json` ganhou a lib `dom`. Só esse pacote a vê.
+- **Arquivos/módulos principais:** `packages/platform/src/{ProofCamera,photo,stamp,sha256,geolocation}*`, `packages/platform/src/index.ts`, `apps/app/package.json`, `pnpm-lock.yaml`, handoff `20261101-1730-prova-foto-para-orquestrador-*`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** a investigação do carimbo nativo confirmou o ADR-0007: `react-native-view-shot` é pequeno e resolve sem biblioteca de desenho. `expo-image-manipulator` não desenha texto, e `@shopify/react-native-skia` seria grande demais para uma faixa de texto. O arquivo base de `sha256` e de `geolocation` é a versão nativa, como em `keyboard`; o `.web.ts` importa só tipos do base, porque no Metro web `./geolocation` resolve para ele mesmo.
+- **Como testar:** `pnpm check`, `pnpm build:web` e `pnpm --filter @azkaban/app exec expo export --platform android`.
+- **Verificado:** `pnpm check` (lint, fronteiras, tipos e 37 testes em `platform`), `pnpm build:web` e `expo export --platform android` passam, e o bundle Hermes contém o código nativo da câmera. Num Chromium real (Playwright, `--use-fake-device-for-media-stream`, servidor `expo start --web` na porta 8087, rota de teste temporária e removida), 25 checagens passaram: stream sobe e vai de `prompt` a `granted`; a foto sai com 24.485 bytes, 1600x900 e JPEG completo; o tamanho lido do cabeçalho é o da imagem decodificada; o SHA-256 bate com o do Node sobre os mesmos bytes; o carimbo está nos pixels (1.737 pixels brancos na faixa, e a faixa mais escura que o quadro cru, conferido também a olho); trocar para a câmera frontal para a trilha antiga e espelha só o preview; desmontar, inclusive durante o `getUserMedia`, deixa todas as trilhas em `ended`; recusa real (`--use-fake-ui-for-media-stream=deny`) vira `denied`; ausência de câmera vira `unavailable:no_device`; `capture` antes de a trilha estar viva rejeita com `not_ready`; geolocalização concedida, recusada e leitura com precisão. Captura em 129 ms no Chromium desta máquina.
+- **Não verificado:** nada rodou em aparelho real, iOS ou Android. O nativo só foi compilado e empacotado. Em especial: se `view-shot` desenha a view que fica sob a pré-visualização, se `Image` carrega o arquivo de cache a tempo de o `onLoad` disparar e se o tamanho em pixels sai como pedido. Safari, Firefox e câmera virtual não foram testados. O tamanho de 24 KB vem de um vídeo sintético, não serve de medida das fotos reais, que o handoff pede para registrar na primeira foto real.
+- **Pendências / próximos passos:** o orquestrador ou o arquiteto edita `plugins` em `apps/app/app.config.ts` (textos de permissão e `recordAudioAndroid: false`), ver handoff. Foto crua do `expo-camera` fica no cache do app até o sistema limpá-lo, o que diverge de "nada em disco" do ADR. F3-5 monta a tela de conferir, que precisa de uma URI de pré-visualização.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 18:06 (BRT)
+
+- **Branch:** feat/proof-db, criada a partir de feat/phase-3-proof
+- **Agente(s):** banco-de-dados
+- **Resumo:** F3-2: o banco da prova por foto (ADR-0007) e o atraso preservado ao reagendar (ADR-0005, seção 11). Os testes foram escritos antes e falharam; depois, enfraquecimentos de propósito foram pegos por eles.
+- **Alterações:**
+  - Matriz e regras: ator `reviewer`, `proof.review` (owner e admin), quatro transições do revisor, `proof_rules` em `app_settings` com o acessor `proof_rules()`.
+  - Dados: `contexts` com local (tudo ou nada, raio de 20 a 5000); `profiles.proof_consent_*` sem escrita do cliente; `tasks_admin_approval_check` com as linhas antigas limpas antes; `task_occurrences.auto_miss_at` preenchida com `overdue_at`; `current_proof_id` (FK composta com a ocorrência), `proof_review_status`; histórico com `proof_review_status`.
+  - Tabelas: `proof_challenges` (nonce = `id`, sem política e sem grant) e `task_proofs` (grant de leitura por coluna, sem `storage_path` nem `challenge_id`; escrita nenhuma; FK composta para o desafio; hash único; trigger de imutabilidade que vale para service role). Bucket `task-proofs` privado, 2 MiB, `image/jpeg`, sem política em `storage.objects`.
+  - Barreira para qualquer escritor: `insert` de ocorrência resolvida em tarefa com foto dá `proof_required`; `done` exige prova corrente, da própria ocorrência, não superada e não contestada; `done → partial/missed` e `partial → done` só com a marca de contestação ou aprovação; reabrir zera prova e marca `superseded_at`. O XP virou `occurrence_award_xp`, pulado em `in_review`.
+  - RPCs do cliente: `issue_proof_challenge` (limites sob `pg_advisory_xact_lock`), `record_proof_consent`, `review_proof`; `set_occurrence_status` e `edit_task` ganham `proof_required`, `proof_disputed`, `proof_flags_locked` e `overdue_occurrence_blocks_edit`. Só service role: `claim_proof_challenge`, `commit_proof` (identidade do autor por `set_config` local, restaurada no fim), retenção (`proofs_due_for_retention`, `mark_proof_photo_deleted`, `orphan_proof_objects`, `delete_stale_proof_challenges`) e o cron horário `proof-retention`.
+  - Atraso preservado: `occurrences_before_schedule` mantém `overdue_at` depois de vencido, salvo perdão de quem tem `task.manage_group` e não é responsável antigo nem novo (`occurrence_forgives_overdue`, a mesma função no trigger e no `edit_task`).
+  - `set_updated_at` perdeu o `execute` de PUBLIC e anon, para o teste dizer que nenhuma função de `public` está aberta a anon.
+  - `scripts/check-permission-mirror.mjs` compara `proof_rules` com `proofRules` e o bucket com `maxBytes` e `contentType`.
+  - `rls_tasks.test.sql`: 19 para 23 transições; `done → partial` pelo responsável deixou de ser `invalid_transition` e passou a `forbidden`; a fixture "Q6" grava `auto_miss_at`, que agora decide a reatribuição.
+- **Arquivos/módulos principais:** `supabase/migrations/20261101170000` a `172000`, `supabase/tests/rls_proof.test.sql`, `supabase/tests/rls_tasks.test.sql`, `scripts/check-permission-mirror.mjs`, `packages/data/src/database.types.ts`, handoffs `20261101-1803-banco-de-dados-para-*`
+- **Migrations:** 20261101170000_occurrence_actor_reviewer, 170100_proof_review_permission, 170200_proof_rules, 170300_reviewer_transitions, 170400_revoke_set_updated_at, 170500_context_location, 170600_profile_proof_consent, 170700_task_admin_approval_check, 170800_occurrence_auto_miss_at, 170900_proof_challenges, 171000_task_proofs, 171100_occurrence_proof_columns, 171200_proof_access, 171300_task_proofs_bucket, 171400_occurrence_proof_barriers, 171500_set_occurrence_status_proof, 171600_issue_proof_challenge, 171700_claim_and_commit_proof, 171800_review_proof, 171900_proof_retention, 172000_edit_task_proof_rules. Só no banco local.
+- **Decisões/ADRs:** onde o ADR não dizia, escolhi o mais próximo e registrei no handoff. (1) Códigos: `P0001` para regras de negócio, `42501` para `forbidden`, `proof_flags_locked` e `proof_immutable`, `23505` para `proof_duplicate`. (2) `record_proof_consent` com versão errada: `22023 invalid_consent_version`, fora de `proofErrorCodeSchema`. (3) Se a reconferência do `claim` falha, a transação inteira volta e o nonce não é consumido; nenhum corpo foi lido, então o limite "um corpo por nonce" se mantém. (4) Uma ocorrência reaberta ou cancelada e reaberta depois da emissão invalida o desafio (`challenge_invalid`), para a foto antiga não valer para o verde novo. (5) `commit_proof` repete a conferência de tamanho, arestas e caminho (`<occurrence_id>/<nonce>.jpg`); `clock_mismatch` continua com a função, e o banco só calcula `clock_delta_seconds` (limitado ao intervalo de `int`). (6) `proof_review_status` nulo ou `disputed` não vira `done` em tarefa com foto, além de "diferente de disputed" do handoff. (7) Em `this_and_following`, `overdue_occurrence_blocks_edit` compara a agenda com a ocorrência do pivô (o formulário de uma divisão traz o início do pivô), ignorando `COUNT`. (8) Contas excluídas levam as ocorrências do responsável, e com elas as provas; a linha só sobrevive com `user_id` nulo se a ocorrência mudou de mãos. Os objetos órfãos saem pelo job. (9) O cron lê `proof_retention_url` e `cron_secret` do Vault.
+- **Como testar:** `pnpm db:start`, `pnpm db:reset`, `pnpm db:test`, `pnpm db:check-permissions`, `pnpm db:types`, `pnpm check`.
+- **Verificado:** `pnpm db:test` (56 + 481 + 369 asserts), `pnpm db:check-permissions` (matriz, transições, regras de tarefa e de prova, bucket, fusos e `api.schemas`), `pnpm check`. Enfraquecimentos que os testes pegaram: política de `INSERT` em `storage.objects` para `authenticated`; `execute` de `commit_proof` para `authenticated`; política de `task_proofs` com `using (true)`; a exigência de prova no trigger; o trigger de `insert`; `proof_flags_locked`; a restauração das claims; o perdão do atraso; a reabertura invalidando o desafio. Em transações separadas (psql): as claims de `commit_proof` não vazam para a transação seguinte, `status_changed_by` e `changed_by` são o autor, e excluir a conta de um autor não falha. Contra a API real: `authenticated` e `anon` recebem 403 ao enviar, assinar e listar no bucket, `commit_proof` e `claim_proof_challenge` dão `permission denied`, `service_role` sobe JPEG, recebe 409 sem `upsert`, 415 para PNG e 413 acima de 2 MiB. 45 chamadas simultâneas de `issue_proof_challenge` de um usuário: 30 passam e 15 dão `challenge_rate_limited`; sem o `pg_advisory_xact_lock`, 35 passam. Subida de versão: um banco em `150200` com dados e `migration up` limpa `requires_admin_approval` e preenche `auto_miss_at = overdue_at` nas três linhas.
+- **Não verificado:** nada foi aplicado no projeto hospedado. O cron só chama a função com os dois segredos no Vault, que não existem localmente. Nada exercita `proof-validate`, `proof-url` e `proof-retention`, que ainda não existem. A corrida do limite não virou teste automatizado.
+- **Pendências / próximos passos:** `backend-funcoes`, `prova-foto` e `tarefas-calendario` partem dos três handoffs `20261101-1803-banco-de-dados-para-*`. Criar `proof_retention_url` no Vault ao implantar. A exclusão de conta (F8-3) precisa remover os objetos das provas, que ficam órfãos até o job passar.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 19:22 (BRT)
+
+- **Branch:** feat/proof-functions, criada a partir de feat/phase-3-proof
+- **Agente(s):** backend-funcoes
+- **Resumo:** F3-3 e F3-7. As três Edge Functions do ADR-0007 existem e rodam contra a pilha local: `proof-validate` (único que grava no bucket), `proof-url` (URL assinada de 60 s sob `can_view_proof`) e `proof-retention` (retenção, órfãos e desafios velhos). 80 testes passam, e 13 enfraquecimentos de propósito foram pegos.
+- **Limites da Supabase (documentação, 2026-11-01):** 2 s de CPU por requisição, sem contar I/O; 256 MB; 150 s de ociosidade; 150 s de duração no plano gratuito e 400 s nos pagos; pacote de 20 MB pelo CLI. A página de limites continua sem número para o corpo da requisição.
+- **Medido (edge-runtime 1.77.8, Deno 2.1.4; `process.cpuUsage()` e `rss` devolvem 0 no sandbox, então a CPU é o tempo dos trechos síncronos):** corpo de 2 MiB (JPEG válido de 2048x2048), 10 envios completos: leitura do corpo em fluxo 34 a 106 ms (é espera de rede); SHA-256 1,4 a 5,7 ms com o worker quente e 38 ms na primeira chamada; cópia dos pedaços 3 ms; resposta inteira, com Auth, Storage e `commit_proof`, 181 a 784 ms; memória (heap mais buffers) 18 a 31 MiB de 256. Pior caso do leitor de JPEG, 2 MiB de 524 mil segmentos vazios ou só `FF`: 2 a 8 ms. A primeira chamada de um worker frio leva cerca de 2,3 s de relógio no cliente. Nenhuma requisição se aproximou dos 2 s de CPU.
+- **Alterações:**
+  - `proof-validate/index.ts`: na ordem do ADR. JWT e usuário (anon dá 401); `Content-Type`, `Content-Length` e `x-proof-meta` (Zod) sem gastar o nonce; `claim_proof_challenge`; corpo em fluxo (`body.ts`: um buffer de `maxBytes + 1`, para no byte que passa do limite, cancela o fluxo, e desiste em 30 s); forma do JPEG e arestas (`checks.ts`: `FF D8 FF`, `FF D9`, segmentos até o SOF e o SOS, sem decodificar); SHA-256 dos bytes recebidos contra o declarado; duplicata; haversine com a imprecisão a favor do usuário (sem local no contexto, ignora o que veio; coordenadas nunca gravadas nem logadas); `clock_mismatch`; upload com `upsert: false` em `<ocorrência>/<nonce>.jpg`; `commit_proof`. Falha com SQLSTATE do banco: remove o objeto. Falha ambígua (conexão perdida, que pode ter gravado): o objeto fica, porque linha sem foto é pior que foto sem linha, e a retenção remove o que nenhuma linha aponta.
+  - `proof-url/index.ts`: lê `id` e `photo_deleted_at` com o JWT do usuário (a RLS decide), depois `storage_path` e a URL com service role. Colega, ex-membro, admin em tarefa privada e prova inexistente recebem a mesma resposta 403.
+  - `proof-retention/index.ts`: só `x-cron-secret`, comparação de tempo constante. `proofs_due_for_retention`, remove os objetos, marca (10 por vez, até 90 s), órfãos, desafios velhos. Repetir é seguro e uma execução interrompida continua na seguinte.
+  - `_shared/http.ts` (CORS, cliente de serviço, comparação do segredo, usuário do JWT); `deno.json` de cada função; `config.toml` com os três blocos (`verify_jwt` true, true, false).
+  - Testes: `validate.integration.test.ts` (35), `url.integration.test.ts` (8), `retention.integration.test.ts` (6) e `checks.test.ts` (19, unidade: JPEG, local, relógio e leitor de corpo), com `_shared/proof-kit.ts` e `jpeg-fixture.ts` (gera JPEGs válidos, sem binário no repositório; o GDI+ abre os de 640x480, 333x321 e 2048x2048). `functions:test` agora espera as quatro funções responderem (`_shared/wait-for-functions.mjs`) e roda os arquivos em série.
+- **Descobertas do ambiente local:**
+  - O Kong guarda o corpo inteiro antes de repassar. Por ele, uma foto que para no meio nunca chega à função, e a função não é vista parando. Os testes de fluxo falam direto com o Edge Runtime (`nc` dentro do contêiner do Kong, HTTP/1.1 em pedaços).
+  - O runtime segura a resposta da função até o remetente fechar o corpo, mesmo quando a função já respondeu (413, 408, 409). A função para de ler no limite e libera a memória, mas o cliente só vê a recusa quando termina de enviar. Registrado no handoff para `prova-foto`.
+  - A URL assinada sai com o host `http://kong:8000` (o `SUPABASE_URL` dentro do Docker); o app local precisa trocar a origem. Em produção é o endereço público.
+  - O console das funções vai para o stderr do contêiner `supabase_edge_runtime_azkaban` (`docker logs`).
+  - O Auth limita 30 logins por 5 minutos por IP; os testes assinam um token com o segredo JWT demo da pilha local, e um teste por arquivo faz o login de verdade.
+  - O runtime local recicla workers parados, e o primeiro pedido a um deles pode dar 502 (a segunda execução seguida de `functions:test` falhou nove testes do `materialize` assim, antes do script de espera).
+- **Arquivos/módulos principais:** `supabase/functions/proof-validate`, `proof-url`, `proof-retention`, `_shared`, `supabase/config.toml`, `package.json` (`functions:test`), handoffs `20261101-1901-backend-funcoes-para-prova-foto-*` e `-para-arquiteto-*`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** (1) Fora de `proofErrorCodeSchema`: `unauthorized` 401, `invalid_request` 400, `method_not_allowed` 405, `upload_timeout` 408 (corpo parado) e `internal` 500; pedido ao arquiteto. (2) Status: `challenge_invalid` e `challenge_used` 409, `challenge_expired` 410, `forbidden` 403, `proof_too_large` 413, `proof_bad_type` 415, `proof_bad_dimensions`, `proof_hash_mismatch` e `proof_out_of_radius` 422, `proof_duplicate` 409. (3) O consentimento é cobrado só em `issue_proof_challenge`; a função não o relê, e a janela é de 5 minutos. (4) Sem SOF antes do SOS, o JPEG é `proof_bad_dimensions` (0 x 0), como no handoff; fim do arquivo sem `FF D9` ou segmento que passa do fim é `proof_bad_type`. (5) `x-proof-meta` acima de 4096 caracteres é recusado antes do Zod.
+- **Como testar:** `pnpm exec supabase start`; `cp supabase/functions/.env.example supabase/functions/.env`; `pnpm exec supabase functions serve` (não edite `supabase/functions` enquanto roda); `pnpm functions:test` (cerca de 2,5 minutos, 80 testes).
+- **Verificado:** `pnpm check` e `pnpm functions:test` duas vezes seguidas, 80 de 80. Enfraquecimentos feitos de propósito (cada um falhou nos testes certos): Content-Length sem checar antes do nonce; fluxo sem limite (integração e unidade); corpo recusado antes de gastar o nonce; JPEG sem inspeção; hash sem comparação; objeto não removido após `commit_proof` falhar; `proof-url` lendo como service role; retenção sem remover o objeto; segredo do cron sem comparação; `clock_mismatch` nunca levantado; imprecisão não subtraída (integração e unidade); coordenada gravada; retenção sem marcar a prova. Provado também: reaberta antes e durante o envio (objeto removido), tarefa arquivada durante o envio, Storage que recusa, nonce de outro usuário, vencido, usado e três envios simultâneos do mesmo (um vence, um objeto), 2 MiB exatos passam e 2 MiB mais 1 não, 30 s de corpo parado, URL assinada que serve e deixa de servir em 60 s, o cliente sem escrita no bucket (usuário e anon: envio, sobrescrita, URL de envio, URL de leitura, download, remoção e listagem), logs sem nonce, hash, coordenadas, caminho nem identificadores.
+- **Não verificado:** nada foi implantado nem testado no projeto hospedado. O limite hospedado de corpo (a documentação não traz número), a CPU real lá e a partida a frio de lá. `outOfRadius = 'block'` só tem teste de unidade, porque `proofRules` é constante. O ramo de falha ambígua do `commit_proof` (conexão perdida) não é exercitado. O cron só chama a função com `proof_retention_url` e `cron_secret` no Vault, que não existem localmente. O lote completo de 500 provas e o `moreDue` não têm teste. A foto de uma câmera real não passou por aqui: os JPEGs são gerados.
+- **Pendências / próximos passos:** `arquiteto` decide sobre `upload_timeout`; `prova-foto` parte do handoff novo (a resposta só chega depois do fim do corpo; trocar a origem da URL assinada no ambiente local); primeira implantação confirma o corpo de 2 MiB no projeto hospedado e cria `proof_retention_url` no Vault.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 20:20 (BRT)
+
+- **Branch:** feat/proof-tasks, criada a partir de feat/phase-3-proof (e3af38d)
+- **Agente(s):** tarefas-calendario
+- **Resumo:** F3-8. Listas, detalhe, calendário e formulários de tarefa e de contexto passam a conhecer a prova por foto (ADR-0007) e o atraso preservado ao reagendar (ADR-0005, seção 11). Não construí câmera, envio nem revisão do admin: deixei o ponto de entrada para `prova-foto`.
+- **Alterações:**
+  - Contratos (autorizado pelo handoff do arquiteto): `proofReviewStatus` (ocorrência e histórico), `requiresPhotoProof` e `requiresAdminApproval` (linha da lista) e `location` do contexto deixam de ser opcionais. `packages/data` seleciona e mapeia tudo; o repositório de contextos grava as quatro colunas do local juntas.
+  - Core: `canTransition` e `availableTransitions` recebem `requiresPhotoProof` e `canReviewProof`; `done` em tarefa com foto responde `proof_required`, e ocorrência contestada só muda para quem revisa (`proof_disputed`), na ordem da RPC. Novos: `canSendProof`, `canReviewProof`, `forgivesOverdue`, `proofFlagsLocked`, `offersAdminApproval`. `occurrenceXp` dá 0 a `done` em análise. `DaySummary.reviewing`. `buildTaskInput` descarta aprovação sem foto ou sem grupo.
+  - Telas: `reviewing={proofReviewStatus === 'in_review'}` em Hoje, áreas, Calendário (mês, semana, dia) e detalhe, com texto além do ícone ("Em análise", "Foto contestada", "Pede foto para concluir"). O detalhe mostra o motivo da contestação e esconde as ações de quem não pode revisar; o histórico mostra aprovação e contestação. O check de tarefa com foto fica desligado sem o encaixe de `prova-foto`: `onProof` em Hoje e nas áreas, `children` no detalhe.
+  - Formulário de tarefa: interruptores de foto e de aprovação (aprovação só com foto, em grupo e com responsável que não é quem edita; travados quando `proofFlagsLocked`). Formulário de contexto: local opcional (endereço, "usar minha localização atual", raio, remover). Reagendar vencida avisa que continua atrasada.
+  - i18n: mensagens próprias para `proof_required`, `proof_flags_locked`, `proof_disputed` e `overdue_occurrence_blocks_edit`. `PROVISIONAL` saiu de `bands` em `config.ts`.
+  - `@azkaban/platform` entrou nas dependências de `feature-contexts` (lockfile: uma linha).
+- **Arquivos/módulos principais:** `packages/contracts/src/{tasks,contexts}.ts`, `packages/core/src/tasks/{transitions,actors,xp,form,calendarDay,today}.ts`, `packages/data/src/{tasks,contexts}`, `packages/features/{tasks,calendar,contexts}`, `packages/i18n/src/pt-BR/{tasks,calendar,contexts}.json`, `e2e/tasks-proof.spec.ts`, `e2e/proof-fixtures.ts`, handoffs `20261101-1959-tarefas-calendario-para-*`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** (1) Quem pode revisar, na lista, é calculado com o responsável da ocorrência como autor da prova; o banco decide com o autor real. (2) Ocorrência reagendada que continua atrasada aparece uma vez, em "Atrasadas", e não na lista do dia nem na meta, mesmo que o novo dia seja hoje. (3) `lng` é opção reservada do `t()`: usei `latitude` e `longitude`.
+- **Como testar:** `pnpm check`, `pnpm db:test`, `pnpm functions:test`, `pnpm e2e` (`e2e/tasks-proof.spec.ts` é o novo).
+- **Verificado:** `pnpm check` (500 testes em core, 16 em contracts); `pnpm db:test` (906); `pnpm functions:test` (80 de 80); e2e completo (40 de 40) duas vezes seguidas, por uma configuração local na porta 8091, porque a 8081 estava ocupada pelo servidor de outro projeto. Mutações que os testes pegaram: 9 de unidade (sem `proof_required`, sem `proof_disputed`, `in_review` pagando XP, resumo do dia sem `reviewing`, câmera para quem não é o responsável, perdão ignorando o novo responsável, trava de foto sempre aberta, autor revisando, aprovação sem foto, aprovação oferecida a quem faz) e 9 de tela (linha e calendário sem `reviewing`, aviso de atraso, mensagem de `proof_required`, local sem ponto, lista sem o campo, "feito" em tarefa com foto, aprovação sempre à mostra, endereço perdido). Inspeção visual em 375 px, claro e escuro.
+- **Não verificado:** nada rodou em aparelho real, iOS ou Android, nem no projeto hospedado. Os estados "em análise" e "contestada" foram criados pelas funções do banco (`e2e/proof-fixtures.ts`), não por uma foto de verdade, porque a câmera é de `prova-foto`. A trava dos interruptores (`proof_flags_locked`) só tem teste de unidade: com a matriz atual quem tem `task.edit_assigned` também tem `task.manage_group`, e nenhuma tela chega nesse estado. As mensagens de `proof_disputed`, `proof_flags_locked` e `overdue_occurrence_blocks_edit` foram provadas com a resposta do servidor simulada. A fila offline (F8-5) ainda não existe, então a recusa de `done` em tarefa com foto fica para ela.
+- **Pendências / próximos passos:** `prova-foto` liga o encaixe (rota de captura, `onProof`, `children` do detalhe) e troca a asserção de check desligado no e2e; o `db:test` falha se rodar sobre um banco usado pelo e2e (o teste de desafios espera zero): rode `supabase db reset` antes.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 20:37 (BRT)
+
+- **Branch:** chore/test-isolation, criada a partir de feat/phase-3-proof (962888a)
+- **Agente(s):** qa-testes
+- **Resumo:** Três correções de infraestrutura de teste: a E2E tem porta própria e não reaproveita servidor, a pilha local não sobe mais analytics e vector, e o `db:test` não depende mais do banco limpo.
+- **Alterações:**
+  - `playwright.config.ts`: a E2E sobe o app em `http://localhost:8091` com `pnpm dev --port 8091` e `reuseExistingServer: false`. `pnpm dev` continua na 8081.
+  - `supabase/config.toml`: a porta 8091 entrou em `additional_redirect_urls`, senão os links de e-mail da E2E cairiam no `site_url` (8081), que não mudou. `[analytics] enabled = false`, o que também remove o contêiner do vector.
+  - `supabase/tests/rls_proof.test.sql`: "nobody has a challenge yet" conta só os desafios dos seis usuários do teste. O número de asserts não mudou (481).
+  - `.github/workflows/ci.yml`: sem mudança. No CI nada ocupa a 8091, e o Playwright sobe o servidor como antes.
+- **Arquivos/módulos principais:** `playwright.config.ts`, `supabase/config.toml`, `supabase/tests/rls_proof.test.sql`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** Sem reaproveitar servidor, nem o deste projeto: uma porta fixa não diz de qual worktree é o servidor que responde. Custo: cada `pnpm e2e` sobe o Expo de novo, e um servidor esquecido na 8091 faz a rodada falhar com "is already used". Quem altera a config precisa reiniciar a pilha local para valer o redirect novo.
+- **Como testar:** `pnpm db:start`, `pnpm exec supabase functions serve`, `pnpm e2e`, e depois `pnpm db:test` sem `supabase db reset`.
+- **Verificado:** Medido nesta máquina com a 8081 ocupada por um servidor HTTP descartável, que registrou só a minha sonda e nenhum pedido da suíte: `pnpm e2e` 40 de 40 em 122 s; `pnpm db:test` depois dela, sem reset, 906 testes em 29 s; `pnpm functions:test` 80 de 80 em 157 s; `pnpm check` em 18 s, com o turbo inteiro em cache. O teste de magic link passou na 8091. Duas rodadas seguidas de `e2e/shell.spec.ts` passaram, então o encerramento do servidor não trava a seguinte. Com um servidor estranho na 8091, a suíte recusou com "is already used" e saiu com código 1. No mesmo banco sujo (1 desafio deixado pela E2E) o assert antigo falhou com have 1, want 0, e o novo falhou com um desafio de Duda inserido de propósito. Sem contêiner de vector ou analytics, e `docker logs supabase_edge_runtime_azkaban` segue trazendo o log das funções (702 linhas após os testes).
+- **Não verificado:** A rodada não foi repetida com o `expo start` do outro projeto na 8081, porque ele foi encerrado durante o trabalho: a prova usou o servidor descartável. O workflow do CI não rodou. A economia de memória não foi medida: não há leitura de antes, só a soma de agora, cerca de 1,6 GiB na pilha. O Studio não foi aberto, e as telas de log dele dependem de analytics.
+- **Pendências / próximos passos:** A nota do bloco anterior sobre rodar `supabase db reset` antes do `db:test` deixou de valer. O assert agora ignora dados de outros usuários de propósito, então desafios deixados por seeds não seriam pegos por ele.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 20:44 (BRT)
+
+- **Branch:** docs/proof-closeout, criada a partir de feat/phase-3-proof (be426b9)
+- **Agente(s):** arquiteto
+- **Resumo:** Fecha as pendências de contrato e documentação da prova: `upload_timeout` entra em `proofErrorCodeSchema`, os outros códigos ficam fora com critério escrito, e "nada em disco" passa a exigir apagar a foto bruta do nativo.
+- **Alterações:**
+  - `packages/contracts/src/proof.ts`: `upload_timeout` em `proofErrorCodeSchema`, e o comentário diz que a lista só tem o que tem mensagem própria.
+  - `packages/contracts/src/proof.test.ts`: fixa quem entra e quem fica fora.
+  - `docs/adr/0007-prova-por-foto.md`: seção 19 nova (códigos de erro), seção 16 reescrita na parte de disco, passo 4 da seção 3 nomeia o código, alternativa de `transportErrorCodeSchema`.
+  - `docs/arquitetura.md`: lib `dom` e adapters sem tela, seção i18n com a armadilha do `{{lng}}`, e a dependência de feature em `@azkaban/platform`.
+- **Arquivos/módulos principais:** `packages/contracts/src/proof.ts`, `docs/adr/0007-prova-por-foto.md`, `docs/arquitetura.md`, handoffs `20261101-2042-arquiteto-para-*`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0007, seções 16 e 19. (1) A lista guarda só o que a tela nomeia; o resto é falha genérica. (2) `upload_timeout` entra; `unauthorized`, `invalid_request`, `method_not_allowed` e `internal` ficam fora, sem schema à parte. (3) `invalid_consent_version`, `invalid_decision` e `invalid_storage_path` ficam fora. (4) O nativo apaga o arquivo bruto do `expo-camera` no `finally` de `capture`. (5) `feature-contexts` depender de `@azkaban/platform` está aprovado.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou, com 24 testes em contracts. `scripts/check-permission-mirror.mjs` não lê `proofErrorCodeSchema`, então não mudou. Fontes do `expo-camera` 58 (Android e iOS): grava o arquivo sempre, mesmo com `base64`. Fontes do `react-native-view-shot`: `result: 'base64'` não cria arquivo.
+- **Não verificado:** `pnpm functions:test`, `pnpm db:test` e `pnpm db:check-permissions` não rodaram, por decisão da tarefa e porque esta mudança não toca função nem banco. Nada rodou em aparelho.
+- **Pendências / próximos passos:** `prova-foto`: mensagem de `upload_timeout` e apagar a foto bruta, com `expo-file-system` como dependência direta de `packages/platform`. `backend-funcoes`: `upload_timeout: 408` em `STATUS`; sem isso, o tipo fica incompleto em código que `pnpm check` não compila, e nada muda em execução. F8-7 confere no aparelho que o cache fica vazio.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 21:51 (BRT)
+
+- **Branch:** feat/proof-capture, criada a partir de feat/phase-3-proof (be426b9), com merge de 4ba1dbf
+- **Agente(s):** prova-foto
+- **Resumo:** F3-5 e F3-6. A prova por foto existe de ponta a ponta na web: aviso, desafio, localização, câmera, carimbo, conferência, `proof-validate`, resultado, fila do admin, foto por `proof-url`, aprovação e contestação.
+- **Alterações:**
+  - `packages/features/proof`: `useProofFlow` (o fluxo, na ordem do ADR, com a foto só na memória), `ProofCaptureScreen`, `ProofQueueScreen`, `ProofReviewScreen`, `ProofButton`, `ProofLink`, `ProofQueueLink`, e `recovery.ts`, a tabela do que fazer depois de cada falha. Depois de qualquer falha, o fluxo relê a ocorrência: se já está `done`, é sucesso. Rede, 5xx, `upload_timeout` e `invalid_request` mantêm a foto, que vai com outro desafio; erro de foto ou de desafio volta à câmera; o resto volta à tarefa. Passou de `expiresInSeconds`, a foto é descartada.
+  - `packages/data/src/proof`: `proofRepository`, uma função por RPC e função. `transport.ts` traz os códigos locais (`unauthorized`, `invalid_request`, `method_not_allowed`, `internal`, `network`), a leitura das respostas do gateway e `reachableUrl`, que troca só `http://kong:8000/` pelo endereço da API. Qualquer outro host passa intacto, então produção não muda. `useCurrentUser` ganhou `displayName`, para o carimbo.
+  - `packages/platform`: `new File(uri).delete()` no `finally` de `capture`, em `try/catch` (ADR-0007, seção 19); `photoDataUri`, a pré-visualização em memória; `useOnline` (web lê o navegador, nativo fica verdadeiro até F8-5); `appVersion`. `expo-file-system` e `expo-constants` viraram dependências diretas.
+  - `apps/app`: rotas `tasks/[id]/proof`, `proofs/[id]` e `reviews/[groupId]`; `onProof` em Hoje e nas áreas; `ProofButton` nos `children` do detalhe; `ProofLink` acima do detalhe, para quem pode ver a foto; `ProofQueueLink` na página do grupo. `app.config.ts`: plugins com textos em pt-BR, `recordAudioAndroid: false`, e também `microphonePermission`, `locationAlwaysPermission` e `locationAlwaysAndWhenInUsePermission` em `false`, sem os quais o iOS declararia microfone e localização em segundo plano com o texto padrão.
+  - i18n: `proof.json`, com mensagem para os 20 códigos do contrato, os locais, `PhotoError` e os motivos da câmera.
+  - `e2e/proof-capture.spec.ts`, novo; os ajudantes de tela foram de `tasks-proof.spec.ts` para `proof-fixtures.ts`. As asserções de check desligado viraram "o check leva à câmera".
+- **Arquivos/módulos principais:** `packages/features/proof`, `packages/data/src/proof`, `packages/platform/src/{ProofCamera.native.tsx,network*.ts,photo.ts}`, `apps/app/app/(app)`, `apps/app/app.config.ts`, `packages/i18n/src/pt-BR/proof.json`, `e2e/proof-capture.spec.ts`, handoffs `20261101-2114-prova-foto-para-qa-testes-*` e `20261101-2150-prova-foto-para-banco-de-dados-*`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** (1) O admin chega a uma prova `unreviewed` ou contestada por `ProofLink`, composto pela rota acima de `TaskDetailScreen`, porque os `children` da tela só aparecem enquanto há foto a enviar. A fila mostra só `in_review`, como pedido. (2) Pré-visualização em `data:` URI nas duas plataformas, em vez de `createObjectURL`: uma função só, nada a revogar. (3) Câmera quadrada: em 3:4 o botão de disparo caía abaixo da dobra em 375x812. (4) Sem tempo limite no cliente para o envio, porque a resposta só chega depois do fim do corpo. (5) Aviso por versão: `consentPending` só evita uma ida à RPC, e quem decide é o servidor: `proof_consent_required` também abre o aviso.
+- **Como testar:** `pnpm check`; `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm db:test`; `pnpm exec supabase functions serve`, `pnpm functions:test`, `pnpm e2e`. A E2E de câmera exige Chrome instalado.
+- **Verificado:** `pnpm check` (500 em core, 38 em platform, 24 em contracts, 7 em ui, 7 em data, 6 em feature-proof, 3 em config); `pnpm db:test` 906 depois de reset; `pnpm functions:test` 80 de 80; `pnpm e2e` 50 de 50 em duas rodadas seguidas (157 s e 143 s); `pnpm build:web`; `expo export --platform android`; `expo config --type introspect` com câmera e `WhenInUse`, e sem microfone, `Always` nem `RECORD_AUDIO`. A E2E usa a câmera falsa do Chrome e os fluxos reais, sem fixture no envio: o hash dos bytes baixados do bucket bate com `task_proofs.sha256`, o carimbo foi conferido a olho. Falhas simuladas só na resposta do servidor: perda da resposta depois do commit, pedido que nunca chegou, `proof_hash_mismatch`, `upload_timeout`, 401 do gateway, `proof_consent_required`, `challenge_rate_limited`, encoder falhando. 24 mutações pegas, 5 de unidade e 19 de E2E; uma sobreviveu na primeira rodada (pedir localização sem local no contexto), porque o Chrome sem tela responde "denied" antes de perguntar; o teste foi corrigido e pegou na segunda. Inspeção visual em 375 px, claro e escuro: detalhe, aviso, câmera, conferência, resultado, revisão, contestação e fila, sem rolagem horizontal. Encontrado na revisão e corrigido: depois de uma falha, "Tirar outra" abria a câmera sem desafio, e a foto nova era ignorada.
+- **Não verificado:** nada rodou em iOS, Android nem no projeto hospedado. `new File(uri).delete()`, o carimbo nativo e o `Image` com `data:` URI só compilam: ficam para o roteiro de F8-7. Sem foto real: as 51 provas da câmera falsa deram 24 KB em média e 27 KB no máximo (1600x900), um quadro quase sem detalhe que não serve para a conta da seção 18 do ADR, então a medição continua pendente. O 503 de uma rodada não foi explicado (abaixo). A URL vencida não foi testada aqui, porque leva 60 s: `url.integration.test.ts` cobre, e a E2E prova só que cada abertura pede outra. A suíte com `channel: 'chrome'` não rodou no CI.
+- **Instabilidade observada:** antes das duas rodadas verdes, duas rodadas tiveram falhas fora do fluxo de foto: uma com 4 falhas, 503 em `proof-validate` e repetições que não apareceram, porque o Edge Runtime reiniciou às 21:44 durante a rodada, sem causa encontrada; outra com `tasks-ui-fixes.spec.ts:69`, que faz `goto` logo depois de Salvar sem esperar a gravação. Não alterei esse teste.
+- **Pendências / próximos passos:** `banco-de-dados` ajusta `rls_proof.test.sql:1326`, que aborta com objetos reais no bucket: até lá, `db:test` depois da E2E exige `supabase db reset`. `qa-testes` confirma o Chrome no CI. `backend-funcoes` ajusta o `STATUS` de `proof-validate`. Medir o tamanho da foto em aparelho real.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 23:12 (BRT)
+
+- **Branch:** chore/qa-phase-3, criada a partir de feat/phase-3-proof (28767bd)
+- **Agente(s):** qa-testes
+- **Resumo:** QA da Fase 3 no estado integrado. A instabilidade da E2E vinha de cinco causas, todas encontradas: duas do runtime local, duas corridas de teste e um bug do app. A suíte tem 55 testes, com 5 novos, e passou 6 rodadas seguidas. O fluxo de prova cumpre a regra central, e sobram dois achados de severidade média, em handoff.
+- **Alterações:**
+  - `playwright.config.ts`: 4 workers fora do CI, e a explicação de por que não usar `functions serve` durante a suíte.
+  - `package.json`: `pnpm e2e` chama `wait-for-functions.mjs` antes, reaproveitando o script de `functions:test`.
+  - `e2e/proof-paths.spec.ts`, novo: ex-membro (tela, câmera e `proof-url`), contestação para vermelho com XP, reabrir exige foto nova, recusa real do servidor e foto mantida sem conexão.
+  - `e2e/tasks-ui-fixes.spec.ts`: espera a gravação antes do `goto`; regressão do detalhe defasado, com `test.fail()` só na última asserção.
+  - `e2e/tasks-order.spec.ts` e `e2e/tasks.spec.ts`: esperam a resposta da gravação antes de recarregar ou abrir o detalhe.
+  - `e2e/proof-capture.spec.ts`: 30 s para a resposta do servidor. Comentários de sete arquivos não pedem mais `functions serve`.
+  - `.github/workflows/ci.yml`: `playwright install --with-deps chromium chrome` (autorizado pelo orquestrador).
+  - `supabase/tests/rls_proof.test.sql`: correção do handoff `20261101-2150` (autorizado pelo orquestrador).
+- **Causas da instabilidade:**
+  1. **503, Edge Runtime reiniciando.** `supabase functions serve` no Windows trata como escrita a atualização do último acesso que o NTFS faz a cada hora. Provado: com o último acesso recuado, só ler `proof-kit.ts`, com `mtime` e hash iguais, gerou `File change detected ... (WRITE)` e derrubou o runtime por cerca de 6 s (19 s sob carga, no log anterior, às 21:39:55, com 21:44 e 21:50 logo depois). `supabase start` já serve as funções, sem observador, e não reiniciou nem com escrita real.
+  2. **546, limite de CPU do worker local.** 2 s fixos, sem opção de configuração, e `proof-validate` não tem repetição do runtime por ter corpo. Foi sempre a primeira chamada de `proof-validate` da rodada: 3 de 6 rodadas com 8 workers, 0 de 8 com 4.
+  3. **`tasks-ui-fixes.spec.ts:69`: corrida do teste, confirmada.** Foi a hipótese do relatório: `goto` logo depois de Salvar.
+  4. **`tasks-order.spec.ts:18`: corrida do teste, nova.** O trace mostra `set_occurrence_status` abortado pelo `reload`, depois do check otimista.
+  5. **`tasks.spec.ts:78`: bug do app, novo.** Leitura do detalhe que cruza o commit nunca é repetida. Reproduzido sem depender de tempo; handoff.
+  - Também: uma espera de 16 s por um worker aposentando (`proof-capture:178`, em 8 rodadas uma vez), acima dos 15 s do `expect`.
+  - **Memória não foi causa:** pico de 2,0 GiB de 7,4 GiB na pilha, nenhum `OOMKilled`, zero reinício do contêiner sem `functions serve`. O Edge Runtime chegou a 805 MiB. O host fica apertado: 0,05 GB de RAM física livre no pior momento, de 15,3 GB, com o Chrome da suíte.
+- **Arquivos/módulos principais:** `e2e/`, `playwright.config.ts`, `package.json`, `.github/workflows/ci.yml`, `supabase/tests/rls_proof.test.sql`, handoffs `20261101-2240-*`, `20261101-2300-*`, `20261101-2310-*`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** (1) Bugs conhecidos ficam como `test.fail()` só na asserção do bug: passam hoje, falham quando corrigidos, e qualquer falha na preparação conta como falha de verdade. (2) `workers: 4` só fora do CI. (3) Não removi `functions serve` do `ci.yml`: no Linux não há esse reinício, e a mudança não foi pedida. (4) Sem `retries` no Playwright: esconderiam justamente estas causas.
+- **Como testar:** `pnpm db:start`, sem `functions serve`; `pnpm e2e`, `pnpm functions:test`, `pnpm db:test`, `pnpm db:check-permissions`, `pnpm build:web`, `pnpm check`.
+- **Verificado:** `pnpm e2e` 55 de 55 em 6 rodadas seguidas (177 a 197 s), a última às 23:07, para cobrir a última hora do dia. Antes das correções, a mesma suíte de 50 falhou em 3 de 4 rodadas (160 a 168 s). `pnpm functions:test` 80 de 80 em 163 s, sem `functions serve`. `pnpm db:test` 906 de 906 depois da E2E, sem reset, com 158 objetos reais no bucket, em 82 s. `pnpm db:check-permissions`: matriz, 23 transições, regras de tarefa e de prova, bucket, fusos e `api.schemas` em dia. `pnpm build:web` em 24 s. `pnpm lint`, `pnpm boundaries`, e `turbo run typecheck test --force`, sem cache: 500 em core, 38 em platform, 24 em contracts, 7 em ui, 7 em data, 6 em feature-proof, 3 em config. Mutações temporárias, todas revertidas: recuperação de `proof_hash_mismatch` e contestação sempre em amarelo foram pegas; `can_view_proof` aberta **sobreviveu** à primeira versão do teste de ex-membro, porque a tela já some pelo `!inner` da tarefa; o teste passou a chamar `proof-url`, com controle de 200 antes da remoção, e pegou (403 esperado, 200 recebido). Inspeção visual em 375 px e 1280 px, claro e escuro: formulário, detalhe, aviso, câmera quadrada, conferência, resultado, Hoje, fila, revisão e contestação, sem rolagem horizontal, com a câmera vista nas duas larguras e nos dois temas e as demais telas por amostra. Disparo acima da dobra em 375x812 com título de três linhas. Foram percorridos: membro fica verde, aprovação sem XP até aprovar, contestação, foto recusada pelo servidor, offline, tarefa com local, fila, ex-membro e autor sem botões.
+- **Não verificado:** o CI não rodou, então `chrome` no `ubuntu-latest` e a câmera falsa no Linux seguem sem prova. Nada rodou em iOS, Android nem no projeto hospedado. `pnpm db:test` **falha** entre 23:00 e 23:59, por uma fixture de `rls_tasks.test.sql` que não é minha (handoff): com o ajuste temporário de uma linha, revertido, deu 906. Editar uma função com a pilha de `supabase start` no ar não foi testado. A relação entre `workers: 4` e o fim do 546 é medida em rodadas, com o aquecimento entrando nas 6 últimas: não separei o efeito de cada um. O tamanho de foto real segue sem medida: a câmera falsa dá 24 KB em média.
+- **Pendências / próximos passos:** `prova-foto`: prova de tarefa excluída presa na fila e Equipe sem as provas aguardando (médias), mais cinco itens baixos. `tarefas-calendario`: detalhe defasado. `banco-de-dados`: fixture de `rls_tasks.test.sql:487`. Orquestrador: `CLAUDE.md` passa a dizer que `functions:test` exige só `db:start`. `arquiteto`: passos de `functions serve` no `ci.yml`. `backend-funcoes`: mensagem de `wait-for-functions.mjs`, `upload_timeout` em `STATUS` e conferir `WORKER_LIMIT` na primeira implantação.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 23:31 (BRT)
+
+- **Branch:** chore/security-phase-3, criada a partir de feat/phase-3-proof (6fe9c01)
+- **Agente(s):** revisor-seguranca
+- **Resumo:** Revisão de segurança da Fase 3, com PoC executado na pilha local. Nenhuma tarefa criada por um admin ficou verde sem prova, e não há achado crítico ou alto. São cinco achados médios e cinco baixos, em quatro handoffs. Dois médios bloqueiam o uso com pessoas reais: retenção que pode não rodar e lacunas de LGPD.
+- **Alterações:**
+  - Só documentação: quatro handoffs e esta entrada. Nenhum código de produção mudou, e os scripts de PoC ficaram fora do git.
+- **Achados:** SEG-1 (média): o membro desliga a foto que o admin exigiu na tarefa própria, e ela fica verde com XP, sem rastro. SEG-2 (média): `visibility = 'private'` ou `delete_task` tiram a prova do revisor, e o item 1 do QA paga XP pela retenção. SEG-3 (média): apagar o grupo zera os limites; 60 provas e 120 MiB de órfãos em duas voltas. SEG-4 (média): retenção sem Vault não faz nada, em silêncio. SEG-5 (média): sem revogação, sem base legal e sem prazo para o registro. SEG-6 (baixa): `proof-url` lê corpo sem limite e 400 MiB derrubam o worker. SEG-7 (baixa): excluir a conta apaga a prova, ao contrário do comentário do schema. SEG-8 (baixa): a retenção apaga foto contestada. SEG-9 (baixa): tarefa privada que vira de grupo mostra as fotos antigas ao admin. SEG-10 (baixa): `appVersion` com NUL dá 500 depois de gastar o nonce.
+- **Arquivos/módulos principais:** `docs/agentes/handoffs/20261101-2331-revisor-seguranca-para-{arquiteto,banco-de-dados,backend-funcoes,auth-grupos}-*.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. As decisões pedidas estão no handoff para `arquiteto`.
+- **Como testar:** `pnpm db:start`, sem `functions serve`, e os passos de "Como testar" de cada handoff, com `supabase/functions/_shared/proof-kit.ts`.
+- **Verificado:** como cliente hostil, com resultado observado: RPC e PostgREST direto, embed, `select` por coluna, Storage por todas as rotas (leitura, listagem, upload, TUS, troca, remoção e URL assinada), JWT forjado, nonce reusado, em corrida, alheio e vencido, JPEG malicioso, `x-proof-meta`, coordenadas falsas, `proof-url` por colega, ex-membro e tarefa privada, `x-cron-secret`, e XP em laço e corrida. Também `pnpm build:web` com busca no bundle e varredura do histórico. Catálogo: `security definer` com `search_path`, sem `execute` para `anon`, RLS em toda tabela, nenhuma política em `storage.objects`, publicação de realtime vazia.
+- **Não verificado:** nada rodou no projeto hospedado: limite de corpo, logs de requisição com `x-proof-meta`, cabeçalhos do Storage. `proofRules.outOfRadius = 'block'` não rodou de ponta a ponta. Nada em iOS ou Android. `pnpm audit --prod` mostrou 2 moderadas, em cadeia de ferramentas do Expo, sem análise de impacto. `pnpm db:test`, `pnpm functions:test` e `pnpm e2e` não rodaram: nenhum código mudou.
+- **Pendências / próximos passos:** `arquiteto`: decidir SEG-1, SEG-2, SEG-8 e SEG-9. `banco-de-dados`: SEG-3 e SEG-7. `backend-funcoes`: SEG-4, SEG-6 e SEG-10. `auth-grupos`: SEG-5 em F8-3. Humano: base legal para funcionários.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-01 23:44 (BRT)
+
+- **Branch:** docs/proof-security-decisions, criada a partir de feat/phase-3-proof (d223e4b)
+- **Agente(s):** arquiteto
+- **Resumo:** Decisões sobre os achados de segurança e do QA da prova, na seção 20 do ADR-0007, com contrato e um handoff por dono. Nenhuma migration ou tela mudou: a implementação está nos handoffs.
+- **Alterações:**
+  - `docs/adr/0007-prova-por-foto.md`: seção 20 e ajustes nas seções 2, 8, 10, 14 e 17, Alternativas e Consequências.
+  - `packages/contracts/src/tasks.ts`: `taskSchema.proofFlagsLocked`, `taskRuleChangeSchema`, `taskRuleFieldSchema` e o código `proof_visibility_locked`.
+  - `packages/contracts/src/tasks.test.ts`: o código novo.
+  - Cinco handoffs `20261101-2339-arquiteto-para-*`.
+- **Arquivos/módulos principais:** `docs/adr/0007-prova-por-foto.md`, `packages/contracts/src/tasks.ts`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma. Nove especificadas para `banco-de-dados`.
+- **Decisões/ADRs:** SEG-1: `tasks.proof_flags_locked` tira a exceção de tarefa própria, e `task_rule_changes` registra as mudanças. SEG-2 e item 1 do QA: `can_review_proof` deixa de olhar `archived_at`, e a retenção segue pagando XP, porque excluir deixou de dar vantagem. SEG-2 e SEG-9: tarefa com prova não muda de visibilidade. SEG-3: `proof_challenges.occurrence_id` perde a chave estrangeira, e o limite diário conta `used_at`. SEG-7: vale a cascata, e F8-3 apaga antes a prova superada em ocorrência alheia. SEG-8: aceito. SEG-5: aviso versão 2, `proof_consents` e `recordRetentionDays = 365` agora; revogação, exclusão e exportação em F8-3. Quatro riscos aceitos mantidos.
+- **Como testar:** `pnpm check`. O comportamento será testado por cada dono, conforme "Como testar" dos handoffs.
+- **Verificado:** `pnpm check` passou. Leitura das migrations de `edit_task`, `delete_task`, `set_occurrence_status`, retenção, desafios e barreiras.
+- **Não verificado:** sem pilha local, nada rodou no banco. A recusa de apagar o grupo com `on delete set null` em `proof_challenges` é dedução da ordem das cascatas, sem teste, e `pnpm db:check-permissions` não rodou. As decisões não mudam matriz nem transições, e `proofRules` só muda junto com a migration.
+- **Pendências / próximos passos:** `banco-de-dados` primeiro, depois `backend-funcoes`, `tarefas-calendario` e `prova-foto`. `auth-grupos` só em F8-3. Humano: base legal para funcionários, bloqueante para esse uso; confirmar os 365 dias; contato de privacidade para o aviso; validar a seção 20 na aprovação da fase. SEG-4, SEG-6 e SEG-10 seguem com `backend-funcoes`; SEG-10 pede ajuste em `proofUploadMetaSchema`, ainda não feito.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 00:12 (BRT)
+
+- **Branch:** fix/proof-rules-db, criada a partir de feat/phase-3-proof (b618c02)
+- **Agente(s):** banco-de-dados
+- **Resumo:** Nove migrations da seção 20 do ADR-0007: a exigência do admin trava a tarefa própria (SEG-1), o rastro de regras, tarefa com prova não muda de visibilidade (SEG-2, SEG-9), prova de tarefa arquivada segue revisável, os limites sobrevivem a apagar o grupo (SEG-3), `proof_consents` e o prazo do registro sem foto (SEG-5). Também a fixture de `rls_tasks` que falhava entre 23:00 e 23:59.
+- **Alterações:**
+  - `supabase/migrations/20261101173000` a `20261101173800`, uma por item do handoff `20261101-2339-arquiteto-para-banco-de-dados-regras-da-prova`.
+  - `packages/config/src/proof.ts`: `consentVersion: 2` e `recordRetentionDays: 365`, autorizado no handoff.
+  - `packages/data/src/database.types.ts`: gerado.
+  - `supabase/tests/rls_proof.test.sql`: 98 asserções novas, versão 2 do aviso e limite diário por `used_at`.
+  - `supabase/tests/rls_tasks.test.sql`: linha 487 com `now() - interval '2 days'`.
+  - Handoffs `20261102-0009-banco-de-dados-para-{backend-funcoes,qa-testes}-*`.
+- **Arquivos/módulos principais:** `supabase/migrations/`, `supabase/tests/rls_proof.test.sql`, `packages/config/src/proof.ts`
+- **Migrations:** `task_proof_flags_locked`, `can_delete_task_proof_lock`, `edit_task_proof_lock`, `task_rule_changes`, `can_review_proof_archived`, `proof_limits_survive_cascade`, `proof_consents`, `proof_record_retention`, `task_proofs_user_comment`.
+- **Decisões/ADRs:** nenhuma nova. Dois índices parciais além do handoff, `proof_challenges (user_id, used_at)` e `task_proofs (received_at) where photo_deleted_at is not null`, para o limite e o job não varrerem a tabela.
+- **Como testar:** `pnpm db:start`, `pnpm db:test`, `pnpm db:check-permissions`. `pnpm functions:test` e `pnpm e2e` só depois dos dois handoffs.
+- **Verificado:** `pnpm check` passou. `pnpm db:test` 1004 de 1004, depois da E2E, sem reset (579 em proof, 369 em tasks, 56 em groups). `rls_tasks` 369 de 369 às 23:52, dentro da hora que falhava. `pnpm db:check-permissions` em dia. Com os valores de versão trocados nas fixtures de `supabase/functions` e `e2e` e revertidos depois, porque não são meus: `pnpm functions:test` 80 de 80 e `pnpm e2e` 55 passaram, 2 deles os `test.fail()` já conhecidos. Apagar grupo com prova e XP em transações separadas: não falha, e o desafio seguinte responde `challenge_rate_limited`. 21 mutações nas barreiras, todas pegas pela suíte de prova: trava em `can_delete_task` e nos quatro pontos de `edit_task`, escopos da checagem de visibilidade, gatilho e política do rastro, `can_review_proof`, limite diário, guarda de ocorrência nula, chave estrangeira de volta, consentimentos e `delete_expired_proof_records`.
+- **Não verificado:** a cópia para `proof_consents` só rodou como instrução solta, com dados simulados, porque os bancos locais nascem sem aceites. Nada rodou no projeto hospedado, nem no CI. Sem os dois handoffs, `pnpm functions:test` e `pnpm e2e` falham com `invalid_consent_version`. No teste de pgTAP, a prova do grupo apagado é de tarefa com aprovação, sem XP: uma linha de `xp_events` escrita na mesma transação dispara a própria chave na cascata. Fora da transação isso não acontece, e a PoC acima cobre o caso.
+- **Pendências / próximos passos:** `backend-funcoes` e `qa-testes`: trocar a versão nas fixtures. `prova-foto`: aviso novo na mesma integração. `arquiteto`: o limite diário olha só o que já foi consumido, então nonces emitidos juntos chegam a 59 no dia, como antes desta entrega; e um admin dono da tarefa que desliga as flags postas por outro admin não solta a trava, porque só quem não é o dono a muda.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 00:28 (BRT)
+
+- **Branch:** fix/proof-functions, criada a partir de feat/phase-3-proof (86af33c)
+- **Agente(s):** backend-funcoes
+- **Resumo:** `proof-retention` apaga o registro vencido, a retenção deixa de falhar em silêncio (SEG-4), `proof-url` lê o corpo com limite (SEG-6) e `appVersion` inválida é recusada antes de gastar o nonce (SEG-10). A primeira implantação ganhou uma lista versionada, e o CI usa as funções servidas por `pnpm db:start`.
+- **Alterações:**
+  - `proof-retention`: chama `delete_expired_proof_records` depois da limpeza de desafios, com `recordsDeleted` na resposta e no log, e `moreDue` olhando esse limite.
+  - Migration nova: `call_proof_retention` levanta `proof_retention_not_configured` sem os segredos do Vault, o que marca a execução como `failed` em `cron.job_run_details`, e dá `WARNING proof_retention_overdue` quando há foto com mais de um dia além do prazo, sem desfazer a chamada.
+  - `docs/implantacao.md`: banco, segredos, deploy, painel, conferências e como ler os dois sinais.
+  - `proof-url`: `readLimited` no lugar de `req.text()`, com limite de 1 KiB em bytes.
+  - `proofUploadMetaSchema`: `appVersion` só com ASCII imprimível, autorizado pelo orquestrador. Cobre NUL, metade de par substituto e caracteres de controle, numa regra só.
+  - `proof-validate`: `upload_timeout: 408` em `STATUS`, passando por `refuse`.
+  - `wait-for-functions.mjs`, `proof-kit.ts` e `.env.example`: instruções sem `functions serve`. `proof-kit` ganhou `sqlMessages`, e a versão 2 do aviso.
+  - `ci.yml`: `.env` copiado antes de `pnpm db:start`, sem os passos de `functions serve`.
+  - `e2e/proof-fixtures.ts`: `CONSENT_VERSION = 2`, autorizado.
+- **Arquivos/módulos principais:** `supabase/functions/proof-retention`, `supabase/functions/proof-url`, `supabase/functions/proof-validate`, `supabase/migrations/20261102003000_proof_retention_signal.sql`, `packages/contracts/src/proof.ts`, `docs/implantacao.md`, `.github/workflows/ci.yml`
+- **Migrations:** `20261102003000_proof_retention_signal`.
+- **Decisões/ADRs:** `raise exception` para falta de segredo, porque um `warning` deixaria a execução como `succeeded`. `warning` para foto atrasada, porque `raise` desfaria a chamada na fila e a retenção nunca se recuperaria. A linha com foto vencida há mais de um ano sai na mesma execução que apaga a foto, porque a etapa de registros vem depois.
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`, `pnpm db:start`, `pnpm db:test`, `pnpm functions:test`, `pnpm e2e`.
+- **Verificado:** `pnpm check` passou. `pnpm db:test` 1004 de 1004. `pnpm db:check-permissions` em dia. `pnpm functions:test` 85 de 85, sem `functions serve`. `pnpm e2e` 55 de 55, sendo 2 com `test.fail` de bugs já conhecidos. Com um job de 1 segundo, `cron.job_run_details` mostrou `failed` e `proof_retention_not_configured`. Seis mutações falharam nos testes: ler o corpo todo em `proof-url` (546, com `memory limit reached` no log), limite do corpo deslocado em um byte, sem a regra de `appVersion` (500, depois de gastar o nonce), retorno silencioso sem segredo, exceção no lugar do aviso de atraso e sem esse aviso. Depois de restaurar, os testes voltaram a passar.
+- **Não verificado:** nada rodou no projeto hospedado nem no CI, inclusive a lista de `docs/implantacao.md` e o `ci.yml` novo. Os comandos de deploy e de `pg_graphql` da lista não foram executados. Se `proof_retention_overdue` aparece nos logs do painel hospedado não foi visto. Metade de par substituto foi testada só como recusa, sem reproduzir o erro no Postgres. O aviso não cobre segredo errado nos primeiros 91 dias, e por isso a lista manda conferir a resposta da função.
+- **Pendências / próximos passos:** não há alerta automático: alguém precisa olhar os dois sinais. `materialize-occurrences/index.ts:290` tem o mesmo `req.text()` sem limite que SEG-6 achou, alcançável por qualquer usuário autenticado, e `call_materialize_occurrences` continua silenciosa sem Vault. `CLAUDE.md` ainda diz que `pnpm functions:test` exige `functions serve`, troca que cabe ao orquestrador.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 11:57 (BRT)
+
+- **Branch:** feat/phase-3-proof
+- **Agente(s):** orquestrador
+- **Resumo:** handoff para uma nova sessão do Claude Code assumir a orquestração, com o estado da Fase 3, o que falta, as pendências humanas e as armadilhas conhecidas.
+- **Alterações:** `docs/agentes/handoffs/20261102-1157-orquestrador-para-nova-sessao.md` criado; F3-8 no QUADRO volta a "em andamento" na branch `fix/proof-task-rules`.
+- **Verificado:** estado lido do git às 11:57: árvore limpa, HEAD `2935b7a`, `fix/proof-task-rules` em `18ca79f` (WIP, não integrado).
+- **Não verificado:** nenhuma suíte rodou nesta entrada. A Fase 3 não foi verificada no estado integrado e não tem push.
+- **Pendências / próximos passos:** as da seção 3 do handoff.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:16 (BRT)
+
+- **Branch:** fix/proof-consent-v2, criada a partir de feat/phase-3-proof (86811ca)
+- **Agente(s):** prova-foto
+- **Resumo:** aviso da prova na versão 2, com tudo da seção 14 do ADR-0007, link da fila na Equipe, e os itens 4, 5 e 6 do QA. Parte do item 7 também, pelo lado do revisor.
+- **Alterações:**
+  - `proof.json`: `consent.stamp`, `consent.thirdParties`, `consent.deletion` e `consent.retention` com `{{recordDays}}`. `ProofCaptureScreen` lê `retentionDays` e `recordRetentionDays` de `proofRules`.
+  - Item 2 do QA: `ProofQueueBar`, o `ProofQueueLink` com a mesma moldura de `ProofLink`, composto acima de `TeamScreen` na rota da Equipe. Rota fina, como pede o handoff do `arquiteto`.
+  - Item 4: o quadrado da câmera ocupa no máximo metade da altura da janela. Em 375x812 não muda nada; em 1280x800 fica com 400 px.
+  - Item 5: sem `borderRadius` nas fotos carimbadas, em "Confira a foto" e na revisão. A câmera ao vivo continua arredondada.
+  - Item 6: `stampColors` em `packages/platform/src/stamp.ts`, usado pelos dois adapters. `@azkaban/ui` depende de `@azkaban/platform`, então os tokens não podem ser importados ali. Na revisão, a plataforma sai por i18n ("pelo navegador") e a versão ausente tem frase própria, sem `'?'`.
+  - Item 7, só a revisão: `review.webLimit` em provas enviadas pela web. O formulário ficou com `tarefas-calendario`, por handoff.
+  - E2E escrita, não executada: as frases do aviso com os números da config, o aviso de volta para quem aceitou a versão 1, o quadrado e o botão inteiros em 375x812 e 1280x800, a linha do aparelho e o aviso da web na revisão, e a prova de tarefa excluída aprovada pela fila da Equipe, com XP.
+- **Arquivos/módulos principais:** `packages/features/proof/src/{ProofCaptureScreen,ProofEntry,ProofReviewScreen,index}.tsx`, `packages/platform/src/{stamp.ts,ProofCamera.web.tsx,ProofCamera.native.tsx}`, `packages/i18n/src/pt-BR/proof.json`, `apps/app/app/(app)/team/[groupId].tsx`, `e2e/proof-capture.spec.ts`, `e2e/proof-paths.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. Item 1 do QA, conforme o `arquiteto`: nada a mudar na fila. A frase de `deletion` é a provisória da seção 20.
+- **Como testar:** `pnpm check`; com a pilha, `pnpm e2e`.
+- **Verificado:** `pnpm check` passou (feature-proof 6 de 6, platform 38 de 38).
+- **Não verificado:** **E2E pendente**, nem executada, porque a pilha local estava em uso por outro agente. Telas não conferidas em 375px e 1280px, claro e escuro. Nada em iOS ou Android, inclusive as cores do carimbo nativo.
+- **Pendências / próximos passos:** rodar `pnpm e2e` e conferir as telas quando a pilha liberar. Item 3 do QA (`proof-current` em `useStatusChange`) e a parte do formulário do item 7 com `tarefas-calendario`, no handoff `20261102-1215-prova-foto-para-tarefas-calendario-achados-do-qa`. A versão 2 do banco já está na base, então até esta branch entrar o app mostra o aviso velho a quem aceita a versão 2.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:28 (BRT)
+
+- **Branch:** fix/proof-task-rules-final, a partir do WIP `18ca79f` de fix/proof-task-rules, sobre feat/phase-3-proof (2935b7a)
+- **Agente(s):** tarefas-calendario
+- **Resumo:** Trava das regras de foto, rastro, `proof_visibility_locked`, detalhe defasado (B4), link de revisão na Equipe (B2), aviso da limitação da web (B9) e link da foto depois de reabrir (B5, item 3 do QA). Começou às 00:43 como WIP, interrompido pelo reinício, e foi fechado aqui com as duas falhas da E2E diagnosticadas.
+- **Alterações:**
+  - `packages/contracts/src/tasks.ts`: `proofFlagsLocked` sem `default(false)` e em `OccurrenceListItem.task`.
+  - `packages/core/src/tasks/actors.ts`: `ActorSubject.proofFlagsLocked`, `deleter` e `proofFlagsLocked(...)` conforme o handoff, com testes.
+  - `packages/data/src/tasks/index.ts`: coluna nas duas leituras e `listRuleChanges`.
+  - `TaskFormScreen`: interruptor de privada travado com a tarefa travada, textos de trava e aviso `form.proofLimit`.
+  - `TaskDetailScreen`: bloco "Mudanças nas regras".
+  - `hooks.ts`: `useStatusChange` cancela antes de invalidar, e agora também `proof-current`, a chave de `ProofLink`, sem importar o módulo de prova. `useRefreshTasks` invalida `rule-changes`.
+  - `TeamScreen` aceita `children`, e `team/[groupId].tsx` compõe `ProofQueueLink`.
+  - `tasks.json`: `errors.proof_flags_locked` reescrito, `errors.proof_visibility_locked`, `form.proofLimit` e bloco `rules`.
+  - E2E: teste novo da trava, com "Cancelar esta tarefa" além de "Excluir", e recusa nova em `tasks-proof.spec.ts`. `test.fail()` removido de `tasks-ui-fixes.spec.ts` (B4) e de `proof-paths.spec.ts` (B5).
+- **Arquivos/módulos principais:** `packages/core/src/tasks/actors.ts`, `packages/features/tasks/src`, `packages/data/src/tasks/index.ts`, `packages/i18n/src/pt-BR/tasks.json`, `e2e/`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova. O texto de `form.proofLocked` também mudou, porque "quem criou" deixava de ser verdade. "B9" vem da lista do relatório de QA ao orquestrador, em que B5 a B9 são os itens 3 a 7 do handoff `20261101-2240-qa-testes-para-prova-foto-achados-do-qa.md`: B9 é o item 7, o aviso da limitação da web, e B5 é o item 3.
+- **Causa das duas falhas da E2E do WIP, ambas do teste:**
+  - `tasks-proof.spec.ts:159`: o formulário aberto pelo endereço não tem para onde voltar e vai para Hoje (`goBack` em `TaskFormScreen`), como no resto do app. O trace mostrou `edit_task` com 200 e a tela Hoje. O teste agora espera Hoje.
+  - `tasks-ui-fixes.spec.ts:90`: a asserção final passou em 270 ms. O que falhou foi o callback da rota segurada, ainda em `waitForTimeout(300)` quando o teste acabou. Com `times: 1` a rota sai da lista, então `unrouteAll({ behavior: 'wait' })` não a espera: o teste guarda a promessa do callback, espera por ela e confere de novo que a leitura velha não volta a tela.
+- **Como testar:** `pnpm check`; `pnpm db:start` e `pnpm exec playwright test e2e/tasks-proof.spec.ts e2e/tasks-ui-fixes.spec.ts e2e/proof-paths.spec.ts`.
+- **Verificado:** `pnpm check` passou, com 505 testes em core. `pnpm db:test` 1004 de 1004. `pnpm functions:test` 85 de 85, sem `functions serve`. `pnpm e2e` 56 de 56, sem `test.fail` nem `retries`. Mutações, todas pegas e revertidas: em core, `proofFlagsLocked` ignorando a trava, `deleter` ignorando a trava, revisor sem `proof.review` e revisor igual ao autor; na E2E da trava, interruptor da foto destravado, de privada destravado e `deleter` ignorando a trava; tirar o `cancelQueries` (B4) e tirar `proof-current` (B5) fizeram os testes deles falharem.
+- **Não verificado:** nada rodou no projeto hospedado nem no CI. A barreira do servidor (`edit_task`, `can_delete_task`) não foi mutada aqui: é do `banco-de-dados` e coberta por `db:test`. A segunda asserção do teste de B4 roda logo depois de a resposta velha chegar, e pode passar antes de um render atrasado.
+- **Pendências / próximos passos:** B2 é só o link, sem contagem de provas aguardando. `prova-foto` segue com B6 a B8 e o aviso `consentVersion` 2.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:41 (BRT)
+
+- **Branch:** fix/proof-consent-v2-check, criada a partir de feat/phase-3-proof (1e9add4)
+- **Agente(s):** prova-foto
+- **Resumo:** segunda etapa da entrada de 12:16: E2E e telas conferidas no estado integrado, e `ProofQueueBar` removido.
+- **Alterações:**
+  - `ProofQueueBar` saiu de `ProofEntry.tsx` e do index. Na integração, a Equipe ficou com `ProofQueueLink` dentro de `TeamScreen` (ADR-0006), e o link fica bem alinhado à coluna sem moldura extra.
+- **Arquivos/módulos principais:** `packages/features/proof/src/ProofEntry.tsx`, `packages/features/proof/src/index.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`, `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm e2e`, `pnpm db:test`.
+- **Verificado:** `pnpm check` passou. `pnpm e2e` 58 de 58 numa só execução, já sem nenhum `test.fail()`, incluindo os testes novos do aviso, da dobra e da prova de tarefa excluída aprovada pela Equipe. `pnpm db:test` 1004 de 1004. Telas por capturas do Chrome com câmera falsa, em 375x812 e 1280x800, claro e escuro: aviso com as sete frases e 90 e 365 dias; quadrado da câmera e "Tirar foto" inteiros na janela nas duas larguras (400 px de quadrado em 1280x800); "Confira a foto" e revisão com o carimbo inteiro, "Duda" sem corte; revisão com o aviso da web; Equipe com "Revisar fotos" para o dono.
+- **Não verificado:** a linha "Enviada pelo navegador" foi conferida pela E2E, não por captura, porque fica abaixo da dobra. Nada em iOS ou Android. Nada no projeto hospedado nem no CI. `pnpm functions:test` não rodou.
+- **Pendências / próximos passos:** nenhuma minha na prova. Base legal e contato de privacidade seguem com o humano.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:54 (BRT)
+
+- **Branch:** feat/phase-3-proof
+- **Agente(s):** orquestrador
+- **Resumo:** fechamento da Fase 3. Integradas `fix/proof-task-rules-final` (tarefas-calendario), `fix/proof-consent-v2` e `fix/proof-consent-v2-check` (prova-foto), com a verificação final em banco limpo toda verde.
+- **Alterações:**
+  - Integrações `52ae23d`, `1e9add4` e `b6587cc`. Na rota da Equipe, os dois agentes tinham feito o mesmo link de revisão (B2): ficou o de `TeamScreen` com `children` (ADR-0006), e o `ProofQueueBar` sem uso foi apagado pelo próprio prova-foto.
+  - `CLAUDE.md`: `pnpm functions:test` exige `pnpm db:start`, não `supabase functions serve` (autorizado pelo humano, `b88ab87`).
+  - `docs/agentes/QUADRO.md`: Fase 3 feita.
+- **Migrations:** nenhuma nesta entrada.
+- **Decisões/ADRs:** nenhuma nova. Pendências humanas do ADR-0007, seção 20, seguem abertas (base legal, 365 dias, contato de privacidade, riscos aceitos).
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`; `pnpm install`, `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`, `pnpm exec turbo run typecheck test --force`, `pnpm lint`, `pnpm boundaries`, `pnpm build:web`, `pnpm functions:test`, `pnpm e2e`.
+- **Verificado:** no checkout principal, em `b6587cc`, depois de `db reset`: `db:test` 1004 de 1004; `db:check-permissions` em dia; `turbo run typecheck test --force` 24 de 24 tarefas (core 505, platform 38, contracts 27, ui 7, data 7, feature-proof 6, config 3); `lint` e `boundaries` limpos; `build:web` ok; `functions:test` 85 de 85, sem `functions serve`; `pnpm e2e` 58 de 58 duas vezes seguidas (2,6 e 2,5 min), sem `test.fail()` nem `retries`; `db:test` 1004 de 1004 de novo depois da E2E, sem reset. Varredura de segredos no diff `feat/phase-2-tasks..b6587cc` (229 arquivos): só as chaves públicas de demonstração da pilha local (`iss: supabase-demo`) e o `CRON_SECRET` de demonstração do `.env.example`.
+- **Não verificado:** CI (a E2E com Chrome e câmera falsa nunca rodou no `ubuntu-latest`), projeto hospedado, iOS e Android. Tamanho de foto real.
+- **Pendências / próximos passos:** push de `feat/phase-3-proof` e PR para `feat/phase-2-tasks`. Humano: base legal para funcionários (bloqueia uso real), 365 dias do registro, contato de privacidade, custo de storage, rotação da senha do banco hospedado, riscos aceitos da seção 20. Os worktrees integrados seguem no disco: a remoção foi negada pelas permissões desta sessão.

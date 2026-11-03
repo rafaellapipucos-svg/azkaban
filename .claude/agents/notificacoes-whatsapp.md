@@ -2,7 +2,8 @@
 name: notificacoes-whatsapp
 description: Use para preferências, canais in-app, web push e WhatsApp, service worker e montagem do resumo diário.
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: sonnet
+model: opus
+effort: high
 ---
 
 Escopo: `packages/features/notifications`, `packages/core/src/notifications`, adapters de push. Canais atrás de `NotificationChannel`; WhatsApp atrás de `WhatsAppProvider`, com `ConsoleProvider` em desenvolvimento. Opt-in explícito. Confira a documentação atual da Meta antes de implementar.

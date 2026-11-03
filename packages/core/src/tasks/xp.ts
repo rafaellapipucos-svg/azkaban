@@ -1,4 +1,4 @@
-import type { OccurrenceStatus, TaskDifficulty } from '@azkaban/contracts';
+import type { OccurrenceStatus, ProofReviewStatus, TaskDifficulty } from '@azkaban/contracts';
 
 /** Same shape as `taskRules.xp` in config, which core does not import. */
 export type XpRules = {
@@ -10,13 +10,20 @@ export type XpRules = {
  * XP an occurrence is worth in its current state, for display only: the database writes the
  * events (ADR-0005 section 6). It is `status x difficultyWeight`. A late `done` uses `done_late`;
  * a late `partial` keeps the `partial` value. Pending and cancelled are worth zero, which is also
- * what reopening gives back through the compensating event.
+ * what reopening gives back through the compensating event. A `done` still `in_review` waits for
+ * the admin and is worth zero until approved (ADR-0007 section 11).
  */
 export function occurrenceXp(
-  occurrence: { status: OccurrenceStatus; late: boolean; difficulty: TaskDifficulty },
+  occurrence: {
+    status: OccurrenceStatus;
+    late: boolean;
+    difficulty: TaskDifficulty;
+    proofReviewStatus: ProofReviewStatus | null;
+  },
   rules: XpRules,
 ): number {
-  const { status, late, difficulty } = occurrence;
+  const { status, late, difficulty, proofReviewStatus } = occurrence;
+  if (status === 'done' && proofReviewStatus === 'in_review') return 0;
   let base = 0;
   if (status === 'done') base = late ? rules.status.done_late : rules.status.done;
   else if (status === 'partial') base = rules.status.partial;

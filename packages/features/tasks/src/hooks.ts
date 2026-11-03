@@ -8,8 +8,11 @@ import type {
 import {
   availableTransitions,
   canManageGroupTask,
+  canReviewProof,
+  canSendProof,
   deriveActors,
   isLate,
+  isLateWindowOpen,
   localDayRange,
 } from '@azkaban/core';
 import { taskErrorCode, tasksRepository, useCurrentUser } from '@azkaban/data';
@@ -68,13 +71,25 @@ export function useOccurrenceLists({ days, mineOnly }: { days: number; mineOnly:
   };
 }
 
-/** What the current user may do with an occurrence. Only decides which controls to show. */
+/**
+ * What the current user may do with an occurrence. Only decides which controls to show.
+ * `canSendProof`: the photo can be sent now. `canReview`: the user can undo a dispute.
+ * `windowOpen`: the late window has not closed on them.
+ */
 export function useTransitions(item: OccurrenceListItem | undefined) {
   const { user } = useCurrentUser();
   const now = useNow();
   return useMemo(() => {
     if (!item) {
-      return { actors: [], available: [] as Transition[], canEdit: false, canDelete: false };
+      return {
+        actors: [],
+        available: [] as Transition[],
+        canEdit: false,
+        canDelete: false,
+        canSendProof: false,
+        canReview: false,
+        windowOpen: true,
+      };
     }
     const actors = deriveActors(user, {
       groupId: item.task.groupId,
@@ -82,18 +97,31 @@ export function useTransitions(item: OccurrenceListItem | undefined) {
       occurrenceAssigneeId: item.assigneeId,
       taskAssigneeId: item.task.assigneeId,
       visibility: item.task.visibility,
+      proofFlagsLocked: item.task.proofFlagsLocked,
     });
-    const available = availableTransitions({
+    const canReview = canReviewProof(user, {
+      groupId: item.task.groupId,
+      visibility: item.task.visibility,
+      authorId: item.assigneeId,
+    });
+    const request = {
       occurrence: item,
       actors,
       requiresPartialReason: item.task.requiresPartialReason,
+      requiresPhotoProof: item.task.requiresPhotoProof,
+      canReviewProof: canReview,
       lateCompletionWindowHours: taskRules.lateCompletionWindowHours,
       canManageGroup: canManageGroupTask(user, item.task.groupId),
       now,
-    });
+    };
     return {
       actors,
-      available,
+      available: availableTransitions(request),
+      canSendProof: canSendProof(request),
+      canReview,
+      windowOpen:
+        request.canManageGroup ||
+        isLateWindowOpen(item.overdueAt, request.lateCompletionWindowHours, now),
       canEdit: actors.includes('editor'),
       canDelete: actors.includes('deleter'),
     };
@@ -112,6 +140,8 @@ export function withOptimisticStatus(
     status: toStatus,
     late: resolves && isLate(item.overdueAt, now),
     statusReason: toStatus === 'pending' ? null : reason,
+    // Reopening drops the proof and its review (ADR-0007 section 9); any other change keeps them.
+    proofReviewStatus: toStatus === 'pending' ? null : item.proofReviewStatus,
   };
 }
 
@@ -160,12 +190,21 @@ export function useStatusChange() {
       }
       setError(taskErrorCode(failure) ?? 'generic');
     },
+    // Invalidating alone is not enough: a first read still in flight has no data to replace, so the
+    // refetch would join it, get the state from before the save and clear the invalid mark.
+    // `proof-current` is the photo module's key, not imported: reopening a task drops its photo.
     onSettled: (_data, _failure, input) =>
-      Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['occurrences'] }),
-        queryClient.invalidateQueries({ queryKey: ['occurrence', input.occurrenceId] }),
-        queryClient.invalidateQueries({ queryKey: ['history', input.occurrenceId] }),
-      ]),
+      Promise.all(
+        [
+          ['occurrences'],
+          ['occurrence', input.occurrenceId],
+          ['history', input.occurrenceId],
+          ['proof-current', input.occurrenceId],
+        ].map(async (queryKey) => {
+          await queryClient.cancelQueries({ queryKey });
+          await queryClient.invalidateQueries({ queryKey });
+        }),
+      ),
   });
 
   const change = useCallback(
@@ -190,6 +229,7 @@ export function useRefreshTasks() {
         queryClient.invalidateQueries({ queryKey: ['occurrences'] }),
         queryClient.invalidateQueries({ queryKey: ['occurrence'] }),
         queryClient.invalidateQueries({ queryKey: ['history'] }),
+        queryClient.invalidateQueries({ queryKey: ['rule-changes'] }),
         // The calendar asks for far-off occurrences once per range: a new repeating task must
         // make it ask again.
         queryClient.invalidateQueries({ queryKey: ['materialize'] }),

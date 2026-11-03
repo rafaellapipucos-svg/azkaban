@@ -20,8 +20,22 @@ export type TaskPriority = z.infer<typeof taskPrioritySchema>;
 export const taskEditScopeSchema = z.enum(['this', 'this_and_following', 'all']);
 export type TaskEditScope = z.infer<typeof taskEditScopeSchema>;
 
-// Derived per request from the task and the matrix, never stored. See ADR-0005.
-export const occurrenceActorSchema = z.enum(['assignee', 'editor', 'deleter', 'system']);
+/**
+ * `unreviewed`: accepted, and an admin can still look. `in_review`: waiting for an admin, shown as
+ * "em análise", light green, with the XP held back. See ADR-0007.
+ */
+export const proofReviewStatusSchema = z.enum(['unreviewed', 'in_review', 'approved', 'disputed']);
+export type ProofReviewStatus = z.infer<typeof proofReviewStatusSchema>;
+
+// Derived per request from the task and the matrix, never stored. See ADR-0005. `reviewer` acts only
+// through the `review_proof` RPC, never through `set_occurrence_status` (ADR-0007).
+export const occurrenceActorSchema = z.enum([
+  'assignee',
+  'editor',
+  'deleter',
+  'system',
+  'reviewer',
+]);
 export type OccurrenceActor = z.infer<typeof occurrenceActorSchema>;
 
 // Instants in UTC. An all_day task keeps local midnight of its day, in `timezone`, in startAt.
@@ -37,7 +51,7 @@ const taskDefinition = {
   timezone: timezoneSchema,
   /** Minutes before the task, with 0 meaning at the time. */
   reminders: z.array(z.int().min(0).max(43200)).max(5),
-  // Stored from Phase 2 and enforced from Phase 3.
+  // Enforced by the server from Phase 3 (ADR-0007).
   requiresPhotoProof: z.boolean(),
   requiresAdminApproval: z.boolean(),
   requiresPartialReason: z.boolean(),
@@ -72,13 +86,35 @@ function checkSchedule(
   if (scheduleType !== 'timed' && durationMin !== null) issue('durationMin', 'timed_only');
 }
 
+type Approval = {
+  requiresAdminApproval: boolean;
+  requiresPhotoProof: boolean;
+  visibility: TaskVisibility;
+};
+
+/** Approval needs a photo to look at and someone to see it: a private task has only its owner. */
+function checkApproval(
+  { requiresAdminApproval, requiresPhotoProof, visibility }: Approval,
+  ctx: z.RefinementCtx,
+) {
+  if (requiresAdminApproval && (!requiresPhotoProof || visibility !== 'group')) {
+    ctx.addIssue({
+      code: 'custom',
+      path: ['requiresAdminApproval'],
+      message: 'needs_group_photo_proof',
+    });
+  }
+}
+
 const taskInputObject = z.object({
   ...taskDefinition,
   recurrence: recurrenceInputSchema.nullable(),
 });
 
 /** No field has a default here: forms start from `taskDefaults` in @azkaban/config. */
-export const taskInputSchema = taskInputObject.superRefine(checkSchedule);
+export const taskInputSchema = taskInputObject
+  .superRefine(checkSchedule)
+  .superRefine(checkApproval);
 export type TaskInput = z.infer<typeof taskInputSchema>;
 
 /** One task per assignee, always visible to the group: a private task belongs to its creator. */
@@ -88,7 +124,8 @@ export const taskBatchInputSchema = taskInputObject
     assigneeIds: z.array(idSchema).min(1).max(100),
     visibility: z.literal('group'),
   })
-  .superRefine(checkSchedule);
+  .superRefine(checkSchedule)
+  .superRefine(checkApproval);
 export type TaskBatchInput = z.infer<typeof taskBatchInputSchema>;
 
 export const taskSchema = z
@@ -104,9 +141,33 @@ export const taskSchema = z
     parentTaskId: idSchema.nullable(),
     archivedAt: instantSchema.nullable(),
     createdAt: instantSchema,
+    /** Set by a manager on someone's own task: its photo rules are no longer the owner's. ADR-0007, section 20. */
+    proofFlagsLocked: z.boolean(),
   })
-  .superRefine(checkSchedule);
+  .superRefine(checkSchedule)
+  .superRefine(checkApproval);
 export type Task = z.infer<typeof taskSchema>;
+
+export const taskRuleFieldSchema = z.enum([
+  'requires_photo_proof',
+  'requires_admin_approval',
+  'visibility',
+]);
+export type TaskRuleField = z.infer<typeof taskRuleFieldSchema>;
+
+/** One row per changed rule, written by a trigger. Whoever sees the task reads it. ADR-0007, section 20. */
+export const taskRuleChangeSchema = z.object({
+  id: idSchema,
+  taskId: idSchema,
+  field: taskRuleFieldSchema,
+  /** `true`/`false`, or `group`/`private` for `visibility`. */
+  fromValue: z.string(),
+  toValue: z.string(),
+  /** Null for a job, or after the account is deleted. */
+  changedBy: idSchema.nullable(),
+  changedAt: instantSchema,
+});
+export type TaskRuleChange = z.infer<typeof taskRuleChangeSchema>;
 
 /** Sends the whole form: the scope decides what it replaces. See ADR-0005. */
 export const taskEditInputSchema = z.object({
@@ -135,6 +196,8 @@ export const occurrenceSchema = z.object({
   statusReason: z.string().nullable(),
   statusChangedAt: instantSchema.nullable(),
   statusChangedBy: idSchema.nullable(),
+  /** Null with no current proof. `in_review` is shown as "em análise" (ADR-0007). */
+  proofReviewStatus: proofReviewStatusSchema.nullable(),
 });
 export type Occurrence = z.infer<typeof occurrenceSchema>;
 
@@ -155,6 +218,9 @@ export type OccurrenceListItem = Occurrence & {
     | 'visibility'
     | 'rrule'
     | 'requiresPartialReason'
+    | 'requiresPhotoProof'
+    | 'requiresAdminApproval'
+    | 'proofFlagsLocked'
   >;
 };
 
@@ -176,6 +242,11 @@ export const statusHistoryEntrySchema = z.object({
   changedBy: idSchema.nullable(),
   changedAt: instantSchema,
   reason: z.string().nullable(),
+  /**
+   * The review at this point. An approval has no status change, so its entry has `fromStatus` equal
+   * to `toStatus`.
+   */
+  proofReviewStatus: proofReviewStatusSchema.nullable(),
 });
 export type StatusHistoryEntry = z.infer<typeof statusHistoryEntrySchema>;
 
@@ -226,6 +297,16 @@ export const taskErrorCodeSchema = z.enum([
   'context_change_not_allowed',
   'context_not_found',
   'context_archived',
+  /** Green on a task with photo proof only comes from `proof-validate` or a review. */
+  'proof_required',
+  /** The photo rules are a manager's: of a task locked by one, or with only `task.edit_assigned`. */
+  'proof_flags_locked',
+  /** A task that has a proof keeps its visibility, so nobody's photo changes audience. */
+  'proof_visibility_locked',
+  /** A dispute stands until someone with `proof.review` undoes it. */
+  'proof_disputed',
+  /** A schedule change would drop an overdue occurrence. See ADR-0005, section 11. */
+  'overdue_occurrence_blocks_edit',
 ]);
 export type TaskErrorCode = z.infer<typeof taskErrorCodeSchema>;
 

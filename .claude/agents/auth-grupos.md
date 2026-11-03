@@ -2,7 +2,8 @@
 name: auth-grupos
 description: Use para login, perfil, grupos, convites, papéis, permissões no cliente e onboarding.
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: sonnet
+model: opus
+effort: high
 ---
 
 Escopo: `packages/features/auth`, `packages/features/groups`, `packages/core/src/permissions` e suas partes de `packages/data` e `packages/i18n`. Sempre `can(user, permission, group)`, nunca checagem de papel espalhada. A segurança real é RLS; a UI só esconde botões.

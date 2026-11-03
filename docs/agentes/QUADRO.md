@@ -12,46 +12,48 @@ Status: a fazer, em andamento, bloqueado, em revisão, feito. Handoffs em [hando
 
 ## Fase 1: Contas e grupos
 
-| ID   | Título                                                                                  | Agente             | Status     | Depende de | Branch                | Handoff |
-| ---- | --------------------------------------------------------------------------------------- | ------------------ | ---------- | ---------- | --------------------- | ------- |
-| F1-1 | Contratos de perfil, grupo, papel e contexto                                            | arquiteto          | em revisão | F0         | feat/phase-1-accounts | —       |
-| F1-2 | Migrations de profiles, groups, members, invites, permissões, areas e contexts, com RLS | banco-de-dados     | em revisão | F1-1       | feat/phase-1-accounts | —       |
-| F1-3 | Testes de RLS de grupos e seeds de áreas e permissões                                   | banco-de-dados     | em revisão | F1-2       | feat/phase-1-accounts | —       |
-| F1-4 | Tema claro e escuro, componentes base, conceito de mascote, /design-system              | design-system      | em revisão | F1-1       | feat/phase-1-accounts | —       |
-| F1-5 | Login por e-mail, senha e link mágico; perfil                                           | auth-grupos        | em revisão | F1-2, F1-4 | feat/phase-1-accounts | —       |
-| F1-6 | Grupos, convites por link, código e QR, papéis, posse                                   | auth-grupos        | em revisão | F1-5       | feat/phase-1-accounts | —       |
-| F1-7 | `can()` em core e teste de espelho com o banco                                          | auth-grupos        | em revisão | F1-2       | feat/phase-1-accounts | —       |
-| F1-8 | Áreas e contextos: abas, sub-abas e cadastro                                            | tarefas-calendario | em revisão | F1-6       | feat/phase-1-accounts | —       |
-| F1-9 | Onboarding com boas-vindas e login                                                      | auth-grupos        | em revisão | F1-5       | feat/phase-1-accounts | —       |
+| ID   | Título                                                                                  | Agente             | Status | Depende de | Branch                | Handoff |
+| ---- | --------------------------------------------------------------------------------------- | ------------------ | ------ | ---------- | --------------------- | ------- |
+| F1-1 | Contratos de perfil, grupo, papel e contexto                                            | arquiteto          | feito  | F0         | feat/phase-1-accounts | —       |
+| F1-2 | Migrations de profiles, groups, members, invites, permissões, areas e contexts, com RLS | banco-de-dados     | feito  | F1-1       | feat/phase-1-accounts | —       |
+| F1-3 | Testes de RLS de grupos e seeds de áreas e permissões                                   | banco-de-dados     | feito  | F1-2       | feat/phase-1-accounts | —       |
+| F1-4 | Tema claro e escuro, componentes base, conceito de mascote, /design-system              | design-system      | feito  | F1-1       | feat/phase-1-accounts | —       |
+| F1-5 | Login por e-mail, senha e link mágico; perfil                                           | auth-grupos        | feito  | F1-2, F1-4 | feat/phase-1-accounts | —       |
+| F1-6 | Grupos, convites por link, código e QR, papéis, posse                                   | auth-grupos        | feito  | F1-5       | feat/phase-1-accounts | —       |
+| F1-7 | `can()` em core e teste de espelho com o banco                                          | auth-grupos        | feito  | F1-2       | feat/phase-1-accounts | —       |
+| F1-8 | Áreas e contextos: abas, sub-abas e cadastro                                            | tarefas-calendario | feito  | F1-6       | feat/phase-1-accounts | —       |
+| F1-9 | Onboarding com boas-vindas e login                                                      | auth-grupos        | feito  | F1-5       | feat/phase-1-accounts | —       |
 
 ## Fase 2: Tarefas e calendário
 
-| ID    | Título                                                                  | Agente             | Status     | Depende de | Branch                 | Handoff                                                             |
-| ----- | ----------------------------------------------------------------------- | ------------------ | ---------- | ---------- | ---------------------- | ------------------------------------------------------------------- |
-| F2-1  | Contratos de tarefa, ocorrência e estado                                | arquiteto          | em revisão | F1         | feat/tasks-contracts   | —                                                                   |
-| F2-2  | Migrations de tasks, occurrences, history e xp_events, com RLS e testes | banco-de-dados     | em revisão | F2-1       | feat/tasks-db          | 20261101-0935-arquiteto-para-banco-de-dados-tarefas.md              |
-| F2-3  | Máquina de estados em core                                              | tarefas-calendario | em revisão | F2-1       | feat/tasks-core        | 20261101-0935-arquiteto-para-tarefas-calendario-tarefas.md          |
-| F2-4  | Recorrência: RRULE, EXDATE e fuso em core                               | tarefas-calendario | em revisão | F2-1       | feat/tasks-core        | 20261101-0935-arquiteto-para-tarefas-calendario-tarefas.md          |
-| F2-5  | Job de materialização de ocorrências                                    | backend-funcoes    | em revisão | F2-2, F2-4 | feat/tasks-materialize | 20261101-1006-banco-de-dados-para-backend-funcoes-materializacao.md |
-| F2-6  | Criar, editar, duplicar, reagendar e excluir tarefa, com criação rápida | tarefas-calendario | em revisão | F2-3       | feat/tasks-screens     | —                                                                   |
-| F2-7  | Editor de recorrência: só esta, esta e próximas, todas                  | tarefas-calendario | em revisão | F2-4, F2-6 | feat/tasks-screens     | —                                                                   |
-| F2-8  | Tela Hoje e abas Trabalho e Doméstico com sub-abas                      | tarefas-calendario | em revisão | F2-6       | feat/tasks-screens     | —                                                                   |
-| F2-9  | Calendário: mês, semana, dia, filtros, dia perfeito                     | tarefas-calendario | em revisão | F2-6       | feat/tasks-calendar    | —                                                                   |
-| F2-10 | Visão Equipe                                                            | tarefas-calendario | em revisão | F2-8       | feat/tasks-calendar    | —                                                                   |
-| F2-11 | ADR de concluído atrasado                                               | arquiteto          | em revisão | F2-1       | feat/tasks-contracts   | —                                                                   |
-| F2-12 | Cálculo de XP para a tela; a gravação é do banco, em F2-2               | tarefas-calendario | em revisão | F2-3       | feat/tasks-screens     | —                                                                   |
+| ID    | Título                                                                  | Agente             | Status | Depende de | Branch                 | Handoff                                                             |
+| ----- | ----------------------------------------------------------------------- | ------------------ | ------ | ---------- | ---------------------- | ------------------------------------------------------------------- |
+| F2-1  | Contratos de tarefa, ocorrência e estado                                | arquiteto          | feito  | F1         | feat/tasks-contracts   | —                                                                   |
+| F2-2  | Migrations de tasks, occurrences, history e xp_events, com RLS e testes | banco-de-dados     | feito  | F2-1       | feat/tasks-db          | 20261101-0935-arquiteto-para-banco-de-dados-tarefas.md              |
+| F2-3  | Máquina de estados em core                                              | tarefas-calendario | feito  | F2-1       | feat/tasks-core        | 20261101-0935-arquiteto-para-tarefas-calendario-tarefas.md          |
+| F2-4  | Recorrência: RRULE, EXDATE e fuso em core                               | tarefas-calendario | feito  | F2-1       | feat/tasks-core        | 20261101-0935-arquiteto-para-tarefas-calendario-tarefas.md          |
+| F2-5  | Job de materialização de ocorrências                                    | backend-funcoes    | feito  | F2-2, F2-4 | feat/tasks-materialize | 20261101-1006-banco-de-dados-para-backend-funcoes-materializacao.md |
+| F2-6  | Criar, editar, duplicar, reagendar e excluir tarefa, com criação rápida | tarefas-calendario | feito  | F2-3       | feat/tasks-screens     | —                                                                   |
+| F2-7  | Editor de recorrência: só esta, esta e próximas, todas                  | tarefas-calendario | feito  | F2-4, F2-6 | feat/tasks-screens     | —                                                                   |
+| F2-8  | Tela Hoje e abas Trabalho e Doméstico com sub-abas                      | tarefas-calendario | feito  | F2-6       | feat/tasks-screens     | —                                                                   |
+| F2-9  | Calendário: mês, semana, dia, filtros, dia perfeito                     | tarefas-calendario | feito  | F2-6       | feat/tasks-calendar    | —                                                                   |
+| F2-10 | Visão Equipe                                                            | tarefas-calendario | feito  | F2-8       | feat/tasks-calendar    | —                                                                   |
+| F2-11 | ADR de concluído atrasado                                               | arquiteto          | feito  | F2-1       | feat/tasks-contracts   | —                                                                   |
+| F2-12 | Cálculo de XP para a tela; a gravação é do banco, em F2-2               | tarefas-calendario | feito  | F2-3       | feat/tasks-screens     | —                                                                   |
 
 ## Fase 3: Prova por foto
 
-| ID   | Título                                                                                                                     | Agente          | Status  | Depende de | Branch | Handoff |
-| ---- | -------------------------------------------------------------------------------------------------------------------------- | --------------- | ------- | ---------- | ------ | ------- |
-| F3-1 | ADR de prova por foto e limitações                                                                                         | arquiteto       | a fazer | F2         | —      | —       |
-| F3-2 | Migrations de proof_challenges e task_proofs, bucket privado imutável, trigger que bloqueia verde sem prova, testes de RLS | banco-de-dados  | a fazer | F3-1       | —      | —       |
-| F3-3 | Edge Function `proof-validate` e emissão de desafio                                                                        | backend-funcoes | a fazer | F3-2       | —      | —       |
-| F3-4 | Adapter de câmera web e nativo, geolocalização opcional                                                                    | prova-foto      | a fazer | F3-1       | —      | —       |
-| F3-5 | Fluxo de captura, marca d'água, hash, compressão e upload                                                                  | prova-foto      | a fazer | F3-3, F3-4 | —      | —       |
-| F3-6 | Revisão do admin e sub-estado em análise                                                                                   | prova-foto      | a fazer | F3-5       | —      | —       |
-| F3-7 | Retenção das fotos                                                                                                         | backend-funcoes | a fazer | F3-2       | —      | —       |
+| ID   | Título                                                                                                                     | Agente             | Status | Depende de | Branch                     | Handoff                                                                        |
+| ---- | -------------------------------------------------------------------------------------------------------------------------- | ------------------ | ------ | ---------- | -------------------------- | ------------------------------------------------------------------------------ |
+| F3-1 | ADR de prova por foto e limitações                                                                                         | arquiteto          | feito  | F2         | feat/proof-contracts       | —                                                                              |
+| F3-2 | Migrations de proof_challenges e task_proofs, bucket privado imutável, trigger que bloqueia verde sem prova, testes de RLS | banco-de-dados     | feito  | F3-1       | feat/proof-db              | 20261101-1708-arquiteto-para-banco-de-dados-prova-por-foto.md                  |
+| F3-3 | Edge Functions `proof-validate` e `proof-url`; o desafio vem da RPC de F3-2                                                | backend-funcoes    | feito  | F3-2       | feat/proof-functions       | 20261101-1803-banco-de-dados-para-backend-funcoes-prova-por-foto.md            |
+| F3-4 | Adapter de câmera web e nativo, geolocalização opcional                                                                    | prova-foto         | feito  | F3-1       | feat/proof-camera          | 20261101-1708-arquiteto-para-prova-foto-prova-por-foto.md                      |
+| F3-5 | Fluxo de captura, marca d'água, hash, compressão e upload                                                                  | prova-foto         | feito  | F3-3, F3-4 | feat/proof-capture         | 20261101-1959-tarefas-calendario-para-prova-foto-ponto-de-entrada-da-camera.md |
+| F3-6 | Revisão do admin e sub-estado em análise                                                                                   | prova-foto         | feito  | F3-5       | feat/proof-capture         | —                                                                              |
+| F3-7 | Retenção das fotos                                                                                                         | backend-funcoes    | feito  | F3-2       | feat/proof-functions       | 20261101-1803-banco-de-dados-para-backend-funcoes-prova-por-foto.md            |
+| F3-8 | Dados e telas: prova e atraso nas listas, tarefas e calendário                                                             | tarefas-calendario | feito  | F3-2       | fix/proof-task-rules-final | 20261101-1708-arquiteto-para-tarefas-calendario-prova-e-atraso.md              |
+| F3-9 | Selo "em análise" nos componentes                                                                                          | design-system      | feito  | F3-1       | feat/proof-ui              | 20261101-1708-arquiteto-para-design-system-em-analise.md                       |
 
 ## Fase 4: Notificações
 
@@ -105,7 +107,7 @@ Status: a fazer, em andamento, bloqueado, em revisão, feito. Handoffs em [hando
 | F8-1 | Revisão de acessibilidade e reduzir movimento                        | qa-testes             | a fazer | F7                 | —      | —       |
 | F8-2 | E2E: login, tarefa, foto e resumo com mock                           | qa-testes             | a fazer | F5                 | —      | —       |
 | F8-3 | LGPD: exportar dados, excluir conta, transparência para funcionários | auth-grupos           | a fazer | F5                 | —      | —       |
-| F8-4 | Rate limiting em OTP, desafios e convites                            | backend-funcoes       | a fazer | F5                 | —      | —       |
+| F8-4 | Rate limiting em OTP e convites; desafios ficam em F3-2              | backend-funcoes       | a fazer | F5                 | —      | —       |
 | F8-5 | Fila offline simples                                                 | tarefas-calendario    | a fazer | F2                 | —      | —       |
 | F8-6 | Performance e animações                                              | design-system         | a fazer | F7                 | —      | —       |
 | F8-7 | EAS, ícones, splash, deep links e push nativo                        | notificacoes-whatsapp | a fazer | F7                 | —      | —       |

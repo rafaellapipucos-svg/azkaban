@@ -46,7 +46,13 @@ export function daySummaryLabel(
   if (!info || info.summary.total === 0) return t('day.summary.none', { date: label });
   const parts = calendarStatuses
     .filter((status) => info.summary[status] > 0)
-    .map((status) => t(`day.count.${status}`, { count: info.summary[status] }));
+    .flatMap((status) => [
+      t(`day.count.${status}`, { count: info.summary[status] }),
+      // In review counts as done: say how many of the done ones still wait for an admin.
+      ...(status === 'done' && info.summary.reviewing > 0
+        ? [t('day.count.reviewing', { count: info.summary.reviewing })]
+        : []),
+    ]);
   if (info.perfect) parts.push(t('day.summary.perfect'));
   return t('day.summary.some', {
     date: label,

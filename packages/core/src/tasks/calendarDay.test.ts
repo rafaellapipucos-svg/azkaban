@@ -29,6 +29,7 @@ const item = (
   statusReason: null,
   statusChangedAt: null,
   statusChangedBy: null,
+  proofReviewStatus: null,
   areaId: 'area-a',
   task: {
     title: id,
@@ -43,6 +44,9 @@ const item = (
     visibility: 'private',
     rrule: null,
     requiresPartialReason: true,
+    requiresPhotoProof: false,
+    requiresAdminApproval: false,
+    proofFlagsLocked: false,
     ...task,
   },
   ...overrides,
@@ -132,7 +136,14 @@ describe('buildDays', () => {
       item('mid2', { status: 'pending' }),
     ]);
     expect(info?.items.map(({ id }) => id)).toEqual(['early', 'mid', 'mid2', 'late']);
-    expect(info?.summary).toEqual({ total: 4, pending: 1, done: 1, partial: 1, missed: 1 });
+    expect(info?.summary).toEqual({
+      total: 4,
+      reviewing: 0,
+      pending: 1,
+      done: 1,
+      partial: 1,
+      missed: 1,
+    });
   });
 
   it('counts a repeated id once', () => {
@@ -149,6 +160,33 @@ describe('buildDays', () => {
     );
     expect(days.get('2026-11-03')?.items.map(({ id }) => id)).toEqual(['before']);
     expect(days.get('2026-11-04')?.items.map(({ id }) => id)).toEqual(['after']);
+  });
+});
+
+describe('a done that waits for an admin (ADR-0007)', () => {
+  const waiting = (id: string) => item(id, { status: 'done', proofReviewStatus: 'in_review' });
+
+  it('counts as done, and says how many of the done ones are still in review', () => {
+    const summary = day([waiting('a'), item('b', { status: 'done' }), item('c')])?.summary;
+    expect(summary).toMatchObject({ total: 3, done: 2, pending: 1, reviewing: 1 });
+  });
+
+  it('keeps the day perfect: it is green for the day, only the XP waits', () => {
+    expect(day([waiting('a'), item('b', { status: 'done' })])?.perfect).toBe(true);
+  });
+
+  it('counts only a done: a disputed or approved one is not in review', () => {
+    const summary = day([
+      item('a', { status: 'partial', proofReviewStatus: 'disputed' }),
+      item('b', { status: 'done', proofReviewStatus: 'approved' }),
+      item('c', { status: 'done', proofReviewStatus: 'unreviewed' }),
+    ])?.summary;
+    expect(summary?.reviewing).toBe(0);
+  });
+
+  it('filters by done with the ones in review', () => {
+    const filtered = day([waiting('a'), item('b')], { ...noFilter, status: 'done' });
+    expect(filtered?.items.map(({ id }) => id)).toEqual(['a']);
   });
 });
 

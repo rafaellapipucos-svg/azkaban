@@ -6,6 +6,7 @@ import calendar from './pt-BR/calendar.json';
 import common from './pt-BR/common.json';
 import contexts from './pt-BR/contexts.json';
 import groups from './pt-BR/groups.json';
+import proof from './pt-BR/proof.json';
 import tasks from './pt-BR/tasks.json';
 import ui from './pt-BR/ui.json';
 
@@ -15,7 +16,9 @@ export function initI18n() {
     fallbackLng: defaults.locale,
     defaultNS: 'common',
     fallbackNS: 'common',
-    resources: { [defaults.locale]: { common, auth, calendar, groups, contexts, tasks, ui } },
+    resources: {
+      [defaults.locale]: { common, auth, calendar, groups, contexts, tasks, proof, ui },
+    },
     interpolation: { escapeValue: false },
   });
 }

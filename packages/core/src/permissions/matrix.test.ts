@@ -5,13 +5,14 @@ import { rolePermissions } from './matrix';
 
 const roles: GroupRole[] = ['owner', 'admin', 'member'];
 
-// ADR-0005 section 3.
+// ADR-0005 section 3 and ADR-0007 section 10.
 const taskKeys: { key: Permission; owner: boolean; admin: boolean; member: boolean }[] = [
   { key: 'task.create_for_others', owner: true, admin: true, member: false },
   { key: 'task.view_group', owner: true, admin: true, member: false },
   { key: 'task.manage_group', owner: true, admin: true, member: false },
   { key: 'task.edit_assigned', owner: true, admin: true, member: false },
   { key: 'task.delete_assigned', owner: true, admin: true, member: false },
+  { key: 'proof.review', owner: true, admin: true, member: false },
 ];
 
 const cases = taskKeys.flatMap(({ key, ...allowed }) =>

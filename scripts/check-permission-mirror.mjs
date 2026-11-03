@@ -67,6 +67,27 @@ if (!rules || canonical(JSON.parse(rules)) !== canonical(taskRules)) {
   console.log('Task rules in sync.');
 }
 
+// Proof rules (ADR-0007): the row in app_settings, and the limits of the task-proofs bucket, which are the
+// second barrier after the function. A bucket that took a larger file or another type would undo them.
+const { proofRules } = await load('packages/config/src/proof.ts');
+const [proofRow] = query("select value::text from public.app_settings where key = 'proof_rules'");
+if (!proofRow || canonical(JSON.parse(proofRow)) !== canonical(proofRules)) {
+  console.error('Proof rules out of sync.', { database: proofRow, code: canonical(proofRules) });
+  failed = true;
+} else {
+  console.log('Proof rules in sync.');
+}
+const [bucket] = query(
+  "select public::text || '|' || file_size_limit::text || '|' || array_to_string(allowed_mime_types, ',') from storage.buckets where id = 'task-proofs'",
+);
+const expectedBucket = `false|${proofRules.maxBytes}|${proofRules.contentType}`;
+if (bucket !== expectedBucket) {
+  console.error('Bucket task-proofs out of sync.', { database: bucket, code: expectedBucket });
+  failed = true;
+} else {
+  console.log('Bucket task-proofs in sync (private, size and type from proofRules).');
+}
+
 // Time zones: the database takes a name only if Intl reads it too, or taskSchema.parse would fail on a
 // task the database accepted ('Factory' is in the tz database and not in Intl).
 const zones = query('select name from pg_timezone_names where public.is_valid_timezone(name)');

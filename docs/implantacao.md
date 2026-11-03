@@ -1,0 +1,97 @@
+# Implantação
+
+O que a primeira implantação exige, na ordem. Nada disso foi executado no projeto hospedado: esta lista junta o que estava só em ADRs, handoffs e no LOG. Ao concluir um item, registre no LOG o que foi conferido e o resultado.
+
+`<ref>` é o identificador do projeto. Segredos nunca entram no repositório.
+
+## 1. Banco
+
+```bash
+pnpm exec supabase link --project-ref <ref>
+pnpm exec supabase db push
+```
+
+## 2. Segredos
+
+Gere um valor aleatório para o segredo do cron. O mesmo valor vai nos dois lugares abaixo.
+
+```bash
+pnpm exec supabase secrets set CRON_SECRET=<valor>
+```
+
+No SQL Editor do projeto, crie os três segredos do Vault:
+
+| Nome no Vault         | Valor                                                            | Quem lê                                                 |
+| --------------------- | ---------------------------------------------------------------- | ------------------------------------------------------- |
+| `cron_secret`         | o mesmo `<valor>` de `CRON_SECRET`                               | `call_materialize_occurrences` e `call_proof_retention` |
+| `materialize_url`     | `https://<ref>.supabase.co/functions/v1/materialize-occurrences` | `call_materialize_occurrences`                          |
+| `proof_retention_url` | `https://<ref>.supabase.co/functions/v1/proof-retention`         | `call_proof_retention`                                  |
+
+```sql
+select vault.create_secret('<valor>', '<nome>');
+```
+
+`SUPABASE_URL`, `SUPABASE_ANON_KEY` e `SUPABASE_SERVICE_ROLE_KEY` vêm da própria Supabase. Confirme que `SUPABASE_ANON_KEY` existe no projeto: `proof-url` e `materialize-occurrences` dependem dela.
+
+## 3. Funções
+
+Pelo CLI, com o Docker ligado, sem `--use-api`. O pacote de `materialize-occurrences` tem 15 MB, e o limite é de 20 MB pelo CLI, contra 5 MB no empacotamento pelo servidor (Dashboard, Management API e `--use-api`).
+
+```bash
+pnpm exec supabase functions deploy materialize-occurrences proof-validate proof-url proof-retention --project-ref <ref>
+```
+
+`verify_jwt` vem de `supabase/config.toml`: ligado em `proof-validate` e `proof-url`, desligado nas duas de cron, que usam `x-cron-secret`.
+
+## 4. Painel
+
+- **Auth:** confirmação de email ligada. O `config.toml` local a mantém desligada, e isso não vale para produção.
+- **Auth:** senha mínima 8.
+- **Auth:** URLs de redirecionamento sem curinga. As do `config.toml` usam `/**` só para desenvolvimento.
+- **API, Exposed schemas:** só `public` e `graphql_public`. `net`, `cron` e `vault` nunca entram (ADR-0005, seção 12).
+- **`pg_graphql`:** o app não usa GraphQL. Confira que `/graphql/v1` não mostra nada além do que a RLS já mostra pelo REST, e desligue a extensão se não houver motivo para mantê-la.
+
+## 5. Conferências depois do deploy
+
+**Cron.** Depois da primeira hora cheia:
+
+```sql
+select j.jobname, d.status, d.return_message, d.start_time
+from cron.job_run_details d join cron.job j using (jobid)
+order by d.start_time desc limit 20;
+
+select id, status_code, created from net._http_response order by created desc limit 20;
+```
+
+Esperado: `succeeded` e `status_code` 200. A tabela de respostas guarda poucas horas, então confira logo depois de uma execução.
+
+**Corpo de 2 MiB.** O limite hospedado de corpo não está documentado (ADR-0007, seção 3). Envie uma prova de 2 MiB pelo app ou direto à função. Se não passar, a saída é o upload assinado, com o mesmo `proofUploadMetaSchema`.
+
+**`WORKER_LIMIT`.** Nos logs das funções, procure `WORKER_LIMIT` ou 546 nas primeiras chamadas de `proof-validate`. O custo de CPU da partida a frio não foi medido fora da máquina local.
+
+**Coordenadas nos logs.** Confira se os logs de requisição do projeto guardam o cabeçalho `x-proof-meta`, que leva as coordenadas. Na pilha local, não guardam.
+
+## 6. Quando a retenção para
+
+O aviso de consentimento promete apagar a foto em 90 dias, então a retenção não pode falhar em silêncio. Há dois sinais:
+
+| Sinal                            | Onde aparece                                                 | O que significa                                                                                                              |
+| -------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `proof_retention_not_configured` | `cron.job_run_details`, `status = 'failed'`, de hora em hora | Falta `proof_retention_url` ou `cron_secret` no Vault. Nada é chamado                                                        |
+| `proof_retention_overdue`        | Log do Postgres, como `WARNING`                              | Há foto com mais de um dia além do prazo: segredo errado, função fora do ar, ou a função falhando. A chamada continua saindo |
+
+Enquanto não houver alerta automático, a conferência é manual. Enquanto a primeira prova não fizer 91 dias, o segundo sinal não dispara, por isso a seção 5 confere a resposta da função. Para contar as fotos atrasadas:
+
+```sql
+select count(*) from public.task_proofs
+where photo_deleted_at is null
+  and received_at < now() - make_interval(days => (public.proof_rules() ->> 'retentionDays')::int + 1);
+```
+
+No ambiente local, sem esses segredos, o job `proof-retention` fica `failed`. É esperado.
+
+`call_materialize_occurrences` continua sem sinal: sem segredos no Vault, não faz nada e o cron registra sucesso. A consulta a `net._http_response` da seção 5 é o que mostra que ela chamou a função.
+
+## Fora desta lista
+
+A prova não vai para funcionários reais sem a decisão de base legal e sem F8-3 (ADR-0007, seção 20).

@@ -6,7 +6,8 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@azkaban/config": "workspace:*",
@@ -15,5 +16,8 @@
     "@supabase/supabase-js": "catalog:",
     "@tanstack/react-query": "^5.105.0",
     "react": "catalog:"
+  },
+  "devDependencies": {
+    "vitest": "catalog:"
   }
 }

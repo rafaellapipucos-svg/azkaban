@@ -1,6 +1,6 @@
 import { gamificationDefaults } from '@azkaban/config';
 import type { UserStats } from '@azkaban/contracts';
-import { celebrationsFor, levelForXp, type Celebration } from '@azkaban/core';
+import { celebrationsFor, levelForXp, mergeCelebrations, type Celebration } from '@azkaban/core';
 import { useCurrentUser } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import { playTone, vibrate } from '@azkaban/platform';
@@ -75,7 +75,13 @@ export function CelebrationHost() {
       await rememberCelebratedLevel(userId, result.celebratedLevel);
       void queryClient.invalidateQueries({ queryKey: gamificationKey });
       if (alive && result.celebrations.length > 0) {
-        setShown({ id: Date.now(), list: result.celebrations });
+        const list = result.celebrations;
+        const now = Date.now();
+        setShown((open) =>
+          open && now - open.id < gamificationUi.joinMs
+            ? { ...open, list: mergeCelebrations(open.list, list) }
+            : { id: now, list },
+        );
         if (feedback.current.sound) playTone(gamificationUi.tone);
         if (feedback.current.haptics) vibrate(gamificationUi.hapticPattern);
       }
@@ -146,9 +152,11 @@ export function CelebrationHost() {
     );
   return (
     <View
-      // Centered, clear of the header controls above and of the toaster and tab bar below.
+      // Centered, clear of the header controls above and of the toaster and tab bar below. The prop,
+      // not the style: react-native-web drops `pointerEvents` from inline styles, and this wrapper
+      // covers the screen, so it would take every tap while the card is up (QA6C-1).
+      pointerEvents="box-none"
       style={{
-        pointerEvents: 'box-none',
         position: 'absolute',
         top: 0,
         right: 0,

@@ -382,4 +382,20 @@ test('the live notice covers neither "Voltar", the bell, "Nova tarefa" nor the t
   // Gone after toastMs, the region empties and stays: the same node from the start
   await expect(toast).toBeEmpty();
   expect(await toast.evaluate((element, first) => element === first, region)).toBe(true);
+
+  // QA4-5: on the bell's own list the notice does not repeat the new first line
+  await page.goto('/notifications');
+  const quiet = await oneOff({
+    contextId: me.contextId,
+    createdBy: me.id,
+    assigneeId: me.id,
+    startAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+    reminders: [10],
+    visibility: 'private',
+  });
+  expect((await admin.rpc('enqueue_due_reminders')).error).toBeNull();
+  await expect(
+    page.locator('[role="main"]:visible').getByText(quiet.title, { exact: true }),
+  ).toBeVisible();
+  await expect(toast).toBeEmpty();
 });

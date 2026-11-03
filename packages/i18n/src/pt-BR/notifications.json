@@ -151,10 +151,12 @@
         "accept": "Ativar o WhatsApp"
       }
     },
+    "intro": "Opcional. O resumo do dia chega pelo WhatsApp, no horário que você escolher.",
     "phone": {
       "title": "Seu número de WhatsApp",
       "label": "Número com DDD",
-      "country": "País",
+      "country": "Código do país",
+      "countryInvalid": "Use só números, como 55.",
       "invalid": "Confira o número, com DDD.",
       "send": "Enviar código"
     },
@@ -162,12 +164,22 @@
       "title": "Código de verificação",
       "label": "Código de {{count}} dígitos",
       "hint": "Enviamos um código pelo WhatsApp para {{phone}}.",
+      "invalid": "Digite os {{count}} dígitos do código.",
       "confirm": "Confirmar",
-      "resendIn_one": "Pedir outro código em {{count}} segundo",
-      "resendIn_other": "Pedir outro código em {{count}} segundos",
-      "resend": "Pedir outro código"
+      "resend": "Pedir outro código",
+      "change": "Trocar o número"
+    },
+    "retryIn": "Você pode pedir outro código em {{wait}}.",
+    "wait": {
+      "seconds_one": "{{count}} segundo",
+      "seconds_other": "{{count}} segundos",
+      "minutes_one": "{{count}} minuto",
+      "minutes_other": "{{count}} minutos",
+      "hours_one": "{{count}} hora",
+      "hours_other": "{{count}} horas"
     },
     "errors": {
+      "generic": "Não deu para concluir. Tente de novo.",
       "phone_rate_limited": "Muitos códigos pedidos. Tente de novo mais tarde.",
       "phone_code_invalid": "Código errado. Confira e tente de novo.",
       "phone_code_expired": "Esse código não vale mais. Peça outro.",
@@ -179,7 +191,8 @@
       "on": "Ativo para {{phone}}.",
       "off": "Desligado.",
       "turnOff": "Parar de receber pelo WhatsApp",
-      "remove": "Remover o número"
+      "remove": "Remover o número",
+      "removeConfirm": "Confirmar: apaga o número e desliga o WhatsApp"
     },
     "dailySummary": {
       "title": "Resumo diário",
@@ -187,7 +200,11 @@
       "time": "Horário",
       "includeOverdue": "Incluir as atrasadas",
       "deadlineDays": "Prazos dos próximos dias",
-      "skipEmpty": "Não enviar em dia sem nada marcado"
+      "skipEmpty": "Não enviar em dia sem nada marcado",
+      "days_one": "{{count}} dia",
+      "days_other": "{{count}} dias",
+      "save": "Salvar resumo",
+      "saved": "Resumo salvo."
     }
   }
 }

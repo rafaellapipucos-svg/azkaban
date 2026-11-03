@@ -27,6 +27,7 @@ import { View } from 'react-native';
 import { forgetThisDevice, thisDeviceId } from './device';
 import { useWhenText } from './hooks';
 import { PushSetupCard, thisDeviceQueryKey } from './PushSetupCard';
+import { WhatsAppSection } from './WhatsAppSection';
 
 const preferencesKey = ['notification-preferences'];
 const quietHoursKey = ['quiet-hours'];
@@ -35,7 +36,10 @@ const devicesKey = ['push-devices'];
 const quietHoursFormSchema = quietHoursSchema.unwrap();
 type QuietHoursForm = { start: string; end: string };
 
-/** `/settings/notifications`: which types ring on each channel, the quiet hours and the devices. */
+/**
+ * `/settings/notifications`: which types ring on the device, the quiet hours, the devices and
+ * WhatsApp. WhatsApp shows without a VAPID key too: it does not depend on push.
+ */
 export function NotificationPreferencesScreen({ vapidPublicKey }: { vapidPublicKey?: string }) {
   const { t } = useTranslation('notifications');
   return (
@@ -51,20 +55,18 @@ export function NotificationPreferencesScreen({ vapidPublicKey }: { vapidPublicK
       ) : null}
       <QuietHoursSection />
       {vapidPublicKey ? <DevicesSection /> : null}
+      <WhatsAppSection />
     </Screen>
   );
 }
 
-const whatsappTypes: readonly NotificationType[] = notificationRules.whatsappTypes;
-
 /**
- * WhatsApp offers only the types with an approved template. The push offers all but the daily
- * summary, which goes only by WhatsApp in this phase (ADR-0009, section 5).
+ * The push offers every type but the daily summary, which goes only by WhatsApp in this phase
+ * (ADR-0009, section 5). WhatsApp has no switches here: its only type, the summary, is turned on and
+ * off in `WhatsAppSection`, by `daily_summary_enabled`, so one choice does not live in two places.
  */
-const typesOf = (channel: DeliveryChannel) =>
-  notificationTypeSchema.options.filter((type) =>
-    channel === 'whatsapp' ? whatsappTypes.includes(type) : type !== 'daily_summary',
-  );
+// ponytail: only `web_push`. A second WhatsApp type in `whatsappTypes` brings the switches back.
+const pushTypes = notificationTypeSchema.options.filter((type) => type !== 'daily_summary');
 
 function ChannelSwitches() {
   const { t } = useTranslation('notifications');
@@ -85,24 +87,21 @@ function ChannelSwitches() {
   };
 
   if (rows.isError) return <ErrorText>{t('preferences.load')}</ErrorText>;
+  const channel = 'web_push';
   return (
-    <>
-      {notificationRules.activeChannels.map((channel) => (
-        <View key={channel}>
-          <Subtitle>{t(`channels.${channel}`)}</Subtitle>
-          {typesOf(channel).map((type) => (
-            <SwitchRow
-              key={type}
-              label={t(`types.${type}`)}
-              value={enabled(type, channel)}
-              disabled={!rows.isSuccess}
-              onValueChange={(value) => save.mutate({ type, channel, enabled: value })}
-            />
-          ))}
-        </View>
+    <View>
+      <Subtitle>{t(`channels.${channel}`)}</Subtitle>
+      {pushTypes.map((type) => (
+        <SwitchRow
+          key={type}
+          label={t(`types.${type}`)}
+          value={enabled(type, channel)}
+          disabled={!rows.isSuccess}
+          onValueChange={(value) => save.mutate({ type, channel, enabled: value })}
+        />
       ))}
       {save.isError ? <ErrorText>{t('preferences.saveFailed')}</ErrorText> : null}
-    </>
+    </View>
   );
 }
 

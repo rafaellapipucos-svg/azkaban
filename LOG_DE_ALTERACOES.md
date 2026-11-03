@@ -1601,3 +1601,27 @@
 - **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9 tarefas; `functions:imports` 8 de 8). Contratos: 92 testes, com 3 novos (lote com um elemento inválido, dois controles bidirecionais). Config: o teste novo de `local-demo-` com `meta`, e a aceitação com `console`.
 - **Não verificado:** nada com a pilha. `pnpm db:check-permissions` vai acusar `whatsapp_rules` até a migration. O `whatsapp-webhook` ainda lê os elementos sem validá-los, até o `backend-funcoes` seguir o handoff. Até o `notificacoes-whatsapp` mudar `cleanParam`, um título com RLO faz o resumo falhar com `send_error`.
 - **Pendências / próximos passos:** os três handoffs. Para o humano: SEG5-5 (países e teto), a URL do SEG5-6 e o texto do aviso.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:15 (BRT)
+
+- **Branch:** fix/whatsapp-db-security, criada a partir de feat/phase-5-whatsapp (5ed013c), com o merge de feat/phase-5-whatsapp (d66b135)
+- **Agente(s):** banco-de-dados
+- **Resumo:** SEG5-1 e SEG5-4 do handoff `20261103-0158-revisor-seguranca-para-banco-de-dados-whatsapp` (opção do nono dígito, confirmada no ADR-0009, seção 18) e SEG5-5 do handoff `20261103-0206-arquiteto-para-banco-de-dados-seguranca-whatsapp`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - SEG5-1: `whatsapp_stop_by_wa_id` casa o `wa_id` só com o telefone atual do perfil pronto: os mesmos dígitos ou a variante do nono dígito do Brasil (`55` + DDD + 8 ↔ `55` + DDD + `9` + 8), com os dois lados dobrados para 8 dígitos. Outros países, só igualdade. Saiu a busca pelo histórico de `recipient_wa_id`, e o índice `whatsapp_messages_wa_id_idx`, que só ela lia. Contas com o mesmo número continuam parando juntas.
+  - SEG5-4: `phone_verifications.user_id` anulável, `on delete set null`. Excluir a conta não zera mais o limite por número; as linhas somem pela retenção de 48 h.
+  - SEG5-5: espelho `whatsapp_rules.verification` com `maxSendsPerDay = 200` e `allowedCountryCodes = ["55"]`. `start_phone_verification` devolve `phone_country_not_allowed` para outro país, sem gravar linha, e `phone_rate_limited` no teto global, contando as linhas sem `user_id`. Um só lock consultivo para toda verificação substitui o lock por número, para duas chamadas não passarem juntas pelo teto.
+  - `rls_whatsapp.test.sql`: 15 testes novos (132 para 147). O teste antigo do nono dígito passa sem a linha em `whatsapp_messages`.
+  - `packages/data/src/database.types.ts` regenerado (`phone_verifications.user_id: string | null`).
+- **Arquivos/módulos principais:** `supabase/migrations/`, `supabase/tests/rls_whatsapp.test.sql`, `packages/data/src/database.types.ts`
+- **Migrations:** 20261103150000_whatsapp_stop_current_phone, 20261103150100_phone_verifications_survive_account, 20261103150200_phone_verification_country_and_cap. Aplicadas só na pilha B local.
+- **Decisões/ADRs:** nenhuma nova; segue o ADR-0009, seção 18. A variante do nono dígito vale para qualquer número de 9 dígitos que comece com 9, como pedido, inclusive um fixo de 8 dígitos com um 9 na frente.
+- **Como testar:** `bash docs/agentes/ferramentas/pilha-b.sh db`, `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`, `bash docs/agentes/ferramentas/pilha-b.sh parar`.
+- **Verificado:**
+  - `pnpm db:test`: 1374 de 1374, em 5 arquivos (`rls_whatsapp` 147 de 147).
+  - `pnpm db:check-permissions` na pilha B (`Container: supabase_db_azkaban-b`): tudo em dia, com `WhatsApp rules in sync`.
+  - `pnpm check`: 17 de 17 e 9 de 9, depois do merge.
+  - Mutações, desfeitas: a busca pelo histórico de volta derruba 4 testes; o `on delete cascade` de volta, 2; sem o teto global, 1.
+  - Tudo na pilha B só com o Postgres; a pilha A não foi tocada, e a B foi parada no fim com o `config.toml` devolvido.
+- **Não verificado:** `pnpm functions:test` (a B `db` não tem Edge Runtime; o teste do webhook usa `wa_id` igual aos dígitos do telefone) e a E2E. Até o `backend-funcoes` seguir o handoff 0206, a `phone-verification` não conhece `phone_country_not_allowed`.
+- **Pendências / próximos passos:** `backend-funcoes`: 400 para `phone_country_not_allowed`. Comentário de `whatsapp_messages` ainda diz que `recipient_wa_id` serve ao PARAR; fica como registro da entrega (migration integrada, não editada).

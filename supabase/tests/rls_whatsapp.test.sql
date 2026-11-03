@@ -4,7 +4,7 @@
 -- every window inside one day, so the result does not depend on when the suite runs.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(142);
+select plan(147);
 
 create function pg_temp.u(p text) returns uuid language sql as $$
   select ('00000000-0000-0000-0000-' || lpad(p, 12, '0'))::uuid;
@@ -343,6 +343,29 @@ select is(public.start_phone_verification(pg_temp.u('212'), '+5511999990007') ->
   'so another account gets no sixth code for that number within the day');
 select pg_temp.pg();
 delete from auth.users where id = pg_temp.u('212');
+
+-- SEG5-5: only allowed countries, and a cap on every code of every user, deleted accounts included.
+insert into auth.users (id, email, raw_user_meta_data)
+select pg_temp.u(k), k || '@test.local', jsonb_build_object('display_name', 'User ' || k) from unnest(array['213', '214', '215']) k;
+select pg_temp.service();
+select is(public.start_phone_verification(pg_temp.u('213'), '+14155550123'), '{"error": "phone_country_not_allowed"}'::jsonb,
+  'a number outside allowedCountryCodes gets no code');
+select is(public.start_phone_verification(pg_temp.u('213'), '+541123456789') ->> 'error', 'phone_country_not_allowed',
+  'nor one whose country code only starts like an allowed one');
+select pg_temp.pg();
+select is((select count(*) from public.phone_verifications where phone_e164 in ('+14155550123', '+541123456789')), 0::bigint,
+  'nothing is written, so it counts in no limit');
+insert into public.phone_verifications (user_id, phone_e164, code_hash, expires_at, created_at)
+select null, '+55119' || lpad(g::text, 8, '0'), repeat('0', 64), now(), now() - interval '23 hours'
+from generate_series(1, 199 - (select count(*) from public.phone_verifications where created_at > now() - interval '24 hours')) g;
+select pg_temp.service();
+select ok(public.start_phone_verification(pg_temp.u('214'), '+5511999990010') ? 'code', 'the last code under maxSendsPerDay goes');
+select is(public.start_phone_verification(pg_temp.u('215'), '+5511999990011'),
+  '{"error": "phone_rate_limited", "retryAfterSeconds": 3600}'::jsonb,
+  'the next one waits until the oldest of the day leaves it, whoever asks');
+select pg_temp.pg();
+delete from public.phone_verifications where user_id is null and created_at = now() - interval '23 hours';
+delete from auth.users where id in (select pg_temp.u(k) from unnest(array['213', '214', '215']) k);
 
 -- ===== Opt-in and opt-out =====
 select pg_temp.login(pg_temp.u('e'));

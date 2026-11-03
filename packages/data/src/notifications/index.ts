@@ -35,6 +35,8 @@ type BellChange = { type: 'insert' | 'update'; id: string };
  */
 export type BellItem = NotificationItem & {
   requiresPhoto: boolean;
+  /** The task's group, whose members name who acted. Null for a personal task or one no longer seen. */
+  groupId: string | null;
   overdueAt: string | null;
   occurrenceStatus: OccurrenceStatus | null;
 };
@@ -49,7 +51,7 @@ export function notificationErrorCode(error: unknown): NotificationErrorCode | n
 
 // The title comes through RLS: an occurrence or task the user no longer sees embeds as null.
 const bellColumns =
-  'id, type, occurrence_id, data, created_at, read_at, task_occurrences(overdue_at, status, tasks(title, requires_photo_proof))';
+  'id, type, occurrence_id, data, created_at, read_at, task_occurrences(overdue_at, status, tasks(title, requires_photo_proof, group_id))';
 // `push_subscriptions` has grants by column: `select *` fails, and the endpoint never leaves.
 const deviceColumns = 'id, user_agent, created_at, last_success_at';
 
@@ -63,7 +65,7 @@ type BellRow = {
   task_occurrences: {
     overdue_at: string;
     status: OccurrenceStatus;
-    tasks: { title: string; requires_photo_proof: boolean } | null;
+    tasks: { title: string; requires_photo_proof: boolean; group_id: string | null } | null;
   } | null;
 };
 
@@ -84,6 +86,7 @@ function toBellItem(row: BellRow): BellItem | null {
     ? {
         ...parsed.data,
         requiresPhoto: task?.requires_photo_proof ?? false,
+        groupId: task?.group_id ?? null,
         overdueAt: occurrence?.overdue_at ?? null,
         occurrenceStatus: occurrence?.status ?? null,
       }

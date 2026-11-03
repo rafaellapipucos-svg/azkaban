@@ -58,6 +58,10 @@
     "retry": "Tentar de novo"
   },
   "lateUntil": "Ainda dá para concluir até {{when}}.",
+  "actor": {
+    "by": "Quem marcou: {{name}}",
+    "deletedAccount": "Conta excluída"
+  },
   "toast": {
     "dismiss": "Fechar aviso"
   },

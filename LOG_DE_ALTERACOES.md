@@ -3206,3 +3206,22 @@
 - **Verificado:** cada item de "fazer agora" conferido por `grep` no código de `c74cce6` (ex.: sem `setSessionFromLink`, sem `expo-haptics` nem NetInfo nos `package.json`, `InvitesSection` com erro genérico, `enqueue_daily_summaries()` = 4 em `rls_whatsapp`, nenhuma Edge Function devolve 503). `pnpm check` passou.
 - **Não verificado:** a corrida de `accept_invite` com `transfer_group_ownership` (é o BL-13); tamanhos são estimativa. O QUADRO é do orquestrador; editado por pedido dele.
 - **Pendências / próximos passos:** onda 0 (BL-1 a BL-4, arquiteto); respostas do humano para BL-24 a BL-37.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:05 (BRT)
+
+- **Branch:** fix/bell-deleted-account, criada a partir de feat/backlog-after-phase-8 (3e48b9e)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** BL-8. A lista do sino passa a dizer quem marcou um "não feito" ou uma conclusão em tarefa de grupo, e mostra "Conta excluída" quando o id de quem agiu não tem mais nome (ADR-0012, seção 3). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/core/src/notifications/pushPayload.ts`: `actorLabel(source, names, t)`, pura: nulo para o job, para tipo sem ator e com os nomes ainda carregando; o nome; ou `actor.deletedAccount` quando o id falta nos nomes (ou o nome está em branco). Exportada em `packages/core/src/index.ts`.
+  - `packages/data/src/notifications/index.ts`: `BellItem.groupId`, do `tasks.group_id` já embutido pela RLS (nulo em tarefa pessoal ou que a pessoa não vê mais).
+  - `packages/features/notifications/src/hooks.ts`: `useActorText`, uma consulta `groupsRepository.listMembers` por grupo com ator, na mesma chave `['group-members', id]` das telas de tarefa.
+  - `NotificationsScreen.tsx`: linha "Quem marcou: {{name}}" no cartão. O aviso (toaster) não mudou.
+  - `packages/i18n/src/pt-BR/notifications.json`: `actor.by` e `actor.deletedAccount`.
+- **Arquivos/módulos principais:** `packages/core/src/notifications`, `packages/data/src/notifications`, `packages/features/notifications`, `packages/i18n/src/pt-BR/notifications.json`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova. `group_member_profiles` só traz membros atuais: quem saiu do grupo sem excluir a conta também aparece como "Conta excluída" (o banco não distingue os dois casos para o cliente).
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/notifications/pushPayload.test.ts -t actorLabel`.
+- **Verificado:** `pnpm check` passou; os 3 testes de `actorLabel` passaram.
+- **Não verificado:** sem pilha e sem E2E (é o BL-22); a tela não foi aberta no navegador; a consulta com `group_id` no embed não rodou contra o banco.
+- **Pendências / próximos passos:** se "ex-membro" e "conta excluída" precisarem ser distintos, uma RPC do `banco-de-dados` que diga se o perfil existe.

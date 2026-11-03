@@ -9,6 +9,14 @@ export type GroupInput = z.infer<typeof groupInputSchema>;
 
 export type Group = GroupInput & { id: string; ownerId: string; role: GroupRole };
 
+/**
+ * `groups.settings`, written by whoever has `group.update`. Loose, so a write keeps keys it does not
+ * know. `rankingEnabled` absent means the default of the group type in
+ * `gamificationRules.ranking.defaultEnabledByGroupType` (ADR-0010, section 6).
+ */
+export const groupSettingsSchema = z.looseObject({ rankingEnabled: z.boolean().optional() });
+export type GroupSettings = z.infer<typeof groupSettingsSchema>;
+
 export type GroupMember = {
   userId: string;
   displayName: string;

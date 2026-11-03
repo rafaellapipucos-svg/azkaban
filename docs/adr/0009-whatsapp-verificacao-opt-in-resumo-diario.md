@@ -318,7 +318,7 @@ Padrões reversíveis, escolhidos para não travar a fase:
 5. **Resumo às 8h**, editável. Ele não respeita o silêncio.
 6. **O resumo é só das tarefas da própria pessoa.** Uma linha com a equipe para o admin entra se for pedida, e muda o template.
 7. **Sem resumo por push ou e-mail.** Seria a alternativa sem custo para quem não quer o WhatsApp.
-8. **Ofensiva e meta** entram quando a Fase 6 criar `user_stats`. Até lá, um fecho neutro.
+8. **Ofensiva e meta** entram quando a Fase 6 criar `user_stats`. Até lá, um fecho neutro. Definidas no [ADR-0010](0010-gamificacao-xp-ofensiva-conquistas-ranking.md), seção 9.
 9. **Palavras de parada:** parar, pare, stop, sair, cancelar e descadastrar, a mensagem inteira. "Quero parar amanhã" não para.
 10. **O mesmo número pode estar em mais de uma conta**, e o PARAR desliga todas.
 11. **Sem login por telefone** nesta fase.

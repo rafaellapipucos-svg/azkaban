@@ -108,6 +108,18 @@ Regras completas no [ADR-0009](adr/0009-whatsapp-verificacao-opt-in-resumo-diari
 - `whatsapp-webhook` não usa JWT: confere a assinatura dos bytes brutos, grava os status em `whatsapp_messages` e trata PARAR. O resto das mensagens é ignorado sem guardar.
 - `whatsappRules` tem espelho em `app_settings`, chave `whatsapp_rules`. Telefone, código e texto nunca vão a log.
 
+## Gamificação
+
+Regras completas no [ADR-0010](adr/0010-gamificacao-xp-ofensiva-conquistas-ranking.md).
+
+- `xp_events` é a fonte, e só o banco escreve. `user_stats`, `user_day_stats` e `user_achievements` são cache derivado, e `recompute_user_gamification` os refaz. O nível não é guardado: `packages/core` o deriva do total.
+- `occurrence_award_xp` concede o base, o bônus de prova e aplica o teto diário, no dia local do perfil. O dia perfeito é conciliado por dia, e concluir e reabrir em laço soma zero.
+- O trigger de status refaz o dia da ocorrência e a ofensiva dali até hoje. O job `close_gamification_days`, a cada 15 minutos, fecha os dias no fuso do perfil.
+- `packages/core/src/gamification` é o motor puro e a especificação: o banco repete as mesmas contas, com os mesmos casos de teste.
+- Só o dono lê os próprios dados. O ranking, pela RPC `group_ranking`, mostra só nome e XP semanal do grupo, e fica desligado por padrão em grupos `company`.
+- As comemorações vêm do Realtime de `xp_events`, num `CelebrationHost` que a rota monta; `tasks` não conhece `gamification`.
+- `gamificationRules` (`packages/config`) tem espelho em `app_settings`, chave `gamification_rules`. `gamificationDefaults` é só do cliente.
+
 ## Banco
 
 Desenvolvimento em Supabase local (`pnpm db:start`, exige Docker), nas portas 544xx para conviver com outros projetos locais: `apps/app/.env.development.local` aponta o `pnpm dev` para ele. O projeto hospedado recebe migrations por `supabase db push --db-url "$SUPABASE_DB_URL"`, e só após revisão.

@@ -1,6 +1,6 @@
 // Fails when the database differs from its mirrors in code: the permission matrix in packages/core,
-// occurrenceTransitions in packages/contracts, and taskRules, proofRules, notificationRules and whatsappRules in
-// packages/config. Needs `pnpm db:start`.
+// occurrenceTransitions in packages/contracts, and taskRules, proofRules, notificationRules, whatsappRules and
+// gamificationRules in packages/config. Needs `pnpm db:start`.
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -127,6 +127,21 @@ if (!whatsappRow || canonical(JSON.parse(whatsappRow)) !== canonical(whatsappRul
   failed = true;
 } else {
   console.log('WhatsApp rules in sync.');
+}
+
+// Gamification rules (ADR-0010): bonuses, daily cap, goal, streak, ranking defaults, close job.
+const { gamificationRules } = await load('packages/config/src/gamification.ts');
+const [gamificationRow] = query(
+  "select value::text from public.app_settings where key = 'gamification_rules'",
+);
+if (!gamificationRow || canonical(JSON.parse(gamificationRow)) !== canonical(gamificationRules)) {
+  console.error('Gamification rules out of sync.', {
+    database: gamificationRow,
+    code: canonical(gamificationRules),
+  });
+  failed = true;
+} else {
+  console.log('Gamification rules in sync.');
 }
 
 // Time zones: the database takes a name only if Intl reads it too, or taskSchema.parse would fail on a

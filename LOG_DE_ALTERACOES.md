@@ -2080,3 +2080,25 @@
 - **Verificado:** na pilha B, `pnpm db:test` 7 arquivos, 1520 testes, todos passando; `pnpm db:check-permissions` em sincronia (contêiner `supabase_db_azkaban-b`, regras de gamificação incluídas); `pnpm check` passou. PoC 2: `auto_miss_occurrences` com 500 ocorrências de 2000 a 2025 de uma pessoa levou 338 a 444 ms, sem nenhuma linha em `user_day_stats` (teto do teste: 5 s). Mutações, cada uma derrubando o seu teste: janela pelo fuso (1 falha), sem validação de fuso (3), sem piso (4), saldo sem `group_id` (2), ranking sem `ranking_enabled_at` (1), sem `joined_at` (1), e `for update` no lugar de `for no key update` (1, lido por `pgrowlocks`).
 - **Não verificado:** a espera real entre duas sessões do PoC 5 (o teste lê o modo do lock por `pgrowlocks` numa sessão só); o tempo do código antigo no PoC 2 (sem piso, mas já com uma dobra por comando, foram 979 ms); se o `Intl` aceita zonas que `pg_timezone_names` recusa (o inverso o `db:check-permissions` já confere); E2E e Edge Functions; o projeto hospedado.
 - **Pendências / próximos passos:** integrar junto com a troca do repositório do ranking, de `groupRankingInputSchema` e de `capRoom` pelo `gamificacao`; até lá o repositório manda `p_timezone` e o PostgREST não acha a função.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:38 (BRT)
+
+- **Branch:** chore/security-phase-6, com `git merge feat/phase-6-gamification` (f12607f, avanço rápido)
+- **Agente(s):** revisor-seguranca
+- **Resumo:** Segunda passada da revisão de segurança da Fase 6, na pilha B só com Postgres. Os cinco PoCs de banco rodaram contra o código integrado, como cliente hostil (RPC `set_occurrence_status` com JWT de usuário), e SEG6-1 a SEG6-5 fecharam. Nenhum achado novo que peça correção; dois informativos. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - PoC SEG6-1: 10 difíceis (300), troca para `Pacific/Kiritimati`, a 11ª conclui com 0 pontos; `'<X>-13:37'` recusado com `invalid_timezone`. Soma na janela: 300.
+  - PoC SEG6-2: 500 tarefas avulsas de 2000 a 2026; `auto_miss_occurrences()` marcou 500 em 215 ms, nenhuma linha em `user_day_stats`; o dono de um grupo conclui uma de 2001 sem janela e não ganha dia perfeito. Resíduo dentro do piso (perfil de 500 dias, 500 tarefas nos últimos 398 dias): 296 ms, 398 linhas.
+  - PoC SEG6-3: 10 privadas concluídas há 25 h, mudadas para `group`, reabertas e reconcluídas, mais 10 novas no grupo: XP de grupo na janela 300 (com o bug seria 600).
+  - PoC SEG6-4: semana alinhada responde; deslocada de um dia e de três semanas atrás dão `invalid_argument`; a assinatura de três argumentos sumiu; `update` de `ranking_enabled_at` pelo cliente dá `permission denied`; desligar zera a coluna e religar a renova; não membro e grupo inexistente dão o mesmo `forbidden`.
+  - PoC SEG6-5: um perfil que falha vira `warning` e não avança `last_closed_date`, e o outro do lote fecha; o job usa `for no key update of p skip locked`.
+  - Cliente: `subscribe` só assina `INSERT` com `user_id=eq.<id>` nas duas tabelas, e a RLS continua sendo a barreira; `setRankingEnabled` lê, mescla e grava, mas hoje nenhum outro código grava `groups.settings`, então não há chave a perder (o comentário `ponytail` já nomeia o teto); `ranking_enabled_at` fica fora do `grant update (name, settings)`.
+  - SEG6-7, informativo: o bloco de exceção por perfil abre uma subtransação com escrita para cada um dos até 200 perfis do lote; passando de 64 numa transação, ela fica em overflow de subtransações enquanto roda, e os snapshots das outras sessões passam a consultar `pg_subtrans`. Curto e a cada 15 minutos; vigiar, ou baixar `closeJob.batchSize` para 64 se a carga aparecer.
+  - SEG6-8, informativo: quem tem `group.update` pode desligar e religar o ranking para mover `ranking_enabled_at` e, por diferença entre consultas, ler o XP de cada membro entre dois instantes. É o admin, que já vê os status na Equipe (ADR-0010, seção 7); fica registrado.
+- **Arquivos/módulos principais:** `LOG_DE_ALTERACOES.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma
+- **Como testar:** `bash docs/agentes/ferramentas/pilha-b.sh db`, `pnpm exec supabase db reset` e os cenários acima com `psql` no `supabase_db_azkaban-b`, dentro de uma transação desfeita; `supabase/tests/rls_gamification_security.test.sql` cobre os mesmos.
+- **Verificado:** os cinco PoCs e o resíduo acima; `pnpm check`. Pilha B parada no fim.
+- **Não verificado:** a espera real de um `insert` durante o lote do job em duas sessões (conferido pelo código e pela semântica de `for no key update`); `pnpm db:test` inteiro; o Realtime em execução; o projeto hospedado.
+- **Pendências / próximos passos:** nenhuma de segurança na Fase 6.

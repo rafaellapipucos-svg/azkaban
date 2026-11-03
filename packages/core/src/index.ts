@@ -131,3 +131,14 @@ export {
   type SummaryOptions,
 } from './notifications/whatsapp';
 export { deviceLabel } from './notifications/deviceLabel';
+export {
+  catalogSections,
+  exactMatch,
+  formatQuantity,
+  marketSections,
+  projectQuantity,
+  roundQuantity,
+  searchKey,
+  shoppingShareText,
+  type CategorySection,
+} from './shopping/shopping';

@@ -8,6 +8,7 @@ import contexts from './pt-BR/contexts.json';
 import groups from './pt-BR/groups.json';
 import notifications from './pt-BR/notifications.json';
 import proof from './pt-BR/proof.json';
+import shopping from './pt-BR/shopping.json';
 import tasks from './pt-BR/tasks.json';
 import ui from './pt-BR/ui.json';
 
@@ -27,6 +28,7 @@ export function initI18n() {
         tasks,
         proof,
         notifications,
+        shopping,
         ui,
       },
     },

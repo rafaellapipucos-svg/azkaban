@@ -6,7 +6,23 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
-  "dependencies": {}
+  "dependencies": {
+    "@azkaban/config": "workspace:*",
+    "@azkaban/contracts": "workspace:*",
+    "@azkaban/core": "workspace:*",
+    "@azkaban/data": "workspace:*",
+    "@azkaban/i18n": "workspace:*",
+    "@azkaban/platform": "workspace:*",
+    "@azkaban/ui": "workspace:*",
+    "@tanstack/react-query": "^5.105.0",
+    "expo-router": "^58.0.29",
+    "react": "catalog:",
+    "react-native": "catalog:"
+  },
+  "devDependencies": {
+    "vitest": "catalog:"
+  }
 }

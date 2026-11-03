@@ -62,19 +62,18 @@ export function NotificationToaster({ vapidPublicKey }: { vapidPublicKey?: strin
   // The live region stays mounted and empty, and only its content changes: a region inserted with
   // its text already in it is often not read by screen readers.
   return (
+    // The prop, not the style: react-native-web 0.21 drops `pointerEvents` from inline styles.
     <View
-      style={{ pointerEvents: 'box-none', position: 'absolute', bottom, left: 0, right: 0 }}
+      pointerEvents="box-none"
+      style={{ position: 'absolute', bottom, left: 0, right: 0 }}
       className="items-center px-4"
     >
       <View
         role="status"
         aria-live="polite"
         testID="notification-toast"
-        style={{
-          pointerEvents: 'box-none',
-          width: '100%',
-          maxWidth: tokens.layout.maxContentWidth,
-        }}
+        pointerEvents="box-none"
+        style={{ width: '100%', maxWidth: tokens.layout.maxContentWidth }}
       >
         {shown && content ? (
           <View

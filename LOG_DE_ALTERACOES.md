@@ -2471,3 +2471,23 @@
 - **Verificado:** `db reset` limpo; `pnpm db:test` 11 arquivos, 1870 testes, PASS (numa primeira rodada, 1 falha em `rls_notifications` teste 209, "the partial one", que passou sozinho e na rodada seguinte: `pg_temp.last` ordena por `ctid`, que não é monotônico; preexistente, fora destas tabelas); `db:check-permissions` em sincronia no `supabase_db_azkaban-b`; `pnpm db:types`; `pnpm check` passou (17 de 17 e 11 de 11). Mutações aplicadas por `psql` e desfeitas: `grant` de `export_user_data` a `authenticated`, 2 falhas; `begin`/`finish` sem o bloqueio de dono, 7; o gatilho de convites sem a checagem do perfil, 2; o claim sem o recheque do aceite, 3.
 - **Não verificado:** o formato real de `auth.audit_log_entries` gravado pelo GoTrue (o teste usa o do código do GoTrue) e se o `postgres` do projeto hospedado apaga em `auth` (a função devolve `null` se não puder); concorrência real entre `finish` e um `accept_invite` (só pela semântica de `for update` contra `for key share`); E2E e `functions:test`; o projeto hospedado.
 - **Pendências / próximos passos:** `backend-funcoes` escreve `account-export` e `account-delete`; `auth-grupos` usa `revoke_proof_consent`; `consentVersion` 3 (ADR, seção 6) ainda não está na config, e o espelho `proof_rules` muda junto quando entrar; o `ctid` de `rls_notifications`; backlog na faixa `20261104130000`+.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:03 (BRT)
+
+- **Branch:** `fix/bell-realtime-catch-up`, a partir de `feat/phase-8-polish` (`8dc831c`)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** o sino e o aviso ao vivo perdiam o que era gravado entre o `SUBSCRIBED` e o `system` `postgres_changes` `ok` do Realtime (handoff `20261103-0554`). A correção do `gamificacao` (`ef115d8`) virou um ajudante comum, usado pelos três assinantes do Realtime.
+- **Alterações:**
+  - `packages/data/src/realtime.ts` (novo): `subscribeCaughtUp`, um canal que, a cada `ok`, chama um `catchUp` que relê das tabelas; item com chave é entregue uma vez só, venha por onde vier; nada depois do `unsubscribe`. Teste com cliente falso em `realtime.test.ts`.
+  - `notificationsRepository.subscribe`: marca (o `created_at` mais novo do usuário, hora do servidor) na montagem; a releitura entrega como `insert` os avisos nascidos depois dela. Um `update` no intervalo continua perdido.
+  - `gamificationRepository.subscribe`: a mesma lógica de `ef115d8`, agora sobre o ajudante. Ao juntar com `feat/phase-6-gamification`/`fix/achievement-celebration-flake`, fica a versão desta branch.
+  - `shoppingRepository.watchList`: a cada `ok`, um `{ deletedId: null }`, que faz o `useShoppingList` reler (respeitando os passos do stepper em voo).
+  - `NotificationToaster`: `pointerEvents="box-none"` como prop (o react-native-web 0.21 descarta do estilo), do handoff `20261103-0515`.
+  - `e2e/notifications-bell.spec.ts`: novo teste, um aviso gravado logo depois da montagem do sino toca uma vez, com o aviso ao vivo, e não volta depois de fechado.
+- **Arquivos/módulos principais:** `packages/data/src/realtime.ts`, `packages/data/src/{notifications,gamification,shopping}/index.ts`, `packages/features/notifications/src/NotificationToaster.tsx`, `e2e/notifications-bell.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma
+- **Como testar:** `pnpm check`; com a pilha logo depois de um `db reset`, `pnpm exec playwright test e2e/notifications-bell.spec.ts e2e/gamification.spec.ts e2e/shopping.spec.ts --project=app --repeat-each=8 --workers=4`.
+- **Verificado:** `pnpm check` passou (`@azkaban/data` 3 arquivos, 12 testes); `pnpm build:web` passou.
+- **Não verificado:** nenhuma E2E rodou (a pilha A estava ocupada); a causa da falha "a reminder that is due rings the bell once…" não foi confirmada. Hora derivada de UTC menos 3 (o PowerShell foi barrado no worktree).
+- **Pendências / próximos passos:** rodar as E2E acima com o Realtime frio.

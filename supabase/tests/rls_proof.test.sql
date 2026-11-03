@@ -6,6 +6,10 @@ begin;
 create extension if not exists pgtap with schema extensions;
 select plan(579);
 
+-- The XP amounts below are those of Phase 3. The proof bonus of ADR-0010 is tested in
+-- rls_gamification, so it is off here, inside this transaction only.
+update public.app_settings set value = jsonb_set(value, '{xp,proofBonus}', '0') where key = 'gamification_rules';
+
 -- Alice owns Casa A, Bea owns Casa B, Caio is admin of A, Duda is a member of A and B,
 -- Fred is a member of A, Eva is outside.
 insert into auth.users (id, email, raw_user_meta_data) values
@@ -641,7 +645,7 @@ select is(
   (select string_agg(proname, ',' order by proname collate "C") from (
     select distinct p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and has_function_privilege('authenticated', p.oid, 'execute')) s),
-  'accept_invite,add_catalog_item_to_list,adjust_shopping_item_quantity,can_delete_task,can_edit_task,can_manage_shopping_list,can_review_proof,can_view_proof,can_view_shopping_list,can_view_task,complete_shopping_list,confirm_phone_verification,create_shopping_list,delete_task,edit_task,generate_invite_code,get_invite_preview,group_member_profiles,has_permission,is_group_member,is_valid_rrule,is_valid_timezone,issue_proof_challenge,record_proof_consent,register_push_subscription,remove_phone,review_proof,set_member_role,set_occurrence_status,set_shopping_item_checked,team_overview,transfer_group_ownership,whatsapp_opt_in,whatsapp_opt_out',
+  'accept_invite,add_catalog_item_to_list,adjust_shopping_item_quantity,can_delete_task,can_edit_task,can_manage_shopping_list,can_review_proof,can_view_proof,can_view_shopping_list,can_view_task,complete_shopping_list,confirm_phone_verification,create_shopping_list,delete_task,edit_task,generate_invite_code,get_invite_preview,group_member_profiles,group_ranking,has_permission,is_group_member,is_valid_rrule,is_valid_timezone,issue_proof_challenge,record_proof_consent,register_push_subscription,remove_phone,review_proof,set_member_role,set_occurrence_status,set_shopping_item_checked,team_overview,transfer_group_ownership,whatsapp_opt_in,whatsapp_opt_out',
   'the functions open to authenticated are exactly the intended ones');
 
 -- 30. The client does not read or write the challenges

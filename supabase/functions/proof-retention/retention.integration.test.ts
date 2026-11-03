@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { after, before, describe, test } from 'node:test';
 import {
   CRON_SECRET,
+  PAID_WITH_PROOF,
   admin,
   backdateProof,
   challenge,
@@ -21,6 +22,7 @@ import {
   sql,
   sqlMessages,
   upload,
+  xpOf,
   type Group,
   type Person,
 } from '../_shared/proof-kit.ts';
@@ -85,8 +87,6 @@ describe('proof-retention', () => {
   }
   const exists = async (occurrenceId: string, nonce: string) =>
     (await objectsOf(occurrenceId)).includes(`${nonce}.jpg`);
-  const xp = (occurrenceId: string) =>
-    sql(`select count(*) from public.xp_events where occurrence_id = '${occurrenceId}'`)[0];
 
   test('only the cron secret opens it: no header, a wrong one, a user token and an empty one are refused', async () => {
     const refused = { status: 401, body: { error: 'unauthorized' } };
@@ -173,7 +173,7 @@ describe('proof-retention', () => {
 
   test('a proof still in review is approved once, with the XP, when its photo goes', async () => {
     const waiting = await prove({ approval: true });
-    assert.equal(xp(waiting.occurrenceId), '0');
+    assert.equal(xpOf(waiting.occurrenceId), 'none');
     backdateProof(waiting.proofId, '91 days');
 
     assert.deepEqual(await run(), {
@@ -187,10 +187,10 @@ describe('proof-retention', () => {
     assert.equal(proof.review_status, 'approved');
     assert.equal(proof.reviewed_by, null);
     assert.equal(proof.review_note, 'retention_auto_approved');
-    assert.equal(xp(waiting.occurrenceId), '1');
+    assert.equal(xpOf(waiting.occurrenceId), PAID_WITH_PROOF);
 
     assert.deepEqual(await run(), { status: 200, body: nothing });
-    assert.equal(xp(waiting.occurrenceId), '1', 'approved twice');
+    assert.equal(xpOf(waiting.occurrenceId), PAID_WITH_PROOF, 'approved twice');
   });
 
   test('a run that died after removing the object is finished by the next one', async () => {
@@ -210,7 +210,7 @@ describe('proof-retention', () => {
     const [proof] = await proofsOf(half.occurrenceId);
     assert.ok(proof.photo_deleted_at);
     assert.equal(proof.review_status, 'approved');
-    assert.equal(xp(half.occurrenceId), '1');
+    assert.equal(xpOf(half.occurrenceId), PAID_WITH_PROOF);
   });
 
   test('an object that no row points to goes after a day, and one that is younger, or has a row, stays', async () => {
@@ -301,7 +301,7 @@ describe('proof-retention', () => {
     // The ordinary retention came first: the object is gone and the wait for an admin paid its XP.
     assert.equal(await exists(late.occurrenceId, late.nonce), false);
     assert.deepEqual(await proofsOf(late.occurrenceId), []);
-    assert.equal(xp(late.occurrenceId), '1');
+    assert.equal(xpOf(late.occurrenceId), PAID_WITH_PROOF);
 
     assert.deepEqual(await run(), { status: 200, body: nothing });
   });

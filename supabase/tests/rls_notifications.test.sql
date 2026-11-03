@@ -194,8 +194,8 @@ select throws_ok($$select public.call_dispatch_notifications()$$, 'P0001', 'disp
   'without the Vault the dispatch call fails loudly');
 select is(
   (select string_agg(tablename, ',' order by tablename) from pg_publication_tables where pubname = 'supabase_realtime'),
-  'notifications,shopping_list_items,shopping_lists',
-  'Realtime publishes the bell and the shopping lists (ADR-0011), and nothing else');
+  'notifications,shopping_list_items,shopping_lists,user_achievements,xp_events',
+  'Realtime publishes the bell, the shopping lists (ADR-0011), the XP and the achievements (ADR-0010), and nothing else');
 
 -- ===== Privileges =====
 select is((select count(*) from pg_class where oid in ('public.notifications'::regclass,

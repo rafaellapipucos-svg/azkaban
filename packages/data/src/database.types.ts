@@ -23,7 +23,21 @@ export type Database = {
           }
         },"public": {
           Tables: {
-            "app_settings": {
+            "achievements": {
+                  Row: {
+                    "icon": string,"key": string,"kind": string,"sort_order": number,"threshold": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "icon": string,"key": string,"kind": string,"sort_order"?: number,"threshold": number
+                  }
+                  Update: {
+                    "icon"?: string,"key"?: string,"kind"?: string,"sort_order"?: number,"threshold"?: number
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"app_settings": {
                   Row: {
                     "key": string,"value": NonNullable<Json>
                   }
@@ -163,14 +177,14 @@ isOneToOne: false
                   ]
                 },"groups": {
                   Row: {
-                    "created_at": string,"id": string,"name": string,"owner_id": string,"settings": NonNullable<Json>,"type": string
+                    "created_at": string,"id": string,"name": string,"owner_id": string,"ranking_enabled_at": string | null,"settings": NonNullable<Json>,"type": string,"group_ranking_enabled": boolean | null
                   }
-                  ComputedFields: never
+                  ComputedFields: "group_ranking_enabled"
                   Insert: {
-                    "created_at"?: string,"id"?: string,"name": string,"owner_id"?: string,"settings"?: NonNullable<Json>,"type": string
+                    "created_at"?: string,"id"?: string,"name": string,"owner_id"?: string,"ranking_enabled_at"?: string | null,"settings"?: NonNullable<Json>,"type": string
                   }
                   Update: {
-                    "created_at"?: string,"id"?: string,"name"?: string,"owner_id"?: string,"settings"?: NonNullable<Json>,"type"?: string
+                    "created_at"?: string,"id"?: string,"name"?: string,"owner_id"?: string,"ranking_enabled_at"?: string | null,"settings"?: NonNullable<Json>,"type"?: string
                   }
                   Relationships: [
                     {
@@ -701,6 +715,72 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"user_achievements": {
+                  Row: {
+                    "achievement_key": string,"granted_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "achievement_key": string,"granted_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "achievement_key"?: string,"granted_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "user_achievements_achievement_key_fkey"
+      columns: ["achievement_key"]
+isOneToOne: false
+      referencedRelation: "achievements"
+      referencedColumns: ["key"]
+    },{
+      foreignKeyName: "user_achievements_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"user_day_stats": {
+                  Row: {
+                    "done": number,"freeze_used": boolean,"freezes": number,"goal_met": boolean,"local_date": string,"missed": number,"partial": number,"perfect": boolean,"perfect_run": number,"planned": number,"streak": number,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "done"?: number,"freeze_used"?: boolean,"freezes"?: number,"goal_met"?: boolean,"local_date": string,"missed"?: number,"partial"?: number,"perfect"?: boolean,"perfect_run"?: number,"planned"?: number,"streak"?: number,"user_id": string
+                  }
+                  Update: {
+                    "done"?: number,"freeze_used"?: boolean,"freezes"?: number,"goal_met"?: boolean,"local_date"?: string,"missed"?: number,"partial"?: number,"perfect"?: boolean,"perfect_run"?: number,"planned"?: number,"streak"?: number,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "user_day_stats_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"user_stats": {
+                  Row: {
+                    "best_streak": number,"current_streak": number,"last_closed_date": string | null,"perfect_run": number,"streak_freezes": number,"total_xp": number,"updated_at": string,"user_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "best_streak"?: number,"current_streak"?: number,"last_closed_date"?: string | null,"perfect_run"?: number,"streak_freezes"?: number,"total_xp"?: number,"updated_at"?: string,"user_id": string
+                  }
+                  Update: {
+                    "best_streak"?: number,"current_streak"?: number,"last_closed_date"?: string | null,"perfect_run"?: number,"streak_freezes"?: number,"total_xp"?: number,"updated_at"?: string,"user_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "user_stats_user_id_fkey"
+      columns: ["user_id"]
+isOneToOne: true
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"whatsapp_console_messages": {
                   Row: {
                     "created_at": string,"id": string,"message": NonNullable<Json>,"to_e164": string
@@ -743,14 +823,14 @@ isOneToOne: false
                   ]
                 },"xp_events": {
                   Row: {
-                    "amount": number,"created_at": string,"group_id": string | null,"id": string,"occurrence_id": string | null,"reason": string,"user_id": string
+                    "amount": number,"created_at": string,"group_id": string | null,"id": string,"local_date": string | null,"occurrence_id": string | null,"reason": string,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "amount": number,"created_at"?: string,"group_id"?: string | null,"id"?: string,"occurrence_id"?: string | null,"reason": string,"user_id": string
+                    "amount": number,"created_at"?: string,"group_id"?: string | null,"id"?: string,"local_date"?: string | null,"occurrence_id"?: string | null,"reason": string,"user_id": string
                   }
                   Update: {
-                    "amount"?: number,"created_at"?: string,"group_id"?: string | null,"id"?: string,"occurrence_id"?: string | null,"reason"?: string,"user_id"?: string
+                    "amount"?: number,"created_at"?: string,"group_id"?: string | null,"id"?: string,"local_date"?: string | null,"occurrence_id"?: string | null,"reason"?: string,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -873,6 +953,9 @@ isOneToOne: false
 "claim_proof_challenge":
 { Args: { "p_nonce": string,"p_user_id": string }; Returns: Json
                            },
+"close_gamification_days":
+{ Args: Record<PropertyKey, never>; Returns: number
+                           },
 "commit_proof":
 { Args: { "p_accuracy_m": number,"p_app_version": string,"p_captured_at_device": string,"p_distance_m": number,"p_flags": (string)[],"p_height_px": number,"p_nonce": string,"p_platform": string,"p_sha256": string,"p_size_bytes": number,"p_storage_path": string,"p_user_agent": string,"p_user_id": string,"p_width_px": number }; Returns: Json
                            },
@@ -950,6 +1033,12 @@ isOneToOne: false
 "exclude_kept_days":
 { Args: { "p_task_id": string }; Returns: undefined
                            },
+"gamification_history_floor":
+{ Args: { "p_created_at": string,"p_tz": string }; Returns: string
+                           },
+"gamification_rules":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "generate_invite_code":
 { Args: Record<PropertyKey, never>; Returns: string
                            },
@@ -958,10 +1047,21 @@ isOneToOne: false
               "group_name": string,"group_type": string,"role": Database["public"]['Enums']["group_role"]
             }[]
                            },
+"grant_achievements":
+{ Args: { "p_user": string }; Returns: undefined
+                           },
 "group_member_profiles":
 { Args: { "target_group_id": string }; Returns: {
               "display_name": string,"joined_at": string,"role": Database["public"]['Enums']["group_role"],"user_id": string
             }[]
+                           },
+"group_ranking":
+{ Args: { "p_group_id": string,"p_week_start": string }; Returns: {
+              "display_name": string,"rank": number,"user_id": string,"xp": number
+            }[]
+                           },
+"group_ranking_enabled":
+{ Args: { "p_group": Omit<Database["public"]['Tables']["groups"]['Row'], Database["public"]['Tables']["groups"]['ComputedFields']> }; Returns: boolean
                            },
 "has_permission":
 { Args: { "permission": string,"target_group_id": string }; Returns: boolean
@@ -995,6 +1095,9 @@ isOneToOne: false
                            },
 "occurrence_forgives_overdue":
 { Args: { "p_group_id": string,"p_new_assignee": string,"p_old_assignee": string,"p_visibility": Database["public"]['Enums']["task_visibility"] }; Returns: boolean
+                           },
+"occurrence_local_day":
+{ Args: { "p_occ": Omit<Database["public"]['Tables']["task_occurrences"]['Row'], Database["public"]['Tables']["task_occurrences"]['ComputedFields']>,"p_tz": string }; Returns: string
                            },
 "occurrence_window":
 { Args: { "p_due_at": string,"p_duration_min": number,"p_schedule_type": Database["public"]['Enums']["schedule_type"],"p_start_at": string,"p_timezone": string }; Returns: {
@@ -1032,11 +1135,20 @@ isOneToOne: false
 "quiet_hours_end_at":
 { Args: { "p_at": string,"p_end": string,"p_start": string,"p_timezone": string }; Returns: string
                            },
+"recompute_user_gamification":
+{ Args: { "p_user": string }; Returns: undefined
+                           },
 "record_proof_consent":
 { Args: { "p_version": number }; Returns: undefined
                            },
 "record_whatsapp_statuses":
 { Args: { "p_events": Json }; Returns: number
+                           },
+"refold_streak":
+{ Args: { "p_from": string,"p_user": string }; Returns: undefined
+                           },
+"refresh_user_day_counts":
+{ Args: { "p_date": string,"p_user": string }; Returns: undefined
                            },
 "register_push_subscription":
 { Args: { "p_auth": string,"p_endpoint": string,"p_p256dh": string,"p_user_agent": string }; Returns: string
@@ -1137,6 +1249,11 @@ isOneToOne: false
                            },
 "transfer_group_ownership":
 { Args: { "new_owner_id": string,"target_group_id": string }; Returns: undefined
+                           },
+"user_day_counts":
+{ Args: { "p_date": string,"p_tz": string,"p_user": string }; Returns: {
+              "done": number,"missed": number,"partial": number,"planned": number
+            }[]
                            },
 "whatsapp_opt_in":
 { Args: { "p_consent_version": number }; Returns: undefined

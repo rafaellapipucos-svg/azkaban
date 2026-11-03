@@ -576,10 +576,10 @@ $$;
 select is(pg_temp.titles('today'), 'Today,Today later', 'today: pending of the day, by start; not done, archived or someone else''s');
 select is(pg_temp.titles('overdue'), 'Late pending,Red in window', 'overdue: pending past due, and red still inside the late window');
 select is(pg_temp.titles('deadlines'), 'Deadline soon', 'deadlines: within deadline_days');
-select is(pg_temp.src() - 'today' - 'overdue' - 'deadlines',
+select is(pg_temp.src() - 'today' - 'overdue' - 'deadlines' - 'streak',
   jsonb_build_object('localDate', pg_temp.gt('ld'), 'timezone', 'America/Sao_Paulo', 'deadlineDays', 7,
-    'totals', jsonb_build_object('today', 2, 'overdue', 2, 'deadlines', 1), 'streak', null),
-  'with the date, the zone, the window and the totals');
+    'totals', jsonb_build_object('today', 2, 'overdue', 2, 'deadlines', 1)),
+  'with the date, the zone, the window and the totals (the streak is in rls_gamification)');
 select is(pg_temp.src() -> 'deadlines' -> 0,
   (select jsonb_build_object('occurrenceId', o.id, 'title', 'Deadline soon', 'areaI18nKey', 'areas.home', 'contextName', 'Casa A',
     'scheduleType', 'deadline', 'startAt', o.scheduled_start, 'dueAt', o.scheduled_due)
@@ -606,7 +606,10 @@ select pg_temp.q('w1', pg_temp.u('d'), 'daily_summary', jsonb_build_object('loca
 select pg_temp.q('w2', pg_temp.u('d'), 'daily_summary', jsonb_build_object('localDate', pg_temp.gt('ld')), 'w2', now() - interval '121 minutes');
 select pg_temp.ready(pg_temp.u('e'), '+5511999990005');
 select pg_temp.q('w3', pg_temp.u('e'), 'daily_summary', jsonb_build_object('localDate', pg_temp.gt('ld')), 'w3b');
+-- A zone from before profiles_check_timezone (SEG6-1), which the claim still survives.
+alter table public.profiles disable trigger profiles_check_timezone;
 update public.profiles set daily_summary_skip_empty = false, timezone = 'Not/AZone' where id = pg_temp.u('e');
+alter table public.profiles enable trigger profiles_check_timezone;
 select pg_temp.ready(pg_temp.u('f'), '+5511988887777');
 select pg_temp.q('w4', pg_temp.u('f'), 'daily_summary', jsonb_build_object('localDate', pg_temp.gt('ld')), 'w4');
 select pg_temp.q('w5', pg_temp.u('f'), 'daily_summary', jsonb_build_object('localDate', pg_temp.gt('ld')), 'w5');

@@ -4,7 +4,7 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, View } from 'react-na
 import { colors, layout, opacity, spacing } from './tokens';
 
 // Lives only while the sheet is open, which is what useRestoreFocus needs.
-function RestoreFocus() {
+export function RestoreFocus() {
   useRestoreFocus();
   return null;
 }

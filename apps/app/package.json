@@ -15,6 +15,7 @@
     "@azkaban/feature-auth": "workspace:*",
     "@azkaban/feature-calendar": "workspace:*",
     "@azkaban/feature-contexts": "workspace:*",
+    "@azkaban/feature-gamification": "workspace:*",
     "@azkaban/feature-groups": "workspace:*",
     "@azkaban/feature-notifications": "workspace:*",
     "@azkaban/feature-proof": "workspace:*",

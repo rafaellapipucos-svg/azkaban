@@ -20,3 +20,9 @@ export {
   type ShoppingChange,
   type ShoppingRepository,
 } from './shopping';
+export {
+  gamificationRepository,
+  RankingError,
+  type GamificationRow,
+  type XpEventItem,
+} from './gamification';

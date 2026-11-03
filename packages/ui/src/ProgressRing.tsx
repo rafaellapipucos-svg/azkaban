@@ -16,7 +16,7 @@ type Props = {
 };
 
 // Eases the number that drives the arc. Reduced motion jumps straight to the target.
-function useEased(target: number) {
+export function useEased(target: number) {
   const reduced = useReducedMotion();
   const animated = useRef(new Animated.Value(target)).current;
   const [current, setCurrent] = useState(target);

@@ -1,30 +1,43 @@
-import type { OccurrenceStatus } from '@azkaban/contracts';
+import type { CelebrationKind, OccurrenceStatus } from '@azkaban/contracts';
 import { useTranslation } from '@azkaban/i18n';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Text, View } from 'react-native';
+import { AchievementBadge } from './AchievementBadge';
 import { Button, ConfirmButton } from './Button';
+import { CelebrationCard } from './CelebrationCard';
 import { DateField, TimeField } from './DateTimeFields';
 import { Fab } from './Fab';
 import { IconButton } from './IconButton';
 import { Card, Chip, ChipRow, EmptyState, Screen } from './Layout';
 import { Mascot, type MascotMood } from './Mascot';
+import { PerfectDayScreen } from './PerfectDayScreen';
 import { ProgressRing } from './ProgressRing';
 import { SegmentedControl } from './SegmentedControl';
 import { FormTextField } from './FormTextField';
 import { Sheet } from './Sheet';
 import { StatusMark } from './StatusMark';
 import { StatusBadge } from './StatusBadge';
+import { StreakBadge } from './StreakBadge';
 import { Stepper } from './Stepper';
 import { SwitchRow } from './SwitchRow';
 import { TabBar } from './TabBar';
 import { TaskCheck } from './TaskCheck';
 import { Body, ErrorText, Muted, Subtitle, Title } from './Text';
+import { XpBar } from './XpBar';
 import { colors, contextColors, sizes } from './tokens';
 
 const moods: MascotMood[] = ['happy', 'celebrating', 'worried', 'sleeping'];
 const statuses: OccurrenceStatus[] = ['pending', 'done', 'partial', 'missed', 'cancelled'];
 const goal = 5;
+const levelXp = 150;
+const celebrationKinds: CelebrationKind[] = [
+  'occurrence_done',
+  'occurrence_partial',
+  'level_up',
+  'achievement',
+  'streak_milestone',
+];
 type CalendarView = 'month' | 'week' | 'day';
 type LongView = 'mine' | 'member' | 'team';
 const demoTabs = [
@@ -52,6 +65,14 @@ export function DesignSystemScreen() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [tab, setTab] = useState('calendar');
   const [unread, setUnread] = useState(3);
+  const [mascotRound, setMascotRound] = useState(0);
+  const [celebration, setCelebration] = useState<CelebrationKind | null>('occurrence_done');
+  const [celebrationRound, setCelebrationRound] = useState(0);
+  const [perfectDay, setPerfectDay] = useState(false);
+  const showCelebration = (kind: CelebrationKind) => {
+    setCelebration(kind);
+    setCelebrationRound(celebrationRound + 1);
+  };
   const form = useForm({ defaultValues: { date: '', time: '', note: '', sheetNote: '' } });
   const [date, time] = form.watch(['date', 'time']);
   // Shows the invalid look until a time is picked.
@@ -130,6 +151,83 @@ export function DesignSystemScreen() {
             />
           </View>
         </View>
+
+        <Subtitle>{t('designSystem.gamification')}</Subtitle>
+        <Muted>{t('designSystem.motionHint')}</Muted>
+        <XpBar
+          progress={done / goal}
+          label={t('designSystem.xpLevel', { level: 3 })}
+          valueText={t('designSystem.xpValue', { xp: (done * levelXp) / goal, total: levelXp })}
+        />
+        <View className="flex-row flex-wrap items-center gap-2">
+          <StreakBadge days={0} label={t('designSystem.streakLabel', { count: 0 })} />
+          <StreakBadge days={1} label={t('designSystem.streakLabel', { count: 1 })} />
+          <StreakBadge
+            days={12}
+            label={t('designSystem.streakLabel', { count: 12 })}
+            protection={{ count: 2, label: t('designSystem.freezeLabel', { count: 2 }) }}
+            onPress={() => undefined}
+          />
+        </View>
+        <AchievementBadge
+          icon="🌱"
+          title={t('designSystem.achievementFirstTitle')}
+          description={t('designSystem.achievementFirstDescription')}
+          unlocked
+          stateLabel={t('designSystem.achievementUnlocked')}
+        />
+        <AchievementBadge
+          icon="🔥"
+          title={t('designSystem.achievementWeekTitle')}
+          description={t('designSystem.achievementWeekDescription')}
+          unlocked={false}
+          stateLabel={t('designSystem.achievementLocked')}
+        />
+
+        <Subtitle level={3}>{t('designSystem.mascotMotion')}</Subtitle>
+        <View className="flex-row flex-wrap justify-center gap-2">
+          <Mascot key={`c${mascotRound}`} mood="celebrating" size={sizes.mascotSmall} animate />
+          <Mascot key={`w${mascotRound}`} mood="worried" size={sizes.mascotSmall} animate />
+        </View>
+        <Button
+          label={t('designSystem.mascotReplay')}
+          variant="secondary"
+          onPress={() => setMascotRound(mascotRound + 1)}
+        />
+
+        <Subtitle level={3}>{t('designSystem.celebrations')}</Subtitle>
+        <ChipRow label={t('designSystem.celebrationKind')}>
+          {celebrationKinds.map((kind) => (
+            <Chip
+              key={kind}
+              label={t(`designSystem.celebrate.${kind}.chip`)}
+              selected={celebration === kind}
+              onPress={() => showCelebration(kind)}
+            />
+          ))}
+        </ChipRow>
+        {celebration ? (
+          <CelebrationCard
+            key={`${celebration}${celebrationRound}`}
+            kind={celebration}
+            title={t(`designSystem.celebrate.${celebration}.title`)}
+            detail={t(`designSystem.celebrate.${celebration}.detail`)}
+            others={celebration === 'level_up' ? [t('designSystem.celebrationOther')] : undefined}
+            closeLabel={t('designSystem.celebrationClose')}
+            onClose={() => setCelebration(null)}
+          />
+        ) : (
+          <Button
+            label={t('designSystem.celebrationShow')}
+            variant="secondary"
+            onPress={() => showCelebration('occurrence_done')}
+          />
+        )}
+        <Button
+          label={t('designSystem.perfectDayOpen')}
+          variant="secondary"
+          onPress={() => setPerfectDay(true)}
+        />
 
         <Subtitle>{t('designSystem.dateTime')}</Subtitle>
         <DateField
@@ -321,6 +419,13 @@ export function DesignSystemScreen() {
         />
         <Button label={t('designSystem.sheetClose')} onPress={() => setSheetOpen(false)} />
       </Sheet>
+      <PerfectDayScreen
+        visible={perfectDay}
+        title={t('designSystem.perfectDayTitle')}
+        detail={t('designSystem.perfectDayDetail')}
+        closeLabel={t('designSystem.celebrationClose')}
+        onClose={() => setPerfectDay(false)}
+      />
       <Fab
         label={t('designSystem.newTask')}
         extended

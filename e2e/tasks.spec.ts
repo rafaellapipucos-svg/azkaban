@@ -97,6 +97,9 @@ test('quick create shows in Hoje, then green and yellow with a reason', async ({
     '1 de 1',
   );
   await expect(page.getByText('+10 XP')).toBeVisible();
+  // The only task of the day done makes the day perfect: its screen holds until "Continuar".
+  await expect(page.getByRole('dialog', { name: 'Dia perfeito!' })).toBeVisible();
+  await button(page, 'Continuar').click();
 
   // Back to pending, then yellow, which asks for a reason
   await check(page, 'Lavar a louça', 'Feito').click();

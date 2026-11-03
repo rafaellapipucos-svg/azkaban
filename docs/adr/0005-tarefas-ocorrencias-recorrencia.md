@@ -192,7 +192,7 @@ Nada é apagado. A RLS corta o acesso, a materialização e o job de vermelho ig
 
 ### 11. Decisões do humano na aprovação da Fase 2
 
-**XP em massa.** Fica para a Fase 6, antes do ranking. `set_occurrence_status` continua sem olhar a data da ocorrência, e não há teto de XP. Quem cria tarefas futuras pode concluí-las na hora.
+**XP em massa.** Fica para a Fase 6, antes do ranking. `set_occurrence_status` continua sem olhar a data da ocorrência, e não há teto de XP. Quem cria tarefas futuras pode concluí-las na hora. Decidido no [ADR-0010](0010-gamificacao-xp-ofensiva-conquistas-ranking.md), seção 2: teto diário.
 
 **Faixas da Equipe, janela e `date-fns-tz`.** Aceitos. Ver o ADR-0006, seção 3, e o ADR-0001.
 

@@ -243,6 +243,28 @@ export const notificationsRepository = {
     if (error) throw error;
   },
 
+  /**
+   * `profiles.push_hide_content` (BL-32): the push says only that there is something new, without
+   * the title. Off by default.
+   */
+  async getPushHideContent(): Promise<boolean> {
+    const { data, error } = await db()
+      .from('profiles')
+      .select('push_hide_content')
+      .eq('id', await currentUserId())
+      .single();
+    if (error) throw error;
+    return data.push_hide_content;
+  },
+
+  async setPushHideContent(hide: boolean) {
+    const { error } = await db()
+      .from('profiles')
+      .update({ push_hide_content: hide })
+      .eq('id', await currentUserId());
+    if (error) throw error;
+  },
+
   /** The user's own WhatsApp state and daily summary choices, from one read of `profiles`. */
   async getWhatsApp(): Promise<{ status: WhatsAppStatus; summary: DailySummaryPreferences }> {
     const { data, error } = await db()

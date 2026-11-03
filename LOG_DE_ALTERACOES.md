@@ -3916,3 +3916,21 @@
 - **Verificado:** na pilha B, depois de `db reset`: `db:test` 1990/1990 em 15 arquivos (14 novos em `rls_achievements_key`, 19 em `rls_push_hide_content`); `db:check-permissions` em dia; `db:types` regenerado. Mutação aplicada à mão no banco da B: `replica identity full` e a volta da chave `(user_id, achievement_key)` derrubam 3 de 14 cada; inverter a condição do `taskTitle` no claim derruba 2 de 19; `default true` com `grant update` para `anon` derruba 6; abrir `profiles_select_own` e `profiles_update_own` derruba 3. Banco recriado depois. `pnpm check` passou.
 - **Não verificado:** `pnpm functions:test` (pedia a pilha B de funções; o `itemSchema` do despacho não é `strict` e descarta a chave nova); o payload real do Realtime, verificado pelo catálogo (colunas da identidade de réplica) e não por decodificação lógica; E2E; hospedado. A troca da chave primária reescreve `user_achievements` com lock exclusivo (a tabela é pequena). Hora pelo UTC−3 (PowerShell barrado).
 - **Pendências / próximos passos:** handoffs para `backend-funcoes` (render neutro) e `notificacoes-whatsapp` (interruptor); notas nos ADRs pelo `arquiteto`; QUADRO pelo orquestrador.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 17:33 (BRT)
+
+- **Branch:** feat/push-hide-content-toggle (a partir de `feat/launch-decisions`, `b13d956`)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** BL-32, lado do app. Interruptor "Esconder o conteúdo na tela bloqueada" na tela de preferências de notificação, desligado por padrão, lendo e gravando `profiles.push_hide_content`.
+- **Alterações:**
+  - `notificationsRepository.getPushHideContent()` e `setPushHideContent(hide)`, pelo mesmo caminho do horário de silêncio (`select`/`update` em `profiles` com `id = currentUserId()`).
+  - `HideContentSwitch` no bloco do push (aparece só com a chave VAPID, como os outros interruptores do push), com linha de ajuda em i18n; usa o `SwitchRow` (alvo ≥ 44px, `role="switch"` e `aria-checked`). O WhatsApp não muda.
+  - Comentário de `apps/app/app/_layout.tsx` sobre `useSessionFromLink` corrigido: roda no web e no nativo.
+  - Nenhum campo de contrato: o valor é um booleano lido direto da coluna `not null`.
+- **Arquivos/módulos principais:** `packages/data/src/notifications/index.ts`, `packages/data/src/notifications/notifications.test.ts`, `packages/features/notifications/src/NotificationPreferencesScreen.tsx`, `packages/i18n/src/pt-BR/notifications.json`, `apps/app/app/_layout.tsx`.
+- **Migrations:** nenhuma (a coluna veio em `20261106100000`).
+- **Decisões/ADRs:** decisão do humano no BL-32 (opção existe, desligada por padrão).
+- **Como testar:** `pnpm --filter @azkaban/data exec vitest run src/notifications`; em `/settings/notifications`, ligar, recarregar e ver o interruptor ligado.
+- **Verificado:** 3 testes novos do repositório com cliente falso (leitura, gravação só da coluna na linha do próprio usuário, erro repassado); `pnpm check` passou.
+- **Não verificado:** E2E e pilha local (fora do pedido); o interruptor não foi visto rodando na tela. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** render neutro do push pelo `backend-funcoes` (handoff já existe); E2E "ligar, recarregar, continua ligado" na próxima rodada de E2E.

@@ -3448,3 +3448,25 @@
 - **Verificado:** `pnpm install --frozen-lockfile` passa. `pnpm expo:doctor`: "20/20 checks passed. No issues detected!", saída 0. `pnpm check` passou. `pnpm build:web` passou; `pnpm bundle:size`: 402622 bytes gzip no maior JS, teto 427641.
 - **Não verificado:** sem pilha e sem E2E. Nativo real (APK/iOS): a troca da async-storage 3.x pela 2.x no `packages/platform` só afeta o nativo; no web as duas usam `localStorage`, mas dados gravados por um build nativo com a 3.x não foram testados contra a 2.x (ainda não houve build nativo publicado). CI no Linux não rodou.
 - **Pendências / próximos passos:** ao subir o SDK do Expo, alinhar os mesmos pacotes à tabela nova; o doctor acusa se esquecer.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:53 (BRT)
+
+- **Branch:** feat/native-push-channel, criada a partir de feat/backlog-after-phase-8 (f0b9d35)
+- **Agente(s):** backend-funcoes
+- **Resumo:** BL-14. O despacho manda às inscrições `expo` pela API de push da Expo, na mesma linha `web_push`, com provedor falso por padrão; um teste barra o 503 nas funções (ADR-0012, seção 18); o webhook lê o número do WhatsApp pelo `whatsappEnv()`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `dispatch-notifications/native-push.ts` (novo): `NativePushChannel.deliver`, um pedido por notificação com todos os tokens do usuário, `redirect: 'manual'`, timeout, resposta lida com limite e validada com Zod (`data` com um ticket por mensagem, na ordem). `DeviceNotRegistered` é `gone` (apaga a inscrição); `MessageRateExceeded`, 429 e 5xx repetem; `MessageTooBig`, credenciais, outros 4xx, redirect e resposta ruim ou curta falham (sem repetir: a mensagem pode ter saído). `fakeExpoFetch` loga só `{event:'native_push_fake', messages:n}`. `nativePushTransport` lê `NATIVE_PUSH_PROVIDER` (vazio = `fake`) e `EXPO_ACCESS_TOKEN` (obrigatório com `expo`); fora disso, `native_push_not_configured` e as inscrições `expo` repetem. Recibos (segunda chamada) não entram.
+  - `web-push.ts`: `WebPushChannel` separa as inscrições por `kind` e entrega as duas em paralelo; `combine` decide sobre todas, então a falha de uma nunca derruba a outra.
+  - `items.ts` (novo, saído do `index.ts`): `subscriptions` é união discriminada por `kind` (`web` com endpoint e chaves; `expo` com `expoPushTokenSchema`), como o claim do BL-5.
+  - `index.ts`: `payload()` serve aos dois; `renderNative` monta e valida com `nativePushMessageSchema` (título, corpo, `data` recortado, `channelId`, `ttl` pelo mesmo `ttlSeconds` do Web Push). O nativo só existe com o VAPID: divide a linha.
+  - `dispatch.ts`: tipos `WebSubscription`, `ExpoSubscription`.
+  - `whatsapp-webhook/index.ts`: `env.WHATSAPP_PHONE_NUMBER_ID` no lugar de `Deno.env.get(...)` (BL-4); o comentário do `console` saiu.
+  - `_shared/import-maps.test.ts`: por função, nenhum arquivo do grafo de runtime dentro de `supabase/functions` tem o literal 503 nem passa `x.status` a uma resposta; mais um teste do próprio guarda.
+  - `.env.example`: nomes `NATIVE_PUSH_PROVIDER` e `EXPO_ACCESS_TOKEN`, vazios.
+- **Arquivos/módulos principais:** `supabase/functions/dispatch-notifications/{native-push,items,index,web-push,dispatch}.ts`, testes `push.test.ts` e `dispatch.integration.test.ts`, `supabase/functions/_shared/import-maps.test.ts`, `supabase/functions/whatsapp-webhook/index.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. Provedor `fake` por padrão, como o `console` do WhatsApp; real só com `expo` e token.
+- **Como testar:** `pnpm check`; `pnpm db:start`, `pnpm db:reset`, `pnpm functions:test`.
+- **Verificado:** `pnpm check` passou (o `functions:imports` com 20 testes). `push.test.ts`: 28 testes, 7 novos do nativo. `pnpm functions:test` na pilha A, uma vez: 225 testes, 0 falhas, inclusive o novo de integração (navegador e aparelho da mesma pessoa, contra o claim e o report reais: os dois recebem, `DeviceNotRegistered` apaga só o aparelho, 410 apaga só o navegador). O guarda do 503 conferido por mutação (um `// 503` em `native-push.ts` derruba o teste). `parseItem` com inscrição mista, token ruim e inscrição sem `kind` conferido por um script avulso no Deno (o `.env` local não tem VAPID, então a função servida não reivindica linha de push).
+- **Não verificado:** a API real da Expo (nenhuma chamada, nenhuma conta); o formato da resposta foi escrito pela documentação. A função servida com VAPID e uma inscrição `expo`. E2E (fica com o BL-22). CI no Linux.
+- **Pendências / próximos passos:** handoff `20261103-1053-backend-funcoes-para-arquiteto-push-nativo-no-despacho` (segredos em `docs/implantacao.md`, QUADRO). Recibos da Expo, se um dia valer a pena. O teste de exportação com `expo_token` entre os segredos (item 3 do handoff 1025) não entrou.

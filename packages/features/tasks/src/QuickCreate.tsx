@@ -18,7 +18,7 @@ import {
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useController, useForm } from 'react-hook-form';
 import { View } from 'react-native';
 import { z } from 'zod';
@@ -26,6 +26,7 @@ import { tasksConfig } from './config';
 import { errorKey } from './format';
 import { defaultFormValues } from './formDefaults';
 import { useLastContext, useNow, useRefreshTasks } from './hooks';
+import { quickCreateAction } from './quickCreateAction';
 
 const quickSchema = z.object({
   title: z.string().trim().min(1).max(120),
@@ -53,9 +54,22 @@ export function QuickCreate({ contextId, onCreated }: Props) {
   const { lastContextId, remember } = useLastContext();
   const contexts = useQuery({ queryKey: ['contexts'], queryFn: contextsRepository.list });
   const [open, setOpen] = useState(false);
+  // A tap on "Nova tarefa". Decided here, so a tap that came before the contexts did waits for them.
+  const [waiting, setWaiting] = useState(false);
   const now = useNow();
 
   const list = contexts.data ?? [];
+  const action = quickCreateAction({
+    isPending: contexts.isPending,
+    isError: contexts.isError,
+    count: list.length,
+  });
+  useEffect(() => {
+    if (!waiting || action === 'wait') return;
+    setWaiting(false);
+    if (action === 'newContext') router.push('/contexts/new');
+    else setOpen(true);
+  }, [waiting, action, router]);
   const startContext =
     [contextId, lastContextId].find((id) => list.some((context) => context.id === id)) ??
     list[0]?.id ??
@@ -129,9 +143,10 @@ export function QuickCreate({ contextId, onCreated }: Props) {
   return (
     <>
       <Fab
-        label={t('quick.fab')}
+        // ponytail: the label says it is loading; a real `loading`/`disabled` on Fab is the upgrade.
+        label={waiting && action === 'wait' ? t('quick.loading') : t('quick.fab')}
         extended
-        onPress={() => (list.length === 0 ? router.push('/contexts/new') : setOpen(true))}
+        onPress={() => setWaiting(true)}
       />
       <Sheet visible={open} label={t('quick.title')} onClose={close}>
         <View className="flex-row items-center justify-between">
@@ -176,6 +191,17 @@ export function QuickCreate({ contextId, onCreated }: Props) {
               />
             ))}
           </ChipRow>
+        ) : null}
+        {contexts.isError && list.length === 0 ? (
+          <>
+            <ErrorText>{t('quick.contextsError')}</ErrorText>
+            <Button
+              variant="secondary"
+              label={t('errors.retry')}
+              loading={contexts.isFetching}
+              onPress={() => void contexts.refetch()}
+            />
+          </>
         ) : null}
         {create.isError ? <ErrorText>{t(errorKey(taskErrorCode(create.error)))}</ErrorText> : null}
         <Button

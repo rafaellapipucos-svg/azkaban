@@ -3676,3 +3676,21 @@
   - `pnpm check` passou.
 - **Não verificado:** SIGTERM/SIGHUP reais (no Windows só emitidos à mão; SIGHUP real é fechar o terminal); a E2E completa depois das mudanças desta branch (só as specs afetadas e o `jobs`); a origem da transição em a11y (handoff); nativo; CI no Linux. Hora derivada de UTC menos 3 (PowerShell barrado).
 - **Pendências / próximos passos:** `design-system`: handoff `20261103-1115` (transição com reduce). `tarefas-calendario`: handoff `20261103-1125` ("Nova tarefa" antes dos contextos). `qa-testes`: avaliar `actionTimeout` na config (um clique parado espera os 900 s da a11y). Quem rodar uma spec só deve usar `--no-deps` para não rodar o `jobs` junto.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 11:31 (BRT)
+
+- **Branch:** `fix/quick-create-loading-contexts`, criada a partir de `feat/backlog-after-phase-8` (`765f4b4`)
+- **Agente(s):** tarefas-calendario
+- **Resumo:** handoff `20261103-1125`. "Nova tarefa" deixa de abrir "Novo contexto" enquanto os contextos ainda carregam. O toque é guardado e decidido quando a consulta resolve; só uma lista vazia de verdade leva a "Novo contexto"; erro na consulta abre a folha com o erro e "Tentar de novo".
+- **Alterações:**
+  - `packages/features/tasks/src/quickCreateAction.ts`: função pura `quickCreateAction({ isPending, isError, count })` que devolve `wait`, `open` ou `newContext`. Com contextos (inclusive um refetch com erro que mantém a lista em cache) abre a folha; erro sem lista abre a folha; carregando espera; só vazio resolvido vai para "Novo contexto".
+  - `packages/features/tasks/src/QuickCreate.tsx`: o `Fab` só marca o toque (`waiting`); um `useEffect` age quando a decisão deixa de ser `wait`. Enquanto espera, o rótulo (visível e `aria-label`) vira "Carregando seus contextos…". Na folha, com a consulta em erro e sem lista, `ErrorText` e um botão secundário "Tentar de novo" (`contexts.refetch`).
+  - `packages/i18n/src/pt-BR/tasks.json`: `quick.loading` e `quick.contextsError`.
+  - `packages/features/tasks/package.json`: script `test` e `vitest` em `devDependencies` (o pacote não tinha testes); `pnpm-lock.yaml` atualizado.
+- **Arquivos/módulos principais:** `packages/features/tasks/src/QuickCreate.tsx`, `packages/features/tasks/src/quickCreateAction.ts`, `packages/i18n/src/pt-BR/tasks.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. O `Fab` de `packages/ui` não tem `loading`/`disabled`; em vez de mexer fora do escopo, o rótulo diz que está carregando (comentário `ponytail:` no ponto).
+- **Como testar:** `pnpm --filter @azkaban/feature-tasks test`. Na E2E (pilha A): atrasar `**/rest/v1/contexts*` com `page.route` em 3 s e tocar "Nova tarefa" logo depois do `goto('/')`; deve abrir a folha quando os contextos chegarem.
+- **Verificado:** `quickCreateAction.test.ts`, 4 testes (carregando, vazio, com contextos, erro), PASS. `pnpm check` passou.
+- **Não verificado:** sem pilha, sem E2E (pilha A com outro agente) e sem abrir no navegador; a repetição de `e2e/a11y.spec.ts` do handoff fica para `qa-testes`. Nativo. Hora derivada de UTC menos 3 (PowerShell barrado).
+- **Pendências / próximos passos:** `design-system`, se quiserem: `loading`/`disabled` acessível no `Fab`. Caso raro não tratado: erro, folha aberta, "Tentar de novo" volta com zero contextos; a folha fica sem contexto e "Criar" mostra erro.

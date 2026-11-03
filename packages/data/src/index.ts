@@ -15,6 +15,7 @@ export {
   defineOfflineAction,
   discardOfflineQueue,
   dismissOfflineDiscard,
+  offlineMutationDefaults,
   offlineQueueFull,
   useOfflineDiscards,
   useOfflinePendingCount,

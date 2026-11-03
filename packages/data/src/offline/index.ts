@@ -23,7 +23,37 @@ import { useEffect, useMemo, useSyncExternalStore } from 'react';
 /** Bump when the variables of an action change shape: the old queue is dropped, not run wrong. */
 const formatVersion = '1';
 const maxAgeMs = offlineDefaults.maxAgeHours * 3_600_000;
-const storageKey = (userId: string) => `azkaban.offline-queue.${userId}`;
+const keyPrefix = 'azkaban.offline-queue.';
+const storageKey = (userId: string) => `${keyPrefix}${userId}`;
+
+/**
+ * For the app's QueryClient: a change outside the queue fails at once without a connection, with the
+ * usual network error, instead of pausing unseen (ADR-0012, section 5). The queue's actions declare
+ * `online` themselves, so they still wait.
+ */
+export const offlineMutationDefaults = { networkMode: 'always' } as const;
+
+const savedAtOf = (text: string | null) => {
+  try {
+    const savedAt = (JSON.parse(text ?? '') as { savedAt?: unknown } | null)?.savedAt;
+    return typeof savedAt === 'number' ? savedAt : Number.NaN;
+  } catch {
+    return Number.NaN;
+  }
+};
+
+/**
+ * A queue nobody came back for (another account, a shared device) leaves the disk once it is past
+ * `maxAgeHours` (SEG8-5); one without a readable `savedAt` too. The signed-in user's own goes
+ * through the restore, which drops its old actions with a notice.
+ */
+async function dropStaleQueues(ownKey: string) {
+  for (const key of await storage.getAllKeys()) {
+    if (!key.startsWith(keyPrefix) || key === ownKey) continue;
+    if (!(Date.now() - savedAtOf(await storage.getItem(key)) <= maxAgeMs))
+      await storage.removeItem(key);
+  }
+}
 
 /** Why the queue dropped an action without asking the server. */
 export class OfflineDiscardError extends Error {
@@ -190,7 +220,8 @@ export function discardOfflineQueue(client: QueryClient) {
 const queuedIds = new Set<number>();
 
 /**
- * Restores the user's saved queue, keeps saving it and sends it. Returns the stop function, which
+ * Restores the user's saved queue, keeps saving it and sends it, and clears the stale queues of other
+ * accounts from the disk. Returns the stop function, which
  * leaves the saved queue on the disk (a session that expired signs in again to the same queue) and
  * takes it out of memory, so the next account never runs it.
  */
@@ -202,6 +233,7 @@ export function startOfflineQueue(client: QueryClient, userId: string): () => vo
   let active = true;
   // Nothing is saved before the restore, or the empty memory would overwrite the saved queue.
   let restored = false;
+  void dropStaleQueues(key).catch(() => undefined);
 
   const save = () =>
     storage
@@ -209,6 +241,7 @@ export function startOfflineQueue(client: QueryClient, userId: string): () => vo
         key,
         JSON.stringify({
           buster: formatVersion,
+          savedAt: Date.now(),
           clientState: dehydrate(client, {
             shouldDehydrateQuery: () => false,
             shouldDehydrateMutation: isQueued,

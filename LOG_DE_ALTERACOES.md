@@ -2763,3 +2763,21 @@
 - **Decisões/ADRs:** teto no CI, não no `check`; `shoppingListId` fica fora do contrato até uma tela ler; sem teto de tentativas na fila.
 - **Como testar:** `pnpm check` (verde, 1081 testes de unidade e 10 de `functions:imports`). `pnpm build:web` e `pnpm bundle:size`: 399 448 bytes (`__common`), teto 427 641, passa. Mutação: um `.js` falso de 430 000 bytes aleatórios em `apps/app/dist` levou o script a 430 153 e à falha; apagado, volta a passar. Regra de lint: um `StyleSheet.create({ a: { pointerEvents: 'none' } })` temporário deu erro.
 - **Pendências / próximos passos:** o maior JS já está 2,7% acima da partida (399 448 contra 388 765), com folga de 28 193 bytes até o teto. O CI com o passo novo não rodou (sem push).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:56 (BRT)
+
+- **Branch:** fix/offline-queue-hardening, criada a partir de feat/phase-8-polish (9c801db)
+- **Agente(s):** tarefas-calendario
+- **Resumo:** SEG8-5 (handoff `20261103-0643`) e o `networkMode` das mutações fora da fila (ADR-0012, seção 5, "Fica fora"), por decisão do orquestrador. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/data/src/offline`: a fila salva grava `savedAt`. Cada `startOfflineQueue`, de qualquer conta, lista as chaves do `storage` (`getAllKeys` do AsyncStorage, também na web) e apaga as `azkaban.offline-queue.*` de outras contas com `savedAt` mais velho que `offlineDefaults.maxAgeHours`, ou sem `savedAt` legível. A fila da própria conta segue pela restauração, que descarta as ações velhas com aviso.
+  - `offlineMutationDefaults` (`networkMode: 'always'`) no `QueryClient` de `apps/app/app/_layout.tsx`: criar, editar e excluir tarefa, finalizar lista, prova e o resto das mutações fora da fila falham na hora sem rede, em vez de pausar sem aviso. As ações da fila já declaram `networkMode: 'online'` e continuam esperando.
+  - `taskErrorCode` devolve `offline` para uma falha de rede sem conexão (o repositório embrulha o erro na hora da falha, então vale a conexão daquele momento); as telas de tarefa já mostram `errors.offline` ("Sem conexão. Esta mudança precisa de internet...") sem mudar.
+  - `e2e/offline-queue.spec.ts`: offline, criar uma tarefa mostra a mensagem de sem conexão, não vai para a fila e não aparece depois.
+- **Arquivos/módulos principais:** `packages/data/src/{index.ts,offline/index.ts,offline/offline.test.ts,tasks/index.ts,tasks/status.test.ts}`, `apps/app/app/_layout.tsx`, `e2e/offline-queue.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** padrão global com as ações da fila declarando o próprio `networkMode`, em vez de uma mutação de cada vez: cobre a lista inteira do "Fica fora" do ADR sem tocar as features de compras e prova. A materialização de repetições também deixa de pausar: sem rede, falha depois das duas tentativas e o `MaterializeStatus` oferece tentar de novo. Uma fila salva por uma versão sem `savedAt` é apagada no primeiro início de outra conta (só há dados de desenvolvimento).
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/data exec vitest run src/offline src/tasks`; com a pilha, `pnpm exec playwright test e2e/offline-queue.spec.ts --project=app`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 11 de 11; data 38, core 719, contracts 146, platform 54, app 8); `pnpm build:web` exportou (a primeira tentativa falhou com `react-native-css-interop/jsx-runtime` não resolvido, de uma instalação incompleta; passou depois de `pnpm install --frozen-lockfile`). Mutação na regra de idade, 6 de 6 mortas, controle passando: `< 0`, `>=` no lugar de `<=`, sem a negação (fila sem `savedAt` fica), sempre apagar, `savedAt: 0` gravado, o dobro da idade.
+- **Não verificado:** nenhuma E2E rodou (sem pilha); o `getAllKeys` no nativo; o efeito do `networkMode: 'always'` nas telas fora do meu escopo (grupos, perfil, notificações, compras), que mostram o próprio erro genérico; uma conta aberta em outra aba há mais de 24 h sem eventos tem a chave apagada (as ações dela já teriam passado da idade).
+- **Pendências / próximos passos:** nenhuma.

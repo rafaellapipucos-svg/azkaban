@@ -1,4 +1,4 @@
-import { QueryClient } from '@tanstack/react-query';
+import { onlineManager, QueryClient } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { isTransientFailure } from '../offline';
 import { occurrenceStatusAction, TaskError, taskErrorCode } from './index';
@@ -77,5 +77,18 @@ describe('rate_limited', () => {
     const wrapped = new TaskError(taskErrorCode(limited), { cause: limited });
     expect(taskErrorCode(wrapped)).toBe('rate_limited');
     expect(isTransientFailure(wrapped)).toBe(false);
+  });
+});
+
+describe('offline', () => {
+  it('is a network failure without a connection, decided when it happens', () => {
+    const network = { message: 'TypeError: Failed to fetch', code: '' };
+    onlineManager.setOnline(false);
+    const wrapped = new TaskError(taskErrorCode(network), { cause: network });
+    expect(taskErrorCode({ code: 'P0001', message: 'forbidden' })).toBe('forbidden');
+    onlineManager.setOnline(true);
+    expect(taskErrorCode(wrapped)).toBe('offline');
+    expect(taskErrorCode(network)).toBeNull();
+    expect(isTransientFailure(wrapped)).toBe(true);
   });
 });

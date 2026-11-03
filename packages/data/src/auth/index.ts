@@ -2,10 +2,13 @@ import type { MagicLinkInput, SignInInput, SignUpInput } from '@azkaban/contract
 import { createAppLink } from '@azkaban/platform';
 import type { Session } from '@supabase/supabase-js';
 import { db } from '../client';
+import { withCallFailure } from '../failure';
 import { parseSessionLink } from './link';
 
 export type { Session };
 
+// Sign-in, sign-up and the magic link throw a `callFailure` code when GoTrue is over its limit,
+// unreachable or down (ADR-0012, section 4); its own errors, like wrong credentials, as they come.
 export const authRepository = {
   async getSession() {
     const { data, error } = await db().auth.getSession();
@@ -20,7 +23,7 @@ export const authRepository = {
 
   async signIn({ email, password }: SignInInput) {
     const { error } = await db().auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    if (error) throw withCallFailure(error, error.status);
   },
 
   /** Resolves to true when the session starts now, false when e-mail confirmation comes first. */
@@ -30,7 +33,7 @@ export const authRepository = {
       password,
       options: { data: { display_name: displayName }, emailRedirectTo: redirectTo },
     });
-    if (error) throw error;
+    if (error) throw withCallFailure(error, error.status);
     return data.session !== null;
   },
 
@@ -39,7 +42,7 @@ export const authRepository = {
       email,
       options: { emailRedirectTo: redirectTo },
     });
-    if (error) throw error;
+    if (error) throw withCallFailure(error, error.status);
   },
 
   /**

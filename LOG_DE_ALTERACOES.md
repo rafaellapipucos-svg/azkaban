@@ -2138,3 +2138,20 @@
 - **Verificado:** `gamification.spec.ts` 5 de 5 (na primeira rodada, antes de ajustar o teste de QA6C-1, o do teto falhou uma vez, com o cartão de "Primeira tarefa" e "Tarefa concluída!" vindo das linhas semeadas antes do `reload`; não se repetiu); `notifications-jobs.spec.ts` 4 de 4; `pnpm e2e` completo uma vez, com chave VAPID gerada em memória: 75 ok, 0 falhas, 1 pulado (o "sem chave VAPID"); `pnpm check` passou (17 de 17 e 10 de 10; core 694). Pilha A parada com `supabase stop`.
 - **Não verificado:** a junção de QA6C-3 com rajadas reais separadas (só o teste de unidade de `mergeCelebrations`; o atraso não se reproduz); nativo (a prop é a forma do RN também); Safari, iPhone; projeto hospedado. Sem mutação.
 - **Pendências / próximos passos:** o handoff acima ao `design-system`; o `arquiteto` alinhar o texto do ADR-0010 sobre o teto (QA6C-2).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 05:55 (BRT)
+
+- **Branch:** fix/achievement-celebration-flake, criada a partir de feat/phase-6-gamification (0166cae)
+- **Agente(s):** gamificacao
+- **Resumo:** causa da intermitência de `e2e/gamification.spec.ts:53` (a conquista que não aparecia), corrigida no produto. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Causa, com registro temporário no console (já removido): o canal fica `SUBSCRIBED` logo, mas o servidor só ouve as tabelas depois da mensagem `system` `postgres_changes`/`ok` ("Subscribed to PostgreSQL"), que com o Realtime frio veio até 2,4 s depois. Num lote de 4 workers logo após o `db reset`, 3 rodadas concluíram a tarefa antes dela e não receberam nenhuma linha, nem o evento de XP. O "+10 XP" e o anel vêm da consulta, não do Realtime. Não era a assinatura depois do render, nem o cartão fechando, nem o `joinMs`.
+  - `gamificationRepository.subscribe`: guarda uma marca na chamada (o `created_at` do evento mais novo e as conquistas já concedidas) e, a cada `system` `ok` (a primeira e depois de uma reconexão), relê os eventos posteriores e as conquistas novas e os entrega pelo mesmo `onRow`. Cada linha é entregue uma vez só, por id do evento ou chave da conquista. Nada é entregue depois do `unsubscribe`. O `CelebrationHost` não mudou.
+  - Handoff `20261103-0554-gamificacao-para-notificacoes-whatsapp-realtime-antes-de-ouvir`: o `subscribe` de notificações tem o mesmo intervalo.
+- **Arquivos/módulos principais:** `packages/data/src/gamification/index.ts`, o handoff acima
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma
+- **Como testar:** `pnpm db:start`, `pnpm exec supabase db reset` e, logo depois, `pnpm exec playwright test e2e/gamification.spec.ts --project=app --repeat-each=8 --workers=4`.
+- **Verificado:** antes da correção, logo após o `db reset`, 38 ok e 2 falhas, depois 37 ok e 3 falhas; todas no `:53`, todas com a conclusão antes do `system` `ok`. Depois da correção, duas vezes logo após o `db reset`: 40 de 40, e 40 de 40. `pnpm e2e` completo uma vez, com chave VAPID gerada em memória: 75 ok, 0 falhas, 1 pulado. `pnpm check` passou (17 de 17 e 10 de 10; core 694, data 7). Pilha A parada com `supabase stop`.
+- **Não verificado:** a reconexão real (o código relê a cada `ok`, mas não derrubei a rede); o Realtime hospedado; nativo. Não há teste de unidade do `subscribe`, que precisaria simular o cliente do Supabase; a prova é a E2E repetida. Sem mutação.
+- **Pendências / próximos passos:** o handoff acima ao `notificacoes-whatsapp`.

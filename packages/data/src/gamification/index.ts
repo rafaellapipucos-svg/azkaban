@@ -209,8 +209,61 @@ export const gamificationRepository = {
     if (data.length === 0) throw new Error('forbidden');
   },
 
-  /** Inserts in the user's `xp_events` and `user_achievements`. Returns the unsubscribe. */
+  /**
+   * Inserts in the user's `xp_events` and `user_achievements`, each once, from the call on. Returns
+   * the unsubscribe. The server starts hearing the tables a while after `SUBSCRIBED` (seconds, on a
+   * cold Realtime), and again after a reconnect; what was written in between is read back from the
+   * tables when it says it hears them.
+   */
   subscribe(userId: string, onRow: (row: GamificationRow) => void) {
+    let alive = true;
+    const seen = new Set<string>();
+    const deliver = (row: GamificationRow) => {
+      const id = row.table === 'xp_events' ? `e:${row.event.id}` : `a:${row.key}`;
+      if (!alive || seen.has(id)) return;
+      seen.add(id);
+      onRow(row);
+    };
+    const granted = async () => {
+      const { data, error } = await db()
+        .from('user_achievements')
+        .select('achievement_key')
+        .eq('user_id', userId);
+      if (error) throw error;
+      return data.map((row) => row.achievement_key);
+    };
+    const newest = async () => {
+      const { data, error } = await db()
+        .from('xp_events')
+        .select('created_at')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.created_at ?? null;
+    };
+    // What is already there: the newest event's instant, in server time, and the granted keys.
+    // ponytail: a row written during this first read counts as old; the window is one round trip.
+    const mark = Promise.all([newest(), granted()]);
+    const catchUp = async () => {
+      const [since, before] = await mark;
+      let query = db()
+        .from('xp_events')
+        .select('id, occurrence_id, group_id, reason, amount')
+        .eq('user_id', userId)
+        .order('created_at');
+      if (since) query = query.gt('created_at', since);
+      const [events, keys] = await Promise.all([query, granted()]);
+      if (events.error) throw events.error;
+      for (const row of events.data) {
+        const event = toEventItem(row);
+        if (event) deliver({ table: 'xp_events', event });
+      }
+      for (const key of keys)
+        if (!before.includes(key)) deliver({ table: 'user_achievements', key });
+    };
+
     const channel = db()
       .channel(`gamification:${userId}`)
       .on(
@@ -218,7 +271,7 @@ export const gamificationRepository = {
         { event: 'INSERT', schema: 'public', table: 'xp_events', filter: `user_id=eq.${userId}` },
         (payload) => {
           const event = toEventItem(payload.new as XpEventRow);
-          if (event) onRow({ table: 'xp_events', event });
+          if (event) deliver({ table: 'xp_events', event });
         },
       )
       .on(
@@ -231,10 +284,18 @@ export const gamificationRepository = {
         },
         (payload) => {
           const key = (payload.new as { achievement_key?: string }).achievement_key;
-          if (key) onRow({ table: 'user_achievements', key });
+          if (key) deliver({ table: 'user_achievements', key });
         },
       )
+      .on('system', {}, (payload: { extension?: string; status?: string }) => {
+        // A failed read leaves the gap, as before: the next completion still comes by Realtime.
+        if (payload.extension === 'postgres_changes' && payload.status === 'ok')
+          catchUp().catch(() => undefined);
+      })
       .subscribe();
-    return () => void db().removeChannel(channel);
+    return () => {
+      alive = false;
+      void db().removeChannel(channel);
+    };
   },
 };

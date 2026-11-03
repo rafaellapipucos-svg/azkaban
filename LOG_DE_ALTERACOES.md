@@ -2920,3 +2920,22 @@
 - **Não verificado:** a E2E não rodou (só a listagem). O Prettier reformatou duas linhas depois do `functions:test`; mudança só de formatação, sem nova rodada.
 - **Hora:** o PowerShell foi bloqueado no ambiente; a hora é UTC menos 3.
 - **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:14 (BRT)
+
+- **Branch:** `docs/phase-8-perf-decisions`, criada a partir de `feat/phase-8-polish` (`c2d46b5`)
+- **Agente(s):** arquiteto
+- **Resumo:** decisões de F8-6 depois do QA da Fase 8: a meta de requisições de Hoje passa de 8 a 14, com cada chamada explicada e dois cortes entregues aos donos; as metas 2 a 4 só valem no build de produção, sem carga paralela; o ADR-0012 registra o limite de `accept_invite` (SEG8-2) e o do stepper (SEG8-4). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - ADR-0012, seção 10: tabela das 17 chamadas (QA8-3), quem lê cada uma e se é necessária. Cortes: `profiles` e `groups` repetidos (refetch das `OccurrenceRow` com `staleTime` 0) e `user_stats` repetido (`CelebrationHost` fora do cache). Ficam o marco e o `catchUp` do Realtime (7 chamadas, paralelas e fora do caminho do desenho) e as duas consultas de ocorrências. Depois dos cortes, a spec barra também o total em 14.
+  - ADR-0012, seção 10: as metas 2 a 4 valem no build (`pnpm build:web` servido por `expo serve`, já no `@expo/cli`), só a pilha A, `--workers=1`, `--repeat-each=3`, mediana e pior no LOG. Os números de 08:04 ficam como indicação. Lighthouse só na URL hospedada, depois de F8-8.
+  - ADR-0012, seção 4: `invite_lookup` em `get_invite_preview` e `accept_invite`, que responde `null` ao código que não serve; linha nova de `shopping_item_adjust`; o texto antigo ("sem limite próprio", "o stepper não entra") saiu.
+  - `packages/config/src/defaults.ts`: `currentUserStaleMs` (60 000), para o corte do `auth-grupos`.
+  - Handoffs: `20261103-0815-arquiteto-para-auth-grupos-stale-time-do-usuario`, `20261103-0815-arquiteto-para-gamificacao-estatisticas-pelo-cache`, `20261103-0815-arquiteto-para-qa-testes-metas-no-build`.
+- **Arquivos/módulos principais:** `docs/adr/0012-polimento-lgpd-limites-offline.md`, `packages/config/src/defaults.ts`, `docs/agentes/handoffs/20261103-0815-*.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0012, seções 4, 10 e 15. Sem `staleTime` global no `QueryClient`; sem RPC para juntar os pares do Realtime.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (`functions:imports` 10 de 10; rodado duas vezes, a segunda só para ler o código de saída, 0). A origem de cada uma das 17 chamadas foi lida no código (`useCurrentUser`, `useOccurrenceLists`, `AppTabBar`, `StreakChip`, `CelebrationHost`, `NotificationBell`, `NotificationToaster`) e soma 17, como a medida.
+- **Não verificado:** nenhuma E2E nem pilha; `expo serve` servindo o `dist` com as rotas de `output: 'single'`; que o refetch das linhas é a causa da segunda leitura de `profiles` e `groups` (só pela leitura do código); o projeto hospedado.
+- **Pendências / próximos passos:** os três handoffs. A variável da `webServer` em `playwright.config.ts` fica com o `qa-testes`, com revisão do arquiteto no PR.

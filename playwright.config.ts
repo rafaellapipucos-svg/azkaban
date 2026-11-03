@@ -1,4 +1,6 @@
 import { defineConfig, devices } from '@playwright/test';
+import { existsSync, readFileSync } from 'node:fs';
+import { parseEnv } from 'node:util';
 
 // `supabase start` already serves the functions. Leave `supabase functions serve` off during a run: on
 // Windows its watcher takes the hourly update of a file's last access for a write, even from a plain
@@ -7,6 +9,13 @@ import { defineConfig, devices } from '@playwright/test';
 // Not 8081: that is `pnpm dev`, and on this machine it can be another project's Expo. Auth accepts this
 // port in supabase/config.toml.
 const baseURL = 'http://localhost:8091';
+
+// `E2E_BUILD=1`: the production build (`pnpm build:web`) served static by `e2e/serve-build.mjs`, where the goals
+// 2 to 4 of ADR-0012, section 10, count. `build:web` reads `.env.local`, which may point at the hosted
+// project, so it gets the local stack's values of `.env.development.local`; the shell still wins.
+const build = Boolean(process.env.E2E_BUILD);
+const localEnv = 'apps/app/.env.development.local';
+const buildEnv = build && existsSync(localEnv) ? parseEnv(readFileSync(localEnv, 'utf8')) : {};
 
 export default defineConfig({
   testDir: './e2e',
@@ -40,10 +49,11 @@ export default defineConfig({
     ...devices['Pixel 7'],
   },
   webServer: {
-    command: 'pnpm dev --port 8091',
+    command: build ? 'pnpm build:web && node e2e/serve-build.mjs 8091' : 'pnpm dev --port 8091',
+    env: { ...(buildEnv as Record<string, string>), ...(process.env as Record<string, string>) },
     url: baseURL,
     // Anything already on the port fails the run: it may be another worktree's or project's server.
     reuseExistingServer: false,
-    timeout: 120_000,
+    timeout: build ? 300_000 : 120_000,
   },
 });

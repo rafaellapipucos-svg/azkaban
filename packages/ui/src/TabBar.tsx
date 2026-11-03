@@ -15,10 +15,13 @@ export type TabBarItem = {
 /**
  * The app's bottom bar, inside a `navigation` landmark. Each tab is as wide as its label and the
  * leftover width is shared, so "Calendário" and "Doméstico" fit whole at 320 px (equal fifths cut
- * them). A label that still does not fit wraps to a second line instead of an ellipsis.
+ * them). A label that still does not fit wraps to a second line instead of an ellipsis. Six tabs need
+ * 348 px at 14 px, so past five the labels drop to 12 px; the touch target stays 44 px.
  */
 export function TabBar({ items }: { items: readonly TabBarItem[] }) {
   const { t } = useTranslation('ui');
+  // ponytail: one step down covers six tabs; a seventh would need a new answer (icons only, or scrolling).
+  const labelSize = items.length > 5 ? 'text-xs' : 'text-sm';
   const insets = useSafeAreaInsets();
   return (
     <View role="navigation" aria-label={t('tabBar.label')}>
@@ -54,7 +57,7 @@ export function TabBar({ items }: { items: readonly TabBarItem[] }) {
             </Text>
             <Text
               numberOfLines={2}
-              className={`text-center font-heavy text-sm ${
+              className={`text-center font-heavy ${labelSize} ${
                 tab.selected
                   ? 'text-primary dark:text-primary-light'
                   : 'text-muted dark:text-muted-dark'

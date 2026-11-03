@@ -1727,6 +1727,42 @@
 - **Não verificado:** o webhook servido contra a função nova (sem E2E nem `functions:test`, por pedido do orquestrador).
 - **Pendências / próximos passos:** o texto do ADR-0009, seção 18, com o `arquiteto`.
 
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:33 (BRT)
+
+- **Branch:** docs/shopping-adr, criada a partir de feat/phase-5-whatsapp (cd98617)
+- **Agente(s):** arquiteto
+- **Resumo:** F7-1, parte de arquitetura: ADR-0011 da lista de compras, contratos, regras, seed do catálogo, espelho no `check-permission-mirror` e handoffs para `banco-de-dados`, `compras` e `auth-grupos`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - ADR-0011: dois escopos (grupo e pessoal) para lista e catálogo; catálogo pessoal copiado do mesmo seed; item como cópia do catálogo; status `open`/`completed`, sem reabrir; quatro chaves novas na matriz (`shopping.create_list` e `shopping.complete_list` para todos, `shopping.manage_catalog` e `shopping.manage_lists` para owner e admin); RLS por coluna, cinco RPCs e triggers; stepper por delta atômico no banco; `postgres_changes` em `shopping_lists` e `shopping_list_items` com a revisão de `select`; modos só no cliente; vínculo com tarefa só de navegação; XP de compra por trigger ao finalizar, com mínimo de itens marcados, teto diário e uma vez por lista, depois da Fase 6; porta aberta para F8-5; dez itens a confirmar pelo humano.
+  - `packages/contracts/src/shopping-vocabulary.ts` (categorias e unidades, sem import) e `shopping.ts` (linhas, entradas, stepper, marcar, finalizar, `shoppingErrorCodeSchema`), com 16 testes.
+  - `packages/config/src/shopping.ts` (`shoppingRules`, espelho `shopping_rules`; `shoppingDefaults`) e `shopping-catalog-seed.ts` (44 itens), com 4 testes. `@azkaban/config` passa a depender de `@azkaban/contracts`, só por `import type`; `pnpm-lock.yaml` atualizado.
+  - `scripts/check-permission-mirror.mjs`: compara `shopping_rules`, os enums `shopping_category` e `shopping_unit` na ordem, e `shopping_catalog_seed`.
+  - `docs/arquitetura.md`: seção "Compras".
+  - Handoffs `20261103-0230-arquiteto-para-{banco-de-dados-compras,compras-compras,auth-grupos-permissoes-de-compras}`.
+- **Arquivos/módulos principais:** `docs/adr/0011-lista-de-compras.md`, `packages/contracts/src/shopping*.ts`, `packages/config/src/shopping*.ts`, `scripts/check-permission-mirror.mjs`, `docs/arquitetura.md`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma; são do `banco-de-dados`.
+- **Decisões/ADRs:** ADR-0011.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9 tarefas; contratos 108 testes, config 19; `functions:imports` 8 de 8; dependency-cruiser sem violações). Mutação no contrato, desfeita: sem o piso da quantidade e com o stepper não estrito, 4 de 16 testes falham. Os três arquivos de espelho carregam direto no Node.
+- **Não verificado:** nada com a pilha; `pnpm db:check-permissions` vai acusar as quatro comparações de compras e a matriz até as migrations e o espelho de `auth-grupos`. A leitura do seed com acentos e emojis pelo `docker exec` no Windows não foi exercitada. O nome do evento de XP depende do ADR-0010, escrito em paralelo.
+- **Pendências / próximos passos:** os três handoffs. Para o orquestrador: dividir F7-5 no QUADRO e dar dono a `packages/core/src/shopping` e à aba "Compras". Para o humano: a seção 15 do ADR-0011.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:37 (BRT)
+
+- **Branch:** feat/shopping-permissions, a partir de feat/phase-7-shopping (`b30a4b0`)
+- **Agente(s):** auth-grupos
+- **Resumo:** As quatro chaves de compras do ADR-0011, seção 3, no espelho da matriz do cliente. São as primeiras chaves de `member`.
+- **Alterações:**
+  - `shopping.create_list`, `shopping.complete_list`, `shopping.manage_catalog` e `shopping.manage_lists` para `owner` e `admin`; `member` recebe só as duas primeiras.
+  - O teste da matriz cobre as quatro nos três papéis.
+- **Arquivos/módulos principais:** `packages/core/src/permissions/matrix.ts`, `packages/core/src/permissions/matrix.test.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0011, seção 3, e ADR-0003. Nada no cliente tratava `member: []` como sinal de membro comum: `rolePermissions` só é lido por `can()` e pelo teste. Nenhuma tela lista chaves de permissão, então não há rótulo i18n a criar. O formato do arquivo segue o que `scripts/check-permission-mirror.mjs` lê.
+- **Como testar:** `pnpm check`; com a pilha e a migration de `banco-de-dados`, `pnpm db:check-permissions`.
+- **Verificado:** `pnpm check` passa (core com 617 testes). Mutação: tirar `shopping.complete_list` de `member` fez 1 teste falhar; restaurado.
+- **Não verificado:** `pnpm db:check-permissions`, sem pilha e com a migration ainda em andamento. Hora derivada de UTC menos 3, porque o PowerShell foi bloqueado.
+- **Pendências / próximos passos:** entrar no mesmo merge da migration de permissões de `banco-de-dados`.
+
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:41 (BRT)
 
 - **Branch:** fix/local-stack-cjs, criada a partir de feat/phase-5-whatsapp (`24f76cd`)
@@ -1743,6 +1779,47 @@
 - **Não verificado:** CI, pilha B e projeto hospedado.
 - **Pendências / próximos passos:** nenhuma. Pilha A parada.
 
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:47 (BRT)
+
+- **Branch:** feat/shopping-core-ui, criada a partir de feat/phase-7-shopping (b30a4b0)
+- **Agente(s):** compras
+- **Resumo:** A parte de F7-2 a F7-4 que corre sem banco (handoff `20261103-0230-arquiteto-para-compras-compras`, itens 1 a 4): funções puras, i18n, adapter `shareText` e as telas da lista de compras, alimentadas por um repositório de exemplo em memória. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/core/src/shopping/shopping.ts` (13 testes): `marketSections` (categoria na ordem do contrato; marcados descem na categoria; categoria sem nada a comprar desce abaixo das outras), `catalogSections` (sem arquivados, `sortOrder` e nome, busca sem acento e caixa), `exactMatch`, `searchKey`, `roundQuantity` (três casas, como `numeric(10,3)`), `projectQuantity` (linha do servidor mais os deltas que não voltaram; `null` a zero ou menos), `formatQuantity` e `shoppingShareText` (só os não marcados, por categoria, com emoji e nota; rótulos por parâmetro).
+  - `packages/platform/src/shareText.ts` e `.web.ts` (4 testes): `Share` do React Native no nativo; na web, `navigator.share` só com `text`, e área de transferência sem ele ou com `NotAllowedError`; `AbortError` é "fechou". Devolve `shared`, `copied` ou `dismissed`.
+  - `packages/i18n/src/pt-BR/shopping.json`: categorias, unidades com plural (`{{value}}` já formatado em pt-BR), nomes de unidade, um texto por código de `shoppingErrorCodeSchema` e as telas.
+  - `packages/data/src/shopping`: o tipo `ShoppingRepository` (leituras, as cinco RPCs, `insert`/`update`, `addCatalogItem` e `watchList` para o Realtime) e `shoppingRepository`, por ora o exemplo em memória de `sample.ts`: copia `shoppingCatalogSeed` para cada catálogo como o trigger, soma deltas com "on conflict", apaga a zero e lança `list_completed`, `list_full`, `catalog_item_exists` e `catalog_full`.
+  - `packages/features/shopping` (6 testes): `ShoppingListsScreen` (escopo pessoal ou grupo, criar lista, abertas, histórico), `ShoppingListScreen` (modo em `?mode=build|market`, faltam N, compartilhar com aviso de copiado, finalizar com confirmação, finalizada só leitura com "nova lista a partir desta"), `BuildMode` (catálogo por categoria, busca, stepper com o passo da unidade e lote de 300 ms, unidade numa folha, item avulso com categoria e "salvar no catálogo" para quem pode), `MarketMode` (marcar risca e desce, desmarcar desfaz, "Adicionado por" e "ex-membro" só em grupo), `ShoppingHistoryScreen`. `canShop` trata a lista pessoal como do dono e o grupo por `can(...)`, com um cast até as quatro chaves entrarem em `matrix.ts`. `shoppingPaths` diz os caminhos que as rotas vão montar.
+- **Arquivos/módulos principais:** `packages/core/src/shopping/`, `packages/core/src/index.ts`, `packages/platform/src/{shareText.ts,shareText.web.ts,shareText.web.test.ts,index.ts}`, `packages/i18n/src/{index.ts,pt-BR/shopping.json}`, `packages/data/src/{index.ts,shopping/}`, `packages/features/shopping/`, `pnpm-lock.yaml` (só os links do workspace)
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova. `packages/platform` não tem dono único no `AGENTES.md`; `shareText` segue o padrão de adapter sem tela de `docs/arquitetura.md`, como pedia o ADR-0011, seção 11. Dono de `packages/core/src/shopping` a formalizar pelo orquestrador.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9 tarefas; core 618 testes, platform 50, feature-shopping 6, data 7; dependency-cruiser sem violações; `functions:imports` 8 de 8). `pnpm build:web` passou, mas nenhuma rota importa o módulo ainda, então as telas não estão no pacote.
+- **Não verificado:** as telas não foram abertas no navegador (sem rota e sem pilha; o exemplo usa `currentUserId`, que exige sessão), nem a 375 px, nem no escuro. `Share` nativo, iOS e Android. Sem mutação.
+- **Pendências / próximos passos:** depois das migrations e de `pnpm db:types`: o repositório real em `packages/data/src/shopping` no lugar de `sample.ts`, com `watchList` em `postgres_changes`; as rotas `/shopping`, `/shopping/history` e `/shopping/[id]` em `apps/app`; a aba (orquestrador); a E2E com dois navegadores. A tela do catálogo do grupo (editar e arquivar) ficou de fora. Tirar o cast de `canShop` quando `auth-grupos` acrescentar as chaves. Um eco do Realtime do próprio delta que chegar antes da resposta da RPC conta duas vezes por um instante.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:54 (BRT)
+
+- **Branch:** feat/shopping-db, criada a partir de feat/phase-7-shopping (b30a4b0)
+- **Agente(s):** banco-de-dados
+- **Resumo:** F7-1, parte do banco, do handoff `20261103-0230-arquiteto-para-banco-de-dados-compras`: lista de compras inteira, menos o XP (F7-5, depois da Fase 6). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Enums `shopping_category` e `shopping_unit` na ordem do contrato; `app_settings.shopping_rules` e `shopping_rules()`; as quatro chaves `shopping.*` em `permissions` e `role_permissions`.
+  - `shopping_catalog_items` (dois escopos, nome único por escopo ignorando caixa entre os não arquivados, sem `delete`), com trigger de escopo imutável, `catalog_full` sob trava por escopo e `catalog_item_exists`. `shopping_catalog_seed` (44 itens, sem acesso de cliente), `seed_shopping_catalog`, triggers em `groups` e `profiles` e preenchimento dos existentes.
+  - `shopping_lists` e `shopping_list_items`, com `can_view_shopping_list` e `can_manage_shopping_list`, RLS e `grant` por coluna da seção 4 do ADR. Triggers: `list_completed`, `list_full` com a lista travada, carimbo de `added_*`, item nasce desmarcado, `catalog_item_id` do mesmo escopo, escopo imutável, `task_link_invalid`. Ações de chave estrangeira (um nível de trigger abaixo) passam, para excluir tarefa, conta ou grupo com lista finalizada.
+  - RPCs `create_shopping_list`, `complete_shopping_list`, `adjust_shopping_item_quantity`, `add_catalog_item_to_list` e `set_shopping_item_checked`, todas travando a lista. `add_catalog_item_to_list` usa a trava da lista em vez de `on conflict`: com `on conflict`, o trigger de `insert` contaria `list_full` mesmo quando a linha já existe. A soma para em 9999.
+  - Os triggers recusam `insert` em lista ou catálogo de outro grupo antes de olhar o estado, porque o trigger `before` roda antes da política: sem isso, sondar um nome no catálogo de outro grupo distinguiria `catalog_item_exists` de `forbidden`.
+  - `shopping_lists` e `shopping_list_items` na publicação `supabase_realtime`, `replica identity` padrão. Sem retenção (ADR, Consequências).
+  - `rls_shopping.test.sql` (135 testes). `rls_notifications.test.sql` passa a esperar as três tabelas na publicação, e `rls_proof.test.sql` as sete funções novas abertas a `authenticated`.
+  - `pnpm db:types`.
+- **Arquivos/módulos principais:** `supabase/migrations/20261103170000_shopping_vocabulary.sql` a `20261103170800_shopping_realtime.sql`, `supabase/tests/rls_shopping.test.sql`, `packages/data/src/database.types.ts`
+- **Migrations:** `20261103170000_shopping_vocabulary`, `170100_shopping_rules`, `170200_shopping_permissions`, `170300_shopping_catalog_items`, `170400_shopping_catalog_seed`, `170500_shopping_lists`, `170600_shopping_list_items`, `170700_shopping_rpcs`, `170800_shopping_realtime`
+- **Decisões/ADRs:** nenhuma nova.
+- **Como testar:** `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`.
+- **Verificado (pilha B, só Postgres, `supabase_db_azkaban-b`):** `db reset`; `pnpm db:test` com 6 arquivos e 1513 testes, todos passando. `pnpm check` passou (17 de 17 e 9 de 9). Preenchimento: `db reset --version 20261103160000`, um grupo e dois perfis criados, `migration up`, e os três com 44 itens. Concorrência real, em sessões paralelas: dois primeiros toques simultâneos no mesmo item do catálogo dão uma linha com 2; três passos simultâneos somam 5. Mutações, dentro da transação do teste: grupo visível a não membro (19 falhas), lista pessoal visível a outro (7), escrita em lista finalizada (8), colunas `checked_*`, `added_by`, `status` e `completed_*` liberadas (8), catálogo do grupo editável por membro sem `shopping.manage_catalog` (2).
+- **Não verificado:** o Realtime em si (a B `db` não tem), só a publicação por `pg_publication_tables` e as políticas de `select` que ele usa. Como o PostgREST serializa o nulo composto das RPCs. E2E e projeto hospedado.
+- **Pendências / próximos passos:** `pnpm db:check-permissions` acusa só a matriz: as 10 linhas `shopping.*` estão no banco e faltam em `matrix.ts`, até a branch do `auth-grupos` entrar no mesmo merge; os outros espelhos, `Shopping rules`, `categories`, `units` e `catalog seed`, estão em sincronia. F7-5 depois de F6-2. Handoff `20261103-0254-banco-de-dados-para-compras-compras`.
+
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:57 (BRT)
 
 - **Branch:** feat/phase-5-whatsapp
@@ -1757,3 +1834,197 @@
 - **Verificado:** em `8850f41`, todos os 14 passos de `verificar-fase.sh`: `db:test` 1378 de 1378 antes e depois da E2E; `db:check-permissions` em dia (inclui `whatsapp_rules`); `turbo typecheck test --force` (core 605, contracts 92, platform 46, notifications 17, config 15, ui 11, app 8, data 7, proof 6); lint, `boundaries`, `build:web`; `functions:test` 178 de 178; E2E duas vezes com 70 ok, 0 falhas e 1 pulado (o "sem chave VAPID"). Rodadas anteriores pegaram dois defeitos que nenhum agente viu: as specs não carregavam por `import.meta` no ajudante dos testes (corrigido) e, antes disso, o webhook intermediário dando 500 em lote inválido (conferido 200 com `curl` assinado). Varredura de segredos no diff `feat/phase-4-notifications..`: só nomes nos `.env.example` e os `local-demo-` aprovados.
 - **Não verificado:** a Meta de verdade (nada foi enviado), Safari e iPhone, leitor de tela real, CI do PR, projeto hospedado.
 - **Pendências / próximos passos:** PR para `feat/phase-4-notifications`; perguntas ao humano (ADR-0009, seção 16, e SEG5-5/6/7); Fases 6 e 7 já em andamento em `feat/phase-6-gamification` e `feat/phase-7-shopping`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:09 (BRT)
+
+- **Branch:** feat/shopping-live, criada a partir de feat/phase-7-shopping (f204bb1)
+- **Agente(s):** compras
+- **Resumo:** F7-2 a F7-4 ligados ao banco: repositório real da lista de compras com Realtime, rotas, aba "Compras", tela do catálogo, correção da contagem dupla do stepper e E2E com dois navegadores. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/data/src/shopping`: `sample.ts` removido (nada de dados de exemplo na `main`). Leituras sob RLS; as cinco RPCs (`p_id` e `p_group_id` nulos com o mesmo contorno de `tasks`); `insert` e `update` só nas colunas liberadas; `updateCatalogItem` (editar e arquivar); erros como `Error` com o código de `shoppingErrorCodeSchema`, ou `shopping_error`; `23505` numa escrita do catálogo vira `catalog_item_exists`. O nulo composto das RPCs vale como "o item sumiu" nas duas formas (`null` ou linha de nulos). `watchList` assina `postgres_changes` de `shopping_list_items` (`list_id=eq`) e `shopping_lists` (`id=eq`) e entrega o id de um `DELETE`; a tela ignora o que não mostra (ADR-0008, SEG4-4). 2 testes.
+  - Stepper: os deltas saem como mutações sob `shoppingKeys.steps(listId)`. Enquanto há um no ar, o Realtime não recarrega os itens, e o último a voltar recarrega. Tira a contagem dupla de quando o eco chegava antes da resposta da RPC.
+  - `canShop` sem cast: as chaves estão em `matrix.ts`. Teste do membro (finaliza, não edita catálogo).
+  - `ShoppingCatalogScreen` em `/shopping/catalog?group=`: por categoria, toque abre folha para nome, categoria e unidade padrão, arquivar; arquivados com "Restaurar". Botão "Editar catálogo" nas listas para quem tem `shopping.manage_catalog` ou no pessoal.
+  - Rotas finas: `(tabs)/shopping.tsx`, `shopping/[id].tsx`, `shopping/history.tsx`, `shopping/catalog.tsx`. Aba "Compras" (🛒) entre Calendário e Perfil, delegada pelo orquestrador; `apps/app` passa a depender de `@azkaban/feature-shopping`. `e2e/calendar.spec.ts` espera a aba nova na ordem das abas.
+  - `e2e/shopping.spec.ts`: dois membros montam a lista, stepper simultâneo (2 + 3 = 5 nos dois), item avulso ao vivo, modo no mercado marcando ao vivo, compartilhar pela área de transferência só com o que falta, finalizar com a outra tela virando histórico ao vivo, histórico, nova lista a partir desta, e alguém de outro grupo sem ver lista nem grupo.
+- **Arquivos/módulos principais:** `packages/data/src/shopping/`, `packages/data/src/index.ts`, `packages/features/shopping/src/`, `packages/i18n/src/pt-BR/{shopping,common}.json`, `apps/app/app/(app)/(tabs)/`, `apps/app/app/(app)/shopping/`, `apps/app/src/AppTabBar.tsx`, `apps/app/package.json`, `pnpm-lock.yaml`, `e2e/shopping.spec.ts`, `e2e/calendar.spec.ts`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova. A tela das listas não assina `shopping_lists` (ADR-0011, seção 7): relê ao abrir. Handoff `20261103-0310-compras-para-design-system-seis-abas-a-320`.
+- **Como testar:** `pnpm check`; com a pilha A, `pnpm exec supabase db reset` e `pnpm exec playwright test e2e/shopping.spec.ts e2e/calendar.spec.ts`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 10 de 10; core 630, data 9, feature-shopping 7; dependency-cruiser sem violações; `functions:imports` 8 de 8). `pnpm build:web` passou, com a rota de compras no pacote. Medição dos rótulos da barra no Chromium com a fonte real: seis abas cabem a 375 px (7 px entre rótulos) e se sobrepõem 7 px a 320 px.
+- **Não verificado:** a E2E não rodou: a pilha A estava ocupada por outro agente. Nada do repositório real foi exercitado contra o banco (nem a serialização do nulo composto, nem o `DELETE` sem filtro do Realtime). Telas não abertas no navegador, nem no escuro. Sem mutação.
+- **Pendências / próximos passos:** QA da fase roda `e2e/shopping.spec.ts` e o `calendar.spec.ts` ajustado. A barra a 320 px (handoff). Assinatura da tela das listas, se o humano quiser lista nova aparecendo sem reabrir.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:14 (BRT)
+
+- **Branch:** fix/tabbar-six-tabs, criada a partir de feat/phase-7-shopping (7528ceb)
+- **Agente(s):** design-system
+- **Resumo:** com seis abas, os rótulos da barra caem para 12 px, e a 320 px nenhum encosta no vizinho. Responde ao handoff `20261103-0310-compras-para-design-system-seis-abas-a-320` com a proposta 1. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `tokens.ts`: `fontSize.xs = 12` (vira `text-xs` pelo `tailwind.config.ts`), só para a barra com mais de cinco abas.
+  - `TabBar`: `text-xs` quando há mais de cinco abas, `text-sm` até cinco. Alvo de toque, altura e ícone iguais.
+  - `/design-system`: a barra de exemplo ganha a sexta aba, "Compras" (🛒), como no app.
+- **Arquivos/módulos principais:** `packages/ui/src/{tokens,TabBar,DesignSystemScreen}.tsx?`, `packages/i18n/src/pt-BR/ui.json`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova. Rótulos mais curtos e Compras fora da barra descartados (texto aprovado; ADR-0011, seção 15, item 9).
+- **Como testar:** `pnpm dev`, abrir `/design-system` a 320, 375 e 1280 px.
+- **Verificado:** no Chromium (Playwright), `/design-system` com `.env.local` falso, já apagado, e sem a pilha. Nunito ExtraBold 12 px, claro e escuro iguais. 320 px: abas de 44, 53, 63, 64, 53 e 44 px, todas com 64 de altura; menor folga entre rótulos 2,3 px; todo rótulo dentro da própria aba; sem rolagem lateral. 375 px: folga mínima 15,4 px. 1280 px: 46,4 px. Cor do rótulo `muted` sobre `surface` passa AA nos dois temas. `pnpm check` passou (10 de 10 e 8 de 8). `pnpm build:web` passou.
+- **Não verificado:** a barra real do app (`AppTabBar`), que pede sessão; Android e iOS; leitor de tela (rótulo e papel não mudaram). Sem E2E nem mutação: a lógica é um ternário.
+- **Pendências / próximos passos:** uma sétima aba (terceira área) não cabe a 320 px nem a 12 px; aí a resposta é outra (só ícones abaixo de certa largura, ou menos abas).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:21 (BRT)
+
+- **Branch:** chore/security-phase-7, criada a partir de feat/phase-7-shopping (7528ceb)
+- **Agente(s):** revisor-seguranca
+- **Resumo:** Revisão de segurança da Fase 7 (lista de compras), com PoCs na pilha B. Nenhum achado alto ou médio. Três baixos (SEG7-1 a SEG7-3) e três informativos (SEG7-4 a SEG7-6). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Handoffs `20261103-0321-revisor-seguranca-para-arquiteto-compras` (SEG7-1 vínculo com tarefa que o membro não vê; SEG7-2 sem teto de listas por escopo; SEG7-3 controle e direção em nome, nota e emoji, no texto compartilhado) e `20261103-0321-revisor-seguranca-para-banco-de-dados-compras` (SEG7-4 desvio largo por `pg_trigger_depth()`; SEG7-5 oráculo de existência por UUID conhecido; SEG7-6 delta `NaN`/`Infinity`).
+- **Arquivos/módulos principais:** `docs/agentes/handoffs/`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. O `DELETE` do Realtime só com o id segue o risco aceito do SEG4-4 (ADR-0011, seção 7).
+- **Como testar:** `bash docs/agentes/ferramentas/pilha-b.sh db`, `pnpm exec supabase db reset` e os PoCs dos handoffs, como `authenticated` com `request.jwt.claims`.
+- **Verificado (pilha B, só Postgres):** outro grupo não vê listas, itens nem catálogo; owner e admin não veem lista, item nem catálogo pessoal de um membro; ex-membro não vê, não apaga a lista que criou, não ajusta item nem cria lista; `added_by`, `checked_at`, `checked_by`, `list_id`, `status`, `completed_by`, `group_id`, `insert` direto em `shopping_lists` e `delete` do catálogo dão 42501; catálogo pessoal para outro dono e catálogo do grupo por `member` dão `forbidden`; de outro grupo, `forbidden` igual para nome existente e novo no catálogo, lista existente e inexistente, e nas cinco RPCs; `catalog_item_id` de outro escopo, `forbidden`; vínculo com tarefa privada, de outro grupo ou inexistente, `task_link_invalid`; lista finalizada recusa `delete` de item e `update`; 201 itens, `list_full`. Funções: todas `security definer` com `search_path` vazio; `seed_*`, guardas e `shopping_rules()` sem `execute` para clientes; `anon` sem nenhuma. Publicação com `notifications` e as duas tabelas, `replica identity` padrão. `pnpm db:check-permissions`, matriz em sincronia (33 linhas). Nenhum segredo no diff.
+- **Não verificado:** Realtime em si (a B `db` não tem): o filtro `list_id=eq` e o `DELETE` só com id ficaram na leitura do código, que ignora o id que não mostra. `pnpm db:test`, `pnpm check` e E2E não rodaram (revisão sem mudança de código). Navegador, iOS, Android e projeto hospedado.
+- **Pendências / próximos passos:** decisão do `arquiteto` em SEG7-1 a SEG7-3; SEG7-4 a SEG7-6 a critério do `banco-de-dados`. Pilha B parada.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:30 (BRT)
+
+- **Branch:** docs/shopping-security-decisions, criada a partir de feat/phase-7-shopping (b5e70fa)
+- **Agente(s):** arquiteto
+- **Resumo:** Decisões sobre a revisão de segurança da Fase 7 (SEG7-1 a SEG7-6) no ADR-0011, seção 16, com a parte de contrato e config feita e um handoff para cada dono. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/contracts/src/shopping.ts`: `shoppingControlCharacterPattern` (`\p{Cc}`, U+2028, U+2029, U+202A a U+202E, U+2066 a U+2069, o mesmo conjunto do WhatsApp) e `shoppingNameSchema`; nome, nota e emoji de compras recusam esses caracteres (SEG7-3). `lists_full` em `shoppingErrorCodeSchema` (SEG7-2). Testes: cada caractere recusado em nome, nota, emoji e nome de lista; equivalência com `\p{Cc}` de U+0000 a U+009F; emojis com ZWJ, FE0F, bandeira e tom de pele, e os vizinhos das faixas aceitos.
+  - `packages/config/src/shopping.ts`: `shoppingRules.maxOpenListsPerScope = 50`, padrão a confirmar pelo humano.
+  - `packages/i18n/src/pt-BR/shopping.json`: texto provisório de `errors.lists_full`, fora do escopo, só para o teste de cobertura dos códigos; `compras` revisa.
+  - ADR-0011: seção 16 nova. SEG7-1: a premissa da seção 8 estava errada; o vínculo é id inerte para quem não lê a tarefa, e a navegação o trata como ausente. SEG7-2: 50 abertas por grupo e por pessoa, finalizadas fora. SEG7-3: a regra vale só para compras, não para todo `nameSchema` (o `not valid` não salva dados antigos, porque o Postgres confere todo `update`); `check` validado com classe explícita, sem `[[:cntrl:]]`. SEG7-4 e SEG7-6 confirmados; SEG7-5 aceito, com a visibilidade antes do `for update` só em `create_shopping_list`, que já muda. Seções 1, 4, 8 e 15 (itens 11 e 12) remetem para ela.
+  - Handoffs `20261103-0328-arquiteto-para-{banco-de-dados,compras}-compras-seguranca`.
+- **Arquivos/módulos principais:** `packages/contracts/src/shopping{,.test}.ts`, `packages/config/src/shopping.ts`, `packages/i18n/src/pt-BR/shopping.json`, `docs/adr/0011-lista-de-compras.md`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma; espelho, teto e `check`s são do `banco-de-dados`.
+- **Decisões/ADRs:** ADR-0011, seção 16.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (lint, boundaries, typecheck, testes; contracts 127, config 19; `functions:imports` 8 de 8). Mutação: 8 mutantes (tirar U+2028/2029, `\p{Cc}`, encurtar cada ponta das duas faixas de direção, tirar a regra do nome, da nota e do emoji), todos mortos.
+- **Não verificado:** `pnpm db:check-permissions` vai acusar `shopping_rules` até a migration do `banco-de-dados`. A classe explícita do `check` não rodou no Postgres. Telas não mudaram.
+- **Pendências / próximos passos:** `banco-de-dados`: espelho, teto, `check`s, SEG7-4 a SEG7-6. `compras`: SEG7-1 na navegação, `shoppingNameSchema` nos formulários, texto de `lists_full`. Humano: itens 11 e 12 da seção 15.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:37 (BRT)
+
+- **Branch:** fix/shopping-client-security, criada a partir de feat/phase-7-shopping (ebf34ea)
+- **Agente(s):** compras
+- **Resumo:** lado do cliente da revisão de segurança da Fase 7 (ADR-0011, seção 16): formulários de compras com `shoppingNameSchema` e mensagem de texto inválido (SEG7-3), texto de `lists_full` revisado e a regra do SEG7-1 registrada onde o vínculo entra no app. Responde ao handoff `20261103-0328-arquiteto-para-compras-compras-seguranca`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `BuildMode` (busca e item avulso), `ShoppingCatalogScreen` (renomear) e `ShoppingListsScreen` (nova lista) trocam `nameSchema` por `shoppingNameSchema`. Com quebra de linha, tabulação, controle ou controle de direção no meio do texto, aparece "Use só uma linha, sem caracteres especiais." (`form.invalidText`) e o botão fica desligado; vazio ou longo demais segue só desligando o botão. `shoppingTextErrorKey` decide pela falha do `refine` do contrato (único `custom`), sem repetir o padrão.
+  - Nota e emoji: o app não tem campo para nenhum dos dois (sempre `null` ao adicionar; o catálogo não edita emoji). Nada a validar na tela até um campo existir; o contrato e o `check` já recusam.
+  - `errors.lists_full`: "Já há listas abertas demais aqui. Finalize uma para criar outra." Tirei o "ou exclua": o app não tem como excluir lista. Sem o número, como `list_full` e `catalog_full`. Criar lista e "nova lista a partir desta" já mostram o erro pelo `shoppingErrorKey`.
+  - SEG7-1: nenhuma tela usa `linkedTaskId` hoje (o vínculo é F7-5, a fazer), então não há "abrir a tarefa" nem oferta ao finalizar para esconder. Regra registrada em comentário no mapeamento de `packages/data`, para F7-5: ler a tarefa antes e, sem linha sob RLS, agir como sem vínculo, nunca "não encontrado".
+- **Arquivos/módulos principais:** `packages/features/shopping/src/{BuildMode,ShoppingCatalogScreen,ShoppingListsScreen}.tsx`, `packages/features/shopping/src/shopping{,.test}.ts`, `packages/i18n/src/pt-BR/shopping.json`, `packages/data/src/shopping/index.ts`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova; aplica a seção 16 do ADR-0011.
+- **Como testar:** `pnpm check`; `pnpm dev`, colar "Arroz⏎Leite" na busca de uma lista, no nome de lista nova ou ao renomear no catálogo.
+- **Verificado:** `pnpm check` passou (17 de 17 e 10 de 10; feature-shopping 9, com 2 novos; core 630, contracts 127, data 9; dependency-cruiser sem violações). `pnpm build:web` passou.
+- **Não verificado:** telas não abertas no navegador; E2E não rodou (sem pilha; nenhum texto usado em `e2e/shopping.spec.ts` mudou). `lists_full` não exercitado contra o banco (a migration é do `banco-de-dados`). Sem mutação.
+- **Pendências / próximos passos:** F7-5 aplica o SEG7-1 ao construir o vínculo, nos dois lados (lista e tarefa).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:41 (BRT)
+
+- **Branch:** fix/shopping-db-security, criada a partir de feat/phase-7-shopping (ebf34ea)
+- **Agente(s):** banco-de-dados
+- **Resumo:** SEG7-2 a SEG7-6 da revisão de segurança da Fase 7 no banco (ADR-0011, seção 16), em quatro migrations novas. Responde aos handoffs `20261103-0328-arquiteto-para-banco-de-dados-compras-seguranca` e `20261103-0321-revisor-seguranca-para-banco-de-dados-compras`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - SEG7-2: `app_settings.shopping_rules` ganha `maxOpenListsPerScope: 50`. `create_shopping_list` conta as listas `open` do grupo, ou as pessoais `open` de quem chama, sob `pg_advisory_xact_lock` por escopo, antes de inserir (com `p_from_list_id` também): `lists_full` (`54000`) no teto. Finalizadas não contam.
+  - SEG7-5: na mesma função, a visibilidade da origem é conferida antes do `for share`; lista alheia e inexistente dão `forbidden`.
+  - SEG7-3: `check` validado `*_plain_check` nas seis colunas de texto de compras, com a classe explícita do ADR.
+  - SEG7-4: abaixo de outro trigger, os guardas só deixam passar o que uma ação de FK faz (as colunas do ADR viram nulo e nada mais muda, comparado por `to_jsonb`). O `delete` em cascata de item não precisa de desvio: a lista já sumiu, então não há `list_completed`; um `delete` de profundidade 2 com a lista finalizada presente é recusado.
+  - SEG7-6: `NaN`, `Infinity` e `-Infinity` dão `invalid_argument` em `adjust_shopping_item_quantity` e `add_catalog_item_to_list`.
+- **Arquivos/módulos principais:** `supabase/migrations/2026110318{0000,0100,0200,0300}_shopping_*.sql`, `supabase/tests/rls_shopping_security.test.sql`
+- **Migrations:** `20261103180000_shopping_open_lists_cap`, `20261103180100_shopping_plain_text_checks`, `20261103180200_shopping_guards_fk_actions_only`, `20261103180300_shopping_delta_finite`.
+- **Decisões/ADRs:** nenhuma nova; ADR-0011, seção 16.
+- **Como testar:** `bash docs/agentes/ferramentas/pilha-b.sh db`, `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`.
+- **Verificado (pilha B, só Postgres):** `pnpm db:test` 7 arquivos, 1556 testes, todos passando (os 135 de `rls_shopping` intactos; 43 novos em `rls_shopping_security`). `pnpm db:check-permissions` em `supabase_db_azkaban-b`, Shopping rules em sincronia. `pnpm db:types` sem diferença. `pnpm check` passou. Mutação, uma por barreira, todas mortas: teto com `+ 1` (3 falhas), o `check` da nota sem U+2066 a U+2069 (1 falha), o desvio antigo por profundidade em `shopping_lists_guard` (6 falhas).
+- **Não verificado:** a ordem "visibilidade antes do `for share`" (SEG7-5) e a trava por escopo sob concorrência real ficaram na leitura do código: o pgTAP roda numa sessão só. Sem mutante separado no guarda de itens (os testes de item com trigger de profundidade 2 existem, mas o mutante do guarda de listas os derrubou em cascata). Sem E2E, Realtime ou projeto hospedado.
+- **Pendências / próximos passos:** `compras`: texto de `lists_full` e o erro de texto inválido nos formulários (handoff do `arquiteto`). Humano: valor 50 (seção 15, item 11).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:49 (BRT)
+
+- **Branch:** chore/qa-phase-7, criada a partir de feat/phase-7-shopping (`ebf34ea`)
+- **Agente(s):** qa-testes
+- **Resumo:** QA da Fase 7 (lista de compras) no estado integrado. `e2e/shopping.spec.ts` rodou pela primeira vez, com um ajuste e mais cobertura; spec nova com o percurso das telas de compras em três larguras e dois temas. Nenhum bloqueio; quatro achados para o `compras`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `e2e/shopping.spec.ts`: o zero do stepper é "0 pacote" (CLDR de pt-BR põe 0 em `one`), e a volta da lista para as listas é pelo "Voltar" (a lista é rota de pilha, sem barra de abas). Coberto a mais: "salvar no catálogo" pelo dono e o item no "Editar catálogo"; o membro sem `shopping.manage_catalog` não vê o interruptor; "Adicionado por" com o nome; lista pessoal do membro, com o interruptor no catálogo pessoal, que o dono do grupo não acha nem pelo endereço nem nas próprias listas.
+  - `e2e/shopping-layout.spec.ts` (nova): listas, catálogo, montar, montar com item avulso aberto, no mercado, finalizada, histórico e lista inexistente a 320, 375 e 1280 px, claro e escuro (alvos de 44 px, sem rolagem lateral, texto sem corte, anel de foco); a barra de seis abas em cada largura (rótulo dentro da própria aba, sem sobreposição); `title` de cada tela; `catalog_item_exists` e `forbidden` na tela; um membro novo sem lista nem histórico de exemplo.
+  - `e2e/walk.ts`: o percurso que estava dentro de `whatsapp.spec.ts`, agora compartilhado, conferindo também `radio` e `checkbox`.
+  - Handoff `20261103-0349-qa-testes-para-compras-achados-da-fase-7`: QA7-1 (média) sem excluir nem renomear lista, e `lists_full` manda excluir; QA7-2 (baixa) "Falta 0 item" na lista vazia; QA7-3 (baixa) erro do catálogo fica na tela depois de fechar a folha; QA7-4 (baixa) nota do item sem tela.
+- **Arquivos/módulos principais:** `e2e/shopping.spec.ts`, `e2e/shopping-layout.spec.ts`, `e2e/walk.ts`, `e2e/whatsapp.spec.ts`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** pilha A, `pnpm exec supabase db reset`, `pnpm exec playwright test e2e/shopping.spec.ts e2e/shopping-layout.spec.ts e2e/calendar.spec.ts`; `pnpm e2e` com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória.
+- **Verificado (pilha A, banco limpo):** `shopping.spec.ts` e `calendar.spec.ts` ajustado: 7 de 7; `shopping.spec.ts` 4 vezes em paralelo (`--repeat-each=4 --workers=4`): 4 de 4, com o stepper simultâneo somando 5. `pnpm e2e` completo uma vez, com a chave VAPID: 72 passaram, 0 falhas, 1 pulado (o que só roda sem a chave). `pnpm check` passou.
+- **Não verificado:** as folhas (unidade e edição do catálogo) não entram no percurso; `list_completed` numa escrita concorrente com o finalizar só no pgTAP; leitor de tela real, Safari, iOS e Android; projeto hospedado. Sem mutação. SEG7-2 a SEG7-6 no banco e SEG7-1/SEG7-3 nas telas seguem com os outros agentes e não foram conferidos.
+- **Pendências / próximos passos:** `compras`: QA7-1 a QA7-4. F7-5 (vínculo com tarefa nas telas e XP de compra) não entregue; o XP depende da Fase 6. `docs/agentes/QUADRO.md` ainda mostra a Fase 7 inteira como "a fazer" (orquestrador). Pilha A parada.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:58 (BRT)
+
+- **Branch:** fix/shopping-qa7 (a partir de `feat/phase-7-shopping`, `a5ae390`)
+- **Agente(s):** compras
+- **Resumo:** QA7-1 a QA7-4 do QA da Fase 7: renomear e excluir lista, status da lista vazia, erro do catálogo que sobrava ao fechar a folha, e a nota do item.
+- **Alterações:**
+  - QA7-1: `ShoppingRepository.updateList` e `deleteList` (`update` e `delete` sob a RLS, com `select('id')`; se nenhuma linha volta, o erro é `forbidden`, porque a RLS não dá erro). Na lista aberta, "Renomear lista" (folha com `shoppingNameSchema`; o erro do banco aparece dentro da folha) e "Excluir lista" com `ConfirmButton`. Na finalizada, só "Excluir lista", porque o banco recusa `update` em lista `completed`. Quem vê os botões: `canManageList`, espelho de `can_manage_shopping_list` (criador ainda membro, ou `shopping.manage_lists`, ou o dono na pessoal). Excluir volta para `/shopping` antes de recarregar. `errors.lists_full` passa a dizer "Finalize ou exclua uma".
+  - QA7-2: lista sem itens diz "A lista está vazia." (`list.empty`) no status, em vez de "Falta 0 item".
+  - QA7-3: `save.reset()` no `onClose` da folha do catálogo.
+  - QA7-4: botão "Nota" ao lado da unidade, no modo montar, abre uma folha com um campo. `parseNote` aplica `shoppingNoteSchema`; em branco limpa (null). A nota aparece sob o nome no modo montar e, como antes, no modo no mercado. É um `update` comum, e a última escrita vale (ADR-0011, seção 5).
+  - Testes de unidade: `canManageList`, `parseNote` e os textos novos; no `data`, `updateList` e `deleteList` com o cliente simulado (sem linha vira `forbidden`; o código do banco é repassado).
+  - E2E: caso novo em `e2e/shopping.spec.ts` (lista vazia, membro sem os botões, nota escrita pelo membro e vista pelo dono, renomear ao vivo, excluir com confirmação e "não encontrada" no outro navegador).
+- **Arquivos/módulos principais:** `packages/data/src/shopping/`, `packages/features/shopping/src/` (`shopping.ts`, `ShoppingListScreen.tsx`, `BuildMode.tsx`, `ShoppingCatalogScreen.tsx`), `packages/i18n/src/pt-BR/shopping.json`, `e2e/shopping.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova; segue o ADR-0011, seções 3 a 6. Contratos sem mudança (`shoppingListUpdateInputSchema` e `shoppingNoteSchema` já existiam).
+- **Como testar:** `pnpm check`; com a pilha livre, `pnpm exec supabase db reset` e `pnpm exec playwright test e2e/shopping.spec.ts`.
+- **Verificado:** `pnpm check` passou (feature-shopping 16 testes, data 11, core 630, contracts 127, entre outros); `pnpm build:web` passou. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Não verificado:** a E2E nova não rodou, porque a pilha A estava ocupada pelo QA da Fase 6. Nada foi visto no navegador (layout das folhas novas a 320 px, tema escuro). Sem mutação. iOS e Android não testados.
+- **Pendências / próximos passos:** rodar `e2e/shopping.spec.ts` (e `shopping-layout.spec.ts`, que pode passar a cobrir as folhas novas) na próxima janela da pilha. O zero no singular das unidades ("0 pacote") ficou como está, à espera do humano.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:30 (BRT)
+
+- **Branch:** fix/shopping-seed-test (a partir de `feat/phase-7-shopping`, `4f48f91`)
+- **Agente(s):** banco-de-dados
+- **Resumo:** o teste 4 de `rls_shopping.test.sql` exigia exatamente 44 itens em todo catálogo do banco e quebrava depois da E2E ("salvar no catálogo" deixa 45). Agora prova que todo grupo e todo perfil têm cada item do seed, pelo nome, arquivado ou não.
+- **Alterações:**
+  - `supabase/tests/rls_shopping.test.sql`: a asserção global cruza `groups` e `profiles` com `shopping_catalog_seed` e conta os pares sem item de mesmo nome no escopo. Itens extras e arquivados não contam, conforme o ADR-0011 (seção 2: catálogos antigos são do admin, e arquivar mantém a linha). O plano continua em 135.
+  - As demais contagens deste arquivo e de `rls_shopping_security.test.sql` já são restritas aos grupos e usuários criados no próprio teste; nada mais mudou.
+- **Arquivos/módulos principais:** `supabase/tests/rls_shopping.test.sql`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma; segue o ADR-0011, seção 2.
+- **Como testar:** pilha B (`pilha-b.sh db`), `pnpm exec supabase db reset`, `pnpm db:test`; depois inserir um item extra num catálogo de grupo, arquivar um item de grupo e um pessoal, e rodar `pnpm db:test` de novo.
+- **Verificado:** `pnpm db:test` limpo: 7 arquivos, 1556 testes, PASS. Com a sobra simulada (ids aleatórios; catálogo de grupo com 45 itens e 1 arquivado, pessoal com 44 e 1 arquivado): 1556 testes, PASS. Numa transação desfeita, apagar "Café" de um catálogo de grupo faz a consulta nova acusar 1 faltante. Pilha B parada no fim. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Não verificado:** a E2E da pilha A não rodou de novo seguida de `pnpm db:test`; a sobra foi simulada à mão.
+- **Pendências / riscos:** a asserção casa pelo nome, então um item do seed renomeado num banco de desenvolvimento (sem cópia arquivada) a faz falhar; `db reset` resolve. Fora do escopo pedido, `rls_whatsapp.test.sql` tem asserções globais: `enqueue_daily_summaries()` = 4 conta perfis do banco todo, e os filtros `like '%0000000001%'` pegam qualquer UUID que contenha essa sequência (um UUID que inventei na primeira simulação, `...000000000001`, quebrou o teste 142). Com os ids aleatórios da E2E isso é improvável, mas sobras com resumo diário ativo quebrariam o teste.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:32 (BRT)
+
+- **Branch:** feat/phase-7-shopping
+- **Agente(s):** orquestrador
+- **Resumo:** Fase 7 (lista de compras) fechada, sem a F7-5 (vincular a tarefa e XP de compra), que depende da Fase 6 e entra depois de integrar as duas. A fase rodou em paralelo com a 6, a partir da Fase 5 fechada.
+- **Alterações:**
+  - Integradas: ADR-0011, contratos, config e seed (`arquiteto`); migrations, RLS, RPCs e Realtime (`banco-de-dados`); chaves de permissão (`auth-grupos`); núcleo, adapter `shareText`, telas, repositório real, rotas, aba e catálogo (`compras`); barra de seis abas a 320 px (`design-system`); QA (`qa-testes`, QA7-1 a QA7-4 corrigidos); revisão de segurança com PoCs (`revisor-seguranca`, SEG7-1 a SEG7-6 corrigidos); teste do seed sem depender do estado da E2E.
+  - `docs/agentes/ferramentas/log-merge.cjs` (orquestrador): num conflito, monta o LOG a partir das versões inteiras de cada lado (índice do git), porque o git deixava fora do conflito um título igual nos dois lados e um corpo ficava sem título. Testado num repositório descartável. A única entrada antiga afetada é a de 2026-11-01 10:06, com dois corpos sob um título, anterior à ferramenta; fica como está (entradas antigas não se editam).
+  - `docs/agentes/QUADRO.md`: F7-1 a F7-4 e F7-6 feitas; F7-5 a fazer.
+- **Decisões/ADRs:** aceitos pelo orquestrador os desvios do `banco-de-dados` (trava em vez de `on conflict`, stepper até 9999, guardas só para ações de FK, escopo antes do estado) e as decisões da seção 16 do ADR-0011 (teto de 50 listas abertas, texto de compras sem controles, tarefa ilegível como vínculo ausente).
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`; `bash docs/agentes/ferramentas/verificar-fase.sh <checkout> <log>` com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória.
+- **Verificado:** em `c1c109a` (antes da correção do teste do seed): install, `db:start`, `db reset`, `db:test` (1556), `db:check-permissions`, `turbo typecheck test --force`, lint, `boundaries`, `build:web`, `functions:test`, E2E duas vezes com 73 ok, 0 falhas e 1 pulado (o "sem chave VAPID"). O `db:test` depois da E2E falhou só no teste 4 de `rls_shopping` (exigia 44 itens exatos, e a E2E salva um item no catálogo); corrigido em `fix/shopping-seed-test`, que passou em banco limpo e com a sobra simulada. Varredura de segredos no diff `feat/phase-5-whatsapp..`: nada.
+- **Não verificado:** o `db:test` depois de uma E2E real com o teste novo (fica para a verificação da integração das Fases 6 e 7); Realtime de compras só pela E2E; Share nativo, Safari, iOS e Android; projeto hospedado; CI do PR.
+- **Pendências / próximos passos:** PR para `feat/phase-5-whatsapp`; F7-5 depois da Fase 6; perguntas ao humano da seção 15 do ADR-0011.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 05:07 (BRT)
+
+- **Branch:** fix/shopping-migration-prefixes (de `feat/phase-7-shopping`, `d02fc82`)
+- **Agente(s):** banco-de-dados
+- **Resumo:** as 13 migrations da Fase 7 ganharam prefixos depois do último da Fase 6 (`20261103180600`), para a base integrada das duas fases ter versões únicas (ADR-0012, seção 14). Só `git mv`: ordem e SQL iguais.
+- **Alterações:**
+  - `20261103170000` a `20261103170800` (vocabulary, rules, permissions, catalog_items, catalog_seed, lists, list_items, rpcs, realtime) viram `20261103190000` a `20261103190800`, com o mesmo final.
+  - `20261103180000` a `20261103180300` (open_lists_cap, plain_text_checks, guards_fk_actions_only, delta_finite) viram `20261103200000` a `20261103200300`.
+  - Nenhuma referência viva aos prefixos antigos: nem SQL, nem pgTAP, nem `scripts/check-permission-mirror.mjs`, nem docs fora dos handoffs. Os handoffs da Fase 7 e as entradas antigas deste LOG citam os nomes antigos e ficam como registro.
+- **Arquivos/módulos principais:** `supabase/migrations/20261103190000_*` a `20261103200300_*`
+- **Migrations:** as 13 acima, renomeadas; nenhuma nova
+- **Decisões/ADRs:** ADR-0012, seção 14.
+- **Como testar:** pilha B (`pilha-b.sh db`), `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`.
+- **Verificado:** nesta branch, `db reset`, `db:test` (7 arquivos, 1556 testes, PASS) e `db:check-permissions` em sincronia. Num merge de teste descartável (`tmp/phase-6-7-trial`, não entregue) com `feat/phase-6-gamification`: `db reset` aplica as migrations das duas fases sem colisão; `db:test` dá 9 arquivos, 1698 testes, PASS; `db:check-permissions` em sincronia, com as regras de compras e de gamificação; o `database.types.ts` mesclado sozinho é igual ao gerado; `pnpm check` verde. Pilha B parada no fim. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Não verificado:** E2E, `functions:test` e `build:web` no merge de teste; projeto hospedado.
+- **Pendências / próximos passos:** a integração de verdade das Fases 6 e 7 (orquestrador), com 12 arquivos em conflito, todos de manter os dois lados; depois, F7-5.

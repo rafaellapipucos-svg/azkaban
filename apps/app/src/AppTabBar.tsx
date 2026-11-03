@@ -14,7 +14,7 @@ type Props = {
 type Tab = { id: string; label: string; icon: string; href: string; selected: boolean };
 
 /**
- * Hoje, one tab per area, Calendário, then Perfil. The areas come from the database, and Expo Router tabs are
+ * Hoje, one tab per area, Calendário, Compras, then Perfil. The areas come from the database, and Expo Router tabs are
  * static, so the areas share one route, `area/[areaKey]`, and this bar draws a tab for each.
  */
 export function AppTabBar({ state }: Props) {
@@ -45,6 +45,13 @@ export function AppTabBar({ state }: Props) {
       icon: '📅',
       href: '/calendar',
       selected: current?.name === 'calendar',
+    },
+    {
+      id: 'shopping',
+      label: t('tabs.shopping'),
+      icon: '🛒',
+      href: '/shopping',
+      selected: current?.name === 'shopping',
     },
     {
       id: 'profile',

@@ -1,0 +1,79 @@
+import { shoppingErrorCodeSchema, shoppingNoteSchema, type ShoppingList } from '@azkaban/contracts';
+import { can, type Permission, type PermissionUser } from '@azkaban/core';
+
+/** Where the screens live. The routes in `apps/app` mount them on these paths. */
+export const shoppingPaths = {
+  lists: '/shopping',
+  history: (groupId: string | null) =>
+    groupId ? `/shopping/history?group=${groupId}` : '/shopping/history',
+  catalog: (groupId: string | null) =>
+    groupId ? `/shopping/catalog?group=${groupId}` : '/shopping/catalog',
+  list: (id: string, mode?: ShoppingMode) =>
+    mode ? `/shopping/${id}?mode=${mode}` : `/shopping/${id}`,
+} as const;
+
+/** Of the person and the device, not of the list: it lives in the address (ADR-0011, section 10). */
+export type ShoppingMode = 'build' | 'market';
+export const readMode = (value: string | undefined): ShoppingMode =>
+  value === 'market' ? 'market' : 'build';
+
+/** Tunables of this module (PROMPT_MESTRE 5.1). */
+export const shoppingConfig = {
+  /** Fast taps on the stepper go out as one delta after this pause, in ms (ADR-0011, section 5). */
+  stepperBatchMs: 300,
+} as const;
+
+type ShoppingPermission = Extract<Permission, `shopping.${string}`>;
+
+/**
+ * A personal list and catalog are only ever seen by their owner, who may do everything there. In
+ * a group, the matrix decides. Only hides controls: the database checks again.
+ */
+export function canShop(
+  user: PermissionUser,
+  permission: ShoppingPermission,
+  groupId: string | null,
+) {
+  return groupId === null || can(user, permission, { id: groupId });
+}
+
+/**
+ * Rename and delete a list (ADR-0011, section 3): its creator while a member, or
+ * `shopping.manage_lists`; a personal list is its owner's, the only one who sees it. Mirrors
+ * `can_manage_shopping_list`, which checks again.
+ */
+export function canManageList(
+  user: PermissionUser & { id: string },
+  list: Pick<ShoppingList, 'groupId' | 'createdBy'>,
+) {
+  if (list.groupId === null) return true;
+  const member = user.memberships.some(({ groupId }) => groupId === list.groupId);
+  return (
+    (member && list.createdBy === user.id) ||
+    can(user, 'shopping.manage_lists', { id: list.groupId })
+  );
+}
+
+/** A typed note: blank clears it (null), anything else must pass the contract. */
+export const parseNote = (text: string) =>
+  shoppingNoteSchema.safeParse(text.trim() === '' ? null : text);
+
+/** i18n key for a failure: the database's code when it raised one we know, else the generic text. */
+export function shoppingErrorKey(failure: unknown): string {
+  const raw =
+    typeof failure === 'string'
+      ? failure
+      : typeof failure === 'object' && failure !== null && 'message' in failure
+        ? failure.message
+        : null;
+  const code = shoppingErrorCodeSchema.safeParse(raw);
+  return `errors.${code.success ? code.data : 'generic'}`;
+}
+
+/**
+ * i18n key when shopping text was refused for a line break or control character (ADR-0011, section
+ * 16, SEG7-3): the contract's refine is the only `custom` issue. Empty or too long has no message,
+ * the button is just off. The app never reaches the database's `check` with such text.
+ */
+export const shoppingTextErrorKey = (parsed: { error?: { issues: { code: string }[] } }) =>
+  parsed.error?.issues.some(({ code }) => code === 'custom') ? 'form.invalidText' : null;

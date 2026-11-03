@@ -1358,3 +1358,19 @@
 - **Verificado:** specs afetadas primeiro: `notifications-bell`, `tasks-ui-fixes`, `tasks-late-and-count` e `tasks-proof` no projeto `app`, 18 de 18; `notifications-jobs` com `--no-deps`, 4 de 4. `pnpm e2e` completo uma vez, banco limpo, com chave pública gerada em memória e passada só ao processo: 68 passaram, 1 pulado (o "sem chave"), nenhuma falha, sem `retries`. Depois de cada execução, os seis jobs de `cron.job` voltaram a `active = true`. `pnpm check` passou (17 de 17 e 9 de 9).
 - **Não verificado:** a suíte completa rodou por volta de 00:50, quando o lembrete de 30 minutos das tarefas criadas pelo formulário (na próxima hora) já estava vencido, e passou; mas foi uma execução só. Nada no CI (o `supabase db query --local` é da CLI 2.122 do lockfile, a mesma do CI). Uma execução interrompida antes do teardown deixa os dois jobs desligados até a próxima execução ou `db reset`. Hora derivada de UTC menos 3 (PowerShell bloqueado).
 - **Pendências / próximos passos:** QA4-5, conforme o handoff. Uma falha no projeto `app` pula o `jobs` naquela execução.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 01:03 (BRT)
+
+- **Branch:** feat/phase-4-notifications
+- **Agente(s):** orquestrador
+- **Resumo:** Fase 4 fechada. A verificação final em banco limpo achou dois problemas que nenhum agente tinha visto: `dispatch-notifications` não subia no Edge Runtime e duas E2E dependiam do relógio. Os donos corrigiram, e tudo passou no estado integrado.
+- **Alterações:**
+  - Integradas `fix/dispatch-import-map` (`backend-funcoes`: `../tasks/late` no `deno.json` do despacho, vindo da correção do QA4-4) e `fix/e2e-phase-4-close` (`qa-testes`: seletores com escopo em `[role="main"]`; o pg_cron de lembretes e de vermelho fica desligado durante a E2E por `e2e/global-setup.ts`; `notifications-jobs` roda por último, num projeto próprio; `shieldFromAutoMiss` saiu).
+  - `feat/phase-3-proof` (`5b80817`, fechamento da Fase 3) trazido para esta branch.
+  - `docs/agentes/QUADRO.md`: F4-1 a F4-9 feitos.
+- **Migrations:** nenhuma nesta entrada.
+- **Decisões/ADRs:** QA4-5 (o aviso ao vivo repete o item na própria lista de avisos, baixa) vai para `notificacoes-whatsapp` na Fase 5, com as telas do WhatsApp.
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`; `bash docs/agentes/ferramentas/verificar-fase.sh <checkout> <log>`, com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória no ambiente para rodar os testes de push.
+- **Verificado:** primeira rodada em `e54968d`: tudo passou menos `functions:test` e as duas E2E, que pararam no preflight (`dispatch-notifications` 503, `Module not found .../core/src/tasks/late` no log do contêiner). Segunda, em `3b428b2`, completa: install, `db:start`, `db reset`, `db:test` 1227 de 1227 (antes e depois da E2E), `db:check-permissions`, `turbo typecheck test --force` (core 556, contracts 52, platform 46, ui 11, app 8, config 7, data 7, proof 6, notifications 2), lint, `boundaries`, `build:web`, `functions:test` 114 de 114; E2E 67 ok e 1 falha, depois 66 ok e 2 falhas (seletor pegando o aviso ao vivo; lembrete do cron no meio do teste). Final, em `e6f9c5a`: lint, `db reset`, E2E duas vezes com 68 ok, 0 falhas e 1 pulado (o "sem chave VAPID"), `db:test` 1227 de 1227 depois, e os 6 jobs do cron ativos de novo. Varredura de segredos no diff `feat/phase-3-proof..feat/phase-4-notifications`: só a chave demo pública da pilha local (já presente na Fase 3) e o vetor de teste da RFC 8291; os `.env.example` só têm nomes.
+- **Não verificado:** push real em aparelho (Android, desktop, iPhone pela Tela de Início), registro do `sw.js` no navegador, cabeçalhos do `_headers` (só a Netlify os aplica), CI do PR, projeto hospedado.
+- **Pendências / próximos passos:** PR para `feat/phase-3-proof`; perguntas ao humano da seção 4 do handoff 1505; Fase 5 em `feat/phase-5-whatsapp`.

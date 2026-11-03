@@ -1,12 +1,5 @@
 import { gamificationDefaults, gamificationRules } from '@azkaban/config';
-import {
-  addDays,
-  capRoom,
-  levelForXp,
-  localDateOf,
-  startOfWeek,
-  zonedInstant,
-} from '@azkaban/core';
+import { addDays, capRoom, levelForXp, localDateOf, recentDays, startOfWeek } from '@azkaban/core';
 import { useCurrentUser } from '@azkaban/data';
 import { canPlayTone, canVibrate } from '@azkaban/platform';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -37,13 +30,28 @@ export function useProgress() {
   };
 }
 
+/**
+ * The last `recentDays`, today first, from the local day the profile was created at the earliest
+ * (QA6-5): days before the account are not "Sem tarefas". `dates` is empty until it loads.
+ */
 export function useRecentDays() {
+  const { timezone } = useCurrentUser();
   const today = useToday();
   const from = addDays(today, 1 - gamificationUi.recentDays);
-  return useQuery({
-    queryKey: [...gamificationKey, 'days', from, today],
-    queryFn: () => source.listDays(from, today),
+  const query = useQuery({
+    queryKey: [...gamificationKey, 'days', from, today, timezone],
+    queryFn: async () => {
+      const [since, days] = await Promise.all([
+        source.getMemberSince(),
+        source.listDays(from, today),
+      ]);
+      return { first: localDateOf(timezone, Date.parse(since)), days };
+    },
   });
+  return {
+    ...query,
+    dates: query.data ? recentDays(today, query.data.first, gamificationUi.recentDays) : [],
+  };
 }
 
 export function useAchievements() {
@@ -59,24 +67,29 @@ export function useAchievements() {
   });
 }
 
-/** Whether today's capped XP reached `dailyCap` (ADR-0010, section 2). */
+/**
+ * Whether the capped XP of the last `capWindowHours` reached `dailyCap` (ADR-0010, SEG6-1). The window
+ * moves, so the room comes back as events leave it: a burst refreshes it through `gamificationKey`,
+ * and the clock through `capRefreshMs`.
+ */
 export function useCapReached() {
-  const { timezone } = useCurrentUser();
-  const today = useToday();
   const events = useQuery({
-    queryKey: [...gamificationKey, 'events', today, timezone],
-    // The start of today in the profile's zone, where the database starts counting.
-    queryFn: () => source.listCapEventsSince(zonedInstant(timezone, today, '00:00')),
+    queryKey: [...gamificationKey, 'capEvents'],
+    queryFn: () => {
+      const since = Date.now() - gamificationRules.xp.capWindowHours * 3_600_000;
+      return source.listCapEventsSince(new Date(since).toISOString());
+    },
+    refetchInterval: gamificationUi.capRefreshMs,
   });
   return events.data ? capRoom(events.data, gamificationRules.xp.dailyCap) === 0 : false;
 }
 
+/** The current week only, which is always one of the `ranking.maxWeeks` the server answers. */
 export function useRanking(groupId: string, enabled: boolean) {
-  const { timezone } = useCurrentUser();
-  const weekStart = startOfWeek(useToday(), gamificationDefaults.rankingWeekStartsOn);
+  const weekStart = startOfWeek(useToday(), gamificationRules.ranking.weekStartsOn);
   return useQuery({
-    queryKey: [...gamificationKey, 'ranking', groupId, weekStart, timezone],
-    queryFn: () => source.groupRanking({ groupId, weekStart, timezone }),
+    queryKey: [...gamificationKey, 'ranking', groupId, weekStart],
+    queryFn: () => source.groupRanking({ groupId, weekStart }),
     enabled,
     retry: false,
   });

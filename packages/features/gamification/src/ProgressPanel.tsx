@@ -1,6 +1,6 @@
 import { gamificationRules } from '@azkaban/config';
 import type { UserDayStats } from '@azkaban/contracts';
-import { addDays, localDateOf } from '@azkaban/core';
+import { localDateOf } from '@azkaban/core';
 import { useCurrentUser } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import {
@@ -16,14 +16,12 @@ import {
   XpBar,
 } from '@azkaban/ui';
 import { View } from 'react-native';
-import { gamificationUi } from './config';
 import {
   useAchievements,
   useCapReached,
   useCelebrationPrefs,
   useProgress,
   useRecentDays,
-  useToday,
 } from './hooks';
 
 /** `yyyy-MM-dd` as "3 de nov.", on the calendar, not the clock. */
@@ -50,7 +48,6 @@ const dayState = (day: UserDayStats | undefined) =>
 export function ProgressPanel() {
   const { t, i18n } = useTranslation('gamification');
   const { timezone } = useCurrentUser();
-  const today = useToday();
   const progress = useProgress();
   const days = useRecentDays();
   const achievements = useAchievements();
@@ -75,8 +72,7 @@ export function ProgressPanel() {
   if (!progress.isSuccess) return null;
 
   const { level, streak, bestStreak, freezes } = progress;
-  const byDate = new Map((days.data ?? []).map((day) => [day.localDate, day]));
-  const recent = Array.from({ length: gamificationUi.recentDays }, (_, i) => addDays(today, -i));
+  const byDate = new Map((days.data?.days ?? []).map((day) => [day.localDate, day]));
 
   return (
     <View className="gap-4">
@@ -116,7 +112,7 @@ export function ProgressPanel() {
         <Card>
           <Subtitle>{t('days.title')}</Subtitle>
           <View role="list">
-            {recent.map((date) => (
+            {days.dates.map((date) => (
               <Body key={date} role="listitem">
                 {t('days.row', {
                   date: dateText(date, i18n.language),

@@ -2021,6 +2021,44 @@
 - **Não verificado:** leitor de tela real (só papéis e rótulos no DOM), som e vibração num aparelho, Safari e iPhone, o caso da "Semana perfeita" de QA6-2 (inferido do código), o caso da foto em análise de QA6-3, projeto hospedado. Sem mutação.
 - **Pendências / próximos passos:** `docs/agentes/QUADRO.md` ainda tem F6-1 a F6-5 "a fazer" (item da seção 10, do orquestrador). Achados com o `gamificacao`; depois de QA6-1, apertar a E2E para "0 dias".
 
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:07 (BRT)
+
+- **Branch:** fix/gamification-client-security, criada a partir de feat/phase-6-gamification (6bb8f33)
+- **Agente(s):** gamificacao
+- **Resumo:** lado do cliente das decisões SEG6-1, SEG6-3 e SEG6-4 (ADR-0010, seção 14; handoff 20261103-0400-arquiteto-para-gamificacao). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - SEG6-1: `useCapReached` pede os eventos desde `now − capWindowHours`, sem fuso nem `zonedInstant`; a chave não leva o dia, uma rajada a refaz por `gamificationKey` e o relógio a cada `gamificationUi.capRefreshMs` (5 min). O aviso diz "nas últimas 24 horas".
+  - SEG6-3: `capRoom` agrupa por `(occurrenceId ?? id, groupId)`; `listCapEventsSince` e o Realtime levam `group_id`, e `XpEventItem` ganha `groupId`.
+  - SEG6-4: `groupRanking` chama `group_ranking(p_group_id, p_week_start)`; `groupRankingInputSchema` perde `timezone` (delegado pelo `arquiteto`); `useRanking` usa `gamificationRules.ranking.weekStartsOn` e só a semana corrente; `gamificationDefaults.rankingWeekStartsOn` apagado. O estado vazio explica que o ranking conta desde que foi ligado e desde a entrada.
+  - `database.types.ts`: a linha de `group_ranking` sem `p_timezone`, à mão, para o build passar até o `banco-de-dados` regenerar.
+  - E2E: textos novos do teto e do ranking vazio; o teto já não dependia da meia-noite.
+- **Arquivos/módulos principais:** `packages/core/src/gamification/xp{,.test}.ts`, `packages/data/src/{gamification/index.ts,database.types.ts}`, `packages/contracts/src/gamification.ts`, `packages/config/src/gamification.ts`, `packages/features/gamification/src/{hooks,config}.ts`, `packages/i18n/src/pt-BR/gamification.json`, `e2e/gamification.spec.ts`
+- **Migrations:** nenhuma (a do `banco-de-dados` entra junto)
+- **Decisões/ADRs:** ADR-0010, seção 14. Nenhuma nova.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/gamification/xp.test.ts`; com a pilha e a migration, `pnpm exec playwright test e2e/gamification.spec.ts`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 10 de 10; core 689 testes, `xp.test.ts` 18; `functions:imports` 8 de 8). `pnpm build:web` passou. `playwright test --list` carrega as 4 da spec. Mutação, desfeita: agrupar só pela ocorrência, sem `groupId`, derruba 1 de 18.
+- **Não verificado:** a E2E não rodou (pilha ocupada); o repositório não falou com um banco, e `group_ranking` de dois argumentos só existe com a migration; nenhuma tela aberta num navegador.
+- **Pendências / próximos passos:** integrar com a migration do `banco-de-dados`, deixando prevalecer o `database.types.ts` regenerado; rodar a E2E com a pilha.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:16 (BRT)
+
+- **Branch:** fix/gamification-client-security, depois do merge de feat/phase-6-gamification (e9509c6)
+- **Agente(s):** gamificacao
+- **Resumo:** achados do QA da Fase 6 (handoff 20261103-0405-qa-testes-para-gamificacao). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree. No merge, o `log-merge.cjs` juntou o cabeçalho da entrada do `qa-testes` com o meu, que tinham o mesmo texto ("04:07"); o cabeçalho foi reposto à mão.
+- **Alterações:**
+  - QA6-2: `celebrationsFor` põe o `perfect_day` sempre primeiro, e o `CelebrationHost` abre a tela de dia perfeito com conquista, nível e marco como linhas. Handoff ao `arquiteto` para o texto da seção 8.
+  - QA6-3: o `CelebrationHost` relê `user_stats` depois de toda mutação bem-sucedida, o que cobre a conclusão sem evento (no teto ou com foto em análise). Não precisou do banco nem de `tasks`. O marco da ofensiva desse caso continua só na próxima rajada.
+  - QA6-4: precisa de um slot no `ProfileScreen`; fica para o `auth-grupos`, com handoff.
+  - QA6-5: "Últimos dias" começa no dia local da criação do perfil (`recentDays` no core e `getMemberSince` no repositório), com hoje sempre presente.
+  - QA6-1: `streak.days_zero` e `streak.best_zero` ("0 dias"); a E2E agora espera `'0 dias de ofensiva'`.
+- **Arquivos/módulos principais:** `packages/core/src/gamification/{celebrations,streak}{,.test}.ts`, `packages/core/src/index.ts`, `packages/data/src/gamification/index.ts`, `packages/features/gamification/src/{CelebrationHost,ProgressPanel}.tsx`, `packages/features/gamification/src/{hooks,source}.ts`, `packages/i18n/src/pt-BR/gamification.json`, `e2e/gamification.spec.ts`, três handoffs `20261103-0415-gamificacao-para-*`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** o dia perfeito ganha a tela (ADR-0010, seção 8, com o texto pedido ao `arquiteto`).
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/gamification`; com a pilha, a E2E inteira.
+- **Verificado:** `pnpm check` passou (17 de 17 e 10 de 10; core 692; `functions:imports` 8 de 8). `pnpm build:web` passou. Mutações, desfeitas: sem a prioridade do dia perfeito, cai 1 teste de `celebrations.test.ts`; sem o piso de um dia em `recentDays`, cai 1 de `streak.test.ts`.
+- **Não verificado:** nenhuma E2E rodou. Risco: uma conta nova que conclui a única tarefa do dia agora vê a tela de dia perfeito, que bloqueia a tela, em vez do cartão. `tasks.spec.ts` ("quick create…") e outras specs devem travar nela (handoff ao `qa-testes`). A releitura das stats não foi vista num navegador.
+- **Pendências / próximos passos:** rodar a E2E inteira e fechar o `dialog` onde ele travar; o slot do `auth-grupos`; o texto do ADR pelo `arquiteto`.
+
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:21 (BRT)
 
 - **Branch:** fix/gamification-db-security, criada a partir de feat/phase-6-gamification (6bb8f33)

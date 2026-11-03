@@ -36,12 +36,15 @@ const eventKinds: Partial<Record<XpEvent['reason'], EventKind>> = {
   perfect_day: 'perfect_day',
 };
 
-const rank = (kind: Celebration['kind']) => celebrationKindSchema.options.indexOf(kind);
+// The perfect day is the only full-screen one, so it wins and the rest go in its detail (QA6-2);
+// the others follow the order of `celebrationKindSchema`, largest last.
+const rank = (kind: Celebration['kind']) =>
+  kind === 'perfect_day' ? Infinity : celebrationKindSchema.options.indexOf(kind);
 
 /**
  * What to celebrate after a burst of new rows (ADR-0010 section 8), from `user_stats` before and
- * after it, the new `xp_events` and the keys of the new `user_achievements`. Largest first: the
- * screen shows the first and lists the rest. A level is celebrated once per device: it must be
+ * after it, the new `xp_events` and the keys of the new `user_achievements`. The perfect day first,
+ * then the largest: the screen shows the first and lists the rest. A level is celebrated once per device: it must be
  * above both the level before and `celebratedLevel`, and the returned `celebratedLevel` is what to
  * store. Compensations celebrate nothing.
  */

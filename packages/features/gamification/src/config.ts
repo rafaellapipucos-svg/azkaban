@@ -10,4 +10,6 @@ export const gamificationUi = {
   tone: { notes: [660, 880], noteMs: 120, volume: 0.15 },
   /** Days shown under "Últimos dias" in the profile, today included. */
   recentDays: 7,
+  /** How often "teto atingido" asks again, since room comes back as events leave the 24 h window. */
+  capRefreshMs: 5 * 60_000,
 } as const;

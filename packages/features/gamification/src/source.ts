@@ -15,6 +15,8 @@ export { RankingError, type GamificationRow } from '@azkaban/data';
 export type GamificationSource = {
   /** Null before the first event or close: all zero. */
   getStats(): Promise<UserStats | null>;
+  /** When the profile was created, an instant. */
+  getMemberSince(): Promise<string>;
   /** `user_day_stats` from `from` to `to`, both included. A missing day had nothing planned. */
   listDays(from: string, to: string): Promise<UserDayStats[]>;
   listAchievements(): Promise<Achievement[]>;

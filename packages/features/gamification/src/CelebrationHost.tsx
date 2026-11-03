@@ -97,6 +97,18 @@ export function CelebrationHost() {
     };
   }, [user.id, queryClient]);
 
+  // A completion at the cap or with a photo in review moves the streak without any event (QA6-3), so
+  // the stats are read again after every successful save, without `tasks` knowing this feature.
+  // ponytail: any mutation refetches the one-row stats while shown; narrow it if that ever weighs.
+  useEffect(
+    () =>
+      queryClient.getMutationCache().subscribe((change) => {
+        if (change.type === 'updated' && change.action.type === 'success')
+          void queryClient.invalidateQueries({ queryKey: [...gamificationKey, 'stats'] });
+      }),
+    [queryClient],
+  );
+
   const top = shown?.list[0];
   useEffect(() => {
     if (!shown || top?.kind === 'perfect_day') return;

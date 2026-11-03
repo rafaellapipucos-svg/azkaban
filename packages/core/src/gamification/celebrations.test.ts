@@ -121,7 +121,7 @@ describe('celebrationsFor (ADR-0010 section 8)', () => {
     });
   });
 
-  it('puts the largest first and lists the rest', () => {
+  it('puts the perfect day first, then the largest, and lists the rest (QA6-2)', () => {
     const { celebrations } = celebrationsFor(
       stats(90, 6),
       stats(130, 7),
@@ -134,10 +134,10 @@ describe('celebrationsFor (ADR-0010 section 8)', () => {
       }),
     );
     expect(celebrations).toEqual([
+      { kind: 'perfect_day' },
       { kind: 'achievement', key: 'streak_7' },
       { kind: 'achievement', key: 'perfect_week' },
       { kind: 'level_up', level: 2 },
-      { kind: 'perfect_day' },
       { kind: 'streak_milestone', days: 7 },
       { kind: 'occurrence_done' },
     ]);

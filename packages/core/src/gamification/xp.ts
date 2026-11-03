@@ -34,20 +34,22 @@ export function occurrenceXpWithBonus(
 const capped = new Set<string>(cappedXpEventReasons);
 
 /**
- * Room left under the daily cap (ADR-0010 section 2), from the events written today in the local
- * day of the profile, the same rule the database applies in `occurrence_award_xp`: the capped
- * reasons are summed per occurrence (the event itself when it has none), each occurrence counts
- * at no less than zero, and the room is `min(cap, max(0, cap − balance))`. Undoing XP earned today
- * frees its room; undoing XP from another day is not credit today. 0 means the cap was reached.
+ * Room left under the cap (ADR-0010, sections 2 and 14), from the events written in the last
+ * `capWindowHours`, the same rule the database applies in `occurrence_award_xp`: the capped reasons
+ * are summed per (occurrence, group), the event itself standing for an occurrence when it has none;
+ * each pair counts at no less than zero, and the room is `min(cap, max(0, cap − balance))`. Undoing
+ * XP earned in the window frees its room; undoing XP from before it is not credit, and neither is
+ * private XP reopened to be redone in a group (SEG6-3). 0 means the cap was reached.
  */
 export function capRoom(
-  eventsToday: readonly Pick<XpEvent, 'id' | 'occurrenceId' | 'reason' | 'amount'>[],
+  eventsInWindow: readonly Pick<XpEvent, 'id' | 'occurrenceId' | 'groupId' | 'reason' | 'amount'>[],
   dailyCap: number,
 ): number {
   const net = new Map<string, number>();
-  for (const { id, occurrenceId, reason, amount } of eventsToday) {
+  for (const { id, occurrenceId, groupId, reason, amount } of eventsInWindow) {
     if (!capped.has(reason)) continue;
-    const key = occurrenceId ?? id;
+    // Ids are uuids, so a space never collides.
+    const key = `${occurrenceId ?? id} ${groupId ?? ''}`;
     net.set(key, (net.get(key) ?? 0) + amount);
   }
   let balance = 0;

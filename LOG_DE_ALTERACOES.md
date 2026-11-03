@@ -1726,3 +1726,23 @@
 - **Verificado:** na pilha B (só Postgres, `supabase_db_azkaban-b`): `db reset`, `pnpm db:test` com 5 arquivos e 1378 testes, todos passando; os de SEG5-1 seguem iguais. `pnpm db:check-permissions` em sincronia. `pnpm check` passou (17 de 17 e 9 de 9). Mutação, desfeita: a regex antiga aplicada no banco derruba os 4 testes novos (102 a 105); restaurada, 151 de 151.
 - **Não verificado:** o webhook servido contra a função nova (sem E2E nem `functions:test`, por pedido do orquestrador).
 - **Pendências / próximos passos:** o texto do ADR-0009, seção 18, com o `arquiteto`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:33 (BRT)
+
+- **Branch:** docs/shopping-adr, criada a partir de feat/phase-5-whatsapp (cd98617)
+- **Agente(s):** arquiteto
+- **Resumo:** F7-1, parte de arquitetura: ADR-0011 da lista de compras, contratos, regras, seed do catálogo, espelho no `check-permission-mirror` e handoffs para `banco-de-dados`, `compras` e `auth-grupos`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - ADR-0011: dois escopos (grupo e pessoal) para lista e catálogo; catálogo pessoal copiado do mesmo seed; item como cópia do catálogo; status `open`/`completed`, sem reabrir; quatro chaves novas na matriz (`shopping.create_list` e `shopping.complete_list` para todos, `shopping.manage_catalog` e `shopping.manage_lists` para owner e admin); RLS por coluna, cinco RPCs e triggers; stepper por delta atômico no banco; `postgres_changes` em `shopping_lists` e `shopping_list_items` com a revisão de `select`; modos só no cliente; vínculo com tarefa só de navegação; XP de compra por trigger ao finalizar, com mínimo de itens marcados, teto diário e uma vez por lista, depois da Fase 6; porta aberta para F8-5; dez itens a confirmar pelo humano.
+  - `packages/contracts/src/shopping-vocabulary.ts` (categorias e unidades, sem import) e `shopping.ts` (linhas, entradas, stepper, marcar, finalizar, `shoppingErrorCodeSchema`), com 16 testes.
+  - `packages/config/src/shopping.ts` (`shoppingRules`, espelho `shopping_rules`; `shoppingDefaults`) e `shopping-catalog-seed.ts` (44 itens), com 4 testes. `@azkaban/config` passa a depender de `@azkaban/contracts`, só por `import type`; `pnpm-lock.yaml` atualizado.
+  - `scripts/check-permission-mirror.mjs`: compara `shopping_rules`, os enums `shopping_category` e `shopping_unit` na ordem, e `shopping_catalog_seed`.
+  - `docs/arquitetura.md`: seção "Compras".
+  - Handoffs `20261103-0230-arquiteto-para-{banco-de-dados-compras,compras-compras,auth-grupos-permissoes-de-compras}`.
+- **Arquivos/módulos principais:** `docs/adr/0011-lista-de-compras.md`, `packages/contracts/src/shopping*.ts`, `packages/config/src/shopping*.ts`, `scripts/check-permission-mirror.mjs`, `docs/arquitetura.md`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma; são do `banco-de-dados`.
+- **Decisões/ADRs:** ADR-0011.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9 tarefas; contratos 108 testes, config 19; `functions:imports` 8 de 8; dependency-cruiser sem violações). Mutação no contrato, desfeita: sem o piso da quantidade e com o stepper não estrito, 4 de 16 testes falham. Os três arquivos de espelho carregam direto no Node.
+- **Não verificado:** nada com a pilha; `pnpm db:check-permissions` vai acusar as quatro comparações de compras e a matriz até as migrations e o espelho de `auth-grupos`. A leitura do seed com acentos e emojis pelo `docker exec` no Windows não foi exercitada. O nome do evento de XP depende do ADR-0010, escrito em paralelo.
+- **Pendências / próximos passos:** os três handoffs. Para o orquestrador: dividir F7-5 no QUADRO e dar dono a `packages/core/src/shopping` e à aba "Compras". Para o humano: a seção 15 do ADR-0011.

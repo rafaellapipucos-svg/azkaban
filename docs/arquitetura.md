@@ -108,6 +108,18 @@ Regras completas no [ADR-0009](adr/0009-whatsapp-verificacao-opt-in-resumo-diari
 - `whatsapp-webhook` não usa JWT: confere a assinatura dos bytes brutos, grava os status em `whatsapp_messages` e trata PARAR. O resto das mensagens é ignorado sem guardar.
 - `whatsappRules` tem espelho em `app_settings`, chave `whatsapp_rules`. Telefone, código e texto nunca vão a log.
 
+## Compras
+
+Regras completas no [ADR-0011](adr/0011-lista-de-compras.md).
+
+- Lista e catálogo têm dois escopos: grupo (`group_id`) ou pessoal (`owner_user_id`). Lista pessoal usa o catálogo pessoal, e nenhum admin os vê.
+- O seed do catálogo é `packages/config/src/shopping-catalog-seed.ts`, espelhado em `shopping_catalog_seed` por migration e copiado para cada grupo e perfil novo por trigger. Cada grupo edita a própria cópia.
+- O item da lista é uma cópia do catálogo no momento em que entra. O stepper soma um delta no banco, numa instrução, para dois toques simultâneos contarem os dois. Marcar é um valor, não uma troca.
+- Criar, finalizar, stepper e marcar são RPCs; o resto é `insert` e `update` com RLS e colunas liberadas. Triggers carimbam quem adicionou e quem marcou, e recusam escrita em lista finalizada.
+- Tempo real por `postgres_changes` em `shopping_lists` e `shopping_list_items`, com RLS, como o sino. Os modos "montar" e "no mercado" são só do cliente.
+- O vínculo com tarefa é só navegação. O XP de compra é um trigger ao finalizar, com limites contra repetição, e entra depois da Fase 6.
+- `shoppingRules`, as categorias, as unidades e o seed têm espelho no banco, conferido por `pnpm db:check-permissions`.
+
 ## Banco
 
 Desenvolvimento em Supabase local (`pnpm db:start`, exige Docker), nas portas 544xx para conviver com outros projetos locais: `apps/app/.env.development.local` aponta o `pnpm dev` para ele. O projeto hospedado recebe migrations por `supabase db push --db-url "$SUPABASE_DB_URL"`, e só após revisão.

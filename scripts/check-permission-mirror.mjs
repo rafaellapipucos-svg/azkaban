@@ -1,6 +1,6 @@
 // Fails when the database differs from its mirrors in code: the permission matrix in packages/core,
-// occurrenceTransitions in packages/contracts, and taskRules, proofRules, notificationRules and whatsappRules in
-// packages/config. Needs `pnpm db:start`.
+// occurrenceTransitions and the shopping vocabulary in packages/contracts, and taskRules, proofRules, notificationRules,
+// whatsappRules, shoppingRules and the starter shopping catalog in packages/config. Needs `pnpm db:start`.
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -127,6 +127,52 @@ if (!whatsappRow || canonical(JSON.parse(whatsappRow)) !== canonical(whatsappRul
   failed = true;
 } else {
   console.log('WhatsApp rules in sync.');
+}
+
+// Shopping (ADR-0011): the rules, the two enums in contract order, and the starter catalog. JSON from
+// the database, so names with accents or a "|" compare as they are.
+const { shoppingRules } = await load('packages/config/src/shopping.ts');
+const { shoppingCategories, shoppingUnits } = await load(
+  'packages/contracts/src/shopping-vocabulary.ts',
+);
+const { shoppingCatalogSeed } = await load('packages/config/src/shopping-catalog-seed.ts');
+const shoppingChecks = [
+  [
+    'Shopping rules',
+    "select value::text from public.app_settings where key = 'shopping_rules'",
+    shoppingRules,
+  ],
+  [
+    'Shopping categories',
+    'select array_to_json(enum_range(null::public.shopping_category))::text',
+    shoppingCategories,
+  ],
+  [
+    'Shopping units',
+    'select array_to_json(enum_range(null::public.shopping_unit))::text',
+    shoppingUnits,
+  ],
+  [
+    'Shopping catalog seed',
+    'select json_agg(json_build_object(' +
+      "'name', name, 'category', category, 'unit', default_unit, 'emoji', emoji) " +
+      'order by sort_order)::text from public.shopping_catalog_seed',
+    shoppingCatalogSeed,
+  ],
+];
+for (const [name, sql, code] of shoppingChecks) {
+  let row;
+  try {
+    [row] = query(sql);
+  } catch {
+    row = undefined;
+  }
+  if (!row || canonical(JSON.parse(row)) !== canonical(code)) {
+    console.error(`${name} out of sync.`, { database: row, code: canonical(code) });
+    failed = true;
+  } else {
+    console.log(`${name} in sync.`);
+  }
 }
 
 // Time zones: the database takes a name only if Intl reads it too, or taskSchema.parse would fail on a

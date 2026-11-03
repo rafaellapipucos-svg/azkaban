@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@azkaban/contracts": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {

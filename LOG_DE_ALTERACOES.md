@@ -2706,3 +2706,18 @@
 - **Verificado:** `pnpm db:test` 12 arquivos, 1895 testes, PASS; `pnpm db:check-permissions` em sincronia (`supabase_db_azkaban-b`, prova e gamificação); `pnpm db:types` sem diferença; `pnpm check` passou (17 de 17 e 11 de 11). Mutação no limite diário, aplicando a função mutante no banco e rodando `rls_proof` (587): controle 587 de 587; mortas 4 de 5 (sem o termo dos vivos, sem `expires_at`, só os vivos, `>` no lugar de `>=`); sobreviveu a sem `used_at is null` no termo dos vivos, equivalente (uma linha usada só existe dentro das 24 horas, e o `or` conta a linha uma vez).
 - **Não verificado:** E2E (fora desta tarefa); o projeto hospedado; a corrida de duas emissões simultâneas (só a trava já existente). `rls_notifications` falhou uma vez no teste 209 na primeira rodada logo depois do `db reset` e passou nas três seguintes, sem mudança; não investigado.
 - **Pendências / próximos passos:** `prova-foto` troca `proof.consent.deletion` e acompanha `CONSENT_VERSION` em `e2e/proof-fixtures.ts` e o `p_version: 2` de `e2e/privacy.spec.ts` (handoff `20261103-0619`); até lá a E2E da prova e a de privacidade quebram com `invalid_consent_version`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:44 (BRT)
+
+- **Branch:** `chore/security-phase-8` (de `feat/phase-8-polish`, `9c54f16`)
+- **Agente(s):** revisor-seguranca
+- **Resumo:** revisão de segurança da Fase 8 (ADR-0012: exportação, exclusão, revogação do aceite, limites, fila offline, Realtime) e do XP de compra (F7-5b). Nenhum achado crítico ou alto. Hora derivada de UTC menos 3 (o PowerShell foi bloqueado no worktree).
+- **Alterações:**
+  - Handoff para banco-de-dados: SEG8-1 (média), XP de compra além de 2 listas por dia trocando o fuso, com PoC (2 eventos sem trocar, 4 depois de trocar); SEG8-2 (baixa), `accept_invite` como oráculo de código sem limite, com PoC (35 tentativas, contador vazio); SEG8-3 (baixa), fotos apagadas antes do recheque de `owns_groups`; SEG8-4 (informativo), `processed_requests` sem limite; e o que conferir no hospedado (`auth.audit_log_entries`, `whatsapp_console_messages`).
+  - Handoff para tarefas-calendario: SEG8-5 (baixa), a fila offline de uma sessão expirada fica no `storage` sem prazo.
+- **PoCs que passaram (sem achado):** A exporta 4 vezes, o resultado é 200, 200, 200, 429 (`retryAfterSeconds` sem mais nada) e o arquivo não traz nada de B nem `code_hash`, `storage_path`, `p256dh`, `endpoint` ou `code`. A exclusão de B: prévia 200, exclusão 200, repetição 401; depois dela, 0 linhas de B em `auth.audit_log_entries` e `account_deletions` concluída. O `amr` se mantém no refresh (a renovação não reabre a janela de reautenticação). `profiles.proof_consent_version` não é editável pelo cliente. O `catchUp` lê pela RLS. Nenhum segredo no diff.
+- **Arquivos/módulos principais:** `docs/agentes/handoffs/20261103-0643-revisor-seguranca-para-banco-de-dados-seguranca-fase-8.md`, `docs/agentes/handoffs/20261103-0643-revisor-seguranca-para-tarefas-calendario-fila-offline-no-disco.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma; `phone_verifications` com `user_id` nulo por 48 h é decisão do ADR-0012 e não foi apontado.
+- **Como testar:** os PoCs estão descritos nos handoffs (pilha local, `curl` e `psql`).
+- **Pendências / próximos passos:** a CSP Report-Only não está no diff (`_headers` não mudou), então não foi revisada. Corrida de SEG8-3 sem PoC. Os privilégios em `auth` no hospedado não foram verificados. Pilha A parada às 06:43.

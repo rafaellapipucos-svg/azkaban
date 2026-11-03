@@ -1982,3 +1982,24 @@
 - **Verificado:** leitura das 11 migrations, do ADR-0010, de `set_occurrence_status`, `auto_miss_occurrences`, das políticas de `groups`, `profiles` e `xp_events`, e da fonte de dados da feature; `pnpm check`.
 - **Não verificado:** nenhum PoC de banco (sem pilha nesta passada; cinco listados no handoff ao `banco-de-dados`); o repositório real e a montagem nas rotas de `gamificacao`, em andamento; o filtro do Realtime no cliente; o projeto hospedado.
 - **Pendências / próximos passos:** segunda passada na pilha, com os PoCs de banco e o repositório de `gamificacao` (inclusive `setRankingEnabled`, que lê, mescla e grava `groups.settings` e pode perder uma chave gravada ao mesmo tempo).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:00 (BRT)
+
+- **Branch:** docs/gamification-security-decisions, criada a partir de feat/phase-6-gamification (8e6fe77)
+- **Agente(s):** arquiteto
+- **Resumo:** decisões sobre a primeira passada da revisão de segurança da Fase 6 (handoffs `20261103-0350-revisor-seguranca-para-*-gamificacao`), na seção 14 do ADR-0010, com config e contrato. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - SEG6-1: o teto passa a janela móvel de 24 h, sem fuso; `profiles.timezone` validado contra `pg_timezone_names`. Dia perfeito e ofensiva seguem por dia local.
+  - SEG6-2: piso da história `greatest(criação do perfil − 1, hoje − 400)` para contar, dobrar e recalcular; bônus de dia perfeito só desde a criação; uma dobra por usuário por comando.
+  - SEG6-3: saldo da janela por `(ocorrência, group_id)`, espelhado em `capRoom`.
+  - SEG6-4: `group_ranking(p_group_id, p_week_start)` com o fuso de quem chama lido no servidor, semana alinhada a `ranking.weekStartsOn`, só as últimas 2 semanas, e soma a partir de `greatest(início da semana, groups.ranking_enabled_at, joined_at)`; coluna escrita só por trigger.
+  - SEG6-5 confirmado; SEG6-6 risco aceito, com o caminho de chave substituta ou Broadcast; LGPD para F8-3 (exportação, retenção enquanto a conta existir, texto da tela de transparência).
+  - Config: `gamificationRules.xp.capWindowHours`, `ranking.weekStartsOn`, `ranking.maxWeeks`, `historyDays`; `gamificationDefaults.rankingWeekStartsOn` aponta para o novo até a feature trocar.
+  - Contrato: comentário de `groupRankingInputSchema` (o `timezone` sai com o repositório, pelo `gamificacao`); comentários de `streak` e `footer` do resumo diário sem "até a Fase 6".
+- **Arquivos/módulos principais:** `docs/adr/0010-gamificacao-xp-ofensiva-conquistas-ranking.md`, `packages/config/src/gamification.ts`, `packages/contracts/src/{gamification,whatsapp}.ts`, dois handoffs `20261103-0400-arquiteto-para-*`
+- **Migrations:** nenhuma (o `banco-de-dados` faz as do handoff)
+- **Decisões/ADRs:** ADR-0010, seção 14, e itens 11 a 15 da seção 13.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (17 de 17; core 688 testes; `functions:imports` 8 de 8).
+- **Não verificado:** `pnpm db:check-permissions` (sem pilha); ele acusa as quatro chaves novas até a migration do banco.
+- **Pendências / próximos passos:** migrations do `banco-de-dados` e a troca de `capRoom`, `useCapReached` e do repositório do ranking pelo `gamificacao`, integradas juntas; o humano confirma os itens 11 a 15.

@@ -12,10 +12,15 @@ export const gamificationRules = {
     /** Flat, once per local day of the profile that is perfect. Outside the daily cap. A confirmar. */
     perfectDayBonus: 20,
     /**
-     * Most XP of the capped reasons one user nets in one local day of the profile, counted when the
-     * event is written. Closes mass XP (ADR-0005, section 11). A confirmar.
+     * Most XP of the capped reasons one user nets in any `capWindowHours` before the event is
+     * written. Closes mass XP (ADR-0005, section 11). A confirmar.
      */
     dailyCap: 300,
+    /**
+     * The cap window rolls and ignores time zones, so changing the profile's zone cannot reopen it
+     * (ADR-0010, security review of Phase 6, SEG6-1).
+     */
+    capWindowHours: 24,
   },
   /** A day meets the goal when `completed × 100 ≥ planned × percent`. A confirmar. */
   goal: { percent: 80, countPartial: true },
@@ -29,7 +34,16 @@ export const gamificationRules = {
   ranking: {
     /** When `groups.settings.rankingEnabled` is absent. An unknown type is `false`. A confirmar. */
     defaultEnabledByGroupType: { family: true, company: false, other: false },
+    /** The ranking week, as `WeekStart` in core: 1 is Monday. The server refuses another start. */
+    weekStartsOn: 1,
+    /** How many weeks `group_ranking` answers: the current one and the one before (SEG6-4). */
+    maxWeeks: 2,
   },
+  /**
+   * Days before `greatest(local creation date of the profile − 1, today − historyDays)` are not
+   * counted, folded nor given a perfect day bonus (SEG6-2). The recount uses the same floor.
+   */
+  historyDays: 400,
   /** The job that closes local days. Days further back than `maxCatchUpDays` are not recounted. */
   closeJob: { batchSize: 200, maxCatchUpDays: 30 },
 } as const;
@@ -40,8 +54,8 @@ export const gamificationDefaults = {
   level: { firstLevelXp: 100, growth: 1.25 },
   /** Per device. Sound is off until the user turns it on. A confirmar. */
   celebration: { sound: false, haptics: true },
-  /** The ranking week, as `WeekStart` in core: 1 is Monday. */
-  rankingWeekStartsOn: 1,
+  /** Moved to `gamificationRules.ranking.weekStartsOn`; kept until the feature reads it there. */
+  rankingWeekStartsOn: gamificationRules.ranking.weekStartsOn,
   /** Streak days that get a milestone celebration. */
   streakMilestones: [7, 30, 100, 365],
 } as const;

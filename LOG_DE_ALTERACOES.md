@@ -3561,3 +3561,20 @@
 - **Verificado:** leitura do diff inteiro de `c74cce6..960c107`; NetInfo conferido no `node_modules` instalado (`defaultConfiguration.ts`, `internetReachability.ts`, sem `isInternetReachable` em `ios/`); `_setSession` do `auth-js` instalado confere o token no GoTrue (`_getUser`) e troca a sessão sem olhar a atual, e o `flowType` padrão é `implicit`. `pnpm check` passou (lint e Prettier, fronteiras, typecheck com e2e e `deno check` das funções, testes, `functions:imports`).
 - **Não verificado:** pgTAP, `pnpm functions:test` e E2E (sem pilha, como pedido); a API real da Expo e o comportamento em aparelho (`unregisterForNotificationsAsync`, deep link); CI no Linux.
 - **Pendências / próximos passos:** os dois handoffs; BL23-3 a BL23-5 ficam para os donos decidirem.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 11:09 (BRT)
+
+- **Branch:** docs/session-link-and-doctor-lock, criada a partir de feat/backlog-after-phase-8 (a251638)
+- **Agente(s):** arquiteto
+- **Resumo:** BL23-2 vira uma seção nova no ADR-0004, com o risco, a mitigação nativa, o aberto no web e as opções para o humano; BL23-5 fechado com `expo-doctor` no lockfile. Nenhum código de autenticação mudou. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `docs/adr/0004-fase-1-decisoes.md`: seção "Revisão de 2026-11-03: login CSRF pelo link de sessão (BL23-2)", em proposta. Opções: A (implícito no web com marcador do pedido e sem trocar sessão ativa; o marcador mora no navegador que pediu, então tem o mesmo custo do PKCE no navegador interno do e-mail), A' (só não trocar sessão ativa) e B (PKCE). Recomendação: B; A' no web é o mínimo se o humano priorizar o navegador interno.
+  - `package.json` e `pnpm-lock.yaml`: `expo-doctor` 1.21.5 exato na raiz, com integridade (o pacote não tem dependências de runtime).
+  - `scripts/check-expo-doctor.mjs`: roda o binário instalado com `node`, sem `npx` e sem shell; o caminho vem do `bin` do `package.json` (o `exports` não expõe o bin).
+- **Arquivos/módulos principais:** `docs/adr/0004-fase-1-decisoes.md`, `scripts/check-expo-doctor.mjs`, `package.json`, `pnpm-lock.yaml`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0004, seção BL23-2 (proposta, decisão do humano). Risco aceito: `deno check --no-lock` em `check-types.mjs`. Ele baixa tipos do npm sem lockfile, mas não executa código das dependências, o CI tem só `contents: read` e nenhum segredo, e as versões ficam fixas em cada `deno.json`. Um `deno.lock` por função seria um arquivo a mais por função, dentro de `supabase/functions`, para manter junto com o deploy do Edge Runtime: não compensa agora. Revisar se o CI ganhar segredo ou permissão de escrita.
+- **Como testar:** `pnpm install --frozen-lockfile`, `pnpm expo:doctor` (20/20), `pnpm check`.
+- **Verificado:** `pnpm install --frozen-lockfile` sem mudança; `pnpm expo:doctor` 20/20; `pnpm check` (abaixo).
+- **Não verificado:** CI no Linux com o binário novo; nada da autenticação em aparelho ou navegador (só documentação).
+- **Pendências / próximos passos:** o humano escolher A, A' ou B no ADR-0004; depois, handoff para auth-grupos aplicar no web (e, se B, também no nativo, no lugar do marcador).

@@ -54,6 +54,18 @@ describe('parseSessionLink', () => {
     });
   });
 
+  // The regression of BL-38: `createAppLink('/')` on the web is the origin with no trailing slash.
+  it('reads the link on the web, whose root has no trailing slash', () => {
+    const web = 'http://localhost:8091';
+    expect(parseSessionLink(`${web}/#${tokens}`, web)).toMatchObject({
+      kind: 'session',
+      path: '/',
+    });
+    expect(parseSessionLink(`${web}/groups#${tokens}`, web)).toMatchObject({ path: '/groups' });
+    expect(parseSessionLink(`${web}.evil.com/#${tokens}`, web)).toBeNull();
+    expect(parseSessionLink(`${web}0/#${tokens}`, web)).toBeNull();
+  });
+
   it('works under the Expo Go root too', () => {
     const go = 'exp://192.168.0.2:8081/--/';
     expect(parseSessionLink(`${go}groups#${tokens}`, go)).toMatchObject({ path: '/groups' });

@@ -3967,3 +3967,20 @@
 - **Verificado:** `pnpm expo:doctor` 20/20. Teste negativo: com `react-native-safe-area-context` trocado para `~5.11.1` no `bundledNativeModules.json` local, a checagem falhou (`expected ~5.11.1, found 5.10.1`), o que prova que ela lê a tabela local; arquivo restaurado. `pnpm check` passou. `pnpm install --frozen-lockfile` sem mudança; lockfile intacto.
 - **Não verificado:** `pnpm build:web` e `pnpm bundle:size` (sem mudança de dependência nem de código do app); o CI no GitHub. A checagem de nomes de módulos nativos do doctor ainda busca a lista na Expo, mas só nomes, não versões. Hora pelo UTC−3 (PowerShell barrado).
 - **Pendências / próximos passos:** bump do patch do SDK 58 depois da quarentena, numa branch própria, com `pnpm install --frozen-lockfile`, `pnpm check`, `pnpm build:web`, `pnpm bundle:size` e `pnpm expo:doctor`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 18:07 (BRT)
+
+- **Branch:** fix/web-magic-link-session (a partir de `feat/launch-decisions`, `451c471`)
+- **Agente(s):** auth-grupos
+- **Resumo:** regressão do BL-38 (`d9c9384`): no web o link por e-mail não entrava. `createAppLink('/')` no web devolve a origem sem a barra final (`http://localhost:8091`, o `createURL.web.js` do `expo-linking` corta a barra) e o `parseSessionLink` recusava toda raiz sem barra, então todo link do web virava `null` e nenhuma sessão começava.
+- **Alterações:**
+  - `parseSessionLink` completa a raiz com `/` em vez de recusá-la. A barra continua separando o host: `http://localhost:8091.evil.com/#…` e `http://localhost:80910/#…` seguem `null`. A regra A' (`setSessionFromLink`) não mudou.
+  - Teste de unidade do caso: raiz do web sem barra, com caminho, e os dois hosts parecidos recusados.
+- **Evidência:** no trace da falha, `/auth/v1/verify?...&redirect_to=http://localhost:8091` respondeu `Location: http://localhost:8091#access_token=…` (o navegador normaliza para `/#access_token=…`); o app foi para `/sign-in` sem sessão. Revertendo só o `link.ts`, o E2E "magic link signs the user in" falhou de novo; com a correção, passou.
+- **Arquivos/módulos principais:** `packages/data/src/auth/link.ts`, `packages/data/src/auth/link.test.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova; mantém ADR-0012 seção 11 e a opção A' do BL-38.
+- **Como testar:** `pnpm --filter @azkaban/data exec vitest run src/auth/link.test.ts`; com a pilha, `pnpm exec playwright test e2e/accounts.spec.ts --project=app --no-deps`.
+- **Verificado:** pilha A (`db:reset`): `e2e/accounts.spec.ts` + `e2e/privacy.spec.ts` com `--repeat-each=3`, 30/30. Nenhuma outra spec entra por link. `pnpm check` passou.
+- **Não verificado:** link de outra conta com sessão ativa no web (vai para `/profile?link=other-account`) e link da mesma conta não têm E2E; até esta correção esses ramos nunca rodavam no web. Nativo e hospedado não testados (a raiz nativa `azkaban:///` já tinha barra). Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** E2E de "outra conta não troca a sessão" no web, se o orquestrador quiser.

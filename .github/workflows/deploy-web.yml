@@ -1,0 +1,95 @@
+name: Deploy web
+
+# BL-24: the web app on the Hostinger (https://app.tabolao.com), by FTPS. Setup in docs/implantacao.md,
+# section "Hostinger". Every EXPO_PUBLIC_* goes into the client bundle, so they are public `vars`; only
+# the FTP account is a secret. No secret is needed for the build.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One upload at a time; a newer push waits for the running one instead of cutting it in half.
+concurrency:
+  group: deploy-web
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      EXPO_PUBLIC_APP_NAME: ${{ vars.EXPO_PUBLIC_APP_NAME }}
+      EXPO_PUBLIC_APP_SCHEME: ${{ vars.EXPO_PUBLIC_APP_SCHEME }}
+      EXPO_PUBLIC_SUPABASE_URL: ${{ vars.EXPO_PUBLIC_SUPABASE_URL }}
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      EXPO_PUBLIC_VAPID_PUBLIC_KEY: ${{ vars.EXPO_PUBLIC_VAPID_PUBLIC_KEY }}
+      FTP_SERVER_DIR: ${{ vars.FTP_SERVER_DIR }}
+    steps:
+      # Until the human creates the FTP secrets, a push to main ends here with a warning, green.
+      - id: ftp
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+        run: |
+          if [ -z "$FTP_SERVER" ] || [ -z "$FTP_USERNAME" ] || [ -z "$FTP_PASSWORD" ]; then
+            echo "::warning title=Deploy skipped::FTP_SERVER, FTP_USERNAME or FTP_PASSWORD is not set in the repository secrets. Nothing was uploaded; see docs/implantacao.md, section Hostinger."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # With the secrets in place, a wrong variable fails the job: better than a site that talks to
+      # localhost, or a server key in the bundle.
+      - if: steps.ftp.outputs.ready == 'true'
+        run: |
+          node -e '
+            const env = process.env;
+            const fail = (message) => { console.log(`::error title=Deploy config::${message}`); process.exit(1); };
+            for (const name of ["EXPO_PUBLIC_APP_NAME", "EXPO_PUBLIC_APP_SCHEME", "EXPO_PUBLIC_SUPABASE_URL", "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "FTP_SERVER_DIR"]) {
+              if (!env[name]) fail(`vars.${name} is not set`);
+            }
+            let url;
+            try { url = new URL(env.EXPO_PUBLIC_SUPABASE_URL); } catch { fail("EXPO_PUBLIC_SUPABASE_URL is not a URL"); }
+            const host = url.hostname;
+            if (url.protocol !== "https:") fail("EXPO_PUBLIC_SUPABASE_URL must be https");
+            if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || /^(127\.|10\.|192\.168\.|0\.0\.0\.0$|\[)/.test(host)) {
+              fail(`EXPO_PUBLIC_SUPABASE_URL points at a local host (${host})`);
+            }
+            const key = env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+            const jwtRole = () => { try { return JSON.parse(Buffer.from(key.split(".")[1], "base64url")).role; } catch { return undefined; } };
+            if (key.startsWith("sb_secret_") || jwtRole() === "service_role") fail("EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY is a server key");
+            if (!env.FTP_SERVER_DIR.endsWith("/")) fail("FTP_SERVER_DIR must end with /");
+          '
+
+      - if: steps.ftp.outputs.ready == 'true'
+        uses: actions/checkout@v4
+      - if: steps.ftp.outputs.ready == 'true'
+        uses: pnpm/action-setup@v4
+      - if: steps.ftp.outputs.ready == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - if: steps.ftp.outputs.ready == 'true'
+        run: pnpm install --frozen-lockfile
+      - if: steps.ftp.outputs.ready == 'true'
+        run: pnpm build:web
+      - if: steps.ftp.outputs.ready == 'true'
+        run: test -s apps/app/dist/.htaccess && test -s apps/app/dist/index.html
+
+      # v4.4.0, pinned by commit. It uploads hidden files (.htaccess); its default `exclude` skips only
+      # .git* and node_modules. Only changed files go up, and files removed from dist are deleted.
+      - if: steps.ftp.outputs.ready == 'true'
+        uses: SamKirkland/FTP-Deploy-Action@110f9186c050f71550953127052e77650219c287
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          security: strict
+          local-dir: ./apps/app/dist/
+          server-dir: ${{ vars.FTP_SERVER_DIR }}

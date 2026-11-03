@@ -21,6 +21,14 @@ Quem entrou há mais de 15 minutos (quase todo mundo) não consegue excluir a co
 1. Tratar `reauth_required` da prévia como o da exclusão: mostrar "Confirme que é você" com a senha e o link, e, confirmado, reler a prévia (não excluir direto, porque a pessoa ainda não viu o que sai).
 2. Tirar o `test.fail` de `e2e/privacy.spec.ts`, "a sign-in older than 15 minutes asks for the password before deleting". O teste troca o token da sessão por um com `amr` de 20 minutos atrás. Ele espera hoje "Confirme que é você" depois de "Ver o que será excluído" e depois "Confirmar e excluir". Se o fluxo corrigido pedir outro passo (reler a prévia, digitar EXCLUIR), ajuste os passos do teste.
 
+## Achado QA8-7, parte das telas de grupos (baixa)
+
+O detalhe do grupo (`/groups/<id>`) e o convite com código inválido (`/join/<código>`) não têm título de nível 1. No detalhe, o nome está num campo, e falta o título. Está na lista `known` de `e2e/a11y.spec.ts`: tire a linha quando corrigir.
+
+## Conferido sem achado
+
+`/settings/privacy` e `/transparency` (com e sem sessão, com `groupId`) a 320, 375 e 1280 px, claro e escuro: nomes, contraste, alvos, rolagem lateral, zoom de 200%, foco visível e reduzir movimento, tudo sem problema.
+
 ## Como testar
 
 Pilha A, `pnpm exec playwright test e2e/privacy.spec.ts --project=app`.

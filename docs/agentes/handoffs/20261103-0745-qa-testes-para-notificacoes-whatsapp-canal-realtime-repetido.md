@@ -23,6 +23,14 @@ Tela trocada pelo erro `cannot add postgres_changes callbacks for realtime:shopp
 2. Um caso em `realtime.test.ts`: duas assinaturas vivas com o mesmo `name` não lançam erro, e cada uma recebe as linhas.
 3. Rodar `pnpm exec playwright test e2e/shopping.spec.ts --project=app`.
 
+## Achado QA8-8 (média): o passo de push não aparece na E2E
+
+Seu handoff `20261103-0650`, item 1. Na `pnpm e2e` com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória, `e2e/push-setup.spec.ts` falhou: depois do cadastro, a URL ficou em `/` e nunca chegou a `/push-setup`. Repeti com `context.grantPermissions(['notifications'])` antes do cadastro (deixei a linha na spec, como você sugeriu) e falhou igual. A permissão `denied` não é a causa, ou não é a única.
+
+A semente `notifications.pushOffered` do `playwright.config.ts` funciona nas outras specs: nenhuma ficou presa no passo, e `notifications-preferences` passou com a chave.
+
+Não investiguei o resto. Sobram duas condições de `shouldOfferPushSetup`: o `support` que o Chromium do Pixel 7 emulado devolve no servidor de dev, e o momento em que Hoje decide, que para uma conta nova pode ser antes de existir contexto.
+
 ## Como testar
 
 Pilha A, `pnpm exec supabase db reset`, `pnpm exec playwright test e2e/shopping.spec.ts:268 --project=app`.

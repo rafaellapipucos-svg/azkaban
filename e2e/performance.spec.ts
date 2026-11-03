@@ -79,15 +79,8 @@ test('Hoje with 50 occurrences makes few REST calls, and 200 draw fast with the 
   const today = await drawTime(page, 'task_occurrences');
   test.info().annotations.push({ type: 'Hoje 200, CPU 4x', description: JSON.stringify(today) });
   console.log('F8-6 goal 3, Hoje with 200, CPU 4x:', today);
-
-  // Calendar month, the same 200 on one day
-  await page.goto('/calendar');
-  await page.waitForLoadState('networkidle');
-  const calendar = await drawTime(page, 'task_occurrences');
-  test
-    .info()
-    .annotations.push({ type: 'calendar 200, CPU 4x', description: JSON.stringify(calendar) });
-  console.log('F8-6 goal 3, calendar with 200, CPU 4x:', calendar);
+  // ponytail: the month of the calendar is not timed; its days have no row to count. Add a marker
+  // the month draws last when the goal needs the number.
 });
 
 test('"No mercado" with 200 items draws fast with the CPU 4x slower', async ({ page }) => {

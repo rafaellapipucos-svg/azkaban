@@ -5,8 +5,18 @@ import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
+// The stack of this checkout, never a fixed name: a second stack (`docs/agentes/ferramentas/pilha-b.sh`)
+// changes project_id in its working copy, and a check run there must not touch the other one.
+const projectId = readFileSync('supabase/config.toml', 'utf8').match(
+  /^project_id\s*=\s*"([^"]+)"/m,
+)?.[1];
+const container = process.env.DB_CONTAINER || `supabase_db_${projectId}`;
+if (!process.env.DB_CONTAINER && !projectId)
+  throw new Error('project_id not found in supabase/config.toml');
+console.log(`Container: ${container}`);
+
 const query = (sql) =>
-  execSync(`docker exec supabase_db_azkaban psql -U postgres -At -c "${sql}"`)
+  execSync(`docker exec ${container} psql -U postgres -At -c "${sql}"`)
     .toString()
     .trim()
     .split(/\r?\n/)

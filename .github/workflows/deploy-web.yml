@@ -4,8 +4,13 @@ name: Deploy web
 # section "Hostinger". Every EXPO_PUBLIC_* goes into the client bundle, so they are public `vars`; only
 # the FTP account is a secret. No secret is needed for the build.
 
+# Only a main that passed CI goes up: this runs after the `CI` workflow (ci.yml) completes, and the job
+# checks it was a green push to main of this repository, not a pull request whose branch is also named
+# main (a fork's can be). The manual run is allowed from main only.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -19,6 +24,12 @@ concurrency:
 
 jobs:
   deploy:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     env:
       EXPO_PUBLIC_APP_NAME: ${{ vars.EXPO_PUBLIC_APP_NAME }}
@@ -28,7 +39,7 @@ jobs:
       EXPO_PUBLIC_VAPID_PUBLIC_KEY: ${{ vars.EXPO_PUBLIC_VAPID_PUBLIC_KEY }}
       FTP_SERVER_DIR: ${{ vars.FTP_SERVER_DIR }}
     steps:
-      # Until the human creates the FTP secrets, a push to main ends here with a warning, green.
+      # Until the human creates the FTP secrets, a run ends here with a warning, green.
       - id: ftp
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
@@ -46,6 +57,7 @@ jobs:
       # localhost, or a server key in the bundle.
       - if: steps.ftp.outputs.ready == 'true'
         run: |
+          # shellcheck disable=SC2016 # JavaScript, not shell: nothing in it should expand.
           node -e '
             const env = process.env;
             const fail = (message) => { console.log(`::error title=Deploy config::${message}`); process.exit(1); };
@@ -67,6 +79,9 @@ jobs:
 
       - if: steps.ftp.outputs.ready == 'true'
         uses: actions/checkout@v4
+        with:
+          # The commit CI tested, not wherever main points by now.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
       - if: steps.ftp.outputs.ready == 'true'
         uses: pnpm/action-setup@v4
       - if: steps.ftp.outputs.ready == 'true'

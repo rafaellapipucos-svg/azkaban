@@ -3883,3 +3883,19 @@
 - **Verificado:** testes de unidade acima e `pnpm check` passaram.
 - **Não verificado:** sem pilha e sem E2E, por decisão. Não rodei no navegador o login por link, a confirmação de cadastro e a reautenticação pelo novo caminho; em particular, que o `router.replace` do expo-router tira o fragmento da URL quando o caminho do link é a rota atual. Nativo não rodado. Hora pelo UTC−3 (PowerShell barrado).
 - **Pendências / próximos passos:** continua aberto, custo aceito da A': um navegador sem sessão que abre o link de outra pessoa entra na conta dela (login CSRF). Atualizar ADR-0004, ADR-0012 §17 e o QUADRO (BL-27, BL-38). Um E2E de link mágico no web, quando houver pilha.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 17:27 (BRT)
+
+- **Branch:** fix/deploy-after-ci (a partir de `feat/launch-decisions`, `3bbf6e1`)
+- **Agente(s):** arquiteto
+- **Resumo:** o deploy web deixa de rodar no push da `main` e passa a rodar depois do workflow `CI`, só quando ele passou. Uma `main` com CI vermelho não sobe.
+- **Alterações:**
+  - `.github/workflows/deploy-web.yml`: o gatilho virou `workflow_run` de `CI` (`types: [completed]`, `branches: [main]`), e o `workflow_dispatch` continua. O job só roda se `conclusion == 'success'`, `event == 'push'`, `head_branch == 'main'` e `head_repository.full_name == github.repository`. O `event` e o repositório estão lá porque o CI também roda em `pull_request`, e um PR de fork com um branch chamado `main` teria `head_branch == 'main'`. O disparo manual só vale a partir da `main`. O checkout usa `github.event.workflow_run.head_sha` (o commit que o CI testou), ou `github.sha` no disparo manual. Um `# shellcheck disable=SC2016` no passo de conferência: o script é JavaScript entre aspas simples de propósito.
+  - `docs/implantacao.md`, seção 8: o texto do gatilho acompanha a mudança.
+- **Arquivos/módulos principais:** `.github/workflows/deploy-web.yml`, `docs/implantacao.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma (pedido do coordenador)
+- **Como testar:** com os secrets criados, um push na `main`: o CI roda, e o "Deploy web" só começa depois dele, com o mesmo SHA. Com o CI vermelho, o deploy aparece como pulado.
+- **Verificado:** `actionlint` (imagem `rhysd/actionlint` no Docker) sem aviso em `deploy-web.yml` e `ci.yml`; o YAML lido de volta mostra o gatilho, o `if` e o `ref`; `pnpm check` passou.
+- **Não verificado:** o evento `workflow_run` no GitHub (sem push). Ele só dispara pelo arquivo que estiver no branch padrão, então só funciona depois do merge na `main`. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** nenhuma.

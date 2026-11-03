@@ -23,10 +23,23 @@ export const shoppingQuantityMax = 9999;
 /** Postgres rounds to 3 decimals, so 0.0001 would become 0: the floor is the smallest step it keeps. */
 export const shoppingQuantitySchema = z.number().min(0.001).max(shoppingQuantityMax);
 
-/** One emoji may be several code points (skin tone, ZWJ, flags), so the cap is generous. */
-export const shoppingEmojiSchema = z.string().trim().min(1).max(16).nullable();
+/**
+ * `\p{Cc}` (line breaks, tab and every other control character), U+2028 and U+2029, and the
+ * bidirectional controls (U+202A to U+202E, U+2066 to U+2069). Names, notes and emojis go into the
+ * shared text another member sends outside the app, so they refuse these: no injected lines, no
+ * reversed text (ADR-0011, section 16, SEG7-3). Same set as `whatsappTextParamSchema`. The database
+ * mirrors it with a `check` on every shopping text column. U+200D (ZWJ) and U+FE0F stay, for emojis.
+ */
+export const shoppingControlCharacterPattern = /[\p{Cc}\u2028\u2029\u202a-\u202e\u2066-\u2069]/u;
+const isPlainText = (value: string) => !shoppingControlCharacterPattern.test(value);
 
-export const shoppingNoteSchema = z.string().trim().min(1).max(200).nullable();
+/** `nameSchema` without control characters. Other names in the app keep `nameSchema` (section 16). */
+export const shoppingNameSchema = nameSchema.refine(isPlainText);
+
+/** One emoji may be several code points (skin tone, ZWJ, flags), so the cap is generous. */
+export const shoppingEmojiSchema = z.string().trim().min(1).max(16).refine(isPlainText).nullable();
+
+export const shoppingNoteSchema = z.string().trim().min(1).max(200).refine(isPlainText).nullable();
 
 // Catalog
 
@@ -35,7 +48,7 @@ export const shoppingCatalogItemSchema = z.object({
   id: idSchema,
   groupId: idSchema.nullable(),
   ownerUserId: idSchema.nullable(),
-  name: nameSchema,
+  name: shoppingNameSchema,
   category: shoppingCategorySchema,
   defaultUnit: shoppingUnitSchema,
   emoji: shoppingEmojiSchema,
@@ -48,7 +61,7 @@ export type ShoppingCatalogItem = z.infer<typeof shoppingCatalogItemSchema>;
 /** Insert or update of a catalog row. `groupId` null means the personal catalog. */
 export const shoppingCatalogItemInputSchema = z.object({
   groupId: idSchema.nullable(),
-  name: nameSchema,
+  name: shoppingNameSchema,
   category: shoppingCategorySchema,
   defaultUnit: shoppingUnitSchema,
   emoji: shoppingEmojiSchema,
@@ -71,7 +84,7 @@ export const shoppingListSchema = z.object({
   groupId: idSchema.nullable(),
   /** Set only on a personal list. */
   ownerUserId: idSchema.nullable(),
-  name: nameSchema,
+  name: shoppingNameSchema,
   status: shoppingListStatusSchema,
   /** Navigation only: completing the list never changes the task (ADR-0011, section 8). */
   linkedTaskId: idSchema.nullable(),
@@ -91,14 +104,14 @@ export type ShoppingList = z.infer<typeof shoppingListSchema>;
 export const shoppingListCreateInputSchema = z.object({
   id: idSchema.optional(),
   groupId: idSchema.nullable(),
-  name: nameSchema,
+  name: shoppingNameSchema,
   fromListId: idSchema.optional(),
 });
 export type ShoppingListCreateInput = z.infer<typeof shoppingListCreateInputSchema>;
 
 /** Plain `update` under RLS: by the creator, the owner of a personal list, or `shopping.manage_lists`. */
 export const shoppingListUpdateInputSchema = z
-  .object({ name: nameSchema, linkedTaskId: idSchema.nullable() })
+  .object({ name: shoppingNameSchema, linkedTaskId: idSchema.nullable() })
   .partial()
   .refine((value) => Object.keys(value).length > 0);
 export type ShoppingListUpdateInput = z.infer<typeof shoppingListUpdateInputSchema>;
@@ -113,7 +126,7 @@ export const shoppingListItemSchema = z.object({
   id: idSchema,
   listId: idSchema,
   catalogItemId: idSchema.nullable(),
-  name: nameSchema,
+  name: shoppingNameSchema,
   category: shoppingCategorySchema,
   quantity: shoppingQuantitySchema,
   unit: shoppingUnitSchema,
@@ -135,7 +148,7 @@ export const shoppingListItemInputSchema = z.object({
   id: idSchema.optional(),
   listId: idSchema,
   catalogItemId: idSchema.nullable(),
-  name: nameSchema,
+  name: shoppingNameSchema,
   category: shoppingCategorySchema,
   quantity: shoppingQuantitySchema,
   unit: shoppingUnitSchema,
@@ -189,6 +202,8 @@ export const shoppingErrorCodeSchema = z.enum([
   'list_completed',
   /** `shoppingRules.maxItemsPerList`. */
   'list_full',
+  /** `shoppingRules.maxOpenListsPerScope`: open lists of the group, or personal lists of the person. */
+  'lists_full',
   /** `shoppingRules.maxCatalogItemsPerScope`, counting rows not archived. */
   'catalog_full',
   /** Same name, ignoring case, in the same catalog and not archived. */

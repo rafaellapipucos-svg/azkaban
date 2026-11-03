@@ -11,6 +11,12 @@ export const shoppingRules = {
   /** Per group catalog and per personal catalog, counting rows not archived. */
   maxCatalogItemsPerScope: 500,
   /**
+   * Open lists per group and per person (personal lists), checked when a list is created
+   * (`lists_full`). Completed lists do not count, so history grows. Keeps one member from flooding
+   * everyone's lists screen (ADR-0011, section 16, SEG7-2). Value to confirm with the human.
+   */
+  maxOpenListsPerScope: 50,
+  /**
    * XP of a completed list (F7-5, after F6). The event goes to whoever completed it, once per list,
    * and only when at least `minCheckedItems` items were checked and the person has had fewer than
    * `maxRewardedPerDay` rewarded lists on that local day. Completing still works without XP.

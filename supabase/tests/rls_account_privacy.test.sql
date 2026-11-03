@@ -4,7 +4,7 @@
 -- in it; E only leaves a superseded proof on A's occurrence and is deleted by the bare cascade.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(94);
+select plan(97);
 
 create function pg_temp.u(p text) returns uuid language sql as $$
   select ('00000000-0000-0000-0000-' || lpad(p, 12, '0'))::uuid;
@@ -351,7 +351,14 @@ select is((select count(*)::int from public.account_deletions where user_id = pg
 -- A member joins Solo between begin and finish: finish blocks too.
 select pg_temp.service();
 select public.begin_account_deletion(pg_temp.u('d'));
+-- SEG8-3: with the deletion open, no invite lets anyone into a group of D.
+select pg_temp.login(pg_temp.u('c'));
+select is(public.accept_invite('DELINV0003'), null, 'with D''s deletion open, an invite to Solo is invite_invalid');
+select is(public.accept_invite('DELINV0002'), '40000000-0000-0000-0000-000000000001'::uuid,
+  'an invite to a group of someone else still answers');
 select pg_temp.pg();
+select is((select count(*)::int from public.group_members where group_id = '40000000-0000-0000-0000-000000000002'), 1,
+  'Solo keeps only D');
 insert into public.group_members (group_id, user_id, role) values ('40000000-0000-0000-0000-000000000002', pg_temp.u('c'), 'member');
 select pg_temp.service();
 select throws_ok($$select public.finish_account_deletion('00000000-0000-0000-0000-00000000000d', 0)$$, 'P0001', 'owns_groups',

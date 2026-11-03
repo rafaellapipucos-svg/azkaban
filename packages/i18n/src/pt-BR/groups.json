@@ -53,6 +53,7 @@
     "title": "Convite",
     "description": "Você foi convidado para {{group}} como {{role}}.",
     "invalid": "Este convite não vale mais. Peça um novo a quem convidou você.",
+    "rateLimited": "Foram muitas tentativas em pouco tempo. Espere um pouco e tente de novo.",
     "accept": "Aceitar",
     "decline": "Agora não",
     "signInFirst": "Entre na sua conta para aceitar o convite.",

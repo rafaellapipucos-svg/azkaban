@@ -16,10 +16,12 @@ export const rateLimitRules = {
     shopping_list_create: { limit: 30, windowSeconds: 3600 },
     /** Every `insert` in `group_invites` by a user. */
     invite_create: { limit: 30, windowSeconds: 86400 },
-    /** `get_invite_preview`, which answers a group name for a code. */
+    /** `get_invite_preview` and `accept_invite`, valid code or not (SEG8-2). */
     invite_lookup: { limit: 30, windowSeconds: 3600 },
     /** `account-export`, which reads every table and signs every photo. */
     data_export: { limit: 3, windowSeconds: 86400 },
+    /** The stepper: `adjust_shopping_item_quantity` and `add_catalog_item_to_list`, a replay not counted (SEG8-4). */
+    shopping_item_adjust: { limit: 600, windowSeconds: 3600 },
   },
   /** Counters older than this are deleted by the daily job. At least the longest window. */
   counterRetentionHours: 48,

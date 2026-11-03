@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { idSchema, instantSchema } from './common';
+import { idSchema, instantSchema, localDateSchema } from './common';
 
 // Notifications (ADR-0008). A notification is one row of the bell, written by the database for any
 // path that causes it. The channels below are the ones that ring outside the app, each through one
@@ -16,6 +16,11 @@ export const notificationTypeSchema = z.enum([
   'proof_in_review',
   /** To the author, when a reviewer disputed the photo. */
   'proof_disputed',
+  /**
+   * To a profile ready for WhatsApp, at its chosen time (ADR-0009, section 5). Only by WhatsApp; the
+   * bell row is born read.
+   */
+  'daily_summary',
 ]);
 export type NotificationType = z.infer<typeof notificationTypeSchema>;
 
@@ -61,6 +66,11 @@ const resolvedData = z.object({
 });
 const inReviewData = z.object({ proofId: idSchema, groupId: idSchema });
 const disputedData = z.object({ proofId: idSchema, toStatus: z.enum(['partial', 'missed']) });
+/**
+ * `notifications.data` of `daily_summary`. The content is read at send time; the row only marks the
+ * day. Here and not in `./whatsapp`, which imports this file: a cycle would leave one side undefined.
+ */
+export const dailySummaryNotificationDataSchema = z.object({ localDate: localDateSchema });
 
 const item = {
   id: idSchema,
@@ -79,6 +89,7 @@ export const notificationItemSchema = z.discriminatedUnion('type', [
   z.object({ ...item, type: z.literal('occurrence_resolved'), data: resolvedData }),
   z.object({ ...item, type: z.literal('proof_in_review'), data: inReviewData }),
   z.object({ ...item, type: z.literal('proof_disputed'), data: disputedData }),
+  z.object({ ...item, type: z.literal('daily_summary'), data: dailySummaryNotificationDataSchema }),
 ]);
 export type NotificationItem = z.infer<typeof notificationItemSchema>;
 

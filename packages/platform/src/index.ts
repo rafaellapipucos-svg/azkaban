@@ -37,6 +37,8 @@ export { canVibrate, vibrate } from './haptics';
 export { canPlayTone, playTone, type Tone } from './celebrationSound';
 export {
   currentPushSubscription,
+  nativePushToken,
+  onPushOpened,
   pushPermission,
   pushSupport,
   subscribePush,

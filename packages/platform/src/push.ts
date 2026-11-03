@@ -1,6 +1,6 @@
 /**
- * Web Push (ADR-0008, section 9). The browser does it, in `push.web.ts`; native push comes with F8,
- * so here nothing is supported and nothing happens.
+ * Web Push (ADR-0008, section 9). The browser does it, in `push.web.ts`. `push.native.ts` has no Web
+ * Push either: it only adds the Expo token and the tap on a notification (ADR-0012, section 11).
  */
 
 /**
@@ -42,3 +42,22 @@ export async function currentPushSubscription(
 }
 
 export async function unsubscribePush(): Promise<void> {}
+
+/**
+ * Native only, behind `features.nativePush`: the Expo push token of this device, asking for the
+ * permission, so call it only from a tap. Null without the flag, the EAS project id or the permission.
+ * `androidChannelName` is what Android settings show for the channel, already translated.
+ */
+export async function nativePushToken(androidChannelName: string): Promise<string | null> {
+  void androidChannelName;
+  return null;
+}
+
+/**
+ * Native only: calls `listener` with the `url` of a notification the person tapped, also the one that
+ * opened the app. Untrusted: check it with `safeInternalPath`. On web, `sw.js` opens it. Returns the stop.
+ */
+export function onPushOpened(listener: (url: string) => void): () => void {
+  void listener;
+  return () => undefined;
+}

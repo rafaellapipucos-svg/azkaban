@@ -102,3 +102,14 @@ export async function unsubscribePush() {
   const current = await navigator.serviceWorker.getRegistration('/');
   await (await current?.pushManager.getSubscription())?.unsubscribe();
 }
+
+/** Native only: `sw.js` opens a tapped notification here. */
+export async function nativePushToken(androidChannelName: string): Promise<string | null> {
+  void androidChannelName;
+  return null;
+}
+
+export function onPushOpened(listener: (url: string) => void): () => void {
+  void listener;
+  return () => undefined;
+}

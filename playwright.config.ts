@@ -29,6 +29,14 @@ export default defineConfig({
   use: {
     baseURL,
     trace: 'retain-on-failure',
+    // Every context starts as a device that already saw the push step after signing in (ADR-0012,
+    // section 13, item 2), so it does not stand in front of Hoje; `push-setup.spec.ts` clears it.
+    storageState: {
+      cookies: [],
+      origins: [
+        { origin: baseURL, localStorage: [{ name: 'notifications.pushOffered', value: '1' }] },
+      ],
+    },
     ...devices['Pixel 7'],
   },
   webServer: {

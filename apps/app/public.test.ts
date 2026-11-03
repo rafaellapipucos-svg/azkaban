@@ -1,11 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 import { describe, expect, it, vi } from 'vitest';
+import appConfig from './app.config';
+import { reportOnlyCsp, withReportOnlyCsp } from './scripts/headers';
 // Tailwind reads the tokens of packages/ui, which this app may only reach through its config.
 import tailwind from './tailwind.config';
 
 const file = (name: string) => readFileSync(new URL(`./public/${name}`, import.meta.url), 'utf8');
-const { background, 'background-dark': backgroundDark } = tailwind.theme.extend.colors;
+const { background, 'background-dark': backgroundDark, primary } = tailwind.theme.extend.colors;
 
 describe('public files', () => {
   it('repeat the background tokens in index.html, light and dark', () => {
@@ -38,6 +40,58 @@ describe('public files', () => {
     );
     expect(all).toContain('  X-Content-Type-Options: nosniff');
     expect(all).toContain('  Referrer-Policy: strict-origin-when-cross-origin');
+  });
+});
+
+describe('report-only CSP (ADR-0012, section 13, item 1)', () => {
+  const host = 'https://abcdefghij.supabase.co';
+
+  it('names the exact Supabase host, for HTTP and Realtime, and no wildcard', () => {
+    const policy = reportOnlyCsp(`${host}/`);
+    expect(policy).toBe(
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+        `img-src 'self' data: blob: ${host}; ` +
+        `connect-src 'self' ${host} wss://abcdefghij.supabase.co; ` +
+        "font-src 'self' data:; worker-src 'self'; manifest-src 'self'; " +
+        "frame-ancestors 'none'; object-src 'none'; base-uri 'self'",
+    );
+    expect(policy).not.toContain('*');
+    expect(reportOnlyCsp('http://127.0.0.1:54321')).toContain(
+      "connect-src 'self' http://127.0.0.1:54321 ws://127.0.0.1:54321;",
+    );
+  });
+
+  it('refuses a URL that is not http or https', () => {
+    expect(() => reportOnlyCsp('javascript:alert(1)')).toThrow();
+    expect(() => reportOnlyCsp('not a url')).toThrow();
+  });
+
+  it('adds it next to the enforced one in _headers, which stays as it was', () => {
+    const headers = file('_headers');
+    const built = withReportOnlyCsp(headers, host);
+    const all = built.split(/\n(?=\S)/).find((block) => block.startsWith('/*\n'));
+    expect(all).toContain(
+      "  Content-Security-Policy: frame-ancestors 'none'; object-src 'none'; base-uri 'self'\n" +
+        `  Content-Security-Policy-Report-Only: ${reportOnlyCsp(host)}\n`,
+    );
+    expect(built.match(/Content-Security-Policy-Report-Only/g)).toHaveLength(1);
+    expect(built).not.toMatch(/^\s*Content-Security-Policy: default-src/m);
+    expect(built.replace(/\n {2}Content-Security-Policy-Report-Only: .*/, '')).toBe(
+      headers.replace(/\r/g, ''),
+    );
+  });
+});
+
+describe('app.config.ts', () => {
+  it('repeats the color tokens', () => {
+    const plugin = (name: string) =>
+      (appConfig.plugins ?? []).find((each) => Array.isArray(each) && each[0] === name)?.[1];
+    expect(appConfig.android?.adaptiveIcon?.backgroundColor).toBe(background);
+    expect(plugin('expo-splash-screen')).toMatchObject({
+      backgroundColor: background,
+      dark: { backgroundColor: backgroundDark },
+    });
+    expect(plugin('expo-notifications')).toMatchObject({ color: primary });
   });
 });
 

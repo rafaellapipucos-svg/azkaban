@@ -17,7 +17,7 @@ const config: ExpoConfig = {
   scheme: process.env.EXPO_PUBLIC_APP_SCHEME ?? 'azkaban',
   version: '0.0.0',
   orientation: 'portrait',
-  // TODO(design-system): the Broto art in 1024 px replaces these template files (ADR-0012, section 11).
+  // The Broto art, copied from packages/ui/assets/brand (`pnpm --filter @azkaban/ui brand`).
   icon: './assets/icon.png',
   userInterfaceStyle: 'automatic',
   ios: { bundleIdentifier: iosBundleId, supportsTablet: true },
@@ -25,8 +25,8 @@ const config: ExpoConfig = {
     package: androidPackage,
     adaptiveIcon: {
       foregroundImage: './assets/android-icon-foreground.png',
-      backgroundImage: './assets/android-icon-background.png',
       monochromeImage: './assets/android-icon-monochrome.png',
+      backgroundColor: colors.background,
     },
   },
   web: {
@@ -47,11 +47,11 @@ const config: ExpoConfig = {
         imageWidth: 200,
         resizeMode: 'contain',
         backgroundColor: colors.background,
-        dark: { backgroundColor: colors.backgroundDark },
+        dark: { image: './assets/splash-icon.png', backgroundColor: colors.backgroundDark },
       },
     ],
     // Compiles without Firebase or Apple: receiving needs FCM and APNs credentials in EAS (human).
-    ['expo-notifications', { color: colors.primary }],
+    ['expo-notifications', { icon: './assets/notification-icon.png', color: colors.primary }],
     [
       'expo-camera',
       {

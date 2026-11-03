@@ -137,6 +137,8 @@ export const groupsRepository = {
 
   async previewInvite(code: string): Promise<InvitePreview | null> {
     const { data, error } = await db().rpc('get_invite_preview', { invite_code: code });
+    // Spends the same limit as accept_invite (SEG8-2).
+    if (error?.code === 'PT429') throw new Error(rateLimitedErrorCode, { cause: error });
     if (error) throw error;
     const row = data[0];
     return row ? { groupName: row.group_name, groupType: row.group_type, role: row.role } : null;

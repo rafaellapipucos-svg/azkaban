@@ -17,6 +17,8 @@ export function JoinGroupScreen({ code, signedIn }: { code: string; signedIn: bo
     queryKey: ['invite', code],
     queryFn: () => groupsRepository.previewInvite(code),
     enabled: signedIn,
+    // Each try spends the invite limit: over it, trying again only digs deeper.
+    retry: (failures, error) => error.message !== rateLimitedErrorCode && failures < 3,
   });
   const accept = useMutation({
     mutationFn: () => groupsRepository.acceptInvite(code),
@@ -42,10 +44,11 @@ export function JoinGroupScreen({ code, signedIn }: { code: string; signedIn: bo
     );
   }
 
-  if (preview.data === null) {
+  const previewLimited = preview.error?.message === rateLimitedErrorCode;
+  if (preview.data === null || previewLimited) {
     return (
       <Screen title={t('join.title')}>
-        <EmptyState mood="worried" text={t('join.invalid')}>
+        <EmptyState mood="worried" text={t(previewLimited ? 'join.rateLimited' : 'join.invalid')}>
           <Button
             variant="secondary"
             label={t('actions.back')}

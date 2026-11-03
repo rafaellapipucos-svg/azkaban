@@ -1,3 +1,4 @@
+import { rateLimitedErrorCode } from '@azkaban/contracts';
 import { groupsRepository } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import { Body, Button, EmptyState, ErrorText, Mascot, Screen, Title } from '@azkaban/ui';
@@ -78,7 +79,11 @@ export function JoinGroupScreen({ code, signedIn }: { code: string; signedIn: bo
           }
         />
       ) : null}
-      {accept.isError ? <ErrorText>{t('join.invalid')}</ErrorText> : null}
+      {accept.isError ? (
+        <ErrorText>
+          {t(accept.error.message === rateLimitedErrorCode ? 'join.rateLimited' : 'join.invalid')}
+        </ErrorText>
+      ) : null}
       <Button
         label={t('join.accept')}
         loading={accept.isPending}

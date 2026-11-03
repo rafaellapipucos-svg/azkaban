@@ -2800,3 +2800,19 @@
 - **Verificado:** `pnpm db:test` 12 arquivos, 1911 testes, PASS; `pnpm db:check-permissions` em sincronia (`supabase_db_azkaban-b`, limites incluídos); `pnpm db:types` sem diferença; `pnpm check` passou (11 pacotes de testes, 1081 testes; `functions:imports` 10 de 10). Mutação, aplicando a função mutante na B e rodando o arquivo de teste: mortas 5 de 5 (contagem pelo dia local, `raise` no código inválido, sem o `consume` no aceite, sem a checagem da exclusão aberta, sem o `consume` em `add_catalog_item_to_list`); as funções voltaram e os quatro arquivos passaram de novo.
 - **Não verificado:** a corrida real entre `begin_account_deletion` e `accept_invite` (só pela semântica de `for share` contra `for no key update`); o cliente com `accept_invite` devolvendo `null`; E2E e `functions:test` (fora desta tarefa); o projeto hospedado.
 - **Pendências / próximos passos:** `auth-grupos` faz `acceptInvite` lançar com `data` nulo (handoff `20261103-0659`); até lá, um código ruim leva a `/groups/null`. O comentário de `shoppingRules.xp` em `packages/config/src/shopping.ts` e o ADR-0011 (seção 9) ainda dizem "dia local"; e o ADR-0012 diz que `accept_invite` não tem limite: cabe ao orquestrador. Uma exclusão que falhe em `finish` com a linha aberta trava os convites dos grupos desse dono até repetir a exclusão.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 07:03 (BRT)
+
+- **Branch:** `fix/accept-invite-null` (de `feat/phase-8-polish`, com merge de `fix/phase-8-db-security`)
+- **Agente(s):** auth-grupos
+- **Resumo:** o cliente acompanha o contrato novo de `accept_invite` (handoff `20261103-0659-banco-de-dados-para-auth-grupos-accept-invite-null`): `null` vira `invite_invalid` e `PT429` vira `rate_limited`, com texto próprio na tela do convite.
+- **Alterações:**
+  - `groupsRepository.acceptInvite` lança `Error('invite_invalid')` com `data` nulo (antes navegava para `/groups/null`) e `Error('rate_limited', { cause })` com `PT429`; o retorno passa a ser `Promise<string>`.
+  - `JoinGroupScreen` mostra `join.rateLimited` para `rate_limited` e `join.invalid` para o resto.
+  - Chave nova `groups.join.rateLimited`.
+  - Teste de unidade dos três casos (entrou, nulo, 429) em `packages/data/src/groups/groups.test.ts`.
+- **Arquivos/módulos principais:** `packages/data/src/groups/index.ts`, `packages/data/src/groups/groups.test.ts`, `packages/features/groups/src/JoinGroupScreen.tsx`, `packages/i18n/src/pt-BR/groups.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. O texto do 429 não traz a espera (o `hint`), como no resto dos módulos.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/data exec vitest run src/groups`.
+- **Pendências / próximos passos:** nenhum E2E esperava o erro antigo (`e2e/accounts.spec.ts` checa o código revogado pela prévia, que já devolvia vazio); E2E não rodados. `previewInvite` também gasta o limite e, num 429, a tela fica sem a prévia e sem mensagem; não mudou aqui.

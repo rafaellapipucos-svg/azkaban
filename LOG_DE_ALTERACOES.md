@@ -2119,3 +2119,22 @@
 - **Verificado:** `pnpm e2e` completo uma vez, com a chave VAPID e antes do teste de QA6C-1: 72 ok, 2 falhas, 1 pulado (o "sem chave VAPID"). As falhas são de `notifications-jobs` ("the red-by-default job…", com o "Fechar aviso" coberto pelo invólucro do cartão, causa confirmada; e "a reminder that is due…", causa provável a mesma, não confirmada). As 4 de `notifications-jobs` passaram antes, sozinhas (`--no-deps`). Depois, `gamification.spec.ts` 5 de 5 (um esperado-falho) e `tasks.spec.ts` "quick create…" 1 de 1. `pnpm functions:test` 178 de 178 (rodou duas vezes; a primeira saída não foi capturada). `pnpm check` passou (17 de 17 e 10 de 10; core 692; `functions:imports` 8 de 8). Pilha A parada com `supabase stop`.
 - **Não verificado:** a E2E completa depois do teste de QA6C-1 (só a spec); a causa da segunda falha de `notifications-jobs`; QA6C-3 não se repetiu; a "Semana perfeita" com a tela de dia perfeito; leitor de tela real, Safari, iPhone; projeto hospedado. Sem mutação.
 - **Pendências / próximos passos:** QA6C-1 com o `gamificacao`; depois dele, tirar o `test.fail()` e rodar a E2E completa, que deve voltar a verde em `notifications-jobs`. `docs/agentes/QUADRO.md` é do orquestrador.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 05:15 (BRT)
+
+- **Branch:** fix/celebration-pointer-events, criada a partir de feat/phase-6-gamification (c999726)
+- **Agente(s):** gamificacao
+- **Resumo:** QA6C-1 e QA6C-3 do handoff `20261103-0453-qa-testes-para-gamificacao-cartao-bloqueia-a-tela`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - QA6C-1: o invólucro do cartão usa a prop `pointerEvents="box-none"`. O react-native-web 0.21 descarta `pointerEvents` de estilos inline (só a prop e o `StyleSheet.create` geram a classe), então o invólucro, da tela toda, ficava com `pointer-events: auto`. Com a correção, `elementFromPoint(20, 60)` devolve o cabeçalho.
+  - E2E de QA6C-1 sem `test.fail()`, e o toque agora vai ao botão "Nova tarefa": a tarefa que o teste tocava fica embaixo do próprio cartão no Pixel 7 (cartão de y 294 a 545, check em y 459), o que é esperado.
+  - QA6C-3: `mergeCelebrations` em core junta ao cartão aberto uma rajada que chega até `joinMs` (3 s, `gamificationUi`) depois de ele abrir, sem repetir e na ordem de `celebrationsFor`; depois disso, a próxima tarefa ganha cartão próprio. `burstMs` ficou em 600 ms.
+  - QA6C-2: sem mudança, por decisão do orquestrador (a conquista no teto é comemorada); a E2E do teto já espera isso.
+  - Handoff `20261103-0515-gamificacao-para-design-system-pointer-events-na-web`: `Fab` e `NotificationToaster` têm o mesmo `pointerEvents` no estilo, sem efeito na web.
+- **Arquivos/módulos principais:** `packages/features/gamification/src/{CelebrationHost.tsx,config.ts}`, `packages/core/src/gamification/celebrations{,.test}.ts`, `packages/core/src/index.ts` (uma exportação), `e2e/gamification.spec.ts`, o handoff acima
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma
+- **Como testar:** `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm exec playwright test e2e/gamification.spec.ts --project=app`, `pnpm exec playwright test e2e/notifications-jobs.spec.ts --project=jobs --no-deps`.
+- **Verificado:** `gamification.spec.ts` 5 de 5 (na primeira rodada, antes de ajustar o teste de QA6C-1, o do teto falhou uma vez, com o cartão de "Primeira tarefa" e "Tarefa concluída!" vindo das linhas semeadas antes do `reload`; não se repetiu); `notifications-jobs.spec.ts` 4 de 4; `pnpm e2e` completo uma vez, com chave VAPID gerada em memória: 75 ok, 0 falhas, 1 pulado (o "sem chave VAPID"); `pnpm check` passou (17 de 17 e 10 de 10; core 694). Pilha A parada com `supabase stop`.
+- **Não verificado:** a junção de QA6C-3 com rajadas reais separadas (só o teste de unidade de `mergeCelebrations`; o atraso não se reproduz); nativo (a prop é a forma do RN também); Safari, iPhone; projeto hospedado. Sem mutação.
+- **Pendências / próximos passos:** o handoff acima ao `design-system`; o `arquiteto` alinhar o texto do ADR-0010 sobre o teto (QA6C-2).

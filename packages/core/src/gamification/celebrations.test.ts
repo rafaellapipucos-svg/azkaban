@@ -1,6 +1,6 @@
 import type { AchievementKind } from '@azkaban/contracts';
 import { describe, expect, it } from 'vitest';
-import { celebrationsFor, reachedAchievements } from './celebrations';
+import { celebrationsFor, mergeCelebrations, reachedAchievements } from './celebrations';
 
 // Same values as gamificationDefaults and the seed of ADR-0010 section 5.
 const levelCurve = { firstLevelXp: 100, growth: 1.25 };
@@ -141,5 +141,34 @@ describe('celebrationsFor (ADR-0010 section 8)', () => {
       { kind: 'streak_milestone', days: 7 },
       { kind: 'occurrence_done' },
     ]);
+  });
+});
+
+describe('mergeCelebrations (QA6C-3)', () => {
+  it('adds a late burst to the card, in order and without repeats', () => {
+    expect(
+      mergeCelebrations(
+        [{ kind: 'achievement', key: 'first_task' }],
+        [{ kind: 'occurrence_done' }, { kind: 'achievement', key: 'first_task' }],
+      ),
+    ).toEqual(
+      celebrationsFor(
+        { totalXp: 0, currentStreak: 0 },
+        { totalXp: 0, currentStreak: 0 },
+        {
+          events: [{ reason: 'occurrence_done', amount: 10 }],
+          achievementKeys: ['first_task'],
+          streakMilestones,
+          celebratedLevel: 1,
+          levelCurve,
+        },
+      ).celebrations,
+    );
+  });
+
+  it('puts a late perfect day first', () => {
+    expect(mergeCelebrations([{ kind: 'occurrence_done' }], [{ kind: 'perfect_day' }])[0]).toEqual({
+      kind: 'perfect_day',
+    });
   });
 });

@@ -3561,3 +3561,20 @@
 - **Verificado:** leitura do diff inteiro de `c74cce6..960c107`; NetInfo conferido no `node_modules` instalado (`defaultConfiguration.ts`, `internetReachability.ts`, sem `isInternetReachable` em `ios/`); `_setSession` do `auth-js` instalado confere o token no GoTrue (`_getUser`) e troca a sessão sem olhar a atual, e o `flowType` padrão é `implicit`. `pnpm check` passou (lint e Prettier, fronteiras, typecheck com e2e e `deno check` das funções, testes, `functions:imports`).
 - **Não verificado:** pgTAP, `pnpm functions:test` e E2E (sem pilha, como pedido); a API real da Expo e o comportamento em aparelho (`unregisterForNotificationsAsync`, deep link); CI no Linux.
 - **Pendências / próximos passos:** os dois handoffs; BL23-3 a BL23-5 ficam para os donos decidirem.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 11:11 (BRT)
+
+- **Branch:** fix/netinfo-no-reachability, criada a partir de feat/backlog-after-phase-8 (a251638)
+- **Agente(s):** notificacoes-whatsapp (achado BL23-4 atribuído a ele, em `packages/platform/src/network.ts`)
+- **Resumo:** Achado BL23-4 (baixa, LGPD) da revisão de segurança de 11:04. O NetInfo nativo deixa de testar a conexão contra `https://clients3.google.com/generate_204`; o app só lê `isConnected`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/platform/src/network.ts`: `NetInfo.configure({ reachabilityShouldRun: () => false })` uma vez, na carga do módulo, antes de qualquer leitura. Opção conferida no NetInfo 12.0.1 instalado (`types.ts`; em `internetReachability.ts` o teste só roda se `reachabilityShouldRun()` for verdadeiro). `isInternetReachable` passa a ficar `null` no iOS; nada no app o lê.
+  - `packages/platform/src/network.test.ts`: o NetInfo falso registra as chamadas de `configure`; teste novo confere uma chamada só e `reachabilityShouldRun()` falso. Array simples em vez de `vi.fn()`, porque o Vitest 5 limpa as chamadas antes de cada teste (`clearMocks: true` por padrão) e o `configure` roda no import.
+  - Web (`network.web.ts`) sem mudança.
+- **Arquivos/módulos principais:** `packages/platform/src/network.ts`, `packages/platform/src/network.test.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou. O teste novo, com `vi.fn()`, viu 0 chamadas; com o array vê a chamada do import, então falha se o `configure` sair.
+- **Não verificado:** aparelho iOS (ausência da requisição ao Google; o `configure` atravessando a ponte nativa com a função na configuração, que o nativo só guarda em `self.config`); sem pilha.
+- **Pendências / próximos passos:** nenhuma.

@@ -2,7 +2,7 @@
 // reader. They run in Node (`pnpm functions:test`) with no stack. Each rejection has its positive.
 import assert from 'node:assert/strict';
 import { describe, test } from 'node:test';
-import { readLimited } from './body.ts';
+import { readLimited } from '../_shared/body.ts';
 import { clockMismatch, haversineM, inspectJpeg, judgeLocation } from './checks.ts';
 import { makeJpeg } from './jpeg-fixture.ts';
 

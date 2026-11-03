@@ -17,6 +17,7 @@ import { StatusMark } from './StatusMark';
 import { StatusBadge } from './StatusBadge';
 import { Stepper } from './Stepper';
 import { SwitchRow } from './SwitchRow';
+import { TabBar } from './TabBar';
 import { TaskCheck } from './TaskCheck';
 import { Body, ErrorText, Muted, Subtitle, Title } from './Text';
 import { colors, contextColors, sizes } from './tokens';
@@ -26,6 +27,13 @@ const statuses: OccurrenceStatus[] = ['pending', 'done', 'partial', 'missed', 'c
 const goal = 5;
 type CalendarView = 'month' | 'week' | 'day';
 type LongView = 'mine' | 'member' | 'team';
+const demoTabs = [
+  { key: 'today', icon: '🌱', label: 'designSystem.tabToday' },
+  { key: 'work', icon: '💼', label: 'designSystem.tabWork' },
+  { key: 'home', icon: '🏠', label: 'designSystem.tabHome' },
+  { key: 'calendar', icon: '📅', label: 'designSystem.tabCalendar' },
+  { key: 'profile', icon: '🙂', label: 'designSystem.tabProfile' },
+] as const;
 
 export function DesignSystemScreen() {
   const { t } = useTranslation('ui');
@@ -41,6 +49,8 @@ export function DesignSystemScreen() {
   const [longMulti, setLongMulti] = useState(false);
   const [longView, setLongView] = useState<LongView>('mine');
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [tab, setTab] = useState('calendar');
+  const [unread, setUnread] = useState(3);
   const form = useForm({ defaultValues: { date: '', time: '', note: '', sheetNote: '' } });
   const [date, time] = form.watch(['date', 'time']);
   // Shows the invalid look until a time is picked.
@@ -52,7 +62,7 @@ export function DesignSystemScreen() {
     setStatus(statuses[(statuses.indexOf(status) + 1) % statuses.length] ?? 'pending');
   return (
     <View className="flex-1">
-      <Screen>
+      <Screen title={t('designSystem.title')}>
         <Title>{t('designSystem.title')}</Title>
 
         <Subtitle>{t('designSystem.text')}</Subtitle>
@@ -179,6 +189,12 @@ export function DesignSystemScreen() {
           <IconButton icon="✏️" label={t('designSystem.editLabel')} />
           <IconButton icon="⭐" label={t('designSystem.starLabel')} variant="primary" />
           <IconButton icon="✏️" label={t('designSystem.editLabel')} disabled />
+          <IconButton
+            icon="🔔"
+            label={t('designSystem.bellLabel', { count: unread })}
+            badge={unread}
+            onPress={() => setUnread(unread === 0 ? 3 : unread === 3 ? 120 : 0)}
+          />
         </View>
 
         <Subtitle>{t('designSystem.taskChecks')}</Subtitle>
@@ -193,6 +209,21 @@ export function DesignSystemScreen() {
         <View className="flex-row items-center gap-4">
           <TaskCheck status={status} title={t('designSystem.taskTitle')} onPress={nextStatus} />
           <Muted className="flex-1">{t('designSystem.taskPressHint')}</Muted>
+        </View>
+
+        <Subtitle>{t('designSystem.tabBar')}</Subtitle>
+        <Muted>{t('designSystem.tabBarHint')}</Muted>
+        {/* -mx-4 undoes the Screen padding: the real bar spans the whole width. */}
+        <View className="-mx-4">
+          <TabBar
+            items={demoTabs.map((item) => ({
+              key: item.key,
+              icon: item.icon,
+              label: t(item.label),
+              selected: tab === item.key,
+              onPress: () => setTab(item.key),
+            }))}
+          />
         </View>
 
         <Subtitle>{t('designSystem.fab')}</Subtitle>

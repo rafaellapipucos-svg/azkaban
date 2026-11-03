@@ -1,5 +1,6 @@
 import '../global.css';
 import { useSession } from '@azkaban/feature-auth';
+import { stopPushWhenSignedOut } from '@azkaban/feature-notifications';
 import { initData } from '@azkaban/data';
 import { initI18n } from '@azkaban/i18n';
 import { useSystemColorScheme } from '@azkaban/ui';
@@ -10,6 +11,8 @@ import { env } from '../src/env';
 
 initI18n();
 initData(env.EXPO_PUBLIC_SUPABASE_URL, env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+// Before any screen: a session gone by any path also stops this browser's push.
+stopPushWhenSignedOut();
 
 const queryClient = new QueryClient();
 

@@ -76,7 +76,7 @@ export function ContextFormScreen({ contextId, areaId }: { contextId?: string; a
   });
 
   return (
-    <Screen>
+    <Screen title={t(contextId ? 'form.editTitle' : 'form.newTitle')}>
       <Title>{t(contextId ? 'form.editTitle' : 'form.newTitle')}</Title>
       <FormTextField
         control={control}

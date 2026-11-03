@@ -137,7 +137,7 @@ export function CalendarScreen({ initial = {} }: { initial?: CalendarInitial }) 
   }).format(new Date(`${reach.limitDate}T12:00:00Z`));
 
   return (
-    <Screen>
+    <Screen title={t('title')}>
       <Title>{t('title')}</Title>
 
       {viewable.length > 0 ? (
@@ -204,6 +204,17 @@ export function CalendarScreen({ initial = {} }: { initial?: CalendarInitial }) 
             variant="secondary"
             label={t('errors.retry')}
             onPress={() => occurrences.refetch()}
+          />
+        </View>
+      ) : null}
+      {reach.failed ? (
+        <View style={{ gap: tokens.spacing[2] }}>
+          <ErrorText>{t('errors.materialize')}</ErrorText>
+          <Button
+            variant="secondary"
+            label={t('errors.retry')}
+            loading={reach.retrying}
+            onPress={reach.retry}
           />
         </View>
       ) : null}

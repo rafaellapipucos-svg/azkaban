@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="%LANG_ISO_CODE%">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>%WEB_TITLE%</title>
+    <!-- Colors repeat `background` and `background-dark` of packages/ui/src/tokens.ts; public.test.ts checks them. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FBF8FF" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#16121F" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- The react-native-web reset, plus the theme's background so the dark theme does not flash white. -->
+    <style id="expo-reset">
+      html,
+      body {
+        height: 100%;
+        background-color: #fbf8ff;
+      }
+      @media (prefers-color-scheme: dark) {
+        html,
+        body {
+          background-color: #16121f;
+        }
+      }
+      body {
+        overflow: hidden;
+      }
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+  </head>
+
+  <body>
+    <noscript>Ative o JavaScript para usar o app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>

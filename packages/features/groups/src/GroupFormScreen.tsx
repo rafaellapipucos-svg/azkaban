@@ -26,7 +26,7 @@ export function GroupFormScreen() {
   });
 
   return (
-    <Screen>
+    <Screen title={t('form.title')}>
       <Title>{t('form.title')}</Title>
       <FormTextField
         control={control}

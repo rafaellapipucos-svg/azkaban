@@ -234,6 +234,7 @@
     "allConfirm": "Sim, excluir todas (não dá para desfazer)"
   },
   "detail": {
+    "screenTitle": "Tarefa",
     "notFound": "Não encontramos esta tarefa.",
     "statusTitle": "Como está esta tarefa?",
     "doneLate": "Feita depois do prazo.",

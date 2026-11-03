@@ -239,14 +239,14 @@ export function TaskDetailScreen({
 
   if (detail.isPending) {
     return (
-      <Screen>
+      <Screen title={t('detail.screenTitle')}>
         <Muted>{t('loading')}</Muted>
       </Screen>
     );
   }
   if (!detail.data) {
     return (
-      <Screen>
+      <Screen title={t('detail.screenTitle')}>
         <EmptyState text={t('detail.notFound')} />
         <Button variant="secondary" label={t('actions.back')} onPress={goBack} />
       </Screen>
@@ -300,7 +300,7 @@ export function TaskDetailScreen({
     status.error ?? (remove.isError ? (taskErrorCode(remove.error) ?? 'generic') : null);
 
   return (
-    <Screen>
+    <Screen title={t('detail.screenTitle')}>
       <View style={{ gap: tokens.spacing[2] }} className="items-start">
         <Title>{task.title}</Title>
         <StatusBadge status={item.status} reviewing={reviewing} />

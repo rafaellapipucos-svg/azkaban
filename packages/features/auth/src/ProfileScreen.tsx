@@ -9,8 +9,21 @@ import type { ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { View } from 'react-native';
 
-/** `children` are extra entries the app puts above the sign-out button, such as the groups link. */
-export function ProfileScreen({ children }: { children?: ReactNode }) {
+// ponytail: fixed cap; a slow network costs at most this much, then sign-out goes on regardless.
+const beforeSignOutTimeoutMs = 5000;
+
+/**
+ * `children` are extra entries the app puts above the sign-out button, such as the groups link.
+ * `onBeforeSignOut` runs while the session is still alive (RLS), such as forgetting this device for
+ * push. Its failure or delay never blocks signing out.
+ */
+export function ProfileScreen({
+  children,
+  onBeforeSignOut,
+}: {
+  children?: ReactNode;
+  onBeforeSignOut?: () => Promise<void>;
+}) {
   const { t } = useTranslation('auth');
   const queryClient = useQueryClient();
   const profile = useQuery({ queryKey: ['profile'], queryFn: profilesRepository.getMine });
@@ -26,12 +39,21 @@ export function ProfileScreen({ children }: { children?: ReactNode }) {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['profile'] }),
   });
   const signOut = useMutation({
-    mutationFn: authRepository.signOut,
+    mutationFn: async () => {
+      if (onBeforeSignOut) {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        await Promise.race([
+          onBeforeSignOut().catch(() => undefined),
+          new Promise<void>((resolve) => (timer = setTimeout(resolve, beforeSignOutTimeoutMs))),
+        ]).finally(() => clearTimeout(timer));
+      }
+      await authRepository.signOut();
+    },
     onSuccess: () => queryClient.clear(),
   });
 
   return (
-    <Screen>
+    <Screen title={t('profile.title')}>
       <View className="items-center">
         <Mascot mood="happy" />
       </View>

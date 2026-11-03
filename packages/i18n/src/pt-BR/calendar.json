@@ -3,6 +3,7 @@
   "loading": "Carregando o calendário…",
   "errors": {
     "load": "Não deu para carregar o calendário.",
+    "materialize": "Algumas tarefas que se repetem não apareceram neste período.",
     "retry": "Tentar de novo"
   },
   "views": {

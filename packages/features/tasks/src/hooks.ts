@@ -1,4 +1,4 @@
-import { taskRules } from '@azkaban/config';
+import { taskDefaults, taskRules } from '@azkaban/config';
 import type {
   OccurrenceListItem,
   OccurrenceTransitionInput,
@@ -14,6 +14,7 @@ import {
   isLate,
   isLateWindowOpen,
   localDayRange,
+  materializeWithFollowUps,
 } from '@azkaban/core';
 import { taskErrorCode, tasksRepository, useCurrentUser } from '@azkaban/data';
 import { storage } from '@azkaban/platform';
@@ -276,8 +277,15 @@ export function useMaterializeTasks() {
     mutationFn: async (taskIds: string[]) => {
       // Written first and cleared only on success: a reload in the middle must not lose the work.
       await updatePending((ids) => [...new Set([...ids, ...taskIds])]);
-      await tasksRepository.materializeTasks(taskIds);
-      await updatePending((ids) => ids.filter((id) => !taskIds.includes(id)));
+      // `deferred` is left to the daily job after the follow-ups; `failed` keeps the ids pending
+      // and makes `MaterializeStatus` offer the retry, without the automatic one above.
+      const result = await materializeWithFollowUps(
+        () => tasksRepository.materializeTasks(taskIds),
+        taskDefaults.materializeMaxFollowUps,
+      );
+      if (result.failed === 0)
+        await updatePending((ids) => ids.filter((id) => !taskIds.includes(id)));
+      return result;
     },
     onSettled: refresh,
   });

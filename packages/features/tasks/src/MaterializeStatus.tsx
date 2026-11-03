@@ -1,9 +1,14 @@
 import { useTranslation } from '@azkaban/i18n';
 import { Body, Button, tokens } from '@azkaban/ui';
-import { useMutationState, useQueryClient } from '@tanstack/react-query';
+import type { MaterializeResponse } from '@azkaban/contracts';
+import { useMutationState, useQueryClient, type MutationState } from '@tanstack/react-query';
 import { View } from 'react-native';
 import { useEffect } from 'react';
 import { materializeKey, readPendingMaterialization, useMaterializeTasks } from './hooks';
+
+/** The call failed, or it answered with tasks the database refused (ADR-0008, section 12). */
+const hasFailed = ({ status, data }: Pick<MutationState, 'status' | 'data'>) =>
+  status === 'error' || (status === 'success' && (data as MaterializeResponse).failed > 0);
 
 /**
  * Saving a repeating task returns at once, and its occurrences are created in the background. This
@@ -24,13 +29,14 @@ export function MaterializeStatus() {
   const runs = useMutationState({
     filters: { mutationKey: materializeKey },
     select: (mutation) => ({
+      failed: hasFailed(mutation.state),
       status: mutation.state.status,
       taskIds: (mutation.state.variables ?? []) as string[],
     }),
   });
   const running = runs.some(({ status }) => status === 'pending');
   const failedIds = [
-    ...new Set(runs.filter(({ status }) => status === 'error').flatMap(({ taskIds }) => taskIds)),
+    ...new Set(runs.filter(({ failed }) => failed).flatMap(({ taskIds }) => taskIds)),
   ];
 
   if (failedIds.length === 0) {
@@ -54,7 +60,7 @@ export function MaterializeStatus() {
           // The failed runs are replaced by the new one, so the alert goes away on success.
           queryClient
             .getMutationCache()
-            .findAll({ mutationKey: materializeKey, predicate: (m) => m.state.status === 'error' })
+            .findAll({ mutationKey: materializeKey, predicate: (m) => hasFailed(m.state) })
             .forEach((mutation) => queryClient.getMutationCache().remove(mutation));
           retry.mutate(failedIds);
         }}

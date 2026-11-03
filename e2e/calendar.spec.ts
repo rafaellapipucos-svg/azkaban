@@ -234,8 +234,13 @@ test('the admin sees a member calendar and the team view; the member cannot', as
 
   await createTask(owner, 'Relatório', { assignee: 'Duda' });
   await member.goto('/');
+  // "Feito" shows before the save commits; the owner's team view reads the database
+  const saved = member.waitForResponse(
+    (r) => r.url().includes('/rpc/set_occurrence_status') && r.ok(),
+  );
   await member.getByRole('checkbox', { name: 'Relatório: Pendente' }).click();
   await expect(member.getByRole('checkbox', { name: 'Relatório: Feito' })).toBeVisible();
+  await saved;
 
   // Team view, from the group's page
   await owner.goto(`/groups/${groupId}`);

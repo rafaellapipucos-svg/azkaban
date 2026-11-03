@@ -12,3 +12,4 @@ export {
   type ProofReviewItem,
 } from './proof';
 export { useCurrentUser } from './session';
+export { notificationErrorCode, notificationsRepository, type BellItem } from './notifications';

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { activateOnSpace } from '@azkaban/platform';
+import { activateOnSpace, useDocumentTitle } from '@azkaban/platform';
 import { Mascot, type MascotMood } from './Mascot';
 import { Body } from './Text';
 import { contextColors, layout, sizes, spacing, type ContextColorToken } from './tokens';
@@ -10,11 +10,22 @@ import { useThemeColors } from './useThemeColors';
 // SafeAreaView pads only the part of the safe area it actually overlaps: full under the status bar
 // on a tab or welcome screen, nothing under a stack header that already clears it. useSafeAreaInsets
 // cannot tell, and used to add the status bar height on top of the header.
-export function Screen({ children }: { children: ReactNode }) {
+// The content is the page's `main` landmark (ADR-0008, section 13): one Screen per route, and the
+// stack hides the screens underneath with display: none, so a page has a single main.
+export function Screen({
+  children,
+  title,
+}: {
+  children: ReactNode;
+  /** Name of the screen for the browser tab: "<title> · <app>". Without it, the app name. */
+  title?: string;
+}) {
+  useDocumentTitle(title);
   const { background } = useThemeColors();
   return (
     <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: background }}>
       <ScrollView
+        role="main"
         className="flex-1"
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{

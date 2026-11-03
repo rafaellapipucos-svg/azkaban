@@ -7,19 +7,19 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { timingSafeEqual } from 'node:crypto';
 import { taskDefaults } from '@azkaban/config';
+import { proofDefaults } from '../../../packages/config/src/proof.ts';
 import { materializeRequestSchema, materializeResponseSchema } from '@azkaban/contracts';
 import { expandOccurrences, taskAnchor } from '@azkaban/core';
+import { readLimited } from '../_shared/body.ts';
 
 const DAY_MS = 86_400_000;
 // Group membership is checked with one filter per task, so a page keeps that URL short.
 const PAGE_SIZE = 50;
 const INSERT_CHUNK = 500;
 
-// How far into the past a series is created, counted from now. Older days are history nobody can
-// act on (the assignee resolves up to taskRules.lateCompletionWindowHours = 72h late), and a daily
-// series anchored in year 2000 would otherwise be 10 thousand rows and 300 ms of CPU for one task.
-// Local until the arquiteto adds it to taskDefaults (handoff 20261101-1604).
-const PAST_DAYS = 30;
+// 100 ids and an instant fit in about 4 KiB (ADR-0008, section 12). The read stops at this, so any
+// signed-in user cannot make the function hold a body of any size.
+const MAX_BODY_BYTES = 8 * 1024;
 
 // Budget of one run, so it ends before the platform's 2 s CPU limit per request (Supabase docs,
 // Edge Functions limits) and leaves the rest for the next run. Expansion is the CPU part: about
@@ -187,7 +187,8 @@ async function materialize(
   slackMs: number,
 ) {
   const limit = new Date(limitMs).toISOString();
-  const floorMs = nowMs - PAST_DAYS * DAY_MS;
+  // A daily series anchored in year 2000 would otherwise be 10 thousand rows and 300 ms of CPU.
+  const floorMs = nowMs - taskDefaults.materializationPastDays * DAY_MS;
   const totals = { tasks: 0, formerMembers: 0, failed: 0, inserted: 0, deferred: 0, expandMs: 0 };
   let done = 0;
 
@@ -286,8 +287,14 @@ Deno.serve(async (req) => {
       if (error || !data.user) return reply(401, { error: 'unauthorized' });
     }
 
+    const read = await readLimited(
+      req.body,
+      MAX_BODY_BYTES,
+      proofDefaults.uploadTimeoutSeconds * 1000,
+    );
+    if (read.kind !== 'ok') return reply(400, { error: 'invalid_request' });
     let raw: unknown = {};
-    const text = await req.text();
+    const text = new TextDecoder().decode(read.bytes);
     if (text.trim() !== '') {
       try {
         raw = JSON.parse(text);
@@ -323,7 +330,9 @@ Deno.serve(async (req) => {
         expandMs: Math.round(totals.expandMs),
       }),
     );
-    return reply(200, materializeResponseSchema.parse({ inserted: totals.inserted }));
+    // 200 even with failed > 0: what was inserted stays (ADR-0008, section 12).
+    const { inserted, failed, deferred } = totals;
+    return reply(200, materializeResponseSchema.parse({ inserted, failed, deferred }));
   } catch (error) {
     if (!(error instanceof DatabaseError)) console.error(JSON.stringify({ event: 'unexpected' }));
     return reply(500, { error: 'internal' });

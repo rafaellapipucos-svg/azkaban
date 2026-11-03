@@ -25,7 +25,7 @@ export function JoinGroupScreen({ code, signedIn }: { code: string; signedIn: bo
 
   if (!signedIn) {
     return (
-      <Screen>
+      <Screen title={t('join.title')}>
         <EmptyState mood="happy" text={t('join.signInFirst')}>
           <Button
             label={t('join.signIn')}
@@ -40,7 +40,7 @@ export function JoinGroupScreen({ code, signedIn }: { code: string; signedIn: bo
 
   if (preview.data === null) {
     return (
-      <Screen>
+      <Screen title={t('join.title')}>
         <EmptyState mood="worried" text={t('join.invalid')}>
           <Button
             variant="secondary"
@@ -53,7 +53,7 @@ export function JoinGroupScreen({ code, signedIn }: { code: string; signedIn: bo
   }
 
   return (
-    <Screen>
+    <Screen title={t('join.title')}>
       <View className="items-center">
         <Mascot mood="celebrating" />
       </View>

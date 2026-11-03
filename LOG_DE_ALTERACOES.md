@@ -874,6 +874,28 @@
 - **Não verificado:** **E2E pendente**, nem executada, porque a pilha local estava em uso por outro agente. Telas não conferidas em 375px e 1280px, claro e escuro. Nada em iOS ou Android, inclusive as cores do carimbo nativo.
 - **Pendências / próximos passos:** rodar `pnpm e2e` e conferir as telas quando a pilha liberar. Item 3 do QA (`proof-current` em `useStatusChange`) e a parte do formulário do item 7 com `tarefas-calendario`, no handoff `20261102-1215-prova-foto-para-tarefas-calendario-achados-do-qa`. A versão 2 do banco já está na base, então até esta branch entrar o app mostra o aviso velho a quem aceita a versão 2.
 
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:21 (BRT)
+
+- **Branch:** feat/notifications-contracts, criada a partir de feat/phase-3-proof (b88ab87)
+- **Agente(s):** arquiteto
+- **Resumo:** abre a Fase 4. ADR-0008 decide notificações (sino, outbox, preferências, horário de silêncio, Web Push com VAPID, PWA e service worker, iPhone), o job de vermelho automático, o encaixe do WhatsApp da Fase 5, a resposta da materialização (F4-8) e a casca web (F4-9). Contratos e regras publicados; nenhuma migration, função ou tela.
+- **Alterações:**
+  - `docs/adr/0008-notificacoes-push-pwa-vermelho-automatico.md`: novo.
+  - `packages/contracts/src/notifications.ts` e `notifications.test.ts`: tipos, canais, preferências, horário de silêncio, item do sino por tipo, inscrição e aparelho de push, payload do push com teto de bytes e caminho interno, código `push_endpoint_not_allowed`.
+  - `packages/contracts/src/tasks.ts`: `materializeResponseSchema` ganha `failed` e `deferred`, com padrão 0 só para ler uma função antiga.
+  - `packages/config/src/notifications.ts`: `notificationRules` (espelho previsto em `app_settings.notification_rules`) e `notificationDefaults`.
+  - `packages/config/src/tasks.ts`: `taskRules.autoMissJob`, `taskDefaults.materializationPastDays` e `materializeMaxFollowUps`.
+  - `packages/config/src/env.ts`: `EXPO_PUBLIC_VAPID_PUBLIC_KEY` opcional, vazio conta como ausente; as chaves obrigatórias continuam exigidas pelo tipo.
+  - ADR-0005, seção 13, aponta para o ADR-0008; ADR-0006 registra `anchor` e `BackHeader`; `docs/arquitetura.md` ganha a seção Notificações.
+  - Cinco handoffs `20261102-1220-arquiteto-para-*`.
+- **Arquivos/módulos principais:** `docs/adr/0008-*`, `packages/contracts/src/notifications.ts`, `packages/config/src/notifications.ts`
+- **Migrations:** nenhuma. Especificadas para `banco-de-dados`.
+- **Decisões/ADRs:** ADR-0008. O sino é a linha de `notifications`, sem título, lido pela RLS; canais externos por outbox única por notificação e canal. Lembretes por varredura SQL a cada minuto, não gravados com antecedência. Silêncio no despacho, no fuso do perfil, com exceção para lembrete de tarefa marcada dentro da janela. Endpoint de push só em hosts da lista. 403 do push não apaga a inscrição. Vermelho automático em SQL, por `auto_miss_at`, com carência de 60 minutos depois de mudar o status; F4-6 passa a `banco-de-dados`. `failed` e `deferred` com status 200. Manifest e `index.html` próprios em `apps/app/public`, `theme-color` por `media`, título por `Screen.title` e `role="main"`.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou. Testes de `packages/contracts` (44, 17 novos) e `packages/config` (7, 4 novos).
+- **Não verificado:** nada rodou na pilha. Que o Expo 58 use `apps/app/public/index.html` como modelo em `output: 'single'` foi lido no código do CLI, sem build. Que o Chrome não exija `fetch` no service worker para instalar não foi conferido. Hosts de push da lista vêm de conhecimento, não de teste com cada navegador. `pnpm db:check-permissions` vai acusar `task_rules` até a migration de F4-1.
+- **Pendências / próximos passos:** `banco-de-dados` (F4-1 e F4-6) primeiro; `backend-funcoes` F4-8 já, F4-2 depois de F4-1; `notificacoes-whatsapp` core, i18n e F4-9 já, o resto depois de F4-1; `tarefas-calendario` e `design-system` nos encaixes. Orquestrador: F4-6 muda de dono no QUADRO; pedir a `auth-grupos` o `PushSetupCard` no onboarding. Humano: os sete padrões da seção 16 do ADR-0008.
+
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:28 (BRT)
 
 - **Branch:** fix/proof-task-rules-final, a partir do WIP `18ca79f` de fix/proof-task-rules, sobre feat/phase-3-proof (2935b7a)
@@ -900,6 +922,46 @@
 - **Não verificado:** nada rodou no projeto hospedado nem no CI. A barreira do servidor (`edit_task`, `can_delete_task`) não foi mutada aqui: é do `banco-de-dados` e coberta por `db:test`. A segunda asserção do teste de B4 roda logo depois de a resposta velha chegar, e pode passar antes de um render atrasado.
 - **Pendências / próximos passos:** B2 é só o link, sem contagem de provas aguardando. `prova-foto` segue com B6 a B8 e o aviso `consentVersion` 2.
 
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:34 (BRT)
+
+- **Branch:** feat/ui-page-landmarks, criada a partir de feat/phase-4-notifications (336f35d)
+- **Agente(s):** design-system
+- **Resumo:** marcos de página e título por tela do lado de `packages/ui` (ADR-0008, seção 13): `Screen` é o `main` e aceita `title`, `TabBar` nova com `navigation` e rótulos inteiros a 320 px, e `IconButton` com selo de contagem para o sino.
+- **Alterações:**
+  - `Screen`: `role="main"` no `ScrollView`; `title?: string` aceito e ainda ignorado, com a chamada de `useDocumentTitle` marcada como pendente de F4-9.
+  - `TabBar` nova: `navigation` com nome, `tablist` e `tab`; cada aba com a largura do rótulo, mínimo de 44 px, rótulo em até duas linhas.
+  - `IconButton`: `badge?: number`, `aria-hidden`, "99+" acima de 99; `danger` no claro e `danger-light` com texto `text` no escuro.
+  - Token `sizes.lateBadge` vira `sizes.cornerBadge`, usado por `TaskCheck` e pelo selo.
+  - `/design-system`: título na `Screen`, seção "Barra de abas" de largura inteira e sino com selo em "Botões de ícone". Chaves novas em `ui.json`.
+  - Cinco handoffs `20261102-1233-design-system-para-*`.
+- **Arquivos/módulos principais:** `packages/ui/src/Layout.tsx`, `packages/ui/src/TabBar.tsx`, `packages/ui/src/IconButton.tsx`, `packages/ui/src/DesignSystemScreen.tsx`, `packages/i18n/src/pt-BR/ui.json`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** largura pelo conteúdo em vez de quintos iguais: a 320 px, quintos dão 64 px, e "Calendário" mede 72 px em Nunito 800 de 14 px; pelo conteúdo, as cinco abas somam 319 px. O nome da navegação mora em `ui.json`, dentro de `TabBar`, para a casca não precisar de chave nova. Não criei `useDocumentTitle`: é de `notificacoes-whatsapp` em F4-9.
+- **Como testar:** `pnpm check`; `pnpm dev` e `/design-system` a 320, 375 e 1280 px.
+- **Verificado:** `pnpm check` passou (ui 11 testes, 4 novos de contraste do selo; contracts 44, platform 38, core 500, config 7, data 7, proof 6). `pnpm build:web` exportou. Com Playwright em `/design-system`, claro e escuro, a 320, 375 e 1280 px: um só `main`, um `navigation` chamado "Navegação principal", nenhum rótulo cortado e uma linha por rótulo; a 320 px as abas medem 44, 68, 80, 81 e 46 px, sem rolagem horizontal. Selo visto nos dois temas.
+- **Não verificado:** `document.title` não muda, porque o adapter não existe. A barra real do app não usa `TabBar` até a casca trocar, e as telas logadas não foram abertas. O selo com "99+" e o comportamento no nativo não foram vistos. Que o stack esconde as telas de baixo com `display: none` foi lido no código do `expo-router`, não conferido no leitor de tela.
+- **Pendências / próximos passos:** orquestrador: `AppTabBar` usar `TabBar`. `notificacoes-whatsapp`: `useDocumentTitle` e a linha em `Screen`. `auth-grupos`, `tarefas-calendario` e `prova-foto`: `title` nas próprias telas.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:35 (BRT)
+
+- **Branch:** feat/notifications-shell, criada a partir de feat/phase-4-notifications (336f35d)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** parte da Fase 4 que não depende do banco: `buildPushPayload` em `packages/core`, os textos de notificações, a casca PWA da web (F4-9) e o adapter `useDocumentTitle`. Sino, inscrição de push, preferências e avisos ao admin (F4-3, F4-4, F4-5, F4-7) esperam F4-1.
+- **Alterações:**
+  - `packages/core/src/notifications/pushPayload.ts`: `buildPushPayload(source, requiresPhoto, t)` devolve `PushPayload` validado pelo contrato. Título da tarefa nulo ou em branco vira a linha genérica; título cortado em 80 unidades por ponto de código, sem partir emoji; título e corpo cortados em 120 e 300. Endereço do toque da seção 8 do ADR-0008, e `/notifications` quando a ocorrência sumiu. `tag` é o id da notificação. Antecedência dita na maior unidade inteira.
+  - `packages/i18n/src/pt-BR/notifications.json`: push por tipo, sino, tipos, canais, preferências com silêncio e aparelhos, e `PushSetupCard` com o caso do iPhone. `common.json` ganha `documentTitle` (`{{screen}} · {{app}}`).
+  - `packages/platform`: `useDocumentTitle(title?)`; na web escreve `document.title` só enquanto a tela está em foco (`useIsFocused` do expo-router), porque abas e telas sob uma pilha continuam montadas. Nativo sem efeito. `platform` passa a depender de `@azkaban/i18n` e `expo-router`.
+  - `apps/app/public/`: `index.html` próprio (modelo do Expo em `output: 'single'`) com `theme-color` claro e escuro por `media`, `color-scheme`, fundo do `html` e do `body` nas duas cores, manifest e `apple-touch-icon`; `manifest.webmanifest`; ícones 192, 512 e 180 gerados de `assets/icon.png` (o 512 também é a entrada `maskable`, porque a marca já está na zona segura); `_headers` com `no-cache` para `sw.js` e manifest; `_redirects` com `/* /index.html 200`; `sw.js` com `push` (sempre mostra, com título de reserva se o payload não for lido), `notificationclick` (só caminho interno; foca e navega, ou abre janela) e sem `fetch`. Além do ADR, `install` com `skipWaiting` e `activate` com `clients.claim`, para uma correção do service worker valer sem fechar todas as abas e para `navigate` funcionar.
+  - `apps/app/public.test.ts` e script `test` no app, com `vitest` em devDependencies: cores do `index.html` e do manifest contra os tokens (lidos pelo `tailwind.config.ts`, único caminho do app até `packages/ui/src/tokens.ts` que a fronteira aceita) e o `sw.js` rodado num `vm` com globais falsos.
+  - `apps/app/src/env.ts` e `.env.example`: `EXPO_PUBLIC_VAPID_PUBLIC_KEY`, sem valor.
+- **Arquivos/módulos principais:** `packages/core/src/notifications`, `packages/i18n/src/pt-BR/notifications.json`, `packages/platform/src/documentTitle*.ts`, `apps/app/public`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova. `useDocumentTitle` usa o foco do expo-router; sem isso a última aba montada ficaria com o título. O teste lê os tokens pela configuração do Tailwind para não mexer em `.dependency-cruiser.cjs`.
+- **Como testar:** `pnpm check`; `pnpm build:web` e conferir em `apps/app/dist` o `index.html`, o manifest, o `sw.js`, `_headers` e `_redirects`.
+- **Verificado:** `pnpm check` passou: core 511 (11 novos de `buildPushPayload`), app 6 (novos), contracts 44, platform 38, config 7, ui 7, data 7, proof 6. `pnpm build:web`: `dist/index.html` saiu do modelo próprio, com `lang="pt-BR"`, título `Azkaban`, as duas `theme-color`, manifest e `apple-touch-icon`, e o Expo acrescentou favicon, CSS e scripts; `sw.js`, manifest, ícones, `_headers` e `_redirects` saíram iguais na raiz de `dist`. Uma mutação (não mostrar nada sem payload legível) foi pega pelo teste do `sw.js`.
+- **Não verificado:** nada no navegador: manifest sem erro e instalável no DevTools, `theme-color` na barra, `sw.js` registrado (o registro é de F4-4), `document.title` mudando por tela (nenhuma tela passa `title` ainda; depende de `Screen.title` de `design-system`), e se o Chrome aceita instalar sem `fetch`. Netlify não foi exercitado. A pilha Supabase e a E2E não rodaram, por ordem do orquestrador.
+- **Pendências / próximos passos:** F4-3, F4-4, F4-5 e F4-7 depois de F4-1. `design-system`: `Screen` chama `useDocumentTitle(title)` de `@azkaban/platform`, que exige estar dentro de um navegador do expo-router. `backend-funcoes`: o `t` passado a `buildPushPayload` precisa seguir o plural do i18next (`count` com `_one`/`_other`) no namespace `notifications`. O nome do app se repete no manifest e no `sw.js`, além do `app.config.ts`.
+
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:41 (BRT)
 
 - **Branch:** fix/proof-consent-v2-check, criada a partir de feat/phase-3-proof (1e9add4)
@@ -914,6 +976,23 @@
 - **Verificado:** `pnpm check` passou. `pnpm e2e` 58 de 58 numa só execução, já sem nenhum `test.fail()`, incluindo os testes novos do aviso, da dobra e da prova de tarefa excluída aprovada pela Equipe. `pnpm db:test` 1004 de 1004. Telas por capturas do Chrome com câmera falsa, em 375x812 e 1280x800, claro e escuro: aviso com as sete frases e 90 e 365 dias; quadrado da câmera e "Tirar foto" inteiros na janela nas duas larguras (400 px de quadrado em 1280x800); "Confira a foto" e revisão com o carimbo inteiro, "Duda" sem corte; revisão com o aviso da web; Equipe com "Revisar fotos" para o dono.
 - **Não verificado:** a linha "Enviada pelo navegador" foi conferida pela E2E, não por captura, porque fica abaixo da dobra. Nada em iOS ou Android. Nada no projeto hospedado nem no CI. `pnpm functions:test` não rodou.
 - **Pendências / próximos passos:** nenhuma minha na prova. Base legal e contato de privacidade seguem com o humano.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:43 (BRT)
+
+- **Branch:** feat/ui-shell-wiring (a partir de `feat/phase-4-notifications`, `cfd192c`)
+- **Agente(s):** design-system, também como delegado do orquestrador para a casca (`apps/app/src`)
+- **Resumo:** `Screen` passa a chamar `useDocumentTitle(title)` (F4-9); a barra de abas da casca usa o `TabBar` de `@azkaban/ui`, com o marco `navigation`; a tela de página não encontrada ganha título.
+- **Alterações:**
+  - `packages/ui/src/Layout.tsx`: o comentário `pending F4-9` virou `useDocumentTitle(title)`.
+  - `apps/app/src/AppTabBar.tsx`: o `View role="tablist"` e o `map` deram lugar a `<TabBar items={...} />`; `useSafeAreaInsets` e `tokens` saíram dali. `MaterializeStatus` continua acima, fora da navegação.
+  - `apps/app/app/+not-found.tsx`: `Screen` com `title={t('notFound.title')}`.
+- **Arquivos/módulos principais:** `packages/ui/src/Layout.tsx`, `apps/app/src/AppTabBar.tsx`, `apps/app/app/+not-found.tsx`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0008, seção 13. `packages/platform/src/documentTitle.web.ts` não foi alterado: todo `Screen` do app é uma rota dentro de um `Stack` do expo-router, nenhum teste renderiza `Screen` e os testes de `packages/ui` resolvem a versão sem `.web`. O nome do app vem de `app.config.ts`, então o `document.title` do módulo nunca é lido.
+- **Como testar:** `pnpm check`; `pnpm build:web`; `pnpm dev` e abrir `/design-system`, um endereço inexistente e `/welcome`.
+- **Verificado:** `pnpm check` passou: core 511, contracts 44, platform 38, ui 11, config 7, data 7, app 6, proof 6. `pnpm build:web` exportou `dist`. Com Playwright contra `pnpm dev`: `/design-system` dá "Design system · Azkaban"; `/nao-existe`, "Página não encontrada · Azkaban"; "Ir para Hoje" leva a `/welcome` e o título volta a "Azkaban"; `/welcome` -> `/design-system` -> voltar -> avançar alterna os dois títulos. Um `main` visível em todas; ao empilhar `/sign-up` sobre `/welcome` há dois `main` no DOM, o de baixo com `display: none`, fora da árvore de acessibilidade. Sem erros de página.
+- **Não verificado:** as telas autenticadas: troca de título entre abas, a `TabBar` real com o marco `navigation` a 320 px e telas empilhadas sobre as abas. A pilha Supabase não foi usada, por ordem do orquestrador; a E2E da fase cobre. Hora derivada de UTC menos 3 (PowerShell bloqueado), igual ao relógio local do vitest.
+- **Pendências / próximos passos:** o título de cada tela de feature fica com os donos (handoffs já abertos); hoje `welcome`, `sign-in`, `sign-up` e as abas mostram só "Azkaban".
 
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-02 12:54 (BRT)
 
@@ -930,3 +1009,368 @@
 - **Verificado:** no checkout principal, em `b6587cc`, depois de `db reset`: `db:test` 1004 de 1004; `db:check-permissions` em dia; `turbo run typecheck test --force` 24 de 24 tarefas (core 505, platform 38, contracts 27, ui 7, data 7, feature-proof 6, config 3); `lint` e `boundaries` limpos; `build:web` ok; `functions:test` 85 de 85, sem `functions serve`; `pnpm e2e` 58 de 58 duas vezes seguidas (2,6 e 2,5 min), sem `test.fail()` nem `retries`; `db:test` 1004 de 1004 de novo depois da E2E, sem reset. Varredura de segredos no diff `feat/phase-2-tasks..b6587cc` (229 arquivos): só as chaves públicas de demonstração da pilha local (`iss: supabase-demo`) e o `CRON_SECRET` de demonstração do `.env.example`.
 - **Não verificado:** CI (a E2E com Chrome e câmera falsa nunca rodou no `ubuntu-latest`), projeto hospedado, iOS e Android. Tamanho de foto real.
 - **Pendências / próximos passos:** push de `feat/phase-3-proof` e PR para `feat/phase-2-tasks`. Humano: base legal para funcionários (bloqueia uso real), 365 dias do registro, contato de privacidade, custo de storage, rotação da senha do banco hospedado, riscos aceitos da seção 20. Os worktrees integrados seguem no disco: a remoção foi negada pelas permissões desta sessão.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 13:28 (BRT)
+
+- **Branch:** feat/notifications-db, criada a partir de feat/phase-4-notifications (7737487)
+- **Agente(s):** banco-de-dados
+- **Resumo:** F4-1 e F4-6 no banco (ADR-0008): espelhos, enums, silêncio no perfil, sino, preferências, inscrições de push com a lista de hosts, outbox idempotente, avisos por trigger em qualquer caminho, varredura de lembretes, claim e report do despacho, limpeza de 30 dias, cron do despacho e o vermelho automático.
+- **Alterações:**
+  - 14 migrations `20261102130000` a `20261102131300`, uma por item do handoff `20261102-1220-arquiteto-para-banco-de-dados-notificacoes`.
+  - `supabase/tests/rls_notifications.test.sql`: 199 asserções novas. `rls_proof.test.sql`: `register_push_subscription` na lista de funções abertas a `authenticated`.
+  - `scripts/check-permission-mirror.mjs`: seção `notification_rules`, pedida no mesmo handoff.
+  - `packages/data/src/database.types.ts`: gerado.
+  - Handoffs `20261102-1325-banco-de-dados-para-{backend-funcoes-despacho,notificacoes-whatsapp-sino-e-push}`.
+- **Arquivos/módulos principais:** `supabase/migrations/2026110213*`, `supabase/tests/rls_notifications.test.sql`
+- **Migrations:** `notification_rules`, `notification_enums`, `profile_quiet_hours`, `notifications`, `notification_preferences`, `push_subscriptions`, `notification_outbox`, `enqueue_notification`, `status_notifications`, `due_reminders`, `notification_dispatch`, `notification_retention`, `dispatch_notifications_cron`, `auto_miss_occurrences`.
+- **Decisões/ADRs:** padrões reversíveis onde o ADR não decide:
+  - o trigger dos avisos fica em `task_status_history` (after insert), não em `task_occurrences`: toda mudança de status grava uma linha ali, e o id dela é a chave; de `task_occurrences` não se distingue `done → pending → done` na mesma transação;
+  - contestação para `missed` avisa só `proof_disputed`, sem `occurrence_missed`; desfazer a contestação é aprovação e não avisa ninguém;
+  - `occurrence_resolved` para `missed` não sai quando o criador é o responsável, que já recebeu o vermelho;
+  - o acesso por usuário (`can_view_task_for`) espelha `can_view_task`, então o criador membro atual recebe mesmo sem `task.view_group`;
+  - a exceção do silêncio vale quando a âncora do lembrete cai antes do fim da janela atual (dentro dela ou já passada);
+  - o claim também cancela um `proof_in_review` cuja foto já não espera revisão (`resolved`), e usa o fuso padrão quando o do perfil é inválido, para uma linha não travar a fila;
+  - uma linha em `sending` guarda o fim da concessão também em `next_attempt_at`, e um índice serve fila e concessões vencidas;
+  - a varredura de lembretes lê o índice de pendentes por `auto_miss_at` (a âncora nunca passa dele) e limita o início a 30 dias à frente; o teto e a saída estão no comentário da migration. Não medi com volume.
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`, `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`.
+- **Verificado:** `pnpm check` passou (core 516, contracts 44, platform 38, ui 11, config 7, data 7, app 6, proof 6). `pnpm db:test` 1203 de 1203. `pnpm db:check-permissions` com `Notification rules in sync` e `Task rules in sync`. `pnpm e2e` 58 de 58. `pnpm functions:test` 74 de 85: as 11 falhas são de `materialize-occurrences`, que agora responde `failed: 0, deferred: 0` pelo padrão do contrato de F4-8, e os testes esperam só `inserted`; nada do banco. Mutações pegas: host como sufixo sem ponto, sem checagem de host, parser de host frouxo, sem exceção de silêncio, sem carência, sem filtro de arquivada, sem filtro de ex-membro, `overdue_at` no lugar de `auto_miss_at`, sem exclusão do ator no vermelho e na resolução, sem exclusão de autor e ator no "em análise", sem checagem de membro por usuário, preferência ignorada, replay que reaproveita a linha do sino, sem `unique` da outbox, sem acesso no claim, sem janela da varredura, e as políticas de `select` do sino e das inscrições e de `update` do sino e das preferências trocadas por `true`. Sobreviventes, equivalentes na matriz atual: só a exclusão do autor (o ator do commit é sempre o autor) e `proof.review` trocado por outra chave que só owner e admin têm.
+- **Não verificado:** nada no projeto hospedado. O Realtime entregando a linha a um cliente não foi exercitado, só a publicação. A varredura de lembretes e o vermelho automático rodaram por chamada direta, não pelo pg_cron; localmente, o cron `dispatch-notifications` falha a cada minuto sem Vault, de propósito. Hora derivada de UTC menos 3 (PowerShell bloqueado).
+- **Pendências / próximos passos:** `backend-funcoes`: `dispatch-notifications` e os testes de F4-8. `notificacoes-whatsapp`: sino, preferências, silêncio e push no cliente. Orquestrador: F4-6 muda de dono no QUADRO. Humano: os padrões acima e os da seção 16 do ADR-0008.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 13:39 (BRT)
+
+- **Branch:** feat/tasks-phase-4, criada a partir de feat/phase-4-notifications (f767a20)
+- **Agente(s):** tarefas-calendario
+- **Resumo:** F4-8 no cliente (resposta `{ inserted, failed, deferred }`, novas chamadas enquanto há `deferred`, aviso com "tentar de novo" quando há `failed`), encaixe do sino em Hoje e título de todas as telas de tarefas, calendário e contextos.
+- **Alterações:**
+  - `packages/core`: `materializeWithFollowUps(call, maxFollowUps)`, o laço puro: chama de novo enquanto `deferred > 0`, até o limite; soma `inserted`, guarda o maior `failed` e o último `deferred`. 4 testes.
+  - `packages/data`: `materializeUntil` e `materializeTasks` devolvem a resposta inteira, validada por `materializeResponseSchema`.
+  - `useMaterializeTasks` (criar e editar) e `useMaterializeAhead` (calendário além da janela) usam o laço com `taskDefaults.materializeMaxFollowUps`. Com `failed > 0`, os ids ficam pendentes e `MaterializeStatus` mostra o alerta com "tentar de novo", sem a nova tentativa automática da falha de rede. No calendário, um alerta com "tentar de novo" (`calendar.errors.materialize`).
+  - `TodayScreen` ganha `headerRight?: ReactNode`, ao lado do título, para a rota passar o `NotificationBell`. Nada de `feature-notifications` foi importado.
+  - `title` em todo `Screen` de Today, Area (o nome da área, inclusive enquanto carrega), TaskDetail ("Tarefa", nunca o título da tarefa, que apareceria na aba e no histórico), TaskForm, Team, Calendar, Areas ("Contextos") e ContextForm, inclusive nos retornos de carregando e de erro.
+  - E2E `tasks-materialize.spec.ts`: dois testes novos, com respostas falsas da função (e CORS): `deferred` chama exatamente 3 vezes sem aviso; `failed` mostra o alerta e "tentar de novo" cria os dias.
+- **Arquivos/módulos principais:** `packages/core/src/tasks/calendarMaterialize.ts`, `packages/data/src/tasks/index.ts`, `packages/features/tasks/src/{hooks,MaterializeStatus,TodayScreen}.tsx?`, `packages/features/calendar/src/{hooks.ts,CalendarScreen.tsx}`, `packages/features/contexts/src/*Screen.tsx`, `packages/i18n/src/pt-BR/{tasks,calendar,contexts}.json`, `e2e/tasks-materialize.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0008, seções 7, 12 e 13. Padrão reversível: `failed` é o maior visto, não a soma, porque uma nova chamada repete as tarefas que falharam. `taskDefaults.materializationPastDays` não tem uso no cliente: substitui o `PAST_DAYS` da Edge Function, que é do `backend-funcoes`.
+- **Como testar:** `pnpm check`, `pnpm build:web`; com a pilha, `pnpm e2e e2e/tasks-materialize.spec.ts e2e/calendar.spec.ts`.
+- **Verificado:** `pnpm check` passou (core 520, contracts 44, platform 38, ui 11, config 7, data 7, app 6, proof 6). `pnpm build:web` passou. A E2E editada passou no `tsc --strict`.
+- **Não verificado:** a E2E não rodou (pilha local em uso por outro agente), nem a tela no navegador: o cabeçalho de Hoje com o encaixe e o alerta do calendário não foram vistos. A função de F4-8 não estava no ar. Hora derivada de UTC menos 3 (PowerShell bloqueado).
+- **Pendências / próximos passos:** rota de Hoje (`apps/app/app/(app)/(tabs)/index.tsx`) passar `headerRight={<NotificationBell />}`, com `notificacoes-whatsapp` ou o orquestrador. E2E desta entrega na verificação da fase.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 13:43 (BRT)
+
+- **Branch:** feat/proof-screen-titles, criada a partir de feat/phase-4-notifications (59405cc)
+- **Agente(s):** prova-foto
+- **Resumo:** `title` em todo `Screen` de `packages/features/proof`, pelo handoff `20261102-1233-design-system-para-prova-foto-titulo-das-telas`.
+- **Alterações:**
+  - Captura: "Prova por foto" (`proof.screenTitle`, chave nova) nas etapas antes da foto, em expirado e em erro; "Confira a foto" (`confirm.title`) na conferência e no envio; "Foto enviada" (`done.title`) no resultado. Nunca o título da tarefa, que segue só no `Title` da tela.
+  - Fila de revisão: "Fotos para revisar" (`queue.title`).
+  - Revisão de uma prova: "Foto da prova" (`review.title`, que existia sem uso), inclusive nos retornos de carregando e de não encontrada. Nem o título da tarefa nem o nome do autor.
+- **Arquivos/módulos principais:** `packages/features/proof/src/{ProofCaptureScreen,ProofQueueScreen,ProofReviewScreen}.tsx`, `packages/i18n/src/pt-BR/proof.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0008, seção 13.
+- **Como testar:** `pnpm check`, `pnpm build:web`; depois de F4-9, no `pnpm dev` web, `document.title` muda ao abrir cada tela e ao passar da câmera à conferência.
+- **Verificado:** `pnpm check` passou (core 520, contracts 44, platform 38, ui 11, config 7, data 7, app 6, proof 6). `pnpm build:web` passou.
+- **Não verificado:** nada no navegador: sem o adapter de F4-9 o `title` é ignorado, e a pilha local estava em uso por outro agente. E2E fica para a verificação da fase. Hora derivada de UTC menos 3 (PowerShell bloqueado).
+- **Pendências / próximos passos:** nenhuma deste agente.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 13:45 (BRT)
+
+- **Branch:** `feat/auth-screen-titles` (a partir de `feat/phase-4-notifications`)
+- **Agente(s):** auth-grupos
+- **Resumo:** Todas as telas de `feature-auth` e `feature-groups` passam `title` ao `Screen`, inclusive carregando e erro, atendendo ao handoff 20261102-1233 do design-system.
+- **Alterações:**
+  - Boas-vindas, Entrar, Criar conta, Seu perfil, Grupos, Novo grupo e Convite (os três retornos de `JoinGroupScreen`) reaproveitam a chave do título visível; Boas-vindas ganhou `welcome.screenTitle`, porque o título visível é um slogan.
+  - Detalhe do grupo usa o nome do grupo; enquanto carrega, `detail.title` ("Grupo"). Nenhum e-mail ou nome de pessoa vai para o título.
+  - O link mágico é um botão da tela Entrar, sem tela própria.
+- **Arquivos/módulos principais:** `packages/features/auth/src/*Screen.tsx`, `packages/features/groups/src/*Screen.tsx`, `packages/i18n/src/pt-BR/{auth,groups}.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0008, seção 13
+- **Como testar:** `pnpm check`; no `pnpm dev` web, `/welcome`, `/sign-in`, `/sign-up` e `/join/<código>` sem login mostram "<tela> · Azkaban" (conferido com Playwright headless). Hora do título em UTC menos 3, porque o PowerShell foi bloqueado.
+- **Pendências / próximos passos:** telas com login (perfil, grupos, detalhe) só conferidas por typecheck; E2E na verificação da fase. `PushSetupCard` no onboarding fica para depois.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 13:46 (BRT)
+
+- **Branch:** feat/notifications-ui, criada a partir de feat/phase-4-notifications (f767a20)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** cliente de F4-3, F4-4, F4-5 e F4-7 (ADR-0008): repositório do sino, preferências, silêncio e aparelhos; sino com Realtime e contador; lista de avisos; aviso curto com o app aberto; adapter de push com o registro do `sw.js`; `PushSetupCard` com o caso do iPhone; tela de preferências. E2E escrita, não executada.
+- **Alterações:**
+  - `packages/data/src/notifications`: `notificationsRepository` com lista e item (título e `requires_photo_proof` por embed que segue a RLS; linha fora do contrato fica de fora em vez de quebrar a lista), contador por `read_at is null`, marcar uma e todas, assinatura `postgres_changes` filtrada por `user_id`, preferências por upsert, silêncio em `profiles` (corta `22:00:00`), aparelhos com colunas explícitas, `register_push_subscription` e remoção. `notificationErrorCode` reconhece `push_endpoint_not_allowed`; `invalid_push_subscription` cai no genérico.
+  - `packages/core/src/notifications`: `notificationUrl` exportada (o sino abre o mesmo endereço do push) e `deviceLabel` (navegador e sistema do user agent, para a lista de aparelhos), com testes.
+  - `packages/platform/src/push.ts` (nativo sem efeito até F8) e `push.web.ts`: `pushSupport` (`supported`, `needs_install` no Safari do iPhone e do iPad, `ios_too_old` antes do 16.4, `unsupported`), `pushPermission`, `subscribePush` (pede a permissão; só por toque), `currentPushSubscription` (nunca pede; reinscreve se a chave mudou) e `unsubscribePush`. Registra `/sw.js` com escopo `/` e espera `serviceWorker.ready`.
+  - `packages/features/notifications`: `NotificationBell` (`IconButton icon="🔔"` com `badge` e contagem no `label`), `NotificationsScreen` (`/notifications`, título "Avisos", toque marca lida e abre o destino, "Marcar todos como lidos", texto igual ao do push por `buildPushPayload`, com a linha genérica quando a RLS esconde a tarefa), `NotificationToaster` (uma vez na casca autenticada: Realtime, aviso de 6 s em `role="status"` e reinscrição a cada abertura), `PushSetupCard`, `NotificationPreferencesScreen` (`/settings/notifications`, título "Notificações": interruptores por tipo em cada canal de `activeChannels`, com os padrões de `defaultChannels`; silêncio com "Sem horário de silêncio" e o fuso do perfil; aparelhos com "Este aparelho" e remover) e `forgetThisDevice`.
+  - Marca local `notifications.thisDevice` com conta e id da linha: ao abrir com outra conta, a inscrição do navegador é cancelada em vez de adotada, para o push não passar de uma conta a outra sem opt-in. Remover "este aparelho" também cancela no navegador.
+  - Rotas: `(app)/_layout.tsx` monta o toaster; `(app)/notifications.tsx`; `(app)/settings/notifications.tsx`; Perfil ganha o botão "Notificações"; Hoje recebe o sino por sobreposição no canto do título, provisória até `TodayScreen` ter o encaixe de `tarefas-calendario`.
+  - `notifications.json`: textos de carga, erro, aviso, fuso, validação do silêncio, nome e data do aparelho.
+  - `e2e/notifications-bell.spec.ts` e `e2e/notifications-preferences.spec.ts`.
+  - Handoff `20261102-1344-notificacoes-whatsapp-para-auth-grupos-esquecer-aparelho-ao-sair`.
+- **Arquivos/módulos principais:** `packages/data/src/notifications`, `packages/features/notifications/src`, `packages/platform/src/push*.ts`, `packages/core/src/notifications`, `apps/app/app/(app)`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova. Sem a chave pública, a tela de preferências esconde o cartão, os interruptores de push e os aparelhos, e mantém o silêncio. F4-7 no cliente é o texto e o destino de `occurrence_resolved` e `proof_in_review` no sino e no aviso, que já vêm de `buildPushPayload`; não há lógica de destinatário no cliente. `invalid_push_subscription` não pediu mensagem própria, então não houve handoff ao `arquiteto`.
+- **Como testar:** `pnpm check`; `pnpm build:web`; com a pilha, `pnpm e2e e2e/notifications-*.spec.ts`. As duas specs de push e aparelhos só rodam com `EXPO_PUBLIC_VAPID_PUBLIC_KEY` no ambiente do `pnpm e2e`; sem ela, roda a que confere o push escondido.
+- **Verificado:** `pnpm check` passou: core 522 (6 novos de `deviceLabel`), platform 46 (8 novos de `push.web`), contracts 44, ui 11, config 7, data 7, app 6, proof 6. `pnpm build:web` exportou `dist`. As specs novas passam no `tsc` estrito isolado (os únicos erros são de `proof-kit.ts`, que já existiam com essa configuração avulsa).
+- **Não verificado:** a E2E não rodou, por ordem do orquestrador (pilha em uso). Nada no navegador: sino ao vivo, aviso, telas a 375 e 1280 px, claro e escuro, registro do `sw.js`, permissão e inscrição reais, push real, iPhone. O encaixe do sino em Hoje é provisório. Hora derivada de UTC menos 3 (PowerShell bloqueado).
+- **Pendências / próximos passos:** rodar a E2E e conferir as telas quando a pilha estiver livre. `auth-grupos`: `forgetThisDevice` antes de sair (handoff). Integração: trocar a sobreposição de Hoje pelo encaixe de `TodayScreen`. Verificação manual do push no Android, desktop e iPhone pela Tela de Início.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 13:49 (BRT)
+
+- **Branch:** `feat/auth-push-hooks` (a partir de `feat/phase-4-notifications`)
+- **Agente(s):** auth-grupos
+- **Resumo:** Ao sair da conta, o app esquece este aparelho para push antes do `signOut`, atendendo ao handoff 20261102-1344 do notificacoes-whatsapp.
+- **Alterações:**
+  - `ProfileScreen` aceita `onBeforeSignOut?: () => Promise<void>` e o espera dentro do `mutationFn`, antes de `authRepository.signOut`, com a sessão ainda viva (RLS). Falha é engolida e a espera tem teto de 5 s, então a saída nunca trava.
+  - A rota `apps/app/app/(app)/(tabs)/profile.tsx` passa `forgetThisDevice` de `@azkaban/feature-notifications`.
+  - Encaixe do `PushSetupCard` no onboarding: não feito. O onboarding de hoje só tem telas sem sessão (boas-vindas, entrar, criar conta), e o cartão precisa de usuário (`useCurrentUser` e RLS de `push_subscriptions`). Ele segue em Perfil > Notificações.
+- **Arquivos/módulos principais:** `packages/features/auth/src/ProfileScreen.tsx`, `apps/app/app/(app)/(tabs)/profile.tsx`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0008, seção 3
+- **Como testar:** `pnpm check`; `e2e/accounts.spec.ts` ("sign up, sign out and sign back in") cobre a saída com o gancho sem push ativo. Com push real: ativar em Perfil > Notificações, sair e conferir que `push_subscriptions` não tem a linha. Hora do título em UTC menos 3, porque o PowerShell foi bloqueado.
+- **Pendências / próximos passos:** sem E2E da linha apagada ao sair, porque o Playwright não obtém inscrição de push real. Um passo de onboarding com sessão (permitir notificações, instalar PWA) fica para quando for planejado.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 14:01 (BRT)
+
+- **Branch:** feat/notifications-dispatch, criada a partir de feat/phase-4-notifications (f767a20)
+- **Agente(s):** backend-funcoes
+- **Resumo:** F4-2 e F4-8 (ADR-0008, seções 6, 8 e 12): Edge Function `dispatch-notifications` com Web Push próprio sobre WebCrypto, e `materialize-occurrences` com `{ inserted, failed, deferred }`, corpo limitado e cron que falha sem Vault.
+- **Alterações:**
+  - `supabase/functions/dispatch-notifications/`: `index.ts` (só `x-cron-secret`; sem os três segredos VAPID responde 500 `vapid_not_configured` antes de qualquer claim; valida o claim com zod e `notificationItemSchema`; payload por `buildPushPayload` com o idioma do perfil); `dispatch.ts` (`NotificationChannel`, `SendResult`, laço claim, envio, report até `dispatchBudgetMs`, backoff com `Retry-After` e teto, `failed` em `maxAttempts`); `web-push.ts` (`WebPushChannel`: aes128gcm da RFC 8291 e VAPID da RFC 8292 em WebCrypto, sem biblioteca; host conferido de novo antes do `POST`, com `https:`, porta padrão e sem credenciais; redirecionamento nunca seguido; `TTL` e `Urgency`; 404 e 410 apagam a inscrição, 403 não; corpo da resposta nunca lido); `translate.ts` (o `t` com a semântica do i18next que as chaves `push.*` usam); `test-kit.ts`, `push.test.ts` (18 testes, com o vetor do apêndice A da RFC 8291) e `dispatch.integration.test.ts` (8).
+  - `readLimited` passou de `proof-validate/body.ts` para `_shared/body.ts`.
+  - `materialize-occurrences`: resposta `{ inserted, failed, deferred }`, corpo por `readLimited` com teto de 8 KiB e `proofDefaults.uploadTimeoutSeconds`, `taskDefaults.materializationPastDays` no lugar de `PAST_DAYS`. Testes: os 11 que esperavam só `inserted`, `failed: 2` no caso da recusa, `deferred` no caso do orçamento, e três novos (8 KiB exatos e um byte a mais, 400 MiB, Vault vazio).
+  - `config.toml`, `.env.example` (nomes `VAPID_*` sem valor), `wait-for-functions.mjs` e o script `functions:test` da raiz.
+  - `docs/implantacao.md`: comando que gera o par VAPID num arquivo fora do repositório, `secrets set`, conferência de que `EXPO_PUBLIC_VAPID_PUBLIC_KEY` é a mesma do servidor (por resumo SHA-256), `dispatch_notifications_url` no Vault, deploy da função nova e os sinais `materialize_not_configured` e `dispatch_notifications_not_configured`.
+  - Handoffs `20261102-1355-backend-funcoes-para-{arquiteto-despacho-entregue,banco-de-dados-teste-do-vault-da-materializacao,notificacoes-whatsapp-t-do-despacho}`.
+- **Arquivos/módulos principais:** `supabase/functions/dispatch-notifications`, `supabase/functions/materialize-occurrences/index.ts`, `supabase/functions/_shared/body.ts`, `docs/implantacao.md`
+- **Migrations:** `20261102133600_materialize_cron_signal` (`call_materialize_occurrences` levanta `materialize_not_configured` sem os segredos do Vault).
+- **Decisões/ADRs:** nenhum ADR novo; o que difere do ADR-0008 foi para o `arquiteto` por handoff: `SendResult` com as listas de inscrições entregues e mortas; TTL do lembrete com teto `pushTtlSeconds`; 3xx é `push_redirect`; o `t` sem i18next (o handoff de `notificacoes-whatsapp` permite um equivalente). Nenhum host extra por variável de ambiente: os testes injetam um `fetch` falso.
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`, `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm functions:test`.
+- **Verificado:** `pnpm check` passou (core 516, contracts 44, platform 38, ui 11, config 7, data 7, app 6, proof 6). `pnpm functions:test` 114 de 114. `pnpm db:test` 1203 de 1203. `pnpm db:check-permissions` em sincronia. `pnpm e2e` 58 de 58. Uma vez, com um par VAPID gerado na hora só no `.env` local (ignorado) e apagado em seguida, a função publicada reivindicou, validou, montou o payload e barrou um host fora da lista com `push_endpoint_not_allowed`, sem requisição de saída; o log dela trouxe só contagens. Mutações, todas pegas e revertidas: checagem de host desligada, host como sufixo sem ponto, 403 apagando a inscrição, 500 apagando, `sent` virando `retry` (reenvio), `maxAttempts` ignorado, redirecionamento seguido, `Retry-After` ignorado, `x-cron-secret` desligado, claim antes da checagem do VAPID, teto do corpo em 64 KiB, `req.text()` de volta, e a migration voltando ao `return` silencioso.
+- **Não verificado:** nenhum envio a um serviço de push real (FCM, Mozilla, Apple, WNS), de propósito; o vetor da RFC e a decifragem do lado do navegador, escrita à parte nos testes, são a evidência. O texto do payload no Deno não foi lido, só que ele foi montado sem erro. Nada no projeto hospedado; o CPU do despacho com lote cheio não foi medido. Hora derivada de UTC menos 3 (PowerShell bloqueado).
+- **Pendências / próximos passos:** `arquiteto`: aceitar ou recusar as diferenças do handoff. `banco-de-dados`: `rls_tasks.test.sql:1052` com descrição que deixou de ser verdade. Implantação: gerar o par VAPID e conferir a chave pública.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 14:16 (BRT)
+
+- **Branch:** feat/notifications-ui-check, criada a partir de feat/phase-4-notifications (55f87f0)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** segunda etapa de F4-3, F4-4, F4-5 e F4-7 sobre o estado integrado: o sino passa ao encaixe `headerRight` de Hoje, e a E2E e as telas foram conferidas.
+- **Alterações:**
+  - `apps/app/app/(app)/(tabs)/index.tsx`: `headerRight={<NotificationBell />}`; a sobreposição provisória saiu.
+  - Handoff `20261102-1355-backend-funcoes-para-notificacoes-whatsapp-t-do-despacho` lido: nada a mudar. `notificationUrl` vive no mesmo arquivo de `buildPushPayload` sem import novo, e as chaves `push.*` seguem só com interpolação e plural por `count`.
+- **Arquivos/módulos principais:** `apps/app/app/(app)/(tabs)/index.tsx`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`, `pnpm db:start`, `pnpm exec supabase db reset`, `EXPO_PUBLIC_VAPID_PUBLIC_KEY=<qualquer chave pública válida> pnpm e2e`.
+- **Verificado:** `pnpm check` passou. `pnpm e2e` 64 passaram e 1 pulado, numa só execução, com uma chave pública VAPID de teste passada só pelo ambiente do comando: o par foi gerado em memória, a privada nunca foi escrita nem mostrada, e a pública foi apagada depois. O pulado é o teste "sem chave pública", que só roda sem ela. As quatro specs de notificações passaram na primeira vez: sino ao vivo pelo Realtime em duas abas, aviso, alvo de 44 px, título "Avisos · Azkaban", um `main`, toque em `/proofs/<id>`, contador zerado na outra aba, contestação ao autor, linha genérica depois de sair do grupo, "Marcar todos"; silêncio salvo, recusado igual, desligado e religado; interruptores por tipo; aparelho "Chrome · Android" listado e removido. Telas por capturas do Chromium em 375x812 e 1280x800, claro e escuro: sino com contador ao lado de "Hoje", sem empurrar a data; aviso ao vivo no topo, com fechar; lista com não lidos e a linha "Uma tarefa" de ocorrência apagada; preferências com o cartão "Ativar notificações", interruptores, silêncio 22:00 a 07:00 com o fuso e a lista de aparelhos vazia; título do documento por tela.
+- **Não verificado:** a permissão real e a inscrição no navegador (o Chromium sem janela responde `denied` mesmo com a permissão concedida, então o estado do botão foi visto com `Notification.permission` forçado a `default`), o registro do `sw.js` e push real; iOS, Android e o projeto hospedado. A 320 px não foi conferido. O aviso ao vivo cobre o cabeçalho, inclusive o sino e o "Voltar", por até 6 s. Hora derivada de UTC menos 3 (PowerShell bloqueado).
+- **Pendências / próximos passos:** verificação manual do push no Android, desktop e iPhone pela Tela de Início.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 14:18 (BRT)
+
+- **Branch:** chore/security-phase-4, criada a partir de feat/phase-4-notifications (55f87f0)
+- **Agente(s):** revisor-seguranca
+- **Resumo:** Revisão de segurança da Fase 4 (diff `feat/phase-3-proof..feat/phase-4-notifications`), estática, sem PoC de banco: a pilha estava com outro agente e o orquestrador pediu para não usá-la. Um achado médio, oito baixos ou informativos e um risco de produto, em três handoffs.
+- **Alterações:**
+  - Handoffs `20261102-1420-revisor-seguranca-para-{banco-de-dados-notificacoes,notificacoes-whatsapp-service-worker-e-cabecalhos,arquiteto-caminho-interno}`.
+  - SEG4-1 (média): alternar `done` e `pending` gera um `occurrence_resolved` novo por volta para o criador, sem limite (chave pelo id da linha do histórico).
+  - SEG4-2 a SEG4-9 (baixa ou informativo): troca de dono do endpoint sem prova de posse; `proof_in_review` sem `can_view_task_for`; `DELETE` do Realtime para todo assinante; `push_subscriptions` sem retenção; `internalPath` do `sw.js`, do contrato e `safeInternalPath` aceitam tab, LF e CR e resolvem para outra origem; `_headers` sem CSP, `frame-ancestors`, `nosniff` e `Referrer-Policy`; sessão que acaba sem Sair mantém o push.
+  - Risco de produto: título da tarefa na tela bloqueada.
+- **Arquivos/módulos principais:** `docs/agentes/handoffs/`, este LOG
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma
+- **Como testar:** os passos estão em cada handoff.
+- **Verificado:** `pnpm install --frozen-lockfile`, `pnpm check` e `pnpm build:web` passaram; `node --test supabase/functions/dispatch-notifications/push.test.ts` 18 de 18, com o vetor do apêndice A da RFC 8291. PoC no Node: regex de caminho interno com tab, LF e CR resolvendo para `https://evil.com/`; `endpointAllowed` contra maiúsculas, ponto final, portas, userinfo, `%2e`, tab e U+3002 (todos corretos). Busca de segredos em `apps/app/dist`: nenhum. `.env` e `.env.*` ignorados pelo git. Leitura da cifra aes128gcm e do VAPID contra as RFCs 8291 e 8292: conferem.
+- **Não verificado:** nenhum PoC de banco (SEG4-1, SEG4-2, regex do host no Postgres, RLS e Realtime de `notifications` com dois usuários): a pilha chegou a subir e foi parada sem rodar nada, a pedido do orquestrador. Nenhum envio a serviço de push real. Se `router.replace` do expo-router sai da origem com `?next=/%09/evil.com`. Hora derivada de UTC menos 3, porque o PowerShell foi bloqueado.
+- **Pendências / próximos passos:** rodar os PoCs de banco sobre o estado integrado depois do QA. Donos: `banco-de-dados`, `notificacoes-whatsapp`, `arquiteto`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 14:30 (BRT)
+
+- **Branch:** docs/notifications-security-decisions, criada a partir de feat/phase-4-notifications (15f5424)
+- **Agente(s):** arquiteto
+- **Resumo:** decisões da revisão de segurança da Fase 4 (SEG4-1 a SEG4-9), do risco do título na tela bloqueada e das diferenças do despacho, no ADR-0008, seção 17. Contrato do caminho interno corrigido.
+- **Alterações:**
+  - `docs/adr/0008-notificacoes-push-pwa-vermelho-automatico.md`: seção 17 nova; itens 8 a 10 na seção 16; remissões nas seções 3, 6, 7, 8, 9, 13, 14 e 15.
+  - `packages/contracts/src/notifications.ts`: `internalPathSchema` exportado, sem `\` e sem caractere de controle (`\p{Cc}`); `pushPayloadSchema.url` o usa. Testes recusam `"/\t/evil.com"`, `"/\n/evil.com"`, `"/\r/evil.com"`, `//evil.com`, `/\evil.com`, U+0000, U+007F e `/`, e conferem com `new URL` que cada recusado sai da origem e cada aceito fica.
+  - `packages/config/src/notifications.ts`: `notificationRules.renotifyCooldown` (10 minutos; `occurrence_missed`, `occurrence_resolved`, `proof_disputed`) e `pushSubscriptionRetentionDays` (90).
+  - Handoffs `20261102-1430-arquiteto-para-{banco-de-dados-seguranca-fase-4,notificacoes-whatsapp-seguranca-fase-4,auth-grupos-caminho-interno}`.
+- **Arquivos/módulos principais:** `docs/adr/0008-notificacoes-push-pwa-vermelho-automatico.md`, `packages/contracts/src/notifications.ts`, `packages/config/src/notifications.ts`
+- **Migrations:** nenhuma; o espelho dos dois valores novos é de `banco-de-dados`.
+- **Decisões/ADRs:** ADR-0008, seção 17. SEG4-1: o mesmo aviso (usuário, tipo, ocorrência e `data`) não se repete em 10 minutos. SEG4-2: troca de dono só com as mesmas chaves, senão `forbidden`. SEG4-3: `proof_in_review` passa por `can_view_task_for` e `archived_at`. SEG4-4: risco aceito. SEG4-5: inscrição sem entrega há 90 dias sai. SEG4-6 e SEG4-9: regex sem controle no contrato, `safeInternalPath` usa o schema (`auth-grupos`), `sw.js` compara a origem (`notificacoes-whatsapp`). SEG4-7: `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`, `nosniff` e `Referrer-Policy` agora; CSP completa como Report-Only depois. SEG4-8: sessão nula cancela o push. Título na tela bloqueada mantido, opção de esconder a confirmar pelo humano. As cinco diferenças do despacho aceitas.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/contracts exec vitest run src/notifications.test.ts`.
+- **Verificado:** `pnpm install --frozen-lockfile` e `pnpm check` passaram. Mutação no contrato: a regex antiga faz 7 testes falharem; restaurada.
+- **Não verificado:** a pilha não foi usada (está com o QA), então `pnpm db:check-permissions` não rodou e vai acusar `notification_rules` até a migration do espelho. Nenhuma CSP foi testada em navegador. Se `router.replace` do expo-router sai da origem com `?next=/%09/evil.com`. Hora do título derivada de UTC menos 3, porque o PowerShell foi bloqueado.
+- **Pendências / próximos passos:** `banco-de-dados` (SEG4-1, 2, 3, 5 e espelho), `notificacoes-whatsapp` (SEG4-6, 7, 8), `auth-grupos` (`safeInternalPath`). Humano: esconder o conteúdo na tela bloqueada, e os itens 8 a 10 da seção 16.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 14:31 (BRT)
+
+- **Branch:** fix/auth-internal-path, criada a partir de feat/phase-4-notifications (0d23f88)
+- **Agente(s):** auth-grupos
+- **Resumo:** SEG4-9. `safeInternalPath` passa a usar `internalPathSchema` do contrato e recusa tab, LF, CR, qualquer caractere de controle, `\`, `//` e mais de 200 caracteres no `?next=`.
+- **Alterações:**
+  - `packages/core/src/navigation/safeInternalPath.ts`: `path !== undefined && internalPathSchema.safeParse(path).success ? path : undefined`. A regra fica só no contrato.
+  - `packages/core/src/navigation/safeInternalPath.test.ts`: casos antigos mantidos; recusa `"/\t/evil.com"`, `"/\n/evil.com"`, `"/\r/evil.com"`, U+0000, U+007F, U+009F e 201 caracteres; aceita `/join/ABC`, query e hash, `/%09/evil.com` ainda codificado e 200 caracteres, conferindo com `new URL` que fica na origem. Formas do `?next=` (`/%09/evil.com`, `/%0a/evil.com`, `/%0d/evil.com`, `/%5c/evil.com`, `/%5cevil.com`, `%2F%2Fevil.com`): decodificadas com `URLSearchParams`, cada uma sai da origem com `new URL` e é recusada.
+- **Arquivos/módulos principais:** `packages/core/src/navigation/`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0008, seção 17 (SEG4-6 e SEG4-9). Sem contrato novo.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/navigation`.
+- **Verificado:** `pnpm install --frozen-lockfile` e `pnpm check` passaram (core 542 testes, 26 deles de `safeInternalPath`). Mutação: a regex antiga faz 10 testes falharem (tab, LF, CR, U+0000, U+007F, U+009F, 201 caracteres e as três formas `%09`, `%0a`, `%0d`); restaurada.
+- **Não verificado:** `pnpm dev` na porta 8081 com `/sign-in?next=/%09/evil.com` depois de entrar, porque entrar precisa da pilha, que está com o QA. Que o expo-router entrega o `next` já decodificado, como o teste supõe (se não decodificar, `/%09/evil.com` é texto no caminho e fica na origem, o que o teste também confere). Hora do título derivada de UTC menos 3, porque o PowerShell foi bloqueado.
+- **Pendências / próximos passos:** nenhuma em `auth-grupos`. `sw.js` continua com `notificacoes-whatsapp`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 14:34 (BRT)
+
+- **Branch:** fix/notifications-security (a partir de `feat/phase-4-notifications`, `0d23f88`)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** SEG4-6, SEG4-7 e SEG4-8 do ADR-0008, seção 17, como pedido no handoff do arquiteto (`20261102-1430`). Hora: PowerShell bloqueado no worktree, então UTC menos 3.
+- **Alterações:**
+  - SEG4-6: `internalPath` do `sw.js` usa a regex de `internalPathSchema` (sem caractere de controle) e depois resolve contra `self.location.origin`, aceitando só a mesma origem; devolve `pathname + search + hash`, senão `'/'`.
+  - SEG4-7: `_headers` com `frame-ancestors 'none'; object-src 'none'; base-uri 'self'`, `nosniff` e `strict-origin-when-cross-origin` para `/*`. Os `Cache-Control` ficam. A CSP completa, em Report-Only, é o passo seguinte.
+  - SEG4-8: `stopPushWhenSignedOut()` em `feature-notifications`, chamado uma vez no layout raiz: com sessão nula por qualquer caminho e chave local presente, `unsubscribePush()` e limpa a chave. O botão Sair segue igual.
+  - `feature-notifications` ganhou `vitest` e o primeiro teste.
+- **Arquivos/módulos principais:** `apps/app/public/sw.js`, `apps/app/public/_headers`, `apps/app/public.test.ts`, `apps/app/app/_layout.tsx`, `packages/features/notifications/src/device.ts` e `device.test.ts`.
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0008, seção 17. Nenhuma nova.
+- **Como testar:** `pnpm check`; `pnpm build:web` e conferir `apps/app/dist/_headers`. Manual do SEG4-8: ativar push, apagar a sessão do `localStorage`, recarregar; a inscrição some e a chave `notifications.thisDevice` também.
+- **Pendências / próximos passos:** E2E e o teste manual do SEG4-8 no navegador não rodaram (a pilha estava com o QA). O servidor da E2E não aplica `_headers`, então os cabeçalhos só se confirmam no Netlify.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 14:45 (BRT)
+
+- **Branch:** chore/qa-phase-4, criada a partir de feat/phase-4-notifications (15f5424)
+- **Agente(s):** qa-testes
+- **Resumo:** QA da Fase 4 no estado integrado. E2E nova dos dois jobs SQL (vermelho automático e lembretes), correção de quatro instabilidades de E2E ligadas ao pg_cron local e a uma corrida de leitura, percurso das telas a 320, 375 e 1280 px nos dois temas, e quatro achados em dois handoffs.
+- **Alterações:**
+  - `e2e/notifications-jobs.spec.ts` (novo): `auto_miss_occurrences` chamado direto marca o que passou do dia e deixa de fora arquivada, ex-membro, carência de reabertura e `in_review`; histórico sem autor, XP zero, aviso só ao responsável (nenhum ao criador), idempotente; sino ao vivo, texto do vermelho na lista, bloco "Não feito" no calendário; `missed → done` na janela dá `occurrence_done_late` de 5 XP. Lembrete por `enqueue_due_reminders`: uma linha só mesmo chamado duas vezes, nada para tarefa feita ou arquivada, aviso "Daqui a 10 minutos." e toque abrindo `/tasks/<id>`. Um teste com `test.fail()` só na asserção do QA4-1.
+  - `e2e/proof-fixtures.ts`: `shieldFromAutoMiss(page)` dá às ocorrências passadas e pendentes do usuário a carência do job. Usado em `tasks-late-and-count.spec.ts` (dois testes) e `tasks-proof.spec.ts` (reagendar atrasada): o cron de 5 minutos roda também na pilha local e podia deixá-las vermelhas no meio do teste.
+  - `e2e/notifications-bell.spec.ts`: a tarefa do teste fica sem lembretes; o formulário começa na próxima hora com antecedências de 30 e 0, e da meia hora em diante o cron de lembretes podia tocar o sino da Duda, que o teste conta.
+  - `e2e/calendar.spec.ts`: espera o `set_occurrence_status` responder antes de a dona abrir a Equipe. "Feito" aparece antes de gravar, e a Equipe lia "pendente" (falhou na primeira execução).
+  - Handoffs `20261102-1440-qa-testes-para-{tarefas-calendario-vermelho-some-de-hoje,notificacoes-whatsapp-aviso-ao-vivo}`.
+- **Arquivos/módulos principais:** `e2e/`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. Achados: QA4-1 (média, `tarefas-calendario`) o vermelho do job some de Hoje e da aba da área, mas ainda pode ser concluído na janela; QA4-2 (média, `notificacoes-whatsapp`) o aviso ao vivo cobre o "Voltar" e o sino por 6 s nas três larguras, e o toque abre o aviso; QA4-3 (baixa) a região `role="status"` só é montada com o texto; QA4-4 (baixa) o aviso de vermelho não diz até quando, como o ADR-0008 pede.
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`, `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm e2e`; com uma chave pública VAPID qualquer no ambiente, rodam os dois testes de push.
+- **Verificado:** `pnpm check` passou (core 526, platform 46, contracts 44, ui 11, config 7, data 7, app 6, proof 6). `pnpm db:test` 1203 de 1203. `pnpm functions:test` 114 de 114. `pnpm e2e` duas vezes: sem chave VAPID, 65 passaram, 2 pulados (os de push) e 1 falhou (`calendar.spec.ts:229`, a corrida corrigida acima); com uma chave pública gerada em memória e passada só ao processo, 67 passaram e 1 pulado (o "sem chave"), sem `retries`. Depois da última mudança no ajudante, `tasks-late-and-count` e `tasks-proof` de novo: 12 de 12. Percurso com Playwright a 320, 375 e 1280 px, claro e escuro: sino de 44×44 com "Avisos, N não lidos"; aviso ao vivo em `role="status"`; lista; preferências e silêncio sem chave; alerta de materialização com `failed` e "Tentar de novo"; vermelho no dia do calendário; um `main` por tela; `navigation` "Navegação principal" com cinco `tab` de 64 px de altura e nenhum rótulo cortado (a 320 px: 44, 68, 80, 81 e 46 px); sem rolagem lateral; nenhum alvo abaixo de 44 px nas telas medidas; título "<tela> · Azkaban" em todas as 15 rotas abertas; Tab chega ao sino primeiro, com contorno de foco, e Enter abre `/notifications`.
+- **Não verificado:** push real, registro do `sw.js`, manifest instalável e `theme-color` na barra; iPhone, Android e leitor de tela. Cartão de push com chave só pela E2E, sem captura. Sem mutação: a lógica do job é do banco e já foi mutada pelo `banco-de-dados`. A Equipe, a revisão de prova e as telas sem login não entraram no percurso de títulos. A janela entre criar a tarefa e chamar `shieldFromAutoMiss` continua existindo, mas é de milissegundos. Nada no projeto hospedado nem no CI. Hora derivada de UTC menos 3 (PowerShell bloqueado).
+- **Pendências / próximos passos:** QA4-1 e QA4-2 antes de fechar a fase. Seguem abertos de antes: `PushSetupCard` no onboarding (7.7 do prompt mestre), SEG4-1 a SEG4-9, e a E2E do resumo diário, que é da Fase 5.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 14:48 (BRT)
+
+- **Branch:** fix/today-auto-missed, a partir de `feat/phase-4-notifications` (`a6c1a32`)
+- **Agente(s):** tarefas-calendario
+- **Resumo:** QA4-1 corrigido. A ocorrência que o job deixou vermelha continua em "Atrasadas" de Hoje e da aba da área enquanto ainda pode ser concluída, e sai quando a janela fecha.
+- **Alterações:**
+  - `isStillResolvable` (core): `missed`, depois de `overdueAt` e dentro da janela de atraso, ou sem janela para quem tem `task.manage_group`, a mesma regra de `checkTransition`. Vale para toda `missed`, não só a do job.
+  - `planToday` e `planArea` recebem `lateCompletionWindowHours` e `canManageGroup(groupId)` e põem em "Atrasadas" a pendente atrasada ou a vermelha que ainda dá para resolver. As telas passam `taskRules` e `canManageGroupTask`.
+  - `listOverdue` (data) traz `pending` e `missed` passadas de `overdueAt`, as 100 mais novas; o corte pela janela fica no core, porque depende de quem olha.
+  - Comentários "até o job existir" atualizados. E2E: o `test.fail()` do QA4-1 saiu de `e2e/notifications-jobs.spec.ts`.
+- **Arquivos/módulos principais:** `packages/core/src/tasks/{late,today}.ts` e testes, `packages/data/src/tasks/index.ts`, `packages/features/tasks/src/{TodayScreen,AreaScreen}.tsx`, `e2e/notifications-jobs.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0005 seção 1 sem mudança: a lista segue a janela que a transição já aplica.
+- **Como testar:** `pnpm check`; E2E `pnpm exec playwright test e2e/notifications-jobs.spec.ts` com a pilha local.
+- **Verificado:** `pnpm check` (core 554 testes) e `pnpm build:web` passam.
+- **Não verificado:** a E2E não rodou (a pilha estava com o `banco-de-dados`). Hora em BRT derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Pendências / próximos passos:** quem tem `task.manage_group` vê suas vermelhas em "Atrasadas" sem prazo, até o limite de 100 da consulta.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 14:51 (BRT)
+
+- **Branch:** fix/notifications-toast, criada a partir de feat/phase-4-notifications (a6c1a32)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** QA4-2, QA4-3 e QA4-4 do handoff `20261102-1440-qa-testes-para-notificacoes-whatsapp-aviso-ao-vivo`. O aviso ao vivo desceu para baixo e não cobre mais "Voltar", o sino, "Nova tarefa" nem a barra de abas; a região `role="status"` fica sempre montada; o vermelho automático diz até quando ainda dá para concluir, no sino e no aviso ao vivo.
+- **Alterações:**
+  - `NotificationToaster`: ancorado embaixo, com a área segura. Numa aba, fica acima da barra (`layout.tabBarHeight`) e da faixa do botão "Nova tarefa" (`sizes.fab`); fora das abas (`useSegments` sem `(tabs)`), a `spacing[4]` do fim. A `View role="status" aria-live="polite"` (`testID="notification-toast"`) é montada sempre, vazia, com `pointerEvents: 'box-none'`; só o cartão entra e sai. Nova dependência `react-native-safe-area-context` no pacote (a mesma versão do `ui`).
+  - `packages/data/src/notifications`: o embed do sino lê também `task_occurrences(overdue_at, status)`; `BellItem` ganha `overdueAt` e `occurrenceStatus`. Tipo local do repositório, sem mudança de contrato.
+  - `packages/core/src/notifications/pushPayload.ts`: `missedLateUntil(source, horas, agora)` devolve o fim da janela de atraso de um vermelho automático ainda `missed`, ou nulo (marcado por alguém, resolvido depois, janela fechada, outro tipo). Dois testes novos.
+  - `hooks.ts` (`useItemText`): acrescenta "Ainda dá para concluir até {{when}}." (`notifications.lateUntil`), com dia, mês e hora no fuso do perfil.
+  - E2E (não executadas): teste novo em `notifications-jobs.spec.ts` que, a 320, 375 e 1280 px, toca um lembrete em Hoje e confere com `elementFromPoint` que o sino e "Nova tarefa" seguem com o toque e que o aviso acaba acima do `tablist`; abre a tarefa pelo aviso, toca outro aviso e confere "Voltar" com `elementFromPoint` e o clique voltando a Hoje; e prova que a região existe vazia antes do primeiro aviso, esvazia depois de `toastMs` e é o mesmo nó do começo ao fim. O teste do vermelho espera o prazo no aviso e na lista. `getByRole('status')` virou `getByTestId('notification-toast')` nos dois arquivos.
+- **Arquivos/módulos principais:** `packages/features/notifications/src/{NotificationToaster.tsx,hooks.ts}`, `packages/data/src/notifications/index.ts`, `packages/core/src/notifications/pushPayload.ts`, `packages/i18n/src/pt-BR/notifications.json`, `e2e/notifications-{jobs,bell}.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** o prazo do vermelho sai do cliente com o que o embed já pode ler, então acompanha um reagendamento. O push não o traz: `claim_notification_batch` não devolve `overdue_at`. Handoff `20261102-1451-notificacoes-whatsapp-para-arquiteto-banco-de-dados-prazo-no-push` para decidir entre o claim devolver o campo ou corrigir o ADR-0008, seção 10.
+- **Como testar:** `pnpm check`, `pnpm build:web`; com a pilha, `pnpm exec playwright test e2e/notifications-jobs.spec.ts e2e/notifications-bell.spec.ts`.
+- **Verificado:** `pnpm check` passou (683 testes de unidade, core 544); `pnpm build:web` passou.
+- **Não verificado:** nenhuma E2E rodou (a pilha estava com o `banco-de-dados`), nem o aviso foi visto no navegador. Leitor de tela real não foi usado. Se um rótulo de aba quebrar em duas linhas, a barra passa de 64 px e o aviso pode encostar na faixa do "Nova tarefa" (o QA mediu 64 px a 320). Hora derivada de UTC menos 3 (PowerShell bloqueado).
+- **Pendências / próximos passos:** prazo no push, conforme o handoff.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 15:02 (BRT)
+
+- **Branch:** fix/notifications-db-security, criada a partir de feat/phase-4-notifications (a6c1a32)
+- **Agente(s):** banco-de-dados
+- **Resumo:** SEG4-1, SEG4-2, SEG4-3 e SEG4-5 do ADR-0008, seção 17, e o espelho de `renotifyCooldown` e `pushSubscriptionRetentionDays`, como pede o handoff `20261102-1430-arquiteto-para-banco-de-dados-seguranca-fase-4`. Cinco migrations, uma por mudança. Hora: PowerShell bloqueado no worktree, então UTC menos 3.
+- **Alterações:**
+  - Espelho: `app_settings.notification_rules` ganha `renotifyCooldown` (10 minutos; `occurrence_missed`, `occurrence_resolved`, `proof_disputed`) e `pushSubscriptionRetentionDays` (90).
+  - SEG4-1: `enqueue_notification` não grava nada se o mesmo usuário já tem, há menos de `renotifyCooldown.minutes`, uma linha do mesmo tipo, da mesma ocorrência e com o mesmo `data`, para os tipos da lista. Ocorrência nula fica fora. A chave do evento e o `on conflict do nothing` continuam. Sem índice novo: `notifications_user_created_idx` serve a busca.
+  - SEG4-2: `register_push_subscription` só troca o dono com `p256dh` e `auth` iguais aos guardados (`on conflict ... do update ... where`); sem linha devolvida, `forbidden` (42501). O dono continua atualizando chaves e agente.
+  - SEG4-3: `can_receive_notification`, ramo `proof_in_review`, exige `can_view_task_for` e `archived_at is null`, além de grupo, `visibility = 'group'` e `proof.review`. Vale na gravação e no recheque do claim.
+  - SEG4-5: `delete_expired_notifications` (cron diário, 04:30 UTC) apaga também as inscrições com `coalesce(last_success_at, created_at)` mais velho que 90 dias. Continua devolvendo as linhas do sino apagadas.
+  - `rls_tasks.test.sql`: a chamada do cron da materialização agora apaga os dois segredos antes e usa `throws_ok(..., 'P0001', 'materialize_not_configured', ...)` (pendência do handoff `20261102-1355` do `backend-funcoes`).
+  - `rls_notifications.test.sql`: 24 testes novos (plano 223). Quatro contagens antigas mudaram de propósito: `done, pending, done` na mesma transação deixou de ser dois avisos.
+- **Arquivos/módulos principais:** `supabase/migrations/2026110215*.sql`, `supabase/tests/rls_notifications.test.sql`, `supabase/tests/rls_tasks.test.sql`
+- **Migrations:** 20261102150000_notification_rules_security, 20261102150100_enqueue_notification_cooldown, 20261102150200_push_subscription_owner_keys, 20261102150300_proof_in_review_task_access, 20261102150400_push_subscription_retention. Só no banco local.
+- **Decisões/ADRs:** ADR-0008, seção 17. Nenhuma nova.
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`, `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`.
+- **Verificado:** PoCs do revisor rodados antes da correção, no banco local: 50 voltas `done`/`pending` de Duda deram 50 `occurrence_resolved` a Caio; Eva com o endpoint de Duda e outras chaves tomou a linha; um admin com `proof.review` e sem `task.view_group`, e uma tarefa arquivada, recebiam `proof_in_review`; uma inscrição de 91 dias sem entrega sobrevivia ao job. Depois da correção: 1 aviso, `forbidden` com a linha ainda de Duda, `false` nos dois casos, inscrição apagada. `pnpm db:test` 1227 de 1227. `pnpm db:check-permissions` em dia ("Notification rules in sync."). `pnpm functions:test` 114 de 114. `pnpm check` passou. Mutação nas quatro barreiras, aplicada direto no banco e desfeita com `db reset`: sem a janela, 9 testes falham (o laço de 50 dá 50, não 1); sem o `where` do upsert, 2; sem `can_view_task_for` e `archived_at`, 2; sem o `delete` das inscrições, 1. `pnpm e2e` uma vez, sem chave VAPID: 66 passaram e 2 pulados (os de push), sem falha; `notifications-jobs` e `notifications-bell` passaram sem ajuste, porque nenhum dependia de reavisar dentro da janela (o `x` de `notifications-jobs.spec.ts:248` é o `test.fail()` já marcado do QA4-1). `pnpm db:test` rodou mais de uma vez por causa das mutações.
+- **Não verificado:** o cliente tratando `forbidden` do `register_push_subscription` como falha genérica (é do `notificacoes-whatsapp`); corrida real de duas transações na janela (o argumento é o bloqueio da linha da ocorrência, não testado com duas sessões); nada no projeto hospedado nem no CI.
+- **Pendências / próximos passos:** nenhuma no banco. O teto de seis avisos por hora para quem alterna a cada 11 minutos fica como está, como diz o ADR.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-02 15:05 (BRT)
+
+- **Branch:** feat/phase-4-notifications
+- **Agente(s):** orquestrador
+- **Resumo:** pausa pedida pelo humano no meio da Fase 4. Integrado tudo o que os agentes entregaram, com o handoff de retomada escrito. Só a branch `fix/notifications-db-security` (SEG4-1, 2, 3 e 5) ficou de fora, ainda em trabalho.
+- **Alterações:**
+  - Integrações de `336f35d` a `754e02e`: ADR-0008, banco, despacho, sino, push, preferências, casca PWA, títulos, QA e revisão de segurança, com as correções de cliente.
+  - `docs/agentes/handoffs/20261102-1505-orquestrador-para-nova-sessao.md`: estado, ordem do que falta e perguntas ao humano.
+  - `docs/agentes/ferramentas/log-merge.cjs` (resolve conflito do LOG ordenando as entradas por data) e `verificar-fase.sh` (verificação final de fase).
+  - `docs/agentes/QUADRO.md`: F4-1 em andamento, por causa das correções de banco; os demais itens da Fase 4 em revisão.
+- **Migrations:** nenhuma nesta entrada.
+- **Decisões/ADRs:** o prazo do vermelho no push fica para o ADR da Fase 5 (F5-1). `PushSetupCard` no onboarding vai para o backlog.
+- **Como testar:** `pnpm install --frozen-lockfile` e `pnpm check` no estado integrado.
+- **Verificado:** `pnpm check` em `754e02e`: 17 de 17 tarefas e 9 de 9 suítes. Em `feat/phase-3-proof` (PR #4), o CI passou com E2E 58 de 58, `db:test` 1004 e funções 85.
+- **Não verificado:** a verificação final da Fase 4 não rodou. A E2E das correções QA4-1 a QA4-4 e de SEG4-6 a 8 não rodou. `db:check-permissions` falha até o espelho de `notification_rules` entrar.
+- **Pendências / próximos passos:** as da seção 3 do handoff 1505.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 00:30 (BRT)
+
+- **Branch:** fix/dispatch-import-map (base `e54968d`)
+- **Agente(s):** backend-funcoes
+- **Resumo:** `dispatch-notifications` não subia no Edge Runtime local (preflight 503, `Module not found .../packages/core/src/tasks/late`). A correção do QA4-4 fez `pushPayload.ts` importar `../tasks/late` sem extensão, e o import map da função não mapeava esse caminho.
+- **Alterações:**
+  - `supabase/functions/dispatch-notifications/deno.json`: chave relativa `../../../packages/core/src/tasks/late` para o `.ts`, como `materialize-occurrences` faz com `recurrence/zone`. `late.ts` só tem `import type` de `@azkaban/contracts`, que some em tempo de execução.
+  - `supabase/functions/_shared/wait-for-functions.mjs`: a mensagem de falha aponta para o log do contêiner quando a função não sobe.
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma. A CLI monta no contêiner só os arquivos do import map, e só no `db:start`; depois de mudar um `deno.json` é preciso `supabase stop` e `db:start` (um `docker restart` não basta). Não há Deno no host, e um teste do grafo antes da pilha exigiria um script novo no `pnpm check`, fora do meu escopo; `pnpm functions:test` já pega o erro.
+- **Como testar:** `pnpm db:start`, `curl -X OPTIONS http://127.0.0.1:54421/functions/v1/dispatch-notifications` deve dar 204; `pnpm functions:test`.
+- **Verificado:** antes, 503 com o erro de boot no log; depois, 204 e nenhum `boot error` no log. `pnpm functions:test`: 114 de 114, 27 suítes. `pnpm check`: 17 de 17 tarefas e 9 de 9 suítes.
+- **Não verificado:** E2E (fica com o orquestrador). Hora tirada de UTC menos 3, porque o PowerShell foi bloqueado.
+- **Pendências / próximos passos:** nenhuma desta correção.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 00:53 (BRT)
+
+- **Branch:** fix/e2e-phase-4-close, criada a partir de feat/phase-4-notifications (3b428b2)
+- **Agente(s):** qa-testes
+- **Resumo:** As duas falhas da verificação final da Fase 4 corrigidas na E2E. Os jobs de relógio do pg_cron ficam desligados durante a suíte, e a spec que os chama direto roda por último, o que tira da suíte a classe de falha "lembrete ou vermelho no meio de um teste, conforme a hora".
+- **Alterações:**
+  - `e2e/global-setup.ts` (novo): desliga `enqueue-due-reminders` e `auto-miss-occurrences` com `cron.alter_job` (via `supabase db query --local`) e religa no teardown.
+  - `playwright.config.ts`: `globalSetup` e dois projetos, `app` (tudo menos `notifications-jobs`) e `jobs` (`notifications-jobs`, com `dependencies: ['app']`). Os dois jobs agem em todas as linhas do banco, então chamá-los no meio da suíte tocava as tarefas das outras specs. Rodar só `notifications-jobs` pede `--project=jobs --no-deps`.
+  - `e2e/proof-fixtures.ts`: `shieldFromAutoMiss` removido, com as três chamadas em `tasks-late-and-count.spec.ts` e `tasks-proof.spec.ts`; `e2e/notifications-bell.spec.ts`: sai o `reminders: []` da tarefa. Os dois existiam só contra o cron e as chamadas diretas.
+  - `e2e/notifications-bell.spec.ts` e `notifications-jobs.spec.ts`: o que é da lista é procurado dentro de `[role="main"]:visible`; o aviso ao vivo fica fora dela e repetia o texto (`notifications-bell.spec.ts:78`).
+  - Handoff `20261103-0049-qa-testes-para-notificacoes-whatsapp-aviso-na-lista` (QA4-5, baixa): em `/notifications`, o aviso ao vivo repete o primeiro item da lista.
+- **Arquivos/módulos principais:** `e2e/`, `playwright.config.ts`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`, `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm e2e` (com uma chave pública VAPID no ambiente, rodam os testes de push).
+- **Verificado:** specs afetadas primeiro: `notifications-bell`, `tasks-ui-fixes`, `tasks-late-and-count` e `tasks-proof` no projeto `app`, 18 de 18; `notifications-jobs` com `--no-deps`, 4 de 4. `pnpm e2e` completo uma vez, banco limpo, com chave pública gerada em memória e passada só ao processo: 68 passaram, 1 pulado (o "sem chave"), nenhuma falha, sem `retries`. Depois de cada execução, os seis jobs de `cron.job` voltaram a `active = true`. `pnpm check` passou (17 de 17 e 9 de 9).
+- **Não verificado:** a suíte completa rodou por volta de 00:50, quando o lembrete de 30 minutos das tarefas criadas pelo formulário (na próxima hora) já estava vencido, e passou; mas foi uma execução só. Nada no CI (o `supabase db query --local` é da CLI 2.122 do lockfile, a mesma do CI). Uma execução interrompida antes do teardown deixa os dois jobs desligados até a próxima execução ou `db reset`. Hora derivada de UTC menos 3 (PowerShell bloqueado).
+- **Pendências / próximos passos:** QA4-5, conforme o handoff. Uma falha no projeto `app` pula o `jobs` naquela execução.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 01:03 (BRT)
+
+- **Branch:** feat/phase-4-notifications
+- **Agente(s):** orquestrador
+- **Resumo:** Fase 4 fechada. A verificação final em banco limpo achou dois problemas que nenhum agente tinha visto: `dispatch-notifications` não subia no Edge Runtime e duas E2E dependiam do relógio. Os donos corrigiram, e tudo passou no estado integrado.
+- **Alterações:**
+  - Integradas `fix/dispatch-import-map` (`backend-funcoes`: `../tasks/late` no `deno.json` do despacho, vindo da correção do QA4-4) e `fix/e2e-phase-4-close` (`qa-testes`: seletores com escopo em `[role="main"]`; o pg_cron de lembretes e de vermelho fica desligado durante a E2E por `e2e/global-setup.ts`; `notifications-jobs` roda por último, num projeto próprio; `shieldFromAutoMiss` saiu).
+  - `feat/phase-3-proof` (`5b80817`, fechamento da Fase 3) trazido para esta branch.
+  - `docs/agentes/QUADRO.md`: F4-1 a F4-9 feitos.
+- **Migrations:** nenhuma nesta entrada.
+- **Decisões/ADRs:** QA4-5 (o aviso ao vivo repete o item na própria lista de avisos, baixa) vai para `notificacoes-whatsapp` na Fase 5, com as telas do WhatsApp.
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`; `bash docs/agentes/ferramentas/verificar-fase.sh <checkout> <log>`, com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória no ambiente para rodar os testes de push.
+- **Verificado:** primeira rodada em `e54968d`: tudo passou menos `functions:test` e as duas E2E, que pararam no preflight (`dispatch-notifications` 503, `Module not found .../core/src/tasks/late` no log do contêiner). Segunda, em `3b428b2`, completa: install, `db:start`, `db reset`, `db:test` 1227 de 1227 (antes e depois da E2E), `db:check-permissions`, `turbo typecheck test --force` (core 556, contracts 52, platform 46, ui 11, app 8, config 7, data 7, proof 6, notifications 2), lint, `boundaries`, `build:web`, `functions:test` 114 de 114; E2E 67 ok e 1 falha, depois 66 ok e 2 falhas (seletor pegando o aviso ao vivo; lembrete do cron no meio do teste). Final, em `e6f9c5a`: lint, `db reset`, E2E duas vezes com 68 ok, 0 falhas e 1 pulado (o "sem chave VAPID"), `db:test` 1227 de 1227 depois, e os 6 jobs do cron ativos de novo. Varredura de segredos no diff `feat/phase-3-proof..feat/phase-4-notifications`: só a chave demo pública da pilha local (já presente na Fase 3) e o vetor de teste da RFC 8291; os `.env.example` só têm nomes.
+- **Não verificado:** push real em aparelho (Android, desktop, iPhone pela Tela de Início), registro do `sw.js` no navegador, cabeçalhos do `_headers` (só a Netlify os aplica), CI do PR, projeto hospedado.
+- **Pendências / próximos passos:** PR para `feat/phase-3-proof`; perguntas ao humano da seção 4 do handoff 1505; Fase 5 em `feat/phase-5-whatsapp`.

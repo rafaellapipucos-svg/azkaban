@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "expo start --web",
     "build:web": "expo export --platform web",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@azkaban/config": "workspace:*",
@@ -15,6 +16,7 @@
     "@azkaban/feature-calendar": "workspace:*",
     "@azkaban/feature-contexts": "workspace:*",
     "@azkaban/feature-groups": "workspace:*",
+    "@azkaban/feature-notifications": "workspace:*",
     "@azkaban/feature-proof": "workspace:*",
     "@azkaban/feature-tasks": "workspace:*",
     "@azkaban/i18n": "workspace:*",
@@ -49,6 +51,7 @@
   "devDependencies": {
     "@types/react": "catalog:",
     "tailwindcss": "^3.4.19",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   }
 }

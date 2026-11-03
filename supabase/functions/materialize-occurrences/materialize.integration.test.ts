@@ -226,13 +226,13 @@ describe('materialize-occurrences', () => {
     assert.equal(expected.length, 9);
 
     const first = await call(owner.bearer, { taskIds: [taskId] });
-    assert.deepEqual(first, { status: 200, body: { inserted: 9 } });
+    assert.deepEqual(first, { status: 200, body: { inserted: 9, failed: 0, deferred: 0 } });
     assert.deepEqual(await starts(taskId), expected);
     const until = await cursor(taskId);
     assert.ok(Math.abs(until! - (Date.now() + taskDefaults.window * DAY)) < 120_000);
 
     const second = await call(owner.bearer, { taskIds: [taskId] });
-    assert.deepEqual(second, { status: 200, body: { inserted: 0 } });
+    assert.deepEqual(second, { status: 200, body: { inserted: 0, failed: 0, deferred: 0 } });
     assert.deepEqual(await starts(taskId), expected);
   });
 
@@ -247,7 +247,7 @@ describe('materialize-occurrences', () => {
     });
 
     const res = await call(owner.bearer, { taskIds: [plain, withDay] });
-    assert.deepEqual(res, { status: 200, body: { inserted: 17 } });
+    assert.deepEqual(res, { status: 200, body: { inserted: 17, failed: 0, deferred: 0 } });
     const all = series(anchor, 7, taskDefaults.window);
     assert.deepEqual(await starts(plain), all);
     assert.deepEqual(
@@ -283,7 +283,10 @@ describe('materialize-occurrences', () => {
       taskIds: [doomed, sibling],
       until: iso(Date.now() + 100 * DAY),
     });
-    assert.deepEqual(res, { status: 200, body: { inserted: expectedSibling.length - 9 } });
+    assert.deepEqual(res, {
+      status: 200,
+      body: { inserted: expectedSibling.length - 9, failed: 0, deferred: 0 },
+    });
     assert.equal((await starts(doomed)).length, count);
     assert.deepEqual(await starts(sibling), expectedSibling);
   });
@@ -300,7 +303,7 @@ describe('materialize-occurrences', () => {
     assert.ifError(removed.error);
 
     const res = await call(owner.bearer, { taskIds: [stays, left] });
-    assert.deepEqual(res, { status: 200, body: { inserted: 9 } });
+    assert.deepEqual(res, { status: 200, body: { inserted: 9, failed: 0, deferred: 0 } });
     assert.equal((await starts(stays)).length, 9);
     assert.deepEqual(await starts(left), []);
     assert.equal(await cursor(left), null);
@@ -310,7 +313,7 @@ describe('materialize-occurrences', () => {
       .insert({ group_id: groupId, user_id: formerMember.id, role: 'member' });
     assert.ifError(back.error);
     const again = await call(owner.bearer, { taskIds: [left] });
-    assert.deepEqual(again, { status: 200, body: { inserted: 9 } });
+    assert.deepEqual(again, { status: 200, body: { inserted: 9, failed: 0, deferred: 0 } });
     assert.equal((await starts(left)).length, 9);
   });
 
@@ -318,12 +321,12 @@ describe('materialize-occurrences', () => {
     const taskId = await createTask({ start: noon(1), visibility: 'private' });
 
     const blocked = await call(member.bearer, { taskIds: [taskId] });
-    assert.deepEqual(blocked, { status: 200, body: { inserted: 0 } });
+    assert.deepEqual(blocked, { status: 200, body: { inserted: 0, failed: 0, deferred: 0 } });
     assert.deepEqual(await starts(taskId), []);
     assert.equal(await cursor(taskId), null);
 
     const allowed = await call(owner.bearer, { taskIds: [taskId] });
-    assert.deepEqual(allowed, { status: 200, body: { inserted: 9 } });
+    assert.deepEqual(allowed, { status: 200, body: { inserted: 9, failed: 0, deferred: 0 } });
   });
 
   test('until is capped at onDemandMaxDays, and honored below it', async () => {
@@ -337,7 +340,7 @@ describe('materialize-occurrences', () => {
     });
     const expectedFar = series(anchor, 7, taskDefaults.onDemandMaxDays);
     assert.equal(expectedFar.length, 52);
-    assert.deepEqual(capped, { status: 200, body: { inserted: 52 } });
+    assert.deepEqual(capped, { status: 200, body: { inserted: 52, failed: 0, deferred: 0 } });
     assert.deepEqual(await starts(far), expectedFar);
     const until = await cursor(far);
     assert.ok(Math.abs(until! - (Date.now() + taskDefaults.onDemandMaxDays * DAY)) < 120_000);
@@ -348,7 +351,7 @@ describe('materialize-occurrences', () => {
     });
     const expectedNear = series(anchor, 7, 100);
     assert.equal(expectedNear.length, 14);
-    assert.deepEqual(honored, { status: 200, body: { inserted: 14 } });
+    assert.deepEqual(honored, { status: 200, body: { inserted: 14, failed: 0, deferred: 0 } });
     assert.deepEqual(await starts(near), expectedNear);
   });
 
@@ -399,6 +402,49 @@ describe('materialize-occurrences', () => {
     assert.equal((await starts(taskId)).length, 9);
   });
 
+  test('the body stops at 8 KiB: exactly that passes, one byte more does not', async () => {
+    const taskId = await createTask({ start: noon(1) });
+    const padded = (size: number) => JSON.stringify({ taskIds: [taskId] }).padEnd(size, ' ');
+    assert.deepEqual(await call(owner.bearer, padded(8192)), {
+      status: 200,
+      body: { inserted: 9, failed: 0, deferred: 0 },
+    });
+    assert.deepEqual(await call(owner.bearer, padded(8193)), {
+      status: 400,
+      body: { error: 'invalid_request' },
+    });
+  });
+
+  test('a body of 400 MiB stops at the limit, and the worker survives it', async () => {
+    const mebibyte = new Uint8Array(1024 * 1024).fill(0x20);
+    let left = 400;
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (left === 0) controller.close();
+        else controller.enqueue(mebibyte);
+        left -= 1;
+      },
+    });
+    const response = await fetch(FUNCTION_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...owner.bearer },
+      body,
+      // @ts-expect-error Node's fetch needs this for a stream body.
+      duplex: 'half',
+    });
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: 'invalid_request' });
+    assert.equal((await call(owner.bearer, { taskIds: [randomUUID()] })).status, 200);
+  });
+
+  test('the cron call fails loudly without its Vault secrets', () => {
+    // The local Vault is empty: the run would show as failed in cron.job_run_details.
+    assert.throws(
+      () => sql('select public.call_materialize_occurrences();'),
+      (error: { stderr?: Buffer }) => /materialize_not_configured/.test(String(error.stderr)),
+    );
+  });
+
   test('this_and_following followed by materialization yields the edited series', async () => {
     const anchor = noon(1);
     const day = weekday(anchor);
@@ -447,12 +493,15 @@ describe('materialize-occurrences', () => {
 
     const res = await call(owner.bearer, { taskIds: [taskId, tailId] });
     const expectedTail = series(pivot, 14, taskDefaults.window);
-    assert.deepEqual(res, { status: 200, body: { inserted: expectedTail.length } });
+    assert.deepEqual(res, {
+      status: 200,
+      body: { inserted: expectedTail.length, failed: 0, deferred: 0 },
+    });
     assert.deepEqual(await starts(taskId), weekly.slice(0, 3));
     assert.deepEqual(await starts(tailId), expectedTail);
     assert.deepEqual(await call(owner.bearer, { taskIds: [taskId, tailId] }), {
       status: 200,
-      body: { inserted: 0 },
+      body: { inserted: 0, failed: 0, deferred: 0 },
     });
   });
 
@@ -474,7 +523,7 @@ describe('materialize-occurrences', () => {
       visibility: 'private',
     });
     const res = await call(owner.bearer, { taskIds: [taskId], until: at(3, 0) });
-    assert.deepEqual(res, { status: 200, body: { inserted: 3 } });
+    assert.deepEqual(res, { status: 200, body: { inserted: 3, failed: 0, deferred: 0 } });
     assert.deepEqual(await starts(taskId), [at(-13, 14), at(-6, 14), at(1, 13)]);
   });
 
@@ -493,7 +542,10 @@ describe('materialize-occurrences', () => {
     const near = await starts(recent);
     assert.equal(near[0], iso(noon(-10)));
     assert.ok(near.length >= 70 && near.length <= 71, `recent rows: ${near.length}`);
-    assert.deepEqual(res, { status: 200, body: { inserted: old.length + near.length } });
+    assert.deepEqual(res, {
+      status: 200,
+      body: { inserted: old.length + near.length, failed: 0, deferred: 0 },
+    });
   });
 
   test('a run stops at its budget, keeps what it finished, and the next one goes on', async () => {
@@ -537,6 +589,7 @@ describe('materialize-occurrences', () => {
     for (let run = 1; run <= many && finished < many; run++) {
       const res = await call(cron, {});
       assert.equal(res.status, 200, `run ${run}`);
+      const deferred = res.body.deferred as number;
       const now = await cursors();
       finished = [...now.values()].filter((value) => value !== null).length;
       const before_finished = [...before.values()].filter((value) => value !== null).length;
@@ -547,12 +600,21 @@ describe('materialize-occurrences', () => {
       }
       // The first run cannot do 80 of them: it stopped at its budget with some already saved.
       if (run === 1) assert.ok(finished >= 1 && finished < many, `first run finished ${finished}`);
+      // What the budget left behind is said, so the client knows to call again (ADR-0008, 12).
+      assert.ok(
+        deferred >= many - finished,
+        `run ${run}: deferred ${deferred}, left ${many - finished}`,
+      );
+      assert.equal(res.body.failed, 0, `run ${run}`);
       before = now;
     }
     assert.equal(finished, many);
 
     // All done: nothing is stale, so a further run creates nothing and the rows are the floor's.
-    assert.deepEqual(await call(cron, {}), { status: 200, body: { inserted: 0 } });
+    assert.deepEqual(await call(cron, {}), {
+      status: 200,
+      body: { inserted: 0, failed: 0, deferred: 0 },
+    });
     for (const id of ids.slice(0, 3)) {
       const rows = await starts(id);
       assert.ok(rows.length >= 90 && rows.length <= 91, `rows: ${rows.length}`);
@@ -591,7 +653,10 @@ describe('materialize-occurrences', () => {
       const first = await call(owner.bearer, { taskIds: [refusedInsert, refusedCursor, good] });
       const cursorRows = (await starts(refusedCursor)).length;
       assert.ok(cursorRows >= 59 && cursorRows <= 61, `daily rows: ${cursorRows}`);
-      assert.deepEqual(first, { status: 200, body: { inserted: 9 + cursorRows } });
+      assert.deepEqual(first, {
+        status: 200,
+        body: { inserted: 9 + cursorRows, failed: 2, deferred: 0 },
+      });
       assert.deepEqual(await starts(refusedInsert), []);
       assert.equal(await cursor(refusedInsert), null);
       assert.equal(await cursor(refusedCursor), null);
@@ -603,10 +668,12 @@ describe('materialize-occurrences', () => {
         await call(owner.bearer, { taskIds: [refusedInsert, refusedCursor, good] }),
         {
           status: 200,
-          body: { inserted: 0 },
+          body: { inserted: 0, failed: 2, deferred: 0 },
         },
       );
-      assert.equal((await call(cron, {})).status, 200);
+      const swept = await call(cron, {});
+      assert.equal(swept.status, 200);
+      assert.ok((swept.body.failed as number) >= 2, `sweep failed: ${swept.body.failed}`);
       assert.deepEqual(await starts(refusedInsert), []);
     } finally {
       await admin.from('tasks').delete().in('id', [refusedInsert, refusedCursor]);

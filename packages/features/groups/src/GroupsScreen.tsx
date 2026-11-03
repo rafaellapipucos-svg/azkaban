@@ -34,7 +34,7 @@ export function GroupsScreen() {
   });
 
   return (
-    <Screen>
+    <Screen title={t('list.title')}>
       <Title>{t('list.title')}</Title>
       {groups.data?.length === 0 ? <EmptyState text={t('list.empty')} /> : null}
       {groups.data?.map((group) => (

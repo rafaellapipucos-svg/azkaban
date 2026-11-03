@@ -88,8 +88,8 @@ export const sizes = {
   switchHeight: 32,
   switchThumb: 24,
   stepperValue: 64,
-  /** The "late" corner mark on TaskCheck. */
-  lateBadge: 20,
+  /** The corner mark: "late" on TaskCheck, the count on IconButton. */
+  cornerBadge: 20,
   /** StatusMark: `dot` fits a month cell, `row` a list line. */
   statusDot: 16,
   statusRow: 24,

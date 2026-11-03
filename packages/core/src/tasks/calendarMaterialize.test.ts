@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { materializationNeed } from './calendarMaterialize';
+import { describe, expect, it, vi } from 'vitest';
+import { materializationNeed, materializeWithFollowUps } from './calendarMaterialize';
 
 const SP = 'America/Sao_Paulo';
 // 2026-11-04 10:00 in Sao Paulo
@@ -52,5 +52,50 @@ describe('materializationNeed', () => {
         maxDays: 366,
       }).until,
     ).toBeNull();
+  });
+});
+
+describe('materializeWithFollowUps', () => {
+  const answers = (...list: [number, number, number][]) => {
+    const call = vi.fn(async () => {
+      const [inserted, failed, deferred] = list[call.mock.calls.length - 1] ?? [0, 0, 0];
+      return { inserted, failed, deferred };
+    });
+    return call;
+  };
+
+  it('calls once when nothing is deferred', async () => {
+    const call = answers([3, 0, 0]);
+    expect(await materializeWithFollowUps(call, 2)).toEqual({
+      inserted: 3,
+      failed: 0,
+      deferred: 0,
+    });
+    expect(call).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls again while deferred, and stops when it reaches zero', async () => {
+    const call = answers([2, 0, 5], [4, 0, 0], [9, 9, 9]);
+    expect(await materializeWithFollowUps(call, 2)).toEqual({
+      inserted: 6,
+      failed: 0,
+      deferred: 0,
+    });
+    expect(call).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops at the limit and leaves the last deferral to the daily job', async () => {
+    const call = answers([1, 0, 5], [1, 0, 4], [1, 0, 3], [1, 0, 2]);
+    expect(await materializeWithFollowUps(call, 2)).toEqual({
+      inserted: 3,
+      failed: 0,
+      deferred: 3,
+    });
+    expect(call).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not hide a failure that a later call left out', async () => {
+    const call = answers([0, 2, 1], [1, 0, 0]);
+    expect((await materializeWithFollowUps(call, 2)).failed).toBe(2);
   });
 });

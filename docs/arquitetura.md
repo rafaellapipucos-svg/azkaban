@@ -85,6 +85,18 @@ Regras completas no [ADR-0007](adr/0007-prova-por-foto.md).
 - Fotos só saem por URL assinada curta, de `proof-url`. Quem vê segue `can_view_proof`, mais restrita que `can_view_task`.
 - `proofRules` (`packages/config`) tem espelho em `app_settings`, chave `proof_rules`.
 
+## Notificações
+
+Regras completas no [ADR-0008](adr/0008-notificacoes-push-pwa-vermelho-automatico.md).
+
+- Um evento grava uma linha em `notifications`, o sino, por trigger ou pela varredura de lembretes, em SQL. Vale para qualquer caminho. A linha guarda referências, e o título vem pela RLS.
+- Cada canal externo ligado ganha uma linha em `notification_outbox`, única por notificação e canal. `dispatch-notifications`, a cada minuto, reivindica um lote, aplica o horário de silêncio no fuso do perfil, envia pela implementação de `NotificationChannel` e informa o resultado, com backoff.
+- O app recebe o sino pelo Realtime (`postgres_changes` em `notifications`, com RLS).
+- Web Push usa VAPID: a chave privada é segredo da Edge Function, e a pública vem de `EXPO_PUBLIC_VAPID_PUBLIC_KEY`. Inscrições só por `register_push_subscription`, com lista de hosts de serviços de push. No iPhone, só com o app na Tela de Início, iOS 16.4 ou mais novo.
+- `apps/app/public` tem `index.html`, `manifest.webmanifest` e `sw.js`. O service worker só mostra o push e abre o caminho interno; não tem cache.
+- O vermelho automático é a função SQL `auto_miss_occurrences`, a cada 5 minutos, por `auto_miss_at`. Os triggers de status gravam histórico, XP e o aviso.
+- `notificationRules` (`packages/config`) tem espelho em `app_settings`, chave `notification_rules`. O WhatsApp da Fase 5 entra como mais um canal na mesma outbox.
+
 ## Banco
 
 Desenvolvimento em Supabase local (`pnpm db:start`, exige Docker), nas portas 544xx para conviver com outros projetos locais: `apps/app/.env.development.local` aponta o `pnpm dev` para ele. O projeto hospedado recebe migrations por `supabase db push --db-url "$SUPABASE_DB_URL"`, e só após revisão.

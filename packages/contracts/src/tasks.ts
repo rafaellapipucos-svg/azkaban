@@ -320,5 +320,16 @@ export const materializeRequestSchema = z.object({
 });
 export type MaterializeRequest = z.infer<typeof materializeRequestSchema>;
 
-export const materializeResponseSchema = z.object({ inserted: z.int().min(0) });
+/**
+ * Status 200 even when some task failed: what was inserted stays. `failed`: tasks the database
+ * refused, or whose rule does not expand; the client shows the error with a retry. `deferred`: tasks
+ * left for the next run by the CPU budget; the client calls again, up to
+ * `taskDefaults.materializeMaxFollowUps`, and the cron does the rest. ADR-0008, section 12.
+ * The defaults only cover a function deployed before F4-8, which answers `{ inserted }` alone.
+ */
+export const materializeResponseSchema = z.object({
+  inserted: z.int().min(0),
+  failed: z.int().min(0).default(0),
+  deferred: z.int().min(0).default(0),
+});
 export type MaterializeResponse = z.infer<typeof materializeResponseSchema>;

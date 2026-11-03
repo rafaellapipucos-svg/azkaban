@@ -7,7 +7,7 @@ export default function NotFound() {
   const { t } = useTranslation();
   const router = useRouter();
   return (
-    <Screen>
+    <Screen title={t('notFound.title')}>
       <Title>{t('notFound.title')}</Title>
       <EmptyState mood="worried" text={t('notFound.text')}>
         <Button label={t('notFound.home')} onPress={() => router.replace('/')} />

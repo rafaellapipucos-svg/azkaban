@@ -3,7 +3,13 @@
 // preflight of each function until it answers boots a fresh worker, so the first real request of a
 // test does not pay for it.
 const api = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54421';
-const names = ['materialize-occurrences', 'proof-validate', 'proof-url', 'proof-retention'];
+const names = [
+  'materialize-occurrences',
+  'proof-validate',
+  'proof-url',
+  'proof-retention',
+  'dispatch-notifications',
+];
 
 for (const name of names) {
   let status = 0;
@@ -17,7 +23,12 @@ for (const name of names) {
     await new Promise((resolve) => setTimeout(resolve, 2000));
   }
   if (status < 200 || status >= 300) {
-    console.error(`${name} does not answer (last status ${status}). Did "pnpm db:start" finish?`);
+    // A 503 usually means the worker failed to boot, e.g. a relative import of `packages/*` missing
+    // from the function's `deno.json` (the CLI mounts only mapped files, at `db:start`).
+    console.error(
+      `${name} does not answer (last status ${status}). Did "pnpm db:start" finish? ` +
+        'On 503, see "docker logs supabase_edge_runtime_azkaban" for a worker boot error.',
+    );
     process.exit(1);
   }
 }

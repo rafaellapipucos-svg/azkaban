@@ -1,5 +1,5 @@
 import { taskRules } from '@azkaban/config';
-import { earnedXp, planToday } from '@azkaban/core';
+import { canManageGroupTask, earnedXp, planToday } from '@azkaban/core';
 import { contextsRepository, useCurrentUser } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import {
@@ -15,7 +15,7 @@ import {
 } from '@azkaban/ui';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { Text, View } from 'react-native';
 import { tasksConfig } from './config';
 import { capitalize, errorKey } from './format';
@@ -24,8 +24,17 @@ import type { ProofEntry } from './OccurrenceRow';
 import { QuickCreate } from './QuickCreate';
 import { ContextGroups, Section } from './Sections';
 
-/** The start screen: everything of the day across areas, grouped by context. */
-export function TodayScreen({ onProof }: { onProof?: ProofEntry }) {
+/**
+ * The start screen: everything of the day across areas, grouped by context. `headerRight` sits
+ * beside the title, where the route puts the notification bell (ADR-0008, section 7).
+ */
+export function TodayScreen({
+  onProof,
+  headerRight,
+}: {
+  onProof?: ProofEntry;
+  headerRight?: ReactNode;
+}) {
   const { t, i18n } = useTranslation('tasks');
   const router = useRouter();
   const { user } = useCurrentUser();
@@ -38,8 +47,15 @@ export function TodayScreen({ onProof }: { onProof?: ProofEntry }) {
   const [created, showCreated] = useNotice();
 
   const plan = useMemo(
-    () => planToday(items, { now, timezone, dueSoonDays: tasksConfig.dueSoonDays }),
-    [items, now, timezone],
+    () =>
+      planToday(items, {
+        now,
+        timezone,
+        dueSoonDays: tasksConfig.dueSoonDays,
+        lateCompletionWindowHours: taskRules.lateCompletionWindowHours,
+        canManageGroup: (groupId) => canManageGroupTask(user, groupId),
+      }),
+    [items, now, timezone, user],
   );
   const xp = earnedXp(plan.today, user.id, taskRules.xp);
   const actions = {
@@ -59,10 +75,13 @@ export function TodayScreen({ onProof }: { onProof?: ProofEntry }) {
 
   return (
     <View className="flex-1">
-      <Screen>
-        <View>
-          <Title>{t('today.title')}</Title>
-          <Muted>{capitalize(dateText)}</Muted>
+      <Screen title={t('today.title')}>
+        <View style={{ gap: tokens.spacing[2] }} className="flex-row items-start">
+          <View className="flex-1">
+            <Title>{t('today.title')}</Title>
+            <Muted>{capitalize(dateText)}</Muted>
+          </View>
+          {headerRight}
         </View>
 
         <View

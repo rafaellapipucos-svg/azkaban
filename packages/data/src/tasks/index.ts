@@ -5,6 +5,7 @@ import {
   taskInputSchema,
   taskRuleChangeSchema,
   taskSchema,
+  type MaterializeResponse,
   type Occurrence,
   type OccurrenceListItem,
   type OccurrenceTransitionInput,
@@ -248,27 +249,29 @@ export const tasksRepository = {
 
   /**
    * Asks the Edge Function to create the repeating tasks' occurrences up to `until` (the end of
-   * the visible range). Returns how many it created. The caller caps `until` at `onDemandMaxDays`.
+   * the visible range). The caller caps `until` at `onDemandMaxDays`. The answer is partial, not an
+   * error, when `failed` or `deferred` is above zero (ADR-0008, section 12).
    */
-  async materializeUntil(until: string): Promise<number> {
+  async materializeUntil(until: string): Promise<MaterializeResponse> {
     const { data, error } = await db().functions.invoke('materialize-occurrences', {
       body: { until },
     });
     if (error) throw new TaskError(null, { cause: error });
-    return materializeResponseSchema.parse(data).inserted;
+    return materializeResponseSchema.parse(data);
   },
 
   /**
-   * Asks the Edge Function to create the occurrences of these repeating tasks. Throws when it fails,
-   * so the screen can say so and offer a retry: until the daily job runs, the tasks have no
-   * occurrence to show. Safe to repeat.
+   * Asks the Edge Function to create the occurrences of these repeating tasks. Throws when the call
+   * fails, so the screen can say so and offer a retry: until the daily job runs, the tasks have no
+   * occurrence to show. `failed` and `deferred` come back for the caller. Safe to repeat.
    */
-  async materializeTasks(taskIds: string[]): Promise<void> {
-    if (taskIds.length === 0) return;
-    const { error } = await db().functions.invoke('materialize-occurrences', {
+  async materializeTasks(taskIds: string[]): Promise<MaterializeResponse> {
+    if (taskIds.length === 0) return { inserted: 0, failed: 0, deferred: 0 };
+    const { data, error } = await db().functions.invoke('materialize-occurrences', {
       body: { taskIds },
     });
     if (error) throw new TaskError(null, { cause: error });
+    return materializeResponseSchema.parse(data);
   },
 
   /**
@@ -305,7 +308,11 @@ export const tasksRepository = {
     }));
   },
 
-  /** Pending ones past `overdueAt`: the job that marks them red does not exist yet. */
+  /**
+   * Pending or red ones past `overdueAt`, newest first. Whether a red one is still inside the late
+   * window is the viewer's call (`planToday`, `planArea`), so the expired ones come along too.
+   * ponytail: expired red ones count against the 100; cut by the window here if a list ever fills.
+   */
   async listOverdue({
     before,
     assigneeId,
@@ -317,7 +324,7 @@ export const tasksRepository = {
       .from('task_occurrences')
       .select(listColumns)
       .is('tasks.archived_at', null)
-      .eq('status', 'pending')
+      .in('status', ['pending', 'missed'])
       .lt('overdue_at', before);
     if (assigneeId) query = query.eq('assignee_id', assigneeId);
     const { data, error } = await query

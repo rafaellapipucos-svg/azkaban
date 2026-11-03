@@ -15,6 +15,7 @@ export { Stepper } from './Stepper';
 export { StatusBadge } from './StatusBadge';
 export { StatusMark } from './StatusMark';
 export { SwitchRow } from './SwitchRow';
+export { TabBar, type TabBarItem } from './TabBar';
 export { TaskCheck } from './TaskCheck';
 export { Body, ErrorText, Muted, Subtitle, Title } from './Text';
 export { useReducedMotion } from './useReducedMotion';

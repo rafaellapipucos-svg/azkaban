@@ -427,6 +427,8 @@ Decisões sobre os achados da revisão e do QA, em 2026-11-01. Valem sobre as se
 
 **Pendência humana, bloqueante para uso com funcionários:** a base legal do tratamento. Consentimento é frágil em relação de trabalho, e isso pede orientação jurídica. Este ADR não decide. Sem essa decisão e sem F8-3, a prova não vai para funcionários reais.
 
+**Decisão do humano (2026-11-03): consentimento, e a pendência deixa de ser bloqueante.** A base legal para funcionários é o consentimento, como o aviso e `proof_consents` já tratam. O controlador é Rafaell Bezerra Saraiva, pessoa física, e o encarregado responde em `privacidade@tabolao.com` ([ADR-0012](0012-polimento-lgpd-limites-offline.md), seção 17). A revogação do aceite segue sendo o caminho. O "fale com o dono do grupo" do item "Como pedir exclusão" ganha esse endereço como contato do controlador. A fragilidade do consentimento em relação de trabalho continua conhecida, e uma orientação jurídica pode mudar a base depois.
+
 **Riscos aceitos, conferidos:**
 
 | Risco                                  | Decisão | Motivo                                                                                                                                                  |

@@ -3810,3 +3810,24 @@
 - **Verificado:** `pnpm check` passou.
 - **Não verificado:** o passo no CI (sem push, sem PR de rascunho). Fixar as actions por SHA fica para uma mudança do workflow inteiro. Hora pelo UTC−3 (PowerShell barrado).
 - **Pendências / próximos passos:** o PR de rascunho do "Como testar".
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 17:19 (BRT)
+
+- **Branch:** docs/human-decisions (a partir de `feat/launch-decisions` = `main`, `33132dc`)
+- **Agente(s):** arquiteto
+- **Resumo:** registra nos ADRs as respostas do humano de 2026-11-03 às decisões pendentes BL-24 a BL-38. Só documentação; nada apagado, cada resposta entra como "Decisão do humano (2026-11-03)".
+- **Alterações:**
+  - ADR-0004: a revisão BL23-2 passa de proposta a decidida, opção A' no web (o link mágico não troca sessão ativa; sem marcador, sem PKCE), com o teste obrigatório e o risco residual aceito; nota de que a hospedagem saiu da Netlify e de que a Meta fica no backlog.
+  - ADR-0007 §20: base legal é consentimento; a pendência deixa de ser bloqueante; controlador e `privacidade@tabolao.com`.
+  - ADR-0008: §16 confirmado; BL-32, opção de esconder o conteúdo do push na tela bloqueada, desligada por padrão, com donos; §13, nota do `.htaccess`.
+  - ADR-0009 §16: confirmado; BL-30, WhatsApp real no backlog, provedor `console` segue.
+  - ADR-0010: §13 confirmado, exceto o item 14; §14, SEG6-6 corrigido com chave substituta em `user_achievements` (faixa `20261105140000`+, contrato sem mudança) e SEG6-8 como risco aceito (BL-34).
+  - ADR-0011 §15: confirmado; BL-35, a lista de listas ao vivo não é necessária.
+  - ADR-0012: §11, só Android (Expo e Firebase grátis, sem Apple); §12, Hostinger Premium em `https://app.tabolao.com`, deploy por GitHub Actions via FTP e `.htaccess` no lugar de `_headers`/`_redirects`, com o que conferir no primeiro deploy; §17 confirmado, com controlador, consentimento, Brevo grátis no domínio `tabolao.com`, "0 pacotes", CAPTCHA desligado, testes em Android e computador, e a autorização para o hospedado com confirmação a cada comando (BL-28/BL-37).
+- **Arquivos/módulos principais:** `docs/adr/0004`, `0007`, `0008`, `0009`, `0010`, `0011`, `0012`
+- **Migrations:** nenhuma (a do BL-33 fica com `banco-de-dados`)
+- **Decisões/ADRs:** as acima.
+- **Como testar:** leitura; `pnpm check`.
+- **Verificado:** `pnpm check` passou.
+- **Não verificado:** o comportamento da Hostinger com `.htaccess` e a cópia de arquivos com ponto pelo `expo export` (ficou como conferência do primeiro deploy). `docs/implantacao.md` e `docs/agentes/QUADRO.md` não foram tocados, por pedido. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** implementações que as decisões abrem: A' no web (`auth-grupos`, BL-38); preferência de esconder o push (`notificacoes-whatsapp`, `banco-de-dados`, BL-32); chave substituta (`banco-de-dados`, `gamificacao`, BL-33); `.htaccess` em `dist/` (`notificacoes-whatsapp`) e workflow de deploy por FTP (`arquiteto`); "0 pacotes" no i18n de compras; Brevo, SPF e DKIM e o projeto hospedado com o humano; o identificador do app (BL-29).

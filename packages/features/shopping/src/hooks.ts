@@ -1,9 +1,21 @@
 import { defaults } from '@azkaban/config';
 import type { ShoppingListItem, ShoppingListStatus, ShoppingUnit } from '@azkaban/contracts';
 import { formatQuantity, roundQuantity } from '@azkaban/core';
-import { groupsRepository, shoppingRepository } from '@azkaban/data';
+import {
+  groupsRepository,
+  offlineQueueFull,
+  shoppingAdjustAction,
+  shoppingRepository,
+} from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { randomId } from '@azkaban/platform';
+import {
+  onlineManager,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { shoppingConfig } from './shopping';
 
@@ -14,8 +26,10 @@ export const shoppingKeys = {
   list: (id: string) => ['shopping', 'list', id] as const,
   items: (id: string) => ['shopping', 'items', id] as const,
   catalog: (groupId: string | null) => ['shopping', 'catalog', groupId] as const,
-  /** The stepper's deltas in flight on a list, as mutations, so the Realtime can wait for them. */
-  steps: (id: string) => ['shopping', 'steps', id] as const,
+  /** The linked task as the reader sees it, and the lists linked to a task (ADR-0011, section 8). */
+  linkedTask: (taskId: string) => ['shopping', 'linked-task', taskId] as const,
+  taskLists: (taskId: string) => ['shopping', 'task-lists', taskId] as const,
+  occurrence: (occurrenceId: string) => ['shopping', 'occurrence', occurrenceId] as const,
 };
 
 /** "2 pacotes", "1,5 kg". */
@@ -67,9 +81,9 @@ export function useShoppingList(listId: string) {
         const shown = queryClient.getQueryData<ShoppingListItem[]>(shoppingKeys.items(listId));
         if (deletedId && deletedId !== listId && !shown?.some(({ id }) => id === deletedId)) return;
         void queryClient.invalidateQueries({ queryKey: shoppingKeys.list(listId) });
-        // While a delta of ours is in flight, a reload could hold it twice (in the row and still
-        // pending). `usePendingDeltas` reloads once the last one is back.
-        if (queryClient.isMutating({ mutationKey: shoppingKeys.steps(listId) }) > 0) return;
+        // While a delta of ours waits or is in flight, a reload could hold it twice (in the row and
+        // still pending). The queue reloads the items when each one settles.
+        if (queryClient.isMutating({ mutationKey: shoppingAdjustAction.mutationKey }) > 0) return;
         void queryClient.invalidateQueries({ queryKey: shoppingKeys.items(listId) });
       }),
     [listId, queryClient],
@@ -78,22 +92,24 @@ export function useShoppingList(listId: string) {
   return { list, items, catalog, members, groupId };
 }
 
+/** Where one batch of a row's taps goes: the item once it is in the cache, else the catalog entry. */
+export type StepTarget = { itemId: string } | { listId: string; catalogItemId: string };
+
 /**
- * Stepper taps, shown at once and sent as one delta per row after a short pause. `send` resolves
- * to a function that puts the returned row in the cache; it runs in the same tick that drops the
- * pending delta, so the screen never counts the delta twice. On failure the delta is dropped.
- * The sends are mutations under `shoppingKeys.steps`: the Realtime does not reload the items while
- * one is in flight, and the last one back reloads them, which takes in what others did meanwhile.
+ * Stepper taps, shown at once and sent as one delta per row after a short pause, through the offline
+ * queue, each send with its own `requestId` so a replay is applied once (ADR-0012, section 5). The
+ * returned row goes in the cache in the same tick that drops the pending delta, so the screen never
+ * counts it twice. On failure the delta is dropped. While a send waits or runs, the Realtime does not
+ * reload the items; the queue reloads them when each one settles.
  */
 export function usePendingDeltas(
   listId: string,
-  send: (key: string, delta: number) => Promise<() => void>,
+  target: (key: string) => StepTarget,
+  onError: (error: unknown) => void,
 ) {
   const queryClient = useQueryClient();
-  const step = useMutation({
-    mutationKey: shoppingKeys.steps(listId),
-    mutationFn: ({ key, delta }: { key: string; delta: number }) => send(key, delta),
-  });
+  const setItem = useSetItem(listId);
+  const step = useMutation(shoppingAdjustAction);
   const [pending, setPending] = useState<Record<string, number>>({});
   const queued = useRef(new Map<string, number>());
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -117,25 +133,35 @@ export function usePendingDeltas(
         queued.current.delete(key);
         timers.current.delete(key);
         if (total === 0) return;
-        void step
-          .mutateAsync({ key, delta: total })
-          .then(
-            (apply) => {
-              apply();
-              shift(key, -total);
-            },
-            () => shift(key, -total),
-          )
-          .finally(() => {
-            if (queryClient.isMutating({ mutationKey: shoppingKeys.steps(listId) }) > 0) return;
-            void queryClient.invalidateQueries({ queryKey: shoppingKeys.items(listId) });
-          });
+        if (queueRefuses(queryClient)) {
+          shift(key, -total);
+          onError(new Error('offline'));
+          return;
+        }
+        const to = target(key);
+        void step.mutateAsync({ ...to, delta: total, requestId: randomId() }).then(
+          (result) => {
+            // The queue types every result as unknown; this one is `adjustQuantity`'s.
+            const row = result as ShoppingListItem | null;
+            if ('itemId' in to) setItem(to.itemId, row);
+            else if (row) setItem(row.id, row);
+            shift(key, -total);
+          },
+          (error: unknown) => {
+            shift(key, -total);
+            onError(error);
+          },
+        );
       }, shoppingConfig.stepperBatchMs),
     );
   };
 
   return { pending, add };
 }
+
+/** No connection and the queue at its ceiling: the tap says "no connection" instead of waiting. */
+export const queueRefuses = (queryClient: QueryClient) =>
+  !onlineManager.isOnline() && offlineQueueFull(queryClient);
 
 /** Replaces or removes one row in the cached items of a list. */
 export function useSetItem(listId: string) {

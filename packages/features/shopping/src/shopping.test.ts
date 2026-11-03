@@ -7,9 +7,12 @@ import {
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { shoppingRules } from '@azkaban/config';
 import {
   canManageList,
   canShop,
+  completionXp,
+  listForTask,
   parseNote,
   readMode,
   shoppingErrorKey,
@@ -23,7 +26,7 @@ const messages = JSON.parse(
     'utf8',
   ),
 ) as Record<
-  'errors' | 'categories' | 'units' | 'unitNames' | 'form' | 'list',
+  'errors' | 'categories' | 'units' | 'unitNames' | 'form' | 'list' | 'task' | 'offline',
   Record<string, string>
 >;
 
@@ -145,5 +148,53 @@ describe('list status', () => {
   it('says an empty list is empty, never "Falta 0 item"', () => {
     expect(messages.list.empty).toBeTruthy();
     expect(messages.errors.lists_full).toContain('exclua');
+  });
+});
+
+describe('codes outside the contract', () => {
+  it('names the rate limit, no connection and the queue reasons, each with its own text', () => {
+    for (const code of ['rate_limited', 'offline', 'expired', 'invalid']) {
+      expect(shoppingErrorKey(code), code).toBe(`errors.${code}`);
+      expect(shoppingErrorKey(new Error(code)), code).toBe(`errors.${code}`);
+      expect(messages.errors[code], code).toBeTruthy();
+    }
+    expect(messages.errors.expired).toContain('{{hours}}');
+    expect(messages.offline.discarded).toContain('{{reason}}');
+  });
+});
+
+describe('completionXp', () => {
+  const { amount, minCheckedItems, maxRewardedPerDay } = shoppingRules.xp;
+
+  it('promises nothing below the minimum of checked items, an empty list included', () => {
+    expect(completionXp(0)).toEqual({ key: 'list.xpNeedsItems', min: minCheckedItems });
+    expect(completionXp(minCheckedItems - 1).key).toBe('list.xpNeedsItems');
+  });
+
+  it('says the amount from the minimum on, with the daily cap it cannot see', () => {
+    expect(completionXp(minCheckedItems)).toEqual({
+      key: 'list.xp',
+      amount,
+      max: maxRewardedPerDay,
+    });
+    expect(messages.list.xp).toContain('{{amount}}');
+    expect(messages.list.xp).toContain('{{max}}');
+    expect(messages.list.xpNeedsItems).toContain('{{min}}');
+  });
+});
+
+describe('listForTask', () => {
+  it('makes the list in the group only for a task the whole group may see', () => {
+    const task = { groupId: 'g1', visibility: 'group' as const, title: 'Fazer compras' };
+    expect(listForTask(task, 'Compras')).toEqual({ groupId: 'g1', name: 'Fazer compras' });
+    expect(listForTask({ ...task, visibility: 'private' }, 'Compras').groupId).toBeNull();
+    expect(listForTask({ ...task, groupId: null }, 'Compras').groupId).toBeNull();
+  });
+
+  it('falls back to the default name when the title does not fit a list name', () => {
+    const task = { groupId: null, visibility: 'private' as const, title: 'a'.repeat(200) };
+    expect(listForTask(task, 'Compras').name).toBe('Compras');
+    expect(listForTask({ ...task, title: 'Feira‮' }, 'Compras').name).toBe('Compras');
+    expect(messages.task.defaultName).toBeTruthy();
   });
 });

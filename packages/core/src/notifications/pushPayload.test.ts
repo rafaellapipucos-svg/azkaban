@@ -1,6 +1,7 @@
 import { pushPayloadMaxBytes, pushPayloadSchema } from '@azkaban/contracts';
 import { describe, expect, it } from 'vitest';
 import {
+  actorLabel,
   buildPushPayload,
   missedLateUntil,
   notificationText,
@@ -257,5 +258,28 @@ describe('daily_summary', () => {
     });
     expect(notificationUrl(summary, false)).toBe('/');
     expect(() => buildPushPayload(summary, false, t)).toThrow();
+  });
+});
+
+describe('actorLabel', () => {
+  const resolved = (byUserId: string) =>
+    ({ type: 'occurrence_resolved', data: { status: 'done', byUserId } }) as const;
+  const names = new Map([[userId, 'Ana']]);
+
+  it('names who acted', () => {
+    expect(actorLabel(resolved(userId), names, t)).toBe('Ana');
+  });
+
+  it('says ex-member when the id has no name, since leaving and deleting look the same', () => {
+    expect(actorLabel(resolved(id), names, t)).toBe('actor.formerMember');
+    expect(actorLabel(resolved(userId), new Map([[userId, '  ']]), t)).toBe('actor.formerMember');
+  });
+
+  it('says nothing for the job, a type without actor, or names still loading', () => {
+    expect(
+      actorLabel({ type: 'occurrence_missed', data: { byUserId: null } }, names, t),
+    ).toBeNull();
+    expect(actorLabel(reminder(0), names, t)).toBeNull();
+    expect(actorLabel(resolved(userId), undefined, t)).toBeNull();
   });
 });

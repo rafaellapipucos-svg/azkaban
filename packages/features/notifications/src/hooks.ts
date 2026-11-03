@@ -1,8 +1,13 @@
 import { taskRules } from '@azkaban/config';
-import { notificationText, notificationUrl, type Translate } from '@azkaban/core';
-import { notificationsRepository, useCurrentUser, type BellItem } from '@azkaban/data';
+import { actorLabel, notificationText, notificationUrl, type Translate } from '@azkaban/core';
+import {
+  groupsRepository,
+  notificationsRepository,
+  useCurrentUser,
+  type BellItem,
+} from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo } from 'react';
 
@@ -34,6 +39,37 @@ export function useItemText() {
     },
     [t, i18n.language, timezone],
   );
+}
+
+/**
+ * Who acted on each line, by the members of the task's group: one query per group, shared with the
+ * task screens. A personal task, or one no longer seen, names no one.
+ */
+export function useActorText(items: BellItem[] | undefined) {
+  const { t } = useTranslation('notifications');
+  const groupIds = [
+    ...new Set(
+      items
+        ?.filter((item) => 'byUserId' in item.data && item.data.byUserId)
+        .map(({ groupId }) => groupId)
+        .filter((id) => id !== null),
+    ),
+  ];
+  const members = useQueries({
+    queries: groupIds.map((groupId) => ({
+      queryKey: ['group-members', groupId],
+      queryFn: () => groupsRepository.listMembers(groupId),
+    })),
+  });
+  const names = new Map(
+    groupIds.map((groupId, index) => {
+      const data = members[index]?.data;
+      return [groupId, data && new Map(data.map((m) => [m.userId, m.displayName]))] as const;
+    }),
+  );
+  const translate: Translate = (key, values) => t(key, values);
+  return (item: BellItem) =>
+    item.groupId ? actorLabel(item, names.get(item.groupId), translate) : null;
 }
 
 /** Marks the line read and goes where its push would go. */

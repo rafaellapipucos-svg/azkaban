@@ -35,6 +35,14 @@ const { accountExportSchema, accountExportSections } =
   await import('../../../packages/contracts/src/privacy.ts');
 
 const URL = functionUrl('account-export');
+// In the formats the table checks: base64url of 65 and 16 bytes, an endpoint unique per run.
+const endpointToken = `secret-endpoint-${crypto.randomUUID()}`;
+const PUSH = {
+  endpointToken,
+  endpoint: `https://push.example.com/send/${endpointToken}`,
+  p256dh: `secretP256dh${'x'.repeat(75)}`,
+  auth: `secretAuth${'y'.repeat(12)}`,
+};
 const exportOf = async (headers: Record<string, string>) => {
   const response = await fetch(URL, { method: 'POST', headers });
   const text = await response.text();
@@ -73,9 +81,9 @@ describe('account-export', () => {
     // Secrets the file must leave out: a push subscription and an invite with its code.
     const push = await admin.from('push_subscriptions').insert({
       user_id: author.id,
-      endpoint: 'https://push.example.com/send/secret-endpoint-token',
-      p256dh: 'secret-p256dh-key',
-      auth: 'secret-auth-key',
+      endpoint: PUSH.endpoint,
+      p256dh: PUSH.p256dh,
+      auth: PUSH.auth,
     });
     assert.ifError(push.error);
     const invite = await admin
@@ -130,9 +138,9 @@ describe('account-export', () => {
     assert.equal(push.length, 1);
     assert.equal(push[0]!.endpoint_host, 'push.example.com');
     for (const secret of [
-      'secret-endpoint-token',
-      'secret-p256dh-key',
-      'secret-auth-key',
+      PUSH.endpointToken,
+      PUSH.p256dh,
+      PUSH.auth,
       'storage_path',
       'code_hash',
     ]) {

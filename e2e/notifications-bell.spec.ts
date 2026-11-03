@@ -126,3 +126,37 @@ test('a notice written right after the bell mounts rings it once, with the live 
   await expect(toast.getByText('Tarefa não feita')).toHaveCount(0);
   await expect(bell(page, 1)).toBeVisible();
 });
+
+// BL-8: who acted on a group task is read from the group's members. Once that person leaves, the
+// client cannot tell leaving from deleting the account, and the line says "ex-membro".
+test('the bell names who marked a group task, and says ex-membro once they left', async ({
+  browser,
+}) => {
+  const { ownerPage } = await groupWithMember(browser);
+  const title = uniqueTitle('Regar as plantas');
+  await photoTaskForMember(ownerPage, title);
+  const spot = await spotOf(title);
+  const written = await admin.from('notifications').insert({
+    user_id: spot.createdBy,
+    type: 'occurrence_missed',
+    occurrence_id: spot.occurrenceId,
+    data: { byUserId: spot.assigneeId },
+    dedupe_key: `occurrence_missed:${randomUUID()}`,
+  });
+  expect(written.error).toBeNull();
+
+  await ownerPage.goto('/notifications');
+  await expect(screen(ownerPage).getByText('Quem marcou: Duda', { exact: true })).toBeVisible();
+
+  const left = await admin
+    .from('group_members')
+    .delete()
+    .eq('group_id', spot.groupId!)
+    .eq('user_id', spot.assigneeId);
+  expect(left.error).toBeNull();
+  await ownerPage.reload();
+  await expect(
+    screen(ownerPage).getByText('Quem marcou: ex-membro', { exact: true }),
+  ).toBeVisible();
+  await expect(screen(ownerPage).getByText('Quem marcou: Duda', { exact: true })).toHaveCount(0);
+});

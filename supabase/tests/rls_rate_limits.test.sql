@@ -305,7 +305,9 @@ select is((public.add_catalog_item_to_list(pg_temp.g('list'), pg_temp.g('cat'), 
 select pg_temp.pg();
 select is((select user_id from public.processed_requests where request_id = 'a0000000-0000-0000-0000-000000000002'),
   pg_temp.u('6'), 'the id is recorded with the user');
-select is((select count(*)::int from public.processed_requests), 2, 'only calls with an id are recorded');
+-- Only this test's user: the E2E run leaves ids of its own in the same database.
+select is((select count(*)::int from public.processed_requests where user_id = pg_temp.u('6')), 2,
+  'only calls with an id are recorded');
 
 select pg_temp.login(pg_temp.u('7'));
 select throws_ok(format($$select public.adjust_shopping_item_quantity(%L, 1, 'a0000000-0000-0000-0000-000000000003')$$,

@@ -713,13 +713,14 @@ update public.profiles set phone_e164 = null, phone_verified_at = null, whatsapp
 where id = pg_temp.u('108');
 
 select is(public.enqueue_daily_summaries(), 4, 'the job writes the summaries due');
+-- Only this test's job users (101 to 10a): other users, of the E2E run too, may share the database.
 select is((select string_agg(right(user_id::text, 3) || '=' || (data ->> 'localDate'), ',' order by user_id)
-  from public.notifications where type = 'daily_summary' and user_id::text like '%0000000001%'),
+  from public.notifications where type = 'daily_summary' and user_id::text like '00000000-0000-0000-0000-0000000001__'),
   '101=' || (now() at time zone pg_temp.zone(1))::date || ',102=' || (now() at time zone pg_temp.zone(2))::date
   || ',105=' || (now() at time zone pg_temp.zone(1))::date || ',109=' || (now() at time zone pg_temp.zone(1))::date,
   'each at its own local date: inside the window, in two zones, and an empty day with skip_empty off');
 select is((select string_agg(right(id::text, 3) || '=' || coalesce(daily_summary_last_date::text, '-'), ',' order by id)
-  from public.profiles where id::text like '%0000000001%' and id <> pg_temp.u('10a')),
+  from public.profiles where id::text like '00000000-0000-0000-0000-0000000001__' and id <> pg_temp.u('10a')),
   '101=' || (now() at time zone pg_temp.zone(1))::date || ',102=' || (now() at time zone pg_temp.zone(2))::date
   || ',103=-,104=-,105=' || (now() at time zone pg_temp.zone(1))::date || ',106=-,107=-,108=-,109=' || (now() at time zone pg_temp.zone(1))::date,
   'past catchUpMinutes, before the time, opted out, off and without WhatsApp are left alone');
@@ -734,7 +735,7 @@ select is((select daily_summary_last_date from public.profiles where id = pg_tem
   'but the day is marked, so it is not looked at again');
 update public.profiles set daily_summary_last_date = null where id = pg_temp.u('101');
 select is(public.enqueue_daily_summaries(), 0, 'running again writes nothing: the key holds even when the date is lost');
-select is((select count(*) from public.notifications where type = 'daily_summary' and user_id::text like '%0000000001%'), 4::bigint,
+select is((select count(*) from public.notifications where type = 'daily_summary' and user_id::text like '00000000-0000-0000-0000-0000000001__'), 4::bigint,
   'and nothing is duplicated');
 
 -- ===== Retention =====

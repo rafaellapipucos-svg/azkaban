@@ -3095,3 +3095,21 @@
 - **Verificado:** na pilha B só com o banco, `supabase db reset` e `pnpm db:test` (12 arquivos, 1911 testes, PASS, com os casos de SEG8-2 em `rls_rate_limits`/`rls_groups` e de SEG8-3 em `rls_account_privacy`); `pnpm db:check-permissions` em sincronia; `pnpm check` passou. Pilha B parada no fim.
 - **Não verificado:** o deadlock em si (sem teste concorrente, só leitura da ordem dos bloqueios); a corrida com `transfer_group_ownership`; tipos não regenerados, porque a assinatura não mudou; o hospedado.
 - **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 09:01 (BRT)
+
+- **Branch:** fix/rate-limits-test-isolation
+- **Agente(s):** banco-de-dados
+- **Resumo:** `pnpm db:test` depois de uma E2E, sem reset, falhava em `rls_rate_limits` (teste 76, "only calls with an id are recorded": have 14, want 2), porque contava `processed_requests` inteira como postgres. Só testes mudaram; o comportamento do banco está certo. Hora derivada de UTC menos 3.
+- **Alterações:**
+  - `rls_rate_limits.test.sql`: a contagem de `processed_requests` fica restrita ao usuário do próprio teste (`u('6')`).
+  - `rls_tasks.test.sql`: as duas contagens de `net.http_request_queue` ("starts empty" e "queued one request") ficam restritas à URL do teste (`http://example.invalid/%`), já que os crons e a E2E enfileiram pedidos próprios.
+  - `rls_whatsapp.test.sql`: o filtro dos usuários do job de resumo diário passa de `like '%0000000001%'` (casava qualquer uuid com essa sequência) para o prefixo exato dos ids `101` a `10a` do teste.
+  - Revisadas as demais agregações como postgres em `supabase/tests/*.sql`: as que restaram ou já filtram por ids do teste ou são invariantes globais de propósito (catálogo semeado em todo escopo, `total_xp` igual à soma, tabelas fixas como `occurrence_transitions` e `shopping_catalog_seed`). Contagens como usuário autenticado usam usuários criados na própria transação, então a RLS já isola.
+- **Arquivos/módulos principais:** `supabase/tests/rls_rate_limits.test.sql`, `supabase/tests/rls_tasks.test.sql`, `supabase/tests/rls_whatsapp.test.sql`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm db:reset`, insira linhas de outro usuário em `processed_requests` e `rate_limit_counters`, e rode `pnpm db:test`.
+- **Verificado:** na pilha B só com o banco: reset e `pnpm db:test` PASS (12 arquivos, 1911 testes); com 12 linhas sujas de outro usuário em `processed_requests` e uma em `rate_limit_counters`, o arquivo antigo reproduz "have 14, want 2" e o novo conjunto passa inteiro; reset de novo e PASS. `pnpm check` passou. Pilha B parada no fim.
+- **Não verificado:** uma E2E real seguida de `db:test` (pilha A ocupada); linhas sujas em `net.http_request_queue` (o worker do pg_net as consome). `enqueue_daily_summaries()` em `rls_whatsapp` ainda devolve um total global: um usuário da E2E com WhatsApp verificado e resumo devido mudaria o número; hoje a E2E não verifica telefone.
+- **Pendências / próximos passos:** nenhuma.

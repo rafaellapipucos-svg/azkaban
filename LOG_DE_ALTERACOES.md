@@ -1980,3 +1980,19 @@
 - **Verificado:** `pnpm check` passou (feature-shopping 16 testes, data 11, core 630, contracts 127, entre outros); `pnpm build:web` passou. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
 - **Não verificado:** a E2E nova não rodou, porque a pilha A estava ocupada pelo QA da Fase 6. Nada foi visto no navegador (layout das folhas novas a 320 px, tema escuro). Sem mutação. iOS e Android não testados.
 - **Pendências / próximos passos:** rodar `e2e/shopping.spec.ts` (e `shopping-layout.spec.ts`, que pode passar a cobrir as folhas novas) na próxima janela da pilha. O zero no singular das unidades ("0 pacote") ficou como está, à espera do humano.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:30 (BRT)
+
+- **Branch:** fix/shopping-seed-test (a partir de `feat/phase-7-shopping`, `4f48f91`)
+- **Agente(s):** banco-de-dados
+- **Resumo:** o teste 4 de `rls_shopping.test.sql` exigia exatamente 44 itens em todo catálogo do banco e quebrava depois da E2E ("salvar no catálogo" deixa 45). Agora prova que todo grupo e todo perfil têm cada item do seed, pelo nome, arquivado ou não.
+- **Alterações:**
+  - `supabase/tests/rls_shopping.test.sql`: a asserção global cruza `groups` e `profiles` com `shopping_catalog_seed` e conta os pares sem item de mesmo nome no escopo. Itens extras e arquivados não contam, conforme o ADR-0011 (seção 2: catálogos antigos são do admin, e arquivar mantém a linha). O plano continua em 135.
+  - As demais contagens deste arquivo e de `rls_shopping_security.test.sql` já são restritas aos grupos e usuários criados no próprio teste; nada mais mudou.
+- **Arquivos/módulos principais:** `supabase/tests/rls_shopping.test.sql`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma; segue o ADR-0011, seção 2.
+- **Como testar:** pilha B (`pilha-b.sh db`), `pnpm exec supabase db reset`, `pnpm db:test`; depois inserir um item extra num catálogo de grupo, arquivar um item de grupo e um pessoal, e rodar `pnpm db:test` de novo.
+- **Verificado:** `pnpm db:test` limpo: 7 arquivos, 1556 testes, PASS. Com a sobra simulada (ids aleatórios; catálogo de grupo com 45 itens e 1 arquivado, pessoal com 44 e 1 arquivado): 1556 testes, PASS. Numa transação desfeita, apagar "Café" de um catálogo de grupo faz a consulta nova acusar 1 faltante. Pilha B parada no fim. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Não verificado:** a E2E da pilha A não rodou de novo seguida de `pnpm db:test`; a sobra foi simulada à mão.
+- **Pendências / riscos:** a asserção casa pelo nome, então um item do seed renomeado num banco de desenvolvimento (sem cópia arquivada) a faz falhar; `db reset` resolve. Fora do escopo pedido, `rls_whatsapp.test.sql` tem asserções globais: `enqueue_daily_summaries()` = 4 conta perfis do banco todo, e os filtros `like '%0000000001%'` pegam qualquer UUID que contenha essa sequência (um UUID que inventei na primeira simulação, `...000000000001`, quebrou o teste 142). Com os ids aleatórios da E2E isso é improvável, mas sobras com resumo diário ativo quebrariam o teste.

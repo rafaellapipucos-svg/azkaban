@@ -83,6 +83,10 @@
   "preferences": {
     "title": "Notificações",
     "intro": "Os avisos sempre aparecem no sino. Aqui você escolhe quais também tocam no aparelho.",
+    "hideContent": {
+      "label": "Esconder o conteúdo na tela bloqueada",
+      "hint": "O aviso mostra só que há algo novo, sem o título. O detalhe aparece quando você abre o app."
+    },
     "quietHours": {
       "title": "Horário de silêncio",
       "hint": "Nesse horário o aparelho não toca. Lembrete de tarefa marcada para dentro do silêncio toca mesmo assim.",

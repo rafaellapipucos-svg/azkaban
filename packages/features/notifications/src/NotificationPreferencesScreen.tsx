@@ -31,6 +31,7 @@ import { WhatsAppSection } from './WhatsAppSection';
 
 const preferencesKey = ['notification-preferences'];
 const quietHoursKey = ['quiet-hours'];
+const hideContentKey = ['push-hide-content'];
 const devicesKey = ['push-devices'];
 
 const quietHoursFormSchema = quietHoursSchema.unwrap();
@@ -51,6 +52,7 @@ export function NotificationPreferencesScreen({ vapidPublicKey }: { vapidPublicK
         <>
           <PushSetupCard vapidPublicKey={vapidPublicKey} />
           <ChannelSwitches />
+          <HideContentSwitch />
         </>
       ) : null}
       <QuietHoursSection />
@@ -100,6 +102,35 @@ function ChannelSwitches() {
           onValueChange={(value) => save.mutate({ type, channel, enabled: value })}
         />
       ))}
+      {save.isError ? <ErrorText>{t('preferences.saveFailed')}</ErrorText> : null}
+    </View>
+  );
+}
+
+/** Push only (BL-32): WhatsApp keeps its text. Off until the person turns it on. */
+function HideContentSwitch() {
+  const { t } = useTranslation('notifications');
+  const queryClient = useQueryClient();
+  const hide = useQuery({
+    queryKey: hideContentKey,
+    queryFn: notificationsRepository.getPushHideContent,
+  });
+  const save = useMutation({
+    mutationFn: notificationsRepository.setPushHideContent,
+    onSettled: () => queryClient.invalidateQueries({ queryKey: hideContentKey }),
+  });
+  const value = save.isPending ? save.variables : (hide.data ?? false);
+
+  return (
+    <View>
+      {hide.isError ? <ErrorText>{t('preferences.load')}</ErrorText> : null}
+      <SwitchRow
+        label={t('preferences.hideContent.label')}
+        description={t('preferences.hideContent.hint')}
+        value={value}
+        disabled={!hide.isSuccess || save.isPending}
+        onValueChange={(next) => save.mutate(next)}
+      />
       {save.isError ? <ErrorText>{t('preferences.saveFailed')}</ErrorText> : null}
     </View>
   );

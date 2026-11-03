@@ -1509,3 +1509,34 @@
 - **Verificado:** `pnpm install --frozen-lockfile`; `pnpm check` passou (17 de 17 e 9 de 9; feature-notifications 10 testes, 8 novos); `pnpm build:web` exportou.
 - **Não verificado:** nada rodou contra a pilha (com o `backend-funcoes`) nem contra `phone-verification`, que ainda não existe. As telas não foram vistas no navegador (a seção precisa de sessão e de banco), nem em 375 px, nem no escuro. A E2E nova não rodou.
 - **Pendências / próximos passos:** `qa-testes`: rodar e ajustar `e2e/whatsapp.spec.ts` depois do `backend-funcoes`, e desligar `enqueue-daily-summaries` em `e2e/global-setup.ts`. Texto do aviso de consentimento para o humano revisar.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 01:53 (BRT)
+
+- **Branch:** feat/whatsapp-functions, criada a partir de feat/whatsapp-db (eabbf0e)
+- **Agente(s):** backend-funcoes
+- **Resumo:** Itens 2 a 5 do handoff `20261103-0030-arquiteto-para-backend-funcoes-whatsapp`, com as assinaturas do handoff `20261103-0135` e o despacho do `20261103-0050`: o canal WhatsApp no despacho, o prazo do vermelho no push, e as funções `phone-verification` e `whatsapp-webhook`, com testes contra a pilha. Nada sai para a Meta: o provedor é o `console`. Hora derivada de UTC menos 3 (PowerShell barrado no worktree).
+- **Alterações:**
+  - `dispatch-notifications`:
+    - reivindica só os canais que a execução sabe enviar (`p_channels`): `web_push` só com VAPID, `whatsapp` quando os segredos passam em `parseWhatsAppEnv` (sempre, com `console`). Sem VAPID, os push ficam `pending` sem tentativa gasta, e a resposta é 200. 500 `channels_not_configured` só sem canal nenhum;
+    - `itemSchema` com `timezone`, `overdueAt`, `occurrenceStatus`, `phone` e `summary` (pelo contrato), e uma linha `whatsapp` sem telefone, ou um resumo sem fonte, é `invalid_item`;
+    - `render` do push repassa os três campos e o `late` de `buildPushPayload`, com `taskRules.lateCompletionWindowHours`;
+    - `WhatsAppChannel` em `dispatch.ts`: monta o resumo com `buildDailySummary` (core), o template `whatsappDefaults.templates.dailySummary` e o idioma de `templateLanguages`, e o `sent` leva `whatsapp: { providerMessageId, waId, template, provider }` ao report.
+  - **Decisão: provedor que lança** (só o `ConsoleProvider`, quando o `insert` em `whatsapp_console_messages` falha) é `retry` com `wa_provider_error`, pelo backoff e `maxAttempts` de sempre: nada chegou a ninguém, e repetir não duplica. Falha de montagem continua `failed` com `send_error`. Na `phone-verification`, é 502 `whatsapp_send_failed`.
+  - `phone-verification` (nova, `verify_jwt = true`): usuário pelo Auth, corpo até 1 KiB, `phoneVerificationRequestSchema`, `start_phone_verification` com service role, envio `code` (`phone_code_v1`), linha `phone_code` em `whatsapp_messages`; 200, 400, 401, 429 e 502. O log tem só evento, provedor e código de erro.
+  - `whatsapp-webhook` (nova, `verify_jwt = false`): `GET` por `challengeAnswer`; `POST` com 500 sem segredo, `readLimited` até 1 MiB (413), HMAC dos bytes brutos (401), assinado e inválido é 200, filtro por `phone_number_id` só com `meta`, `record_whatsapp_statuses`, `whatsapp_stop_by_wa_id` e a confirmação `text` (`whatsapp.stopReply`) por tentativa única, só quando algum perfil mudou; linha `stop_reply` sem `user_id`. Erro do banco é 500, para a Meta repetir.
+  - `_shared/contracts.ts` (o `@azkaban/contracts` das funções que carregam WhatsApp) e `_shared/whatsapp/runtime.ts` (segredos e provedor, com a escrita do console pela service role). `deno.json` do despacho com as chaves do grafo novo; das duas funções novas, com as do contrato.
+  - `.env.example`: valores `local-demo-*` só para `WHATSAPP_APP_SECRET` e `WHATSAPP_VERIFY_TOKEN`, comentados, como aprovado pelo orquestrador; o comentário do VAPID diz o comportamento novo.
+  - Testes: `push.test.ts` (3 do canal), `dispatch.integration.test.ts` (o caso "sem VAPID dá 500" virou "sem VAPID o push espera e o resumo sai pelo despacho servido, com o `ConsoleProvider`"), `phone-verification/verification.integration.test.ts` (4) e `whatsapp-webhook/webhook.integration.test.ts` (6), no `functions:test`; as duas funções no `wait-for-functions.mjs`.
+  - Handoffs `20261103-0153-backend-funcoes-para-arquiteto-implantacao-whatsapp` e `20261103-0153-backend-funcoes-para-notificacoes-whatsapp-phone-verification`.
+- **Arquivos/módulos principais:** `supabase/functions/{dispatch-notifications,phone-verification,whatsapp-webhook}/*`, `supabase/functions/_shared/{contracts.ts,whatsapp/runtime.ts,wait-for-functions.mjs}`, `supabase/functions/.env.example`, `supabase/config.toml`, `package.json`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** a do provedor que lança, acima. Idioma do código de verificação: o primeiro de `templateLanguages` (há um só). A confirmação do PARAR é em pt-BR, porque o número pode estar em contas de idiomas diferentes.
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`, `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm functions:test`.
+- **Verificado:**
+  - `pnpm functions:test`: 167 de 167, com a pilha recém-resetada.
+  - `pnpm db:test`: 1359 de 1359. `pnpm check`: passou (17 de 17 e 9 de 9 tarefas).
+  - `_shared/import-maps.test.ts` verde para as sete funções; as três tocadas responderam 204 no preflight logo depois do `db:start`.
+  - Mutações, desfeitas: assinatura ignorada no webhook servido derruba "a POST passes only with the HMAC" (1 falha); a checagem do JWT tirada da `phone-verification` derruba "only a signed-in user may ask" (1); o PARAR por substring derruba 2 testes de unidade e o de integração do PARAR (3).
+  - O log da função tem só `whatsapp_console`, `phone_verification_*` e contagens; nenhum telefone nem código.
+- **Não verificado:** a E2E (fica com o QA da fase); nada contra a Meta; o `MetaCloudProvider` dentro do Edge Runtime; o código das funções não passa por `tsc` (o `supabase/` está fora do typecheck e do ESLint, como antes).
+- **Pendências / próximos passos:** os dois handoffs. `qa-testes`: o resumo pela E2E lê `whatsapp_console_messages`; perfis prontos na E2E pedem `enqueue-daily-summaries` desligado (já apontado pelo `banco-de-dados`).

@@ -228,25 +228,15 @@ export function ShoppingListScreen({ listId, mode }: { listId: string; mode?: st
         <>
           <Muted>{t('list.completeHint')}</Muted>
           <Muted>{t(xp.key, xp)}</Muted>
-          {online ? (
-            <ConfirmButton
-              label={t('list.complete')}
-              confirmLabel={t('list.completeConfirm')}
-              loading={complete.isPending}
-              onConfirm={() => complete.mutate()}
-            />
-          ) : (
-            // Never queued: it gives XP and cannot be undone (ADR-0012, section 5).
-            <>
-              <Button
-                variant="secondary"
-                label={t('list.complete')}
-                disabled
-                onPress={() => undefined}
-              />
-              <Muted role="status">{t('list.completeOffline')}</Muted>
-            </>
-          )}
+          {/* Never queued: it gives XP and cannot be undone (ADR-0012, section 5). */}
+          <ConfirmButton
+            label={t('list.complete')}
+            confirmLabel={t('list.completeConfirm')}
+            loading={complete.isPending}
+            disabled={!online}
+            onConfirm={() => complete.mutate()}
+          />
+          {online ? null : <Muted role="status">{t('list.completeOffline')}</Muted>}
         </>
       ) : null}
       {manage ? (

@@ -3279,3 +3279,18 @@
 - **Verificado:** `pnpm check` passou (17 de 17 e 12 de 12; ui 76 testes, eram 69; `functions:imports` 10 de 10); `pnpm build:web` exportou, com um `.env.local` provisório copiado do checkout principal (apagado depois). `/design-system` no servidor de dev com o Chromium do Playwright: a 320 px (e 320 CSS com `deviceScaleFactor` 2) rolagem da página 0, da barra 0, menor espaço entre rótulos 5 px (antes 2), nenhum rótulo cortado, abas de 44 a 64 px de largura e 64 de altura; a 1280 e 375 px nada rola; a 188 e 160 CSS px a página não rola, a barra rola por dentro como antes e o espaço entre rótulos é 4 px (antes 0). O `ConfirmButton` desligado: `aria-disabled="true"`, texto `#5F5673` sobre branco, borda tracejada, opacidade 1; dois cliques não mudam o rótulo; o normal arma no primeiro clique.
 - **Não verificado:** `e2e/a11y.spec.ts` e a E2E em geral (sem pilha; fica para o BL-22); tema escuro na tela (só pelos tokens); nativo (iOS e Android, onde a largura das fontes pode variar e os 2 px de folga a 320 px podem virar rolagem curta da barra); leitor de tela. Sem teste de componente para o desarme do `ConfirmButton`: o pacote não tem ambiente de React.
 - **Pendências / próximos passos:** BL-18 (compras troca o `Button` desligado pelo `ConfirmButton` com `disabled`).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:15 (BRT)
+
+- **Branch:** fix/shopping-offline-confirm, criada a partir de feat/backlog-after-phase-8 (a8b1886)
+- **Agente(s):** shopping
+- **Resumo:** BL-18. Finalizar lista sem rede volta a ser o `ConfirmButton`, agora com `disabled`, em vez de um `Button` desligado no lugar. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `ShoppingListScreen`: um único `ConfirmButton` com `disabled={!online}`; o aviso `list.completeOffline` continua abaixo dele só quando está sem rede. Finalizar continua fora da fila offline (ADR-0012, seção 5).
+- **Arquivos/módulos principais:** `packages/features/shopping/src/ShoppingListScreen.tsx`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. Era o único ponto de compras com a troca; excluir lista já usava o `ConfirmButton` e não depende de rede.
+- **Como testar:** `pnpm check`; abrir uma lista aberta, desligar a rede no navegador e ver Finalizar desligado com o aviso; religar e confirmar em dois passos.
+- **Verificado:** `pnpm check` passou (17 de 17 e 12 de 12; shopping 21 testes).
+- **Não verificado:** a tela no navegador e a E2E (sem pilha; fica para o BL-22); nativo; leitor de tela. Não há teste de unidade da regra de desligar: é só `!online` no componente, e o pacote não tem ambiente de React.
+- **Pendências / próximos passos:** nenhuma.

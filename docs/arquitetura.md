@@ -93,6 +93,7 @@ Regras completas no [ADR-0008](adr/0008-notificacoes-push-pwa-vermelho-automatic
 - Cada canal externo ligado ganha uma linha em `notification_outbox`, única por notificação e canal. `dispatch-notifications`, a cada minuto, reivindica um lote, aplica o horário de silêncio no fuso do perfil, envia pela implementação de `NotificationChannel` e informa o resultado, com backoff.
 - O app recebe o sino pelo Realtime (`postgres_changes` em `notifications`, com RLS).
 - Web Push usa VAPID: a chave privada é segredo da Edge Function, e a pública vem de `EXPO_PUBLIC_VAPID_PUBLIC_KEY`. Inscrições só por `register_push_subscription`, com lista de hosts de serviços de push. No iPhone, só com o app na Tela de Início, iOS 16.4 ou mais novo.
+- Push nativo (atrás de `features.nativePush`) vai pelo mesmo canal `web_push`: `push_subscriptions` tem o tipo `web` ou `expo`, o token Expo entra por `register_native_push_subscription`, e o despacho fala com a API de push da Expo, com `data.url` igual ao `url` do Web Push (ADR-0012, seção 11).
 - `apps/app/public` tem `index.html`, `manifest.webmanifest` e `sw.js`. O service worker só mostra o push e abre o caminho interno; não tem cache.
 - O vermelho automático é a função SQL `auto_miss_occurrences`, a cada 5 minutos, por `auto_miss_at`. Os triggers de status gravam histórico, XP e o aviso.
 - `notificationRules` (`packages/config`) tem espelho em `app_settings`, chave `notification_rules`. O WhatsApp da Fase 5 entra como mais um canal na mesma outbox.
@@ -138,6 +139,8 @@ Regras completas no [ADR-0012](adr/0012-polimento-lgpd-limites-offline.md).
 
 - "Exportar meus dados" e "excluir minha conta" são as Edge Functions `account-export` e `account-delete`, com o JWT do usuário e service role por dentro, porque a RLS esconde parte do que é da pessoa e o Storage e o Auth não se alcançam por SQL. As funções SQL que elas chamam só aceitam `service_role`.
 - A exportação é um JSON (`accountExportSchema`), com as fotos por URL assinada de 1 hora, e não é guardada. A exclusão exige login recente, bloqueia enquanto a pessoa for dona de grupo com outros membros, remove os objetos e as provas dela antes de `auth.admin.deleteUser` e deixa só um registro com o UUID em `account_deletions`.
+- A linha aberta de `account_deletions` trava os convites dos grupos do dono só por `privacyRules.openDeletionHoldMinutes` (espelho em `app_settings`, chave `privacy_rules`), e cada tentativa renova o prazo.
+- O cliente manda de novo, até `defaults.functionRetryDelaysMs`, só quando `/functions/v1/` responde 503, num `fetch` só em `packages/data/src/client.ts`: nenhuma função devolve 503, então 503 é função que não rodou (ADR-0012, seção 18).
 - Limites de uso por usuário: `consume_rate_limit`, janela fixa em `rate_limit_counters`, chamada de dentro das RPCs e triggers, com `rate_limited` (`PT429`, HTTP 429). `rateLimitRules` tem espelho em `app_settings`, chave `rate_limit_rules`. OTP e senha ficam com os limites do GoTrue, configurados no painel.
 - A fila offline é o TanStack Query: mutações pausadas e persistidas com o `storage` de `packages/platform`. Só status de ocorrência e as ações de item de compras entram; ids e `requestId` nascem no cliente, e `processed_requests` aplica cada `requestId` do stepper uma vez.
 

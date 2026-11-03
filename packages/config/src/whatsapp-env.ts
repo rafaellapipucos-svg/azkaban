@@ -12,6 +12,8 @@ const realSecret = z
   .min(16)
   .refine((value) => !value.startsWith('local-demo-'), 'a local demo value');
 
+const phoneNumberId = z.string().regex(/^\d{5,20}$/);
+
 const shared = {
   /** App secret of the Meta app: the key of `X-Hub-Signature-256`. Without it, the webhook answers 500. */
   WHATSAPP_APP_SECRET: secret,
@@ -21,7 +23,12 @@ const shared = {
 
 const whatsappEnvSchema = z.discriminatedUnion('WHATSAPP_PROVIDER', [
   /** Logs and writes to `whatsapp_console_messages`. Local and CI, with no credentials. */
-  z.object({ WHATSAPP_PROVIDER: z.literal('console'), ...shared }),
+  z.object({
+    WHATSAPP_PROVIDER: z.literal('console'),
+    ...shared,
+    /** Optional here: when set, the webhook still drops events for any other number. */
+    WHATSAPP_PHONE_NUMBER_ID: z.preprocess(blank, phoneNumberId.optional()),
+  }),
   z.object({
     WHATSAPP_PROVIDER: z.literal('meta'),
     ...shared,
@@ -29,7 +36,7 @@ const whatsappEnvSchema = z.discriminatedUnion('WHATSAPP_PROVIDER', [
     WHATSAPP_VERIFY_TOKEN: realSecret,
     /** System user token with `whatsapp_business_messaging`. Never logged. */
     WHATSAPP_ACCESS_TOKEN: z.string().min(32),
-    WHATSAPP_PHONE_NUMBER_ID: z.string().regex(/^\d{5,20}$/),
+    WHATSAPP_PHONE_NUMBER_ID: phoneNumberId,
   }),
 ]);
 

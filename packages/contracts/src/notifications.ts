@@ -147,6 +147,57 @@ export const pushPayloadSchema = z.object({
 });
 export type PushPayload = z.infer<typeof pushPayloadSchema>;
 
+// Native push (ADR-0012, section 11). Same `web_push` channel and outbox row: the dispatcher sends one
+// notification to every subscription of the user, of either kind. Only the transport differs.
+
+/** Column `kind` of `push_subscriptions`. `web` has endpoint and keys; `expo` has the token. */
+export const pushSubscriptionKindSchema = z.enum(['web', 'expo']);
+export type PushSubscriptionKind = z.infer<typeof pushSubscriptionKindSchema>;
+
+/**
+ * What `getExpoPushTokenAsync` gives, `ExponentPushToken[...]` (or the newer `ExpoPushToken[...]`). A
+ * capability, like the endpoint: whoever holds it can push to this device. Never logged.
+ */
+export const expoPushTokenSchema = z
+  .string()
+  .max(256)
+  .regex(/^Expo(nent)?PushToken\[[A-Za-z0-9_-]{1,200}\]$/);
+
+/** Argument of `register_native_push_subscription`, the sibling of `register_push_subscription`. */
+export const nativePushSubscriptionInputSchema = z.object({
+  token: expoPushTokenSchema,
+  /** Shown in the list of devices, as for a browser: the device's name or model. */
+  userAgent: pushSubscriptionInputSchema.shape.userAgent,
+});
+export type NativePushSubscriptionInput = z.infer<typeof nativePushSubscriptionInputSchema>;
+
+/** The Android channel the app creates before asking for permission; every message names it. */
+export const nativePushAndroidChannelId = 'default';
+
+/** `data` of a native push. The tap opens `url`, the same internal path as the Web Push. */
+export const nativePushDataSchema = pushPayloadSchema.pick({
+  v: true,
+  notificationId: true,
+  type: true,
+  url: true,
+});
+export type NativePushData = z.infer<typeof nativePushDataSchema>;
+
+/**
+ * One message to the Expo push API, which caps it at 4096 bytes; the largest fits in
+ * `pushPayloadMaxBytes`. Title and body are those of the Web Push; Expo has no `tag`.
+ */
+export const nativePushMessageSchema = z.object({
+  to: expoPushTokenSchema,
+  title: pushPayloadSchema.shape.title,
+  body: pushPayloadSchema.shape.body,
+  data: nativePushDataSchema,
+  channelId: z.literal(nativePushAndroidChannelId),
+  /** `notificationRules.pushTtlSeconds`, as the Web Push. */
+  ttl: z.int().min(0),
+});
+export type NativePushMessage = z.infer<typeof nativePushMessageSchema>;
+
 /** Raised by `register_push_subscription`. Any other message is the generic failure. */
 export const notificationErrorCodeSchema = z.enum([
   /** A push service outside `notificationRules.pushEndpointHosts`: this browser cannot be used. */

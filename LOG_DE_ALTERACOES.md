@@ -3079,3 +3079,19 @@
 - **Verificado:** `pnpm check` passou (17 de 17 e 12 de 12; `functions:imports` 10 de 10). Os 3 testes de `cacheBelongsToAnother` seguem valendo; a regra de quando limpar não mudou.
 - **Não verificado:** o hook e a remontagem num React de verdade (não há `@testing-library` em `packages/data`); como o Expo Router refaz o `Stack` raiz com `key` nova (a navegação deve sair do estado do contêiner ou da URL); a troca direta de A para B e a revogação real do token; nativo; E2E.
 - **Pendências / próximos passos:** QA, numa próxima passada na pilha A: sair pelo botão e entrar com outra conta, conferindo que a navegação volta a `/welcome` e depois a Hoje sem tela em branco.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:37 (BRT)
+
+- **Branch:** `fix/accept-invite-lock-order`, criada a partir de `feat/phase-8-polish` (`c522f50`)
+- **Agente(s):** banco-de-dados
+- **Resumo:** corrige SEG8-2P-1 (baixa). `accept_invite` passa a bloquear o perfil do dono antes do convite, na mesma ordem de `finish_account_deletion`, e o deadlock (40P01) entre um aceite num grupo solo e o `finish` deixa de existir. Hora derivada de UTC menos 3.
+- **Alterações:**
+  - `20261104160000_accept_invite_lock_order.sql`: `create or replace` de `accept_invite(text)`. Lê `group_id` e dono sem bloqueio, bloqueia o perfil do dono (`for share`) e só então o convite (`for update`), revalidando revogação, validade, usos e `group_id` sob o bloqueio. Um aceite que esperou o `finish` não acha mais o convite e responde `null`. Se a posse do grupo mudou entre a leitura e o bloqueio, responde `null` (o perfil bloqueado seria o errado); fica como `ponytail:` no arquivo.
+  - Mantidos: `invite_lookup` gasto em toda chamada, `null` sem `raise` para código inválido (SEG8-2), `null` com exclusão aberta do dono (SEG8-3). Assinatura e grants iguais (`create or replace` preserva; conferido `anon` sem e `authenticated` com execução).
+- **Arquivos/módulos principais:** `supabase/migrations/20261104160000_accept_invite_lock_order.sql`
+- **Migrations:** `20261104160000_accept_invite_lock_order.sql`
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm db:reset` e `pnpm db:test`.
+- **Verificado:** na pilha B só com o banco, `supabase db reset` e `pnpm db:test` (12 arquivos, 1911 testes, PASS, com os casos de SEG8-2 em `rls_rate_limits`/`rls_groups` e de SEG8-3 em `rls_account_privacy`); `pnpm db:check-permissions` em sincronia; `pnpm check` passou. Pilha B parada no fim.
+- **Não verificado:** o deadlock em si (sem teste concorrente, só leitura da ordem dos bloqueios); a corrida com `transfer_group_ownership`; tipos não regenerados, porque a assinatura não mudou; o hospedado.
+- **Pendências / próximos passos:** nenhuma.

@@ -15,6 +15,8 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { gamificationRules } from '../../../packages/config/src/gamification.ts';
+import { taskRules } from '../../../packages/config/src/tasks.ts';
 import { apiUrl, dbContainer, project } from './local-stack.mjs';
 
 export const API = apiUrl;
@@ -86,6 +88,15 @@ export function backdateProof(proofId: string, interval: string) {
     alter table public.task_proofs enable trigger task_proofs_before_update;
     commit;`);
 }
+
+/** The XP events of an occurrence as `reason=amount`, sorted, or `none`. */
+export const xpOf = (occurrenceId: string) =>
+  sql(
+    `select coalesce(string_agg(reason || '=' || amount, ',' order by reason, amount), 'none') from public.xp_events where occurrence_id = '${occurrenceId}'`,
+  )[0];
+
+/** What an easy occurrence done on time with a counted proof earns: the base and the proof bonus (ADR-0010, section 1). */
+export const PAID_WITH_PROOF = `occurrence_done=${taskRules.xp.status.done * taskRules.xp.difficultyWeight.easy},proof_bonus=${gamificationRules.xp.proofBonus}`;
 
 // ----------------------------------------------------------------------------------------- people
 

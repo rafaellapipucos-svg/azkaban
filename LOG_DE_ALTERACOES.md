@@ -1950,3 +1950,18 @@
 - **Verificado:** `pnpm check` passou (17 de 17 e 10 de 10; core 680 testes, `xp.test.ts` 17). `pnpm build:web` passou. `playwright test --list` carrega as 4 specs novas. Mutações, desfeitas: soma simples sem o piso por ocorrência derruba 2 de 17; agrupar pelo `id` do evento em vez da ocorrência derruba 3 de 17.
 - **Não verificado:** a E2E não rodou, porque a pilha A estava ocupada pelo QA da Fase 7 durante toda a tarefa; o repositório nunca falou com um banco real; nenhuma tela foi aberta num navegador.
 - **Pendências / próximos passos:** rodar `e2e/gamification.spec.ts` com a pilha A livre. O comentário de `20261103170400_occurrence_award_xp_cap.sql` ainda diz que `capRoom` soma sem o piso, mas a migration já foi integrada e não se edita.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:49 (BRT)
+
+- **Branch:** `fix/proof-tests-xp-bonus`, a partir de `feat/phase-6-gamification` (`c5e5526`)
+- **Agente(s):** backend-funcoes
+- **Resumo:** os testes de integração de prova passam a esperar o bônus de prova da Fase 6 (handoff 20261103-0328), conferindo motivo e valor de cada evento, não só a contagem.
+- **Alterações:**
+  - `_shared/proof-kit.ts`: `xpOf(occurrenceId)` devolve os eventos como `reason=amount` ordenados, ou `none`; `PAID_WITH_PROOF` é `occurrence_done=10,proof_bonus=5`, derivado de `taskRules.xp` e `gamificationRules.xp.proofBonus`.
+  - `proof-validate/validate.integration.test.ts`: "without approval" espera base e bônus.
+  - `proof-retention/retention.integration.test.ts`: o helper local `xp` (contagem) sai; a aprovação pela retenção, a retomada de uma execução interrompida e a prova vencida há um ano esperam base e bônus, e a segunda execução não duplica nenhum dos dois.
+- **Arquivos/módulos principais:** `supabase/functions/_shared/proof-kit.ts`, `supabase/functions/proof-validate/validate.integration.test.ts`, `supabase/functions/proof-retention/retention.integration.test.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0010, seção 1 (bônus de prova). Código das funções inalterado.
+- **Como testar:** `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm functions:test`. Rodado aqui só `pnpm check` e `node --test supabase/functions/_shared/import-maps.test.ts`, sem pilha.
+- **Pendências / próximos passos:** rodar `pnpm functions:test` com a pilha. Os E2E que leem `xp_events` (`proof-paths`, `notifications-jobs`, `gamification`) somam valores ou não têm prova, e não devem quebrar; não foram rodados.

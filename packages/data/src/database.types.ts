@@ -1190,6 +1190,9 @@ isOneToOne: false
 "phone_limit_wait":
 { Args: { "p_max": number,"p_times": (string)[],"p_window": string }; Returns: number
                            },
+"privacy_rules":
+{ Args: Record<PropertyKey, never>; Returns: Json
+                           },
 "profile_timezone":
 { Args: { "p_timezone": string }; Returns: string
                            },

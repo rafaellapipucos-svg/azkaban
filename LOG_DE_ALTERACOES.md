@@ -3522,3 +3522,19 @@
 - **Verificado:** `pnpm check` passou (o `functions:imports` com 20 testes). `push.test.ts`: 28 testes, 7 novos do nativo. `pnpm functions:test` na pilha A, uma vez: 225 testes, 0 falhas, inclusive o novo de integração (navegador e aparelho da mesma pessoa, contra o claim e o report reais: os dois recebem, `DeviceNotRegistered` apaga só o aparelho, 410 apaga só o navegador). O guarda do 503 conferido por mutação (um `// 503` em `native-push.ts` derruba o teste). `parseItem` com inscrição mista, token ruim e inscrição sem `kind` conferido por um script avulso no Deno (o `.env` local não tem VAPID, então a função servida não reivindica linha de push).
 - **Não verificado:** a API real da Expo (nenhuma chamada, nenhuma conta); o formato da resposta foi escrito pela documentação. A função servida com VAPID e uma inscrição `expo`. E2E (fica com o BL-22). CI no Linux.
 - **Pendências / próximos passos:** handoff `20261103-1053-backend-funcoes-para-arquiteto-push-nativo-no-despacho` (segredos em `docs/implantacao.md`, QUADRO). Recibos da Expo, se um dia valer a pena. O teste de exportação com `expo_token` entre os segredos (item 3 do handoff 1025) não entrou.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:56 (BRT)
+
+- **Branch:** docs/native-push-secrets, criada a partir de feat/backlog-after-phase-8 (960c107)
+- **Agente(s):** arquiteto
+- **Resumo:** Handoff `20261103-1053-backend-funcoes-para-arquiteto-push-nativo-no-despacho`, menos o QUADRO (fica com o orquestrador). Segredos do push nativo documentados na implantação; `EXPO_PUSH_URL` fica constante na função, decisão no ADR-0012. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `docs/implantacao.md`, seção 2: bloco "Push nativo" com `NATIVE_PUSH_PROVIDER` e `EXPO_ACCESS_TOKEN` (quando, valor, padrão `fake`), que só ficam nos segredos da função (nunca `EXPO_PUBLIC_`, Netlify ou repositório), que dependem do VAPID por dividirem a linha `web_push`, o comportamento de `fake` e de configuração inválida, e que `expo` só liga depois das contas do BL-29, por decisão do humano, junto com `features.nativePush`. Sem valores reais.
+  - `docs/adr/0012-polimento-lgpd-limites-offline.md`, seção 11: parágrafo "URL da API da Expo e segredos". `EXPO_PUSH_URL` não vai para `packages/config`: não muda por ambiente nem por produto, um só consumidor; `graphApiBaseUrl` está lá porque o provedor da Meta recebe a base por opção e a Graph API é versionada. Vira config se a Expo versionar a URL ou houver proxy por ambiente.
+- **Arquivos/módulos principais:** `docs/implantacao.md`, `docs/adr/0012-polimento-lgpd-limites-offline.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0012, seção 11 (acima).
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou. O texto confere com `nativePushTransport` em `native-push.ts` (vazio é `fake`, token com 16+, outro valor é `native_push_not_configured`).
+- **Não verificado:** nada roda contra a Expo; sem pilha.
+- **Pendências / próximos passos:** QUADRO (BL-14 feito; BL-19 e BL-20 sem esperar o BL-14), com o orquestrador.

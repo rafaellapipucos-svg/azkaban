@@ -51,6 +51,22 @@ pnpm exec supabase secrets set WHATSAPP_APP_SECRET=<aleatório> WHATSAPP_VERIFY_
 - Com `console` (vazio também é `console`), nada sai para a Meta: o código de verificação e o resumo vão para `whatsapp_console_messages`, que some em um dia. Em produção, ninguém recebe o código, e ninguém chega a ligar o WhatsApp. É o esperado até a seção 10 do ADR-0009 ser cumprida.
 - Sem `WHATSAPP_APP_SECRET` e `WHATSAPP_VERIFY_TOKEN`, o webhook responde 500 ao `POST` e 403 ao `GET`.
 
+**Push nativo** (ADR-0012, seção 11). Vai na mesma linha `web_push` da outbox, então só sai com o VAPID acima configurado: sem ele, a linha nem é reivindicada. Os nomes estão no `supabase/functions/.env.example`, vazios:
+
+| Segredo                | Quando        | Valor                                                 |
+| ---------------------- | ------------- | ----------------------------------------------------- |
+| `NATIVE_PUSH_PROVIDER` | sempre        | vazio ou `fake` até as contas do BL-29; `expo` depois |
+| `EXPO_ACCESS_TOKEN`    | só com `expo` | token de acesso da conta Expo, 16 caracteres ou mais  |
+
+- Os dois são segredos da função `dispatch-notifications`, gravados por `supabase secrets set`. Nunca vão ao app (nada de `EXPO_PUBLIC_`), ao Netlify nem ao repositório.
+- Com `fake` (vazio também é `fake`), nada sai da função: o log registra `native_push_fake` com a quantidade de mensagens, e a entrega ao aparelho conta como feita. Não há aparelho inscrito enquanto `features.nativePush` estiver desligado, então isso não engole notificação de ninguém.
+- Com `expo` sem token válido, ou com qualquer outro valor (`Expo`, por exemplo), o log registra `native_push_not_configured`, e as inscrições `expo` repetem até `maxAttempts`, sem atrapalhar os navegadores da mesma pessoa.
+- **Não ligue sem a decisão do humano.** `NATIVE_PUSH_PROVIDER=expo` e `EXPO_ACCESS_TOKEN` só depois do BL-29: conta Expo, credenciais FCM (Android) e APNs (iPhone) no EAS, e a conferência em aparelho. `features.nativePush` liga junto, não antes.
+
+```bash
+pnpm exec supabase secrets set NATIVE_PUSH_PROVIDER=expo EXPO_ACCESS_TOKEN=<token da conta Expo> --project-ref <ref>
+```
+
 No SQL Editor do projeto, crie os quatro segredos do Vault:
 
 | Nome no Vault                | Valor                                                            | Quem lê                                                                                |

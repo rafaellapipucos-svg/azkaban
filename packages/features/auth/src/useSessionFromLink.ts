@@ -1,5 +1,5 @@
 import { safeInternalPath } from '@azkaban/core';
-import { authRepository } from '@azkaban/data';
+import { authRepository, linkNotRequested } from '@azkaban/data';
 import { isWeb } from '@azkaban/platform';
 import { useRouter, type Href } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -7,6 +7,8 @@ import { Linking } from 'react-native';
 
 /** `/sign-in?link=…` after a sign-in link GoTrue no longer takes: expired or already used. */
 export const expiredLinkParam = 'expired';
+/** `/sign-in?link=…` after a sign-in link this device did not ask for (BL23-2). */
+export const notRequestedLinkParam = 'not-requested';
 
 /**
  * Native only (ADR-0012, section 11): starts the session a sign-in link opened the app with, then
@@ -24,7 +26,10 @@ export function useSessionFromLink(ready: boolean) {
       if (!url) return;
       authRepository
         .setSessionFromLink(url)
-        .then((path) => path !== null && setTarget(path))
+        .then((path) => {
+          if (path === linkNotRequested) setTarget(`/sign-in?link=${notRequestedLinkParam}`);
+          else if (path !== null) setTarget(path);
+        })
         // Expired or used: the sign-in screen says so and offers another link. Someone already
         // signed in has nothing to do there.
         .catch(async () => {

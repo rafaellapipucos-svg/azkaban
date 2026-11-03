@@ -3630,3 +3630,22 @@
 - **Verificado:** `pnpm check` (abaixo).
 - **Não verificado:** nada roda; é texto.
 - **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 11:14 (BRT)
+
+- **Branch:** fix/session-link-requires-request, criada a partir de feat/backlog-after-phase-8 (a251638)
+- **Agente(s):** auth-grupos
+- **Resumo:** BL23-2, mitigação no nativo do login CSRF pelo deep link: o link de sessão só vira a sessão do aparelho se este aparelho pediu um link há pouco, e nunca troca a conta de quem já está dentro. Fluxo implícito mantido (ADR-0004), sem tocar em `client.ts` nem em `flowType`. Web sem mudança. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `authRepository.sendMagicLink` e `signUp` gravam, no nativo e depois do sucesso, a hora do pedido em `storage` (`azkaban.session-link-requested-at`); a reautenticação da exclusão usa `sendMagicLink`, então fica coberta.
+  - `setSessionFromLink`: com sessão de outra conta (o `sub` do token do link, lido sem verificar, difere do usuário atual), ignora os tokens e devolve só o caminho; sem pedido dentro de `defaults.sessionLinkRequestMaxAgeMs` (1 h, igual ao `otp_expiry`), não chama `setSession` e devolve `linkNotRequested` (ou só o caminho, se há sessão); com pedido válido, apaga o marcador e troca a sessão.
+  - A mesma conta com pedido válido ainda troca a sessão: é o link de reautenticação antes de excluir a conta, que precisa do `amr` novo do token (`account.ts`, `reauthMaxAgeMinutes`). Desvio consciente do "com sessão, nunca troca": trocar pela mesma conta não é CSRF.
+  - `useSessionFromLink` leva `linkNotRequested` a `/sign-in?link=not-requested`, e a tela de entrar mostra `signIn.linkNotRequested` ("peça o link neste aparelho").
+  - Testes em `packages/data/src/auth/index.test.ts`: sessão de outra conta não troca (mesmo com pedido), sem marcador não troca, marcador vencido não troca, marcador válido troca uma vez e é consumido, mesma conta só troca com pedido.
+- **Arquivos/módulos principais:** `packages/data/src/auth/index.ts`, `packages/data/src/auth/link.ts`, `packages/features/auth/src/useSessionFromLink.ts`, `packages/features/auth/src/SignInScreen.tsx`, `packages/config/src/defaults.ts`, `packages/i18n/src/pt-BR/auth.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. PKCE segue fora por ADR-0004; o caso web vai para a decisão do humano.
+- **Como testar:** `pnpm check`; manual num aparelho: link montado à mão com tokens de outra conta, com e sem sessão, e com e sem pedido de link no aparelho.
+- **Verificado:** `pnpm check` passou (lint e Prettier, fronteiras, typecheck com e2e e funções, testes, `functions:imports`).
+- **Não verificado:** aparelho real e Hermes (`atob` existe no Hermes do RN 0.88, não conferido em execução); E2E e pilha, como pedido.
+- **Pendências / próximos passos:** a web continua aceitando o fragmento pelo `detectSessionInUrl` (decisão do humano). Um link pedido em outro aparelho deixa de entrar no nativo, por desenho.

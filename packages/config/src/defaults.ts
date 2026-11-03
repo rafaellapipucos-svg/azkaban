@@ -11,4 +11,9 @@ export const defaults = {
    * each of these and sends again, so its length is the number of retries. Any other answer, as is.
    */
   functionRetryDelaysMs: [500, 1500],
+  /**
+   * Native only (BL23-2): a sign-in link starts a session only this long after this device asked for
+   * one. The GoTrue link lives as long, `otp_expiry` in `supabase/config.toml`.
+   */
+  sessionLinkRequestMaxAgeMs: 3_600_000,
 } as const;

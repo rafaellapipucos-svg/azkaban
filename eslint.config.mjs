@@ -16,6 +16,15 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
       'no-restricted-globals': ['error', ...browserGlobals],
+      // ponytail: flags any object key, not only style ones; a props object can use the JSX prop instead.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "Property[key.name='pointerEvents']",
+          message:
+            'Use the pointerEvents prop: react-native-web 0.21 drops it from styles (QA6C-1, Fab, NotificationToaster).',
+        },
+      ],
     },
   },
   { files: ['packages/platform/**'], rules: { 'no-restricted-globals': 'off' } },

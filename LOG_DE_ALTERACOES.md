@@ -2721,3 +2721,20 @@
 - **Decisões/ADRs:** nenhuma; `phone_verifications` com `user_id` nulo por 48 h é decisão do ADR-0012 e não foi apontado.
 - **Como testar:** os PoCs estão descritos nos handoffs (pilha local, `curl` e `psql`).
 - **Pendências / próximos passos:** a CSP Report-Only não está no diff (`_headers` não mudou), então não foi revisada. Corrida de SEG8-3 sem PoC. Os privilégios em `auth` no hospedado não foram verificados. Pilha A parada às 06:43.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:52 (BRT)
+
+- **Branch:** chore/phase-8-architect-close, criada a partir de feat/phase-8-polish (9c801db)
+- **Agente(s):** arquiteto
+- **Resumo:** teto do pacote web (F8-6) no CI, regra de lint contra `pointerEvents` em estilo, e os ADRs 0010, 0011 e 0012 alinhados com o que foi entregue. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `scripts/check-bundle-size.mjs` (novo) e `pnpm bundle:size`: comprime com `zlib` (nível padrão) cada `.js` de `apps/app/dist` e falha se o maior passa de 427 641 bytes (110% de 388 765, a partida medida pelo `design-system`, handoff `20261103-0633`). Passo novo no job `check` do `ci.yml`, logo depois do `pnpm build:web`; fora do `pnpm check`, que não constrói. Documentado no `CLAUDE.md`.
+  - `eslint.config.mjs`: `no-restricted-syntax` contra a chave `pointerEvents` em qualquer objeto (o react-native-web 0.21 descarta do estilo; foram três bugs: cartão de comemoração, `Fab`, `NotificationToaster`). O código atual já usa a prop em todos.
+  - ADR-0012: seção 5 com `dehydrate`/`hydrate` do `@tanstack/react-query`, sem as duas dependências (e por quê), descarte por idade pela hora do toque, repetição de rede e 5xx sem teto de tentativas (só os 24 h limitam), e o toque desatualizado para o mesmo destino contando como feito também online; seção 10 com o script e o CI; Consequências sem "duas dependências".
+  - ADR-0010, seção 8: o dia perfeito vem primeiro e ganha a tela (QA6-2); a conquista concedida no teto é comemorada (QA6C-2); `burstMs` e `joinMs` (3 s, QA6C-3).
+  - ADR-0011: F7-5 entregue no status; seção 9 com a janela móvel de 24 h no lugar do dia local (SEG8-1) e a decisão de não pôr `shoppingListId` em `xpEventSchema`. Comentários de `shoppingRules.xp` (`packages/config`) e de `xpEventReasonSchema` (`packages/contracts`) sem "reservado" nem "dia local".
+- **Arquivos/módulos principais:** `scripts/check-bundle-size.mjs`, `package.json`, `.github/workflows/ci.yml`, `CLAUDE.md`, `eslint.config.mjs`, `docs/adr/0010-*.md`, `docs/adr/0011-*.md`, `docs/adr/0012-*.md`, `packages/config/src/shopping.ts`, `packages/contracts/src/tasks.ts`.
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** teto no CI, não no `check`; `shoppingListId` fica fora do contrato até uma tela ler; sem teto de tentativas na fila.
+- **Como testar:** `pnpm check` (verde, 1081 testes de unidade e 10 de `functions:imports`). `pnpm build:web` e `pnpm bundle:size`: 399 448 bytes (`__common`), teto 427 641, passa. Mutação: um `.js` falso de 430 000 bytes aleatórios em `apps/app/dist` levou o script a 430 153 e à falha; apagado, volta a passar. Regra de lint: um `StyleSheet.create({ a: { pointerEvents: 'none' } })` temporário deu erro.
+- **Pendências / próximos passos:** o maior JS já está 2,7% acima da partida (399 448 contra 388 765), com folga de 28 193 bytes até o teto. O CI com o passo novo não rodou (sem push).

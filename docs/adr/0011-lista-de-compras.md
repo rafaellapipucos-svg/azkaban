@@ -1,6 +1,6 @@
 # ADR-0011: Lista de compras
 
-**Status:** aceito pelo arquiteto para a Fase 7. Fica sujeito à validação do humano na aprovação da fase. Os itens da seção 15 são padrões a confirmar. O XP de compra (seção 9) depende da Fase 6 e do ADR-0010, da gamificação, escrito em paralelo.
+**Status:** aceito pelo arquiteto para a Fase 7. Fica sujeito à validação do humano na aprovação da fase. Os itens da seção 15 são padrões a confirmar. O XP de compra (seção 9) depende da Fase 6 e do ADR-0010, da gamificação, escrito em paralelo. **F7-5 entregue na Fase 8** (2026-11-03): o vínculo com tarefa (seção 8, F7-5a, `compras`) e o XP de compra (seção 9, F7-5b, `banco-de-dados`), com a janela móvel do SEG8-1.
 
 ## Contexto
 
@@ -103,18 +103,17 @@ Os códigos de erro estão em `shoppingErrorCodeSchema`.
 
 ### 9. XP de compra (F7-5, depende da Fase 6)
 
-O evento é o que o ADR-0010 reserva para compra, aqui chamado `shopping_completed`. Até a Fase 6 estender `xp_events`, a Fase 7 não grava XP: finalizar funciona e não dá nada.
-
-Quando entrar, numa migration de `banco-de-dados` depois de F6-2:
+O evento é o que o ADR-0010 reserva para compra, aqui chamado `shopping_completed`. Até a Fase 6 estender `xp_events`, a Fase 7 não gravava XP: finalizar funcionava e não dava nada. Entrou na Fase 8, na migration `20261104140000_shopping_xp.sql`:
 
 - **Trigger `after update of status` em `shopping_lists`**, na passagem `open` → `completed`. É o padrão do ADR-0005: vale para qualquer caminho, e o cliente nunca escreve em `xp_events`.
 - O evento vai para `completed_by`, com `group_id` da lista (nulo na pessoal, que não entra no ranking) e `amount` de `shoppingRules.xp.amount`.
 - **Anti-farm:**
   - lista com menos de `minCheckedItems` (3) itens marcados finaliza sem XP, inclusive a vazia;
-  - no máximo `maxRewardedPerDay` (2) listas com XP por pessoa por dia local, no fuso do perfil;
+  - no máximo `maxRewardedPerDay` (2) listas com XP por pessoa nas **últimas 24 h**, janela móvel e sem fuso, como o teto do ADR-0010 (seção 14, SEG6-1). A primeira versão contava o dia local no fuso do perfil, e `profiles.timezone` é do próprio usuário: trocar para um fuso cuja meia-noite acabou de passar zerava a contagem, 2 listas por hora até o teto de 300 XP (SEG8-1, média, handoff `20261103-0643-revisor-seguranca-para-banco-de-dados-seguranca-fase-8`). O nome da chave fica: "por dia" passa a ser "em 24 h";
   - uma vez por lista: `unique` parcial em `xp_events` pela referência da lista, com o motivo de compra;
   - sem reabrir (seção 6), não há ciclo de finalizar e reabrir. "Nova lista a partir desta" cria outra lista e cai nos dois limites acima.
 - A referência é uma coluna `xp_events.shopping_list_id`, `on delete set null`, a menos que o ADR-0010 decida outra forma de apontar eventos sem ocorrência. Nesse caso, vale a do ADR-0010.
+- **`xpEventSchema` não ganha `shoppingListId`** (decisão de 2026-11-03). A coluna serve ao banco, para o `unique` de uma vez por lista; nenhuma tela lê a lista a partir do evento, e o Zod descarta a coluna a mais. Entra no contrato quando uma tela precisar dela.
 - O motivo entra em `xpEventReasonSchema` e no `check` de `xp_events` pela mão de quem fizer a Fase 6, com o nome do ADR-0010.
 
 ### 10. Modos "montar" e "no mercado"

@@ -172,13 +172,15 @@ create table public.rate_limit_counters (
 
 ### 5. Fila offline simples (F8-5)
 
-**Mecanismo: o TanStack Query, que já está instalado.** Mutações com `networkMode` padrão pausam sem conexão e retomam ao voltar. Para sobreviver a um recarregamento, o cache persiste só as mutações pausadas, por `@tanstack/react-query-persist-client` e `@tanstack/query-async-storage-persister`, com o `storage` de `packages/platform` (AsyncStorage, que na web é o `localStorage`). São duas dependências pequenas, da mesma família e versão do que já está no app. A alternativa, uma fila própria, reescreveria pausa, retomada e persistência.
+**Mecanismo: o TanStack Query, que já está instalado.** Mutações com `networkMode` padrão pausam sem conexão e retomam ao voltar. Para sobreviver a um recarregamento, só as mutações da fila vão para o disco, por `dehydrate` e `hydrate`, que já vêm em `@tanstack/react-query`, gravadas com o `storage` de `packages/platform` (AsyncStorage, que na web é o `localStorage`) a cada mudança nas mutações da fila. Nenhuma dependência nova. A alternativa, uma fila própria, reescreveria pausa, retomada e persistência.
+
+**Por que sem `@tanstack/react-query-persist-client` e `@tanstack/query-async-storage-persister`** (a primeira versão deste ADR as escolhia; mudou na entrega, handoff `20261103-0600-tarefas-calendario-para-arquiteto-fila-sem-dependencias`): `persistQueryClientRestore` apaga sem aviso o que passou de `maxAge`, e aqui o aviso é por ação; `PersistQueryClientProvider` não troca de persister quando o usuário muda, e a chave leva o `userId`; o throttle do persister pode gravar depois de um descarte. Gravar direto é barato, porque são poucas mutações pausadas. O lockfile não muda.
 
 - Cada ação da fila tem `mutationKey` e `setMutationDefaults` registrados antes de `resumePausedMutations`, porque a função não é serializada; só as variáveis vão para o disco.
 - As variáveis passam de novo pelo contrato antes de executar: o disco é do usuário.
-- `maxAge` do persister e descarte: `offlineDefaults.maxAgeHours` (24). Uma ação mais velha sai com aviso. `offlineDefaults.maxItems` (200) limita a fila.
-- A chave do persister leva o `userId`. Sair da conta com ações pendentes pede confirmação ("N alterações ainda não foram enviadas") e, confirmado, descarta. Outra conta no mesmo aparelho nunca vê a fila de outra.
-- `buster` com a versão do formato: mudar as variáveis de uma ação descarta a fila antiga em vez de executá-la errada.
+- Descarte por idade: `offlineDefaults.maxAgeHours` (24), contado da hora do toque (`submittedAt` da mutação) e conferido por ação, na hora em que ela iria rodar. Uma ação mais velha sai com aviso. `offlineDefaults.maxItems` (200) limita a fila.
+- A chave no `storage` leva o `userId`. Sair da conta com ações pendentes pede confirmação ("N alterações ainda não foram enviadas") e, confirmado, descarta. Outra conta no mesmo aparelho nunca vê a fila de outra.
+- `buster` com a versão do formato (`formatVersion`, gravado junto do estado): mudar as variáveis de uma ação descarta a fila antiga em vez de executá-la errada.
 - **Nativo:** sem NetInfo, o `onlineManager` acha que está sempre online, e a falha de rede faz a mutação tentar de novo com `retry`. `@react-native-community/netinfo` entra em F8-7, com o build nativo. Até lá, o alvo é a web.
 
 **O que entra, e só isso:**
@@ -190,8 +192,9 @@ create table public.rate_limit_counters (
 | Stepper (os dois caminhos)                | `requestId` gerado no cliente por toque (contrato); o banco aplica cada id uma vez | Idem                                                                                                               |
 | Marcar item (`set_shopping_item_checked`) | Já é um valor                                                                      | Idem                                                                                                               |
 
+- **Toque desatualizado para o mesmo destino:** a regra do `status_conflict` da tabela (relê; já no destino conta como feito) vale para toda marcação de status, também online, porque toda marcação passa pela mesma ação. Quem marca "feito" numa tela velha, depois de outra pessoa ou outro aparelho já ter marcado "feito", não vê erro: o resultado que queria já está lá.
 - **Ordem:** a fila executa em ordem, uma de cada vez (`scope` da mutação com um id fixo). Sem fusão de ações: concluir e reabrir offline vão as duas, e o servidor confere cada transição. Fundir poderia transformar uma sequência válida numa transição inválida.
-- **Outros erros de negócio** (`forbidden`, `late_window_expired`, `reason_required`, `invalid_transition`, `proof_required`, `rate_limited`): descarta com aviso, sem tentar de novo. Rede e 5xx: tenta de novo. 401: espera a sessão.
+- **Outros erros de negócio** (`forbidden`, `late_window_expired`, `reason_required`, `invalid_transition`, `proof_required`, `rate_limited`): descarta com aviso, sem tentar de novo. Rede e 5xx: tenta de novo, sem teto de tentativas (a espera entre elas cresce até 30 s). O único limite é o descarte por idade: um defeito do servidor que responda 5xx sempre segura a fila até a ação passar de 24 h e sair com aviso. Aceito, porque um teto de tentativas descartaria ações boas numa queda longa do servidor; se o caso aparecer, o teto entra em `offlineDefaults`. 401: espera a sessão.
 - **O horário que vale é o do servidor.** Concluir às 23h50 sem rede e enviar às 0h10 pode virar "concluído atrasado" ou passar da janela. É o mesmo princípio da prova (ADR-0007, seção 5): o relógio do aparelho é declaração.
 - **Tela:** o status otimista aparece já, e um aviso discreto diz "sem conexão: N alterações serão enviadas" (`useMutationState` das pausadas). O descarte aparece como aviso com o motivo.
 
@@ -265,7 +268,7 @@ O texto cobre, no mínimo, o que os ADRs pediram:
 
 **Metas medidas**, registradas no LOG com a máquina e o comando:
 
-1. **Pacote web:** o maior JS de `pnpm build:web`, comprimido com gzip, não passa de 110% do tamanho medido no início de F8-6. Um script compara e falha o `pnpm check` acima do teto. É a única meta que vira barreira, por ser estável.
+1. **Pacote web:** o maior JS de `pnpm build:web`, comprimido com gzip, não passa de 110% do tamanho medido no início de F8-6. Um script compara e falha acima do teto. É a única meta que vira barreira, por ser estável. **Na entrega:** `pnpm bundle:size` (`scripts/check-bundle-size.mjs`) comprime com `zlib` (nível padrão) cada `.js` de `apps/app/dist` e falha se o maior passa de 427 641 bytes (110% de 388 765, o `__common` medido pelo `design-system` em 2026-11-03). Roda no CI, no passo seguinte ao `pnpm build:web`, e não no `pnpm check`: o `check` não constrói, e o build leva uns 20 s. Um crescimento deliberado muda o ponto de partida no script, no mesmo commit, com o motivo no LOG.
 2. **Requisições:** abrir Hoje com 50 ocorrências faz no máximo 8 chamadas REST (Playwright conta), sem N+1.
 3. **Lista longa:** Hoje, mês do calendário e "no mercado" com 200 itens desenham em menos de 1 s depois que os dados chegam, com CPU 4× mais lenta no Chromium. Meta, não barreira: o CI é ruidoso.
 4. **Animações:** só `transform` e `opacity` (Reanimated no nativo, CSS na web), nada que mude layout. Durante o confete, com CPU 4× mais lenta, no máximo 2 quadros acima de 50 ms (amostragem por `requestAnimationFrame` na E2E).
@@ -397,7 +400,7 @@ As três primeiras podem rodar em ramos separados; só a de F8-3 depende de outr
 - `pnpm db:check-permissions` acusa `rate_limit_rules` até a migration de F8-4.
 - `proof_consents` muda de chave primária; quem lê a tabela pela chave antiga muda junto.
 - A integração das Fases 6 e 7 renomeia as migrations da Fase 7 antes do merge.
-- O app ganha duas dependências do TanStack Query. A fila só existe na web até F8-7 trazer o NetInfo.
+- Nenhuma dependência nova: a fila usa `dehydrate` e `hydrate` do `@tanstack/react-query`. A fila só existe na web até F8-7 trazer o NetInfo.
 - Toda RPC com limite pode responder `rate_limited`; cada módulo precisa do texto.
 - Duas Edge Functions novas com service role, `account-export` e `account-delete`, entram na lista de implantação.
 - Sem SMTP próprio, o login por link mágico em produção não funciona para usuários de fora da equipe.

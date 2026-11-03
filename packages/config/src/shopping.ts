@@ -17,10 +17,11 @@ export const shoppingRules = {
    */
   maxOpenListsPerScope: 50,
   /**
-   * XP of a completed list (F7-5, after F6). The event goes to whoever completed it, once per list,
-   * and only when at least `minCheckedItems` items were checked and the person has had fewer than
-   * `maxRewardedPerDay` rewarded lists on that local day. Completing still works without XP.
-   * Values to confirm with the human. The event type is reserved in ADR-0010.
+   * XP of a completed list (F7-5, ADR-0011 section 9). The event goes to whoever completed it, once
+   * per list, and only when at least `minCheckedItems` items were checked and the person has had
+   * fewer than `maxRewardedPerDay` rewarded lists in the last 24 hours: a rolling window, not the
+   * local day, so changing the time zone resets nothing (SEG8-1). Completing still works without XP.
+   * Values to confirm with the human.
    */
   xp: { amount: 10, minCheckedItems: 3, maxRewardedPerDay: 2 },
 } as const;

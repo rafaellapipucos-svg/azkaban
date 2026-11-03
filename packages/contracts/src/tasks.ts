@@ -266,8 +266,9 @@ export type TeamOverviewRow = z.infer<typeof teamOverviewRowSchema>;
 /**
  * Why an XP event exists (ADR-0005 section 6, ADR-0010 section 1). The database is the only writer.
  * `occurrence_reverted` compensates every event of one occurrence, `proof_bonus` included;
- * `perfect_day_reverted` compensates `perfect_day` of one local day. `shopping_completed` is reserved
- * for Phase 7 (ADR-0011), which defines its amount, group and compensation.
+ * `perfect_day_reverted` compensates `perfect_day` of one local day. `shopping_completed` is a
+ * completed shopping list (ADR-0011, section 9): once per list, never compensated, since a list does
+ * not reopen. Its `xp_events.shopping_list_id` stays out of `xpEventSchema` until a screen reads it.
  */
 export const xpEventReasonSchema = z.enum([
   'occurrence_done',

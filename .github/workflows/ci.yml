@@ -26,6 +26,8 @@ jobs:
           EXPO_PUBLIC_APP_SCHEME: azkaban
           EXPO_PUBLIC_SUPABASE_URL: http://127.0.0.1:54421
           EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci
+      # ADR-0012, section 10: the ceiling of the web bundle, on the build above.
+      - run: pnpm bundle:size
 
   database-and-e2e:
     runs-on: ubuntu-latest

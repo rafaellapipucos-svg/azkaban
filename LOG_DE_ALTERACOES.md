@@ -3430,3 +3430,21 @@
 - **Verificado:** `pnpm check` passou (inclui `deno check: 9 functions`, cerca de 2 s com o cache do Deno). Um erro de tipo posto de propósito em `proof-url/index.ts` fez o script sair com 1 e nomear a função. `node --test` dos testes de unidade das funções que não pedem pilha (`webhook`, `provider`, `checks`, `push`, `account`): 89 de 89. `pnpm install --frozen-lockfile` passa.
 - **Não verificado:** `pnpm functions:test` e E2E (sem pilha). O CI no Linux: o `@deno/linux-x64-glibc` vem do registro npm e o `deno check` baixa os pacotes `npm:` do registro público, sem segredo, mas não rodou lá. ESLint nas funções (a outra metade do BL-20, "se couber") não foi feito.
 - **Pendências / próximos passos:** o job `check` do CI já roda `pnpm check`, então nada a mudar em `.github/workflows/`. Ao subir o Supabase CLI, conferir a versão do Deno da imagem nova e acompanhar a do `deno`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:36 (BRT)
+
+- **Branch:** fix/native-module-duplicates, criada a partir de feat/backlog-after-phase-8 (376cefb)
+- **Agente(s):** arquiteto
+- **Resumo:** BL-21b. Os dois módulos nativos duplicados que o `expo-doctor` acusava ficam numa versão só, a da tabela do SDK 58, e o doctor volta a barrar qualquer duplicado, sem lista de conhecidos. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/platform/package.json`: `@react-native-async-storage/async-storage` de `^3.1.1` para `2.2.0`, como `apps/app` e `expo/bundledNativeModules.json`. O código só usa `getItem`, `setItem`, `removeItem` (inclusive o `auth.storage` do Supabase) e `getAllKeys` (fila offline); os quatro existem na 2.2.0 (`lib/typescript/types.d.ts`; `getAllKeys` devolve `readonly string[]`, lido só com `for...of`).
+  - `packages/ui/package.json` e `packages/features/notifications/package.json`: `react-native-safe-area-context` de `^5.11.0` para `~5.10.1`, como `apps/app` e a tabela.
+  - `pnpm-lock.yaml`: resolve as duas para uma cópia só (16 linhas a mais, 112 a menos). Instaladas: só `node_modules/@react-native-async-storage/async-storage` (2.2.0) e `node_modules/react-native-safe-area-context` (5.10.1); somem as cópias aninhadas de `apps/app`, `packages/platform`, `expo-router` e `react-native-css-interop`.
+  - `scripts/check-expo-doctor.mjs`: com a lista vazia, a tolerância a duplicados virou código morto e saiu; o script roda o doctor fixado (`expo-doctor@1.21.5`) e sai com o status dele.
+- **Arquivos/módulos principais:** `packages/{platform,ui,features/notifications}/package.json`, `pnpm-lock.yaml`, `scripts/check-expo-doctor.mjs`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. Regra seguida: módulo nativo declarado em mais de um pacote usa a versão de `bundledNativeModules.json`.
+- **Como testar:** `pnpm install --frozen-lockfile`; `pnpm expo:doctor`.
+- **Verificado:** `pnpm install --frozen-lockfile` passa. `pnpm expo:doctor`: "20/20 checks passed. No issues detected!", saída 0. `pnpm check` passou. `pnpm build:web` passou; `pnpm bundle:size`: 402622 bytes gzip no maior JS, teto 427641.
+- **Não verificado:** sem pilha e sem E2E. Nativo real (APK/iOS): a troca da async-storage 3.x pela 2.x no `packages/platform` só afeta o nativo; no web as duas usam `localStorage`, mas dados gravados por um build nativo com a 3.x não foram testados contra a 2.x (ainda não houve build nativo publicado). CI no Linux não rodou.
+- **Pendências / próximos passos:** ao subir o SDK do Expo, alinhar os mesmos pacotes à tabela nova; o doctor acusa se esquecer.

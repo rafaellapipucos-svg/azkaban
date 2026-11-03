@@ -1823,3 +1823,20 @@
 - **Verificado:** `pnpm check` passou (17 de 17 e 10 de 10; core 630, data 9, feature-shopping 7; dependency-cruiser sem violações; `functions:imports` 8 de 8). `pnpm build:web` passou, com a rota de compras no pacote. Medição dos rótulos da barra no Chromium com a fonte real: seis abas cabem a 375 px (7 px entre rótulos) e se sobrepõem 7 px a 320 px.
 - **Não verificado:** a E2E não rodou: a pilha A estava ocupada por outro agente. Nada do repositório real foi exercitado contra o banco (nem a serialização do nulo composto, nem o `DELETE` sem filtro do Realtime). Telas não abertas no navegador, nem no escuro. Sem mutação.
 - **Pendências / próximos passos:** QA da fase roda `e2e/shopping.spec.ts` e o `calendar.spec.ts` ajustado. A barra a 320 px (handoff). Assinatura da tela das listas, se o humano quiser lista nova aparecendo sem reabrir.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:14 (BRT)
+
+- **Branch:** fix/tabbar-six-tabs, criada a partir de feat/phase-7-shopping (7528ceb)
+- **Agente(s):** design-system
+- **Resumo:** com seis abas, os rótulos da barra caem para 12 px, e a 320 px nenhum encosta no vizinho. Responde ao handoff `20261103-0310-compras-para-design-system-seis-abas-a-320` com a proposta 1. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `tokens.ts`: `fontSize.xs = 12` (vira `text-xs` pelo `tailwind.config.ts`), só para a barra com mais de cinco abas.
+  - `TabBar`: `text-xs` quando há mais de cinco abas, `text-sm` até cinco. Alvo de toque, altura e ícone iguais.
+  - `/design-system`: a barra de exemplo ganha a sexta aba, "Compras" (🛒), como no app.
+- **Arquivos/módulos principais:** `packages/ui/src/{tokens,TabBar,DesignSystemScreen}.tsx?`, `packages/i18n/src/pt-BR/ui.json`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova. Rótulos mais curtos e Compras fora da barra descartados (texto aprovado; ADR-0011, seção 15, item 9).
+- **Como testar:** `pnpm dev`, abrir `/design-system` a 320, 375 e 1280 px.
+- **Verificado:** no Chromium (Playwright), `/design-system` com `.env.local` falso, já apagado, e sem a pilha. Nunito ExtraBold 12 px, claro e escuro iguais. 320 px: abas de 44, 53, 63, 64, 53 e 44 px, todas com 64 de altura; menor folga entre rótulos 2,3 px; todo rótulo dentro da própria aba; sem rolagem lateral. 375 px: folga mínima 15,4 px. 1280 px: 46,4 px. Cor do rótulo `muted` sobre `surface` passa AA nos dois temas. `pnpm check` passou (10 de 10 e 8 de 8). `pnpm build:web` passou.
+- **Não verificado:** a barra real do app (`AppTabBar`), que pede sessão; Android e iOS; leitor de tela (rótulo e papel não mudaram). Sem E2E nem mutação: a lógica é um ternário.
+- **Pendências / próximos passos:** uma sétima aba (terceira área) não cabe a 320 px nem a 12 px; aí a resposta é outra (só ícones abaixo de certa largura, ou menos abas).

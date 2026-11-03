@@ -3189,3 +3189,20 @@
 - **Verificado:** em `aed3526`, banco limpo: install, db:start, db:reset, db:test 1911/1911, db:check-permissions, typecheck e unidade, lint, fronteiras, build:web, functions:test, E2E 94 passaram e 1 pulado nas duas rodadas, db:test depois da E2E 1911/1911. Maior JS 400 915 B (teto 427 641). Metas no build: 14 chamadas REST em Hoje, Hoje com 200 em 451 ms, mês em 251 ms, "No mercado" em 200 ms, confete sem quadro acima de 50 ms. Segunda passada de segurança sem achado alto ou médio. Varredura de segredos limpa.
 - **Não verificado:** nativo, navegador real fora do Playwright, hospedado, Lighthouse (meta 5), leitor de tela real. A falha intermitente de a11y em `/sign-up` (uma vez, primeira verificação) não se repetiu; a nota da spec agora nomeia o elemento.
 - **Pendências / próximos passos:** PR da Fase 8 para `feat/phase-6-gamification`; respostas do humano do ADR-0012 §17 (hospedagem, SMTP, base legal, contas de loja e push); backlog.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 09:58 (BRT)
+
+- **Branch:** docs/backlog-after-phase-8, criada a partir de feat/phase-8-polish (c74cce6)
+- **Agente(s):** arquiteto
+- **Resumo:** backlog real pós-Fase 8 no QUADRO: 23 itens para fazer agora (BL-1 a BL-23), em cinco ondas sem arquivo em comum, e 14 bloqueados pelo humano (BL-24 a BL-37), cada um com a pergunta. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `docs/agentes/QUADRO.md`: seção "Backlog pós-Fase 8", com dono, origem (entrada do LOG ou handoff), onda, tamanho e pilha de cada item; nota de conflitos evitados (`_layout.tsx`, `client.ts`, `pnpm-lock.yaml`, banco em série); faixas de migration de `20261105100000` a `20261105150000`; perguntas ao humano.
+  - Fontes: "Pendências" e "Não verificado" do LOG desde a Fase 3; handoffs da Fase 8 conferidos contra o código (`0650` push nativo e deep link, `0456` para auth-grupos, notificacoes-whatsapp e design-system); SEG6-6, SEG6-8 e SEG8-2P-3; ADR-0012 §17.
+  - Descartados por já entregues: SEG6-7 (`batchSize` 64), SEG8-2P-1 (`20261104160000`), SEG8-2P-2, `PushSetupCard`, contraste por tokens, `azkaban://**` no `config.toml` local, `networkMode: 'always'`, `shopping_completed` no contrato.
+- **Arquivos/módulos principais:** `docs/agentes/QUADRO.md`, `LOG_DE_ALTERACOES.md`
+- **Migrations:** nenhuma (só as faixas reservadas).
+- **Decisões/ADRs:** nenhuma nova. BL-2 e BL-3 (prazo da exclusão aberta, repetição em 503) viram texto do ADR-0012 na onda 0.
+- **Como testar:** ler a seção no QUADRO; `pnpm check`.
+- **Verificado:** cada item de "fazer agora" conferido por `grep` no código de `c74cce6` (ex.: sem `setSessionFromLink`, sem `expo-haptics` nem NetInfo nos `package.json`, `InvitesSection` com erro genérico, `enqueue_daily_summaries()` = 4 em `rls_whatsapp`, nenhuma Edge Function devolve 503). `pnpm check` passou.
+- **Não verificado:** a corrida de `accept_invite` com `transfer_group_ownership` (é o BL-13); tamanhos são estimativa. O QUADRO é do orquestrador; editado por pedido dele.
+- **Pendências / próximos passos:** onda 0 (BL-1 a BL-4, arquiteto); respostas do humano para BL-24 a BL-37.

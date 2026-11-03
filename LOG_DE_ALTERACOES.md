@@ -2599,3 +2599,18 @@
 - **Verificado:** `pnpm check` passou (17 de 17 e 11 de 11; `@azkaban/data` 6 arquivos, 30 testes, dos quais 6 de `privacy/transport`; `@azkaban/platform` 10 arquivos, 54 testes, com o de `saveTextFile`; core 717); `pnpm build:web` exportou.
 - **Não verificado:** a E2E nova não rodou (sem pilha; as funções eram do `backend-funcoes`, em andamento); nenhuma tela foi vista no navegador (375 px, desktop, claro e escuro, axe ficam com `qa-testes`); `reauth_required` e `rate_limited` reais; o download pelo `<a download>` depois de uma espera de rede no Safari do iPhone; o nativo.
 - **Pendências / próximos passos:** `prova-foto` troca `consent.deletion` e sobe `consentVersion` para 3 (handoff); `qa-testes` roda a E2E e cobre reautenticação, limite e sair com pendências (handoff). Do handoff `20261103-0456` ficam para outra tarefa: o 429 do GoTrue nas telas de entrar, `rate_limited` nos convites e o `PushSetupCard` depois do primeiro login.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:32 (BRT)
+
+- **Branch:** fix/account-export-test, criada a partir de feat/phase-8-polish (314e034)
+- **Agente(s):** backend-funcoes
+- **Resumo:** os 5 testes de `account-export/export.integration.test.ts` eram cancelados porque o `before` gravava uma inscrição de push fora do formato que o banco exige (`push_subscriptions_auth_check`). O defeito era só do fixture; a função não mudou. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `export.integration.test.ts`: `p256dh` com 87 e `auth` com 22 caracteres base64url, como os `check` de `20261102130500_push_subscriptions`, e um `endpoint` único por execução (a coluna é `unique`). Os valores continuam marcados (`secretP256dh...`, `secretAuth...`, `secret-endpoint-<uuid>`) e o teste confere que nenhum deles sai no arquivo.
+- **Arquivos/módulos principais:** `supabase/functions/account-export/export.integration.test.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma
+- **Como testar:** pilha A, `pnpm exec supabase db reset`, `pnpm functions:test`.
+- **Verificado:** pilha A depois de `db reset`: `account-export/export.integration.test.ts` 5 de 5; `pnpm functions:test` inteiro, 207 testes, 44 suítes, 207 passaram, 0 falhas, 0 cancelados. Pilha A parada com `supabase stop` (sem `--all`).
+- **Não verificado:** `pnpm check` não rodou de novo (só o arquivo de teste mudou; o lint-staged do commit passou); o projeto hospedado.
+- **Pendências / próximos passos:** nenhuma desta correção.

@@ -249,8 +249,12 @@ test('a stale screen gets a clear message instead of overwriting', async ({ brow
   await check(first, 'Varrer', 'Pendente').click();
   await expect(check(first, 'Varrer', 'Feito')).toBeVisible();
 
-  // The second screen still shows pending, so its tap carries a status that is no longer true
-  await check(second, 'Varrer', 'Pendente').click();
+  // The second screen still shows pending, so its tap carries a status that is no longer true. It
+  // asks for another status: one for the same target would count as done (ADR-0012, section 5).
+  await button(second, 'Mais opções: Varrer').click();
+  await button(second, 'Tentei, mas não consegui').click();
+  await second.getByLabel('O que aconteceu? (uma frase curta)').fill('Sem tempo');
+  await button(second, 'Confirmar').click();
   await expect(
     second.getByText('Outra pessoa mudou esta tarefa antes de você. Atualizamos a lista.'),
   ).toBeVisible();

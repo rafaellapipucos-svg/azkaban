@@ -2450,3 +2450,20 @@
 - **Verificado:** `pnpm check` passou (17 de 17 e 11 de 11; data 23, dos quais 7 da fila e 5 do status; core 717; `functions:imports`); `pnpm build:web` exportou. Sem mutação.
 - **Não verificado:** a E2E nova não rodou (a pilha A estava ocupada, `supabase_realtime_azkaban` no ar) e depende de `useOfflineQueue` no layout raiz, que é do orquestrador; o 429 real do PostgREST; o nativo (sem NetInfo até F8-7).
 - **Pendências / próximos passos:** orquestrador liga `useOfflineQueue` em `apps/app/app/_layout.tsx` (e decide `networkMode: 'always'` e o aviso na barra de abas); `compras` liga as ações dele; `auth-grupos` faz a confirmação ao sair e o descarte ao excluir a conta; `design-system` troca o aviso pelo componente dele.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:19 (BRT)
+
+- **Branch:** feat/offline-queue-wiring, criada a partir de feat/phase-8-polish (83b7a42)
+- **Agente(s):** tarefas-calendario, por delegação do orquestrador para o layout raiz
+- **Resumo:** a fila offline ligada no layout raiz, a E2E dela verde e `pnpm e2e` completo uma vez. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `apps/app/app/_layout.tsx`: `useOfflineQueue(queryClient, session?.user.id ?? null)`.
+  - `e2e/tasks.spec.ts`, "a stale screen gets a clear message…": a segunda tela pede "Tentei" (com motivo) em vez de "Feito". Com a fila, um toque desatualizado para o mesmo destino conta como feito, sem mensagem (ADR-0012, seção 5); o conflito de verdade, para outro destino, continua com "Outra pessoa mudou esta tarefa antes de você".
+  - Não aplicado, fica como sugestão: `networkMode: 'always'` como padrão das mutações, para o que está fora da fila falhar na hora sem conexão. O aviso continua em Hoje, Área e no detalhe.
+- **Arquivos/módulos principais:** `apps/app/app/_layout.tsx`, `e2e/tasks.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova.
+- **Como testar:** `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm exec playwright test e2e/offline-queue.spec.ts --project=app`; `pnpm e2e` com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória.
+- **Verificado:** na pilha A, depois de `db reset`: `e2e/offline-queue.spec.ts` passou na primeira (1 de 1). `pnpm e2e` completo uma vez, com a chave VAPID: 74 ok, 1 falha, 1 pulado e 4 não rodados (o projeto `jobs`, que depende de `app`). A falha era a spec do conflito acima, ajustada; depois ela passou sozinha (1 de 1) e `--project=jobs --no-deps` deu 4 de 4. `pnpm check` passou. Pilha A parada com `supabase stop`; pilha B não tocada.
+- **Não verificado:** um segundo `pnpm e2e` completo depois do ajuste; o atraso do rollback e o status em série não derrubaram nenhuma outra spec. Sem mutação.
+- **Pendências / próximos passos:** decidir `networkMode: 'always'` (orquestrador/arquiteto); os handoffs `20261103-0600-tarefas-calendario-para-*` seguem valendo, menos o item 1 do orquestrador, feito aqui.

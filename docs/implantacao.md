@@ -188,7 +188,7 @@ Na outbox, `wa_<código>` e `wa_http_<status>` são recusas da Meta, e `wa_provi
 
 ## 8. Hostinger (app.tabolao.com)
 
-O app web fica na Hostinger Premium, em `https://app.tabolao.com` (BL-24). A cada push na `main`, o workflow `.github/workflows/deploy-web.yml` faz o build e sobe `apps/app/dist/` por FTPS. Enquanto os três secrets de FTP não existirem, ele termina verde, com o aviso "Deploy skipped", e não sobe nada. Nenhum valor desta seção entra no repositório.
+O app web fica na Hostinger Premium, em `https://app.tabolao.com` (BL-24). Depois de cada push na `main` com o CI verde, o workflow `.github/workflows/deploy-web.yml` faz o build do mesmo commit que o CI testou e sobe `apps/app/dist/` por FTPS. Enquanto os três secrets de FTP não existirem, ele termina verde, com o aviso "Deploy skipped", e não sobe nada. Nenhum valor desta seção entra no repositório.
 
 A Hostinger ignora `_headers` e `_redirects`. O build grava `dist/.htaccess` (`apps/app/scripts/headers.ts`) com: redirecionamento para HTTPS, fallback de rota para `index.html`, os cabeçalhos de segurança do bloco `/*` de `public/_headers` (a CSP Report-Only com o host exato do Supabase incluída), cache de um ano para os arquivos com hash e `no-cache` para `index.html`, `sw.js` e `manifest.webmanifest`.
 
@@ -221,7 +221,7 @@ Aba **Variables** (New repository variable). Tudo o que começa com `EXPO_PUBLIC
 
 Com os secrets presentes, o workflow falha (em vez de subir) se faltar variável, se a URL não for `https` ou apontar para `localhost` ou IP local, se a chave for de servidor ou se `FTP_SERVER_DIR` não terminar com `/`.
 
-**5. Primeiro deploy.** **Actions** → **Deploy web** → **Run workflow** na `main`. Depois, cada push na `main` publica sozinho, um de cada vez. Só os arquivos alterados sobem, e os que saíram do build são apagados do servidor. A action grava `.ftp-deploy-sync-state.json` na pasta, e o `.htaccess` nega acesso a ele. Não apague esse arquivo: sem ele, o próximo deploy sobe tudo de novo.
+**5. Primeiro deploy.** **Actions** → **Deploy web** → **Run workflow** na `main`. Depois, cada push na `main` publica sozinho quando o CI dele passa, um de cada vez. CI vermelho não publica; o deploy aparece como pulado (skipped). Só os arquivos alterados sobem, e os que saíram do build são apagados do servidor. A action grava `.ftp-deploy-sync-state.json` na pasta, e o `.htaccess` nega acesso a ele. Não apague esse arquivo: sem ele, o próximo deploy sobe tudo de novo.
 
 - Se o passo do FTP falhar por certificado (`is not in the cert's altnames`), o log mostra os nomes que o certificado do servidor aceita. Troque `FTP_SERVER` por um deles. Não troque `security: strict` por `loose`: a senha passaria a aceitar qualquer servidor no caminho.
 - Durante o upload, por alguns segundos, quem abrir o app pode receber o `index.html` novo antes dos arquivos dele. Recarregar resolve.

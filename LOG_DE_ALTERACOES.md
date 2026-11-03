@@ -3867,3 +3867,19 @@
 - **Verificado:** `pnpm --filter @azkaban/app test` 16/16; `pnpm check` passou; `pnpm build:web` gerou o `.htaccess`; `pnpm bundle:size` 403 431 B (teto 427 641). Num `httpd:2.4` em Docker com o `dist` gerado: HTTP dá 301 para `https://` com o caminho; com a regra de HTTPS tirada (sem TLS no teste), `/` e `/tasks/1` dão 200 `text/html` com `no-cache` e todos os cabeçalhos, a Report-Only incluída; `sw.js` `text/javascript` e `manifest.webmanifest` `application/manifest+json`, ambos `no-cache`; o `entry-<hash>.js` e uma fonte `.ttf` com hash, `max-age=31536000, immutable`; um chunk inexistente em `/_expo/static/` dá 404; `/_expo/`, `/.htaccess` e `/.ftp-deploy-sync-state.json` dão 403. O passo de conferência das variáveis, extraído do workflow, contra 9 casos (https ok; http, `127.0.0.1`, `[::1]`, `localhost`, URL inválida, `sb_secret_` e JWT `service_role` recusados; JWT `anon` aceito).
 - **Não verificado:** o workflow no GitHub (sem push) e o deploy real, que só roda quando o humano criar os secrets; LiteSpeed (a Hostinger usa LiteSpeed, e o teste foi no Apache); o certificado do FTPS da Hostinger com `security: strict`; o Brevo e o painel do Supabase; os nomes exatos dos menus do hPanel e do Brevo no dia. Hora pelo UTC−3 (PowerShell barrado).
 - **Pendências / próximos passos:** o humano segue a seção 8 de `docs/implantacao.md`; depois do primeiro deploy, as conferências do passo 6 dela e a rodada da CSP Report-Only no console.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 17:27 (BRT)
+
+- **Branch:** fix/deploy-after-ci (a partir de `feat/launch-decisions`, `3bbf6e1`)
+- **Agente(s):** arquiteto
+- **Resumo:** o deploy web deixa de rodar no push da `main` e passa a rodar depois do workflow `CI`, só quando ele passou. Uma `main` com CI vermelho não sobe.
+- **Alterações:**
+  - `.github/workflows/deploy-web.yml`: o gatilho virou `workflow_run` de `CI` (`types: [completed]`, `branches: [main]`), e o `workflow_dispatch` continua. O job só roda se `conclusion == 'success'`, `event == 'push'`, `head_branch == 'main'` e `head_repository.full_name == github.repository`. O `event` e o repositório estão lá porque o CI também roda em `pull_request`, e um PR de fork com um branch chamado `main` teria `head_branch == 'main'`. O disparo manual só vale a partir da `main`. O checkout usa `github.event.workflow_run.head_sha` (o commit que o CI testou), ou `github.sha` no disparo manual. Um `# shellcheck disable=SC2016` no passo de conferência: o script é JavaScript entre aspas simples de propósito.
+  - `docs/implantacao.md`, seção 8: o texto do gatilho acompanha a mudança.
+- **Arquivos/módulos principais:** `.github/workflows/deploy-web.yml`, `docs/implantacao.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma (pedido do coordenador)
+- **Como testar:** com os secrets criados, um push na `main`: o CI roda, e o "Deploy web" só começa depois dele, com o mesmo SHA. Com o CI vermelho, o deploy aparece como pulado.
+- **Verificado:** `actionlint` (imagem `rhysd/actionlint` no Docker) sem aviso em `deploy-web.yml` e `ci.yml`; o YAML lido de volta mostra o gatilho, o `if` e o `ref`; `pnpm check` passou.
+- **Não verificado:** o evento `workflow_run` no GitHub (sem push). Ele só dispara pelo arquivo que estiver no branch padrão, então só funciona depois do merge na `main`. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** nenhuma.

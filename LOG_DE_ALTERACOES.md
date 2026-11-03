@@ -1432,3 +1432,59 @@
 - **Verificado:** primeira rodada em `e54968d`: tudo passou menos `functions:test` e as duas E2E, que pararam no preflight (`dispatch-notifications` 503, `Module not found .../core/src/tasks/late` no log do contêiner). Segunda, em `3b428b2`, completa: install, `db:start`, `db reset`, `db:test` 1227 de 1227 (antes e depois da E2E), `db:check-permissions`, `turbo typecheck test --force` (core 556, contracts 52, platform 46, ui 11, app 8, config 7, data 7, proof 6, notifications 2), lint, `boundaries`, `build:web`, `functions:test` 114 de 114; E2E 67 ok e 1 falha, depois 66 ok e 2 falhas (seletor pegando o aviso ao vivo; lembrete do cron no meio do teste). Final, em `e6f9c5a`: lint, `db reset`, E2E duas vezes com 68 ok, 0 falhas e 1 pulado (o "sem chave VAPID"), `db:test` 1227 de 1227 depois, e os 6 jobs do cron ativos de novo. Varredura de segredos no diff `feat/phase-3-proof..feat/phase-4-notifications`: só a chave demo pública da pilha local (já presente na Fase 3) e o vetor de teste da RFC 8291; os `.env.example` só têm nomes.
 - **Não verificado:** push real em aparelho (Android, desktop, iPhone pela Tela de Início), registro do `sw.js` no navegador, cabeçalhos do `_headers` (só a Netlify os aplica), CI do PR, projeto hospedado.
 - **Pendências / próximos passos:** PR para `feat/phase-3-proof`; perguntas ao humano da seção 4 do handoff 1505; Fase 5 em `feat/phase-5-whatsapp`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 01:35 (BRT)
+
+- **Branch:** feat/whatsapp-db, criada a partir de feat/phase-5-whatsapp (da2fd5d)
+- **Agente(s):** banco-de-dados
+- **Resumo:** Itens 1 a 10 do handoff `20261103-0030-arquiteto-para-banco-de-dados-whatsapp` (ADR-0009), com as mudanças pedidas pelo orquestrador: espelhos, `daily_summary` no enum, colunas de `profiles`, verificação de telefone, opt-in e opt-out, `whatsapp_messages` e a caixa de saída do console, status e PARAR, gravação, claim e report com WhatsApp e o prazo do vermelho, job do resumo, retenção e tipos. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Espelhos `whatsapp_rules` e `notification_rules` (`activeChannels` com `whatsapp`, `whatsappTypes`, `defaultChannels.daily_summary`). O bloco de `whatsapp_rules` entrou em `scripts/check-permission-mirror.mjs`.
+  - `profiles`: telefone, verificação, opt-in e opt-out, com `check`s de par e "sem consentimento sem telefone". As cinco `daily_summary_*` têm os padrões de `whatsappRules` e são as únicas colunas novas com `grant update`. `daily_summary_last_date` é do sistema.
+  - `phone_verifications` (sem `grant`), `start_phone_verification` (só `service_role`), `confirm_phone_verification` e `remove_phone` (`authenticated`).
+    - O código não é gravado: só o SHA-256 de `id:código`.
+    - A confirmação devolve o erro em vez de levantar exceção, então toda tentativa conta, e a sexta falha mesmo com o código certo.
+    - Limites: reenvio, por usuário e por número, em 24 horas corridas. `retryAfterSeconds` é a espera do limite que pesa mais.
+  - `whatsapp_opt_in`, `whatsapp_opt_out` e `is_whatsapp_ready`, a única definição de "perfil pronto", usada pela gravação, pelo job, pelo claim e pelo PARAR.
+  - `whatsapp_messages` e `whatsapp_console_messages`: RLS ligada, sem política e sem privilégio para `anon` e `authenticated`. `record_whatsapp_statuses` (o status só avança, e `failed` vale sobre qualquer um) e `whatsapp_stop_by_wa_id` (pelos dígitos do telefone ou por um `wa_id` já visto).
+  - `enqueue_notification`: linha `whatsapp` só com o tipo em `whatsappTypes` e o perfil pronto. O `daily_summary` não tem ocorrência nem grupo, nasce lido e nunca vai por push.
+  - `claim_notification_batch(p_limit, p_lease_seconds, p_max_delay_hours, p_channels text[] default '{web_push}')`:
+    - rechecagens `whatsapp_not_ready`, `whatsapp_type_not_allowed` e `summary_empty`;
+    - o resumo expira por `catchUpMinutes` e não passa pelo silêncio;
+    - cada item ganha `timezone`, `overdueAt`, `occurrenceStatus`, `phone` e `summary`. A fonte vem de `daily_summary_source`, com os mesmos baldes de "Hoje" e o acesso do sino.
+  - `report_notification_results` grava `whatsapp_messages` a partir de `whatsapp: { providerMessageId, waId, template, provider? }`.
+  - `enqueue_daily_summaries()`, com pg_cron a cada minuto, idempotente pela coluna e pela chave. A retenção diária passa a cobrir códigos (48 h), linhas de entrega (30 dias) e o console (1 dia).
+  - `supabase/tests/rls_whatsapp.test.sql` (novo, 132 testes). Em `rls_notifications` e `rls_proof`, só o que mudou: a assinatura do claim, o espelho, a forma do item e a lista de funções abertas.
+  - `packages/data/src/database.types.ts` regenerado.
+  - Handoffs `20261103-0135-banco-de-dados-para-backend-funcoes-rpcs-whatsapp` e `20261103-0135-banco-de-dados-para-notificacoes-whatsapp-rpcs-e-colunas`.
+- **Migrations:** 20261103120000_whatsapp_rules, 20261103120100_notification_type_daily_summary, 20261103120200_profile_whatsapp, 20261103120300_whatsapp_opt_in, 20261103120400_phone_verifications, 20261103120500_whatsapp_messages, 20261103120600_enqueue_notification_whatsapp, 20261103120700_claim_whatsapp, 20261103120800_daily_summaries_job, 20261103120900_whatsapp_retention. Aplicadas só no banco local.
+- **Decisões/ADRs:** nenhum ADR novo. Escolhas desta entrega:
+  - `whatsapp_messages.user_id` aceita nulo só no `stop_reply`, porque o número pode estar em várias contas;
+  - `provider` é opcional no report, deduzido do prefixo `console.`;
+  - o fuso do perfil é conferido pela exceção do Postgres, e não por `is_valid_timezone`, que custa ~18 ms por chamada (`pg_timezone_names`): caro demais para todo perfil a cada minuto;
+  - `p_channels` tem padrão `{web_push}` só para o despacho atual continuar subindo;
+  - o `template` usa `char_length <= 512` e não `{1,512}`, porque a regex do Postgres para em 255 repetições.
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`, `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`.
+- **Verificado:**
+  - `pnpm db:test`: 1359 de 1359, em 5 arquivos.
+  - `pnpm db:check-permissions`: passou, com `Notification rules in sync` e `WhatsApp rules in sync`.
+  - `pnpm functions:test`: 152 de 152.
+  - `pnpm check`: 17 de 17 e 9 de 9.
+  - `pnpm e2e`, uma vez: 67 passaram e 2 foram pulados (os de push sem chave VAPID no ambiente). Os 7 jobs do cron estavam ativos no fim.
+  - Mutações, uma por barreira, todas pegas e desfeitas:
+    - `grant select` em `whatsapp_messages`: 2 falhas;
+    - sem o limite de tentativas: 2;
+    - sem o limite de envios por usuário: 1;
+    - claim sem `whatsapp_not_ready`: 1;
+    - gravação sem o perfil pronto: 1;
+    - status que volta: 4.
+  - O cron real `enqueue-daily-summaries` rodou 8 vezes sem erro.
+  - Sem o cast de `setPreference`, `tsc --noEmit` em `packages/data` passa. O arquivo não é meu e foi restaurado.
+- **Não verificado:**
+  - nada contra a Meta nem contra as funções novas, que ainda não existem;
+  - o despacho real com `p_channels` e os campos novos;
+  - o resumo perto da meia-noite com o cron parado. É perda aceita pelo ADR, e os testes evitam esse horário de propósito.
+- **Pendências / próximos passos:**
+  - `backend-funcoes` e `notificacoes-whatsapp`: seguir os handoffs.
+  - `notificacoes-whatsapp`: tirar o cast de `setPreference`.
+  - `qa-testes`: desligar também `enqueue-daily-summaries` em `e2e/global-setup.ts` quando a E2E do WhatsApp criar perfis prontos.

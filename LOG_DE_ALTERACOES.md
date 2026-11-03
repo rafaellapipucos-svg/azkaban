@@ -3300,3 +3300,20 @@
 - **Verificado:** `pnpm check` passou (lint, `boundaries` sem violação, typecheck 17 de 17, testes 12 de 12 pacotes, contracts 159 e config 25 testes, `functions:imports`).
 - **Não verificado:** nada contra a pilha. `pnpm db:check-permissions` só vai conferir `privacy_rules` quando o BL-12 puser a comparação no script. O formato real do token e da resposta da Expo não foi conferido contra a API (sem conta e sem gasto). "Nenhuma função devolve 503" foi conferido por busca no código, não por teste (o teste é do BL-14). Depois do BL-4, um `WHATSAPP_PHONE_NUMBER_ID` malformado no `console` deixa o WhatsApp "não configurado" quando o BL-14 passar a ler pelo `parseWhatsAppEnv`.
 - **Pendências / próximos passos:** handoffs para `banco-de-dados` (BL-5 e BL-12), `prova-foto` (BL-10), `backend-funcoes` (BL-14, inclusive o teste que barra 503 e a leitura do número pelo env) e `notificacoes-whatsapp` (BL-19).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:16 (BRT)
+
+- **Branch:** `chore/e2e-typecheck`, criada a partir de `feat/backlog-after-phase-8` (`9bbaf00`)
+- **Agente(s):** arquiteto (correção dos tipos por exceção do orquestrador, no lugar de `qa-testes`)
+- **Resumo:** BL-11. O `pnpm check` passa a checar os tipos de `e2e/` e de `playwright.config.ts`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `e2e/tsconfig.json`: estende `tsconfig.base.json` (strict, `noUncheckedIndexedAccess`), com `dom` (os callbacks de `page.evaluate` rodam no navegador), `types: ["node"]`, `allowImportingTsExtensions` (o `proof-kit` importa `packages/config/src/*.ts`) e `allowJs` sem `checkJs` (o `proof-kit` importa `local-stack.mjs`, que fica sem checagem). Inclui `../playwright.config.ts`.
+  - `package.json`: script `typecheck:e2e` (`tsc -p e2e`), chamado pelo `check` logo depois do `typecheck`. Fora do turbo: `e2e/` não é pacote do workspace.
+  - Erros de tipo: nenhum nos arquivos de `e2e/` nem no `playwright.config.ts`. Apareceram 3, todos em `supabase/functions/_shared/proof-kit.ts`, que as specs importam: o `.mjs` sem declaração (resolvido pelo `allowJs`), `body: bytes` no `fetch` (o `BodyInit` do TS 6 só aceita view de `ArrayBuffer`; virou `bytes as Uint8Array<ArrayBuffer>`) e `reply.then(resolve)` num `Promise<void>` (virou `new Promise<void>` com `reply.then(() => resolve())`). As duas edições só mexem em tipo; o comportamento não muda.
+- **Arquivos/módulos principais:** `e2e/tsconfig.json`, `package.json`, `supabase/functions/_shared/proof-kit.ts`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova. `@types/node` vem do `nodeLinker: hoisted` (dependência de outros pacotes), como já acontece com `@supabase/supabase-js` no `proof-kit`; não entrou como dependência direta da raiz.
+- **Como testar:** `pnpm check`; `pnpm typecheck:e2e`; `pnpm exec playwright test --list`.
+- **Verificado:** `pnpm check` passou com o `typecheck:e2e`. `pnpm exec playwright test --list`: 95 testes em 26 arquivos, o mesmo número que com o `proof-kit.ts` de `9bbaf00`. O `proof-kit.ts` editado carrega no Node (remoção de tipos), 29 exports.
+- **Não verificado:** E2E e `pnpm functions:test` (sem pilha); o `proof-kit` é usado pelos dois, mas a mudança é só de tipo. `supabase/functions/` continua sem typecheck próprio: só o `proof-kit` e o que ele importa entram, por tabela.
+- **Pendências / próximos passos:** marcar o BL-11 no quadro. Se o repositório quiser `@types/node` declarado, ele entra como dependência direta da raiz (já está no lockfile, 26.6.6).

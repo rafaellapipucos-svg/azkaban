@@ -3794,3 +3794,19 @@
 - **Verificado:** o comando acima, 15/15 passaram; as rodadas com sonda de tempo e CPU lenta descritas acima (sonda removida antes do commit). `pnpm check` passou.
 - **Não verificado:** a linha do tempo real do CI (sem trace), então não está provado que o atraso lá ficou entre 30 e 60 s em vez de uma parada; se voltar a falhar com 60 s, é parada, e o trace pedido no handoff vai mostrar onde. CI no Linux. Suíte E2E completa. Hora pelo UTC−3 (PowerShell barrado).
 - **Pendências / próximos passos:** handoff do upload de traces no CI para o arquiteto.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 13:21 (BRT)
+
+- **Branch:** ci/e2e-traces (a partir de `feat/backlog-after-phase-8`, `ed54cd2`)
+- **Agente(s):** arquiteto
+- **Resumo:** atende o handoff `20261103-1318-qa-testes-para-arquiteto-traces-da-e2e-no-ci.md`: o job `database-and-e2e` passa a subir os traces da E2E quando falha.
+- **Alterações:**
+  - `.github/workflows/ci.yml`: depois de `pnpm e2e`, `actions/upload-artifact@v4` com `if: failure()`, artefato `e2e-test-results` com `test-results/` e `playwright-report/`, `if-no-files-found: ignore`, `retention-days: 7`. Tag maior `@v4`, a mesma convenção das outras actions do workflow.
+  - Conteúdo: os traces têm só usuários de teste da pilha local e as chaves demo que o workflow já expõe; arquivos ocultos (`.env*`) ficam fora, porque `include-hidden-files` é falso por padrão. Sem segredo novo. Não há reporter HTML configurado, então `playwright-report/` só aparece se um for adicionado.
+- **Arquivos/módulos principais:** `.github/workflows/ci.yml`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma
+- **Como testar:** PR de rascunho com uma spec que falha de propósito; o run lista o artefato e `gh run download <id>` traz `trace.zip` e `error-context.md`.
+- **Verificado:** `pnpm check` passou.
+- **Não verificado:** o passo no CI (sem push, sem PR de rascunho). Fixar as actions por SHA fica para uma mudança do workflow inteiro. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** o PR de rascunho do "Como testar".

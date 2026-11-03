@@ -1965,3 +1965,20 @@
 - **Decisões/ADRs:** ADR-0010, seção 1 (bônus de prova). Código das funções inalterado.
 - **Como testar:** `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm functions:test`. Rodado aqui só `pnpm check` e `node --test supabase/functions/_shared/import-maps.test.ts`, sem pilha.
 - **Pendências / próximos passos:** rodar `pnpm functions:test` com a pilha. Os E2E que leem `xp_events` (`proof-paths`, `notifications-jobs`, `gamification`) somam valores ou não têm prova, e não devem quebrar; não foram rodados.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:07 (BRT)
+
+- **Branch:** chore/qa-phase-6, criada a partir de feat/phase-6-gamification (058bce3)
+- **Agente(s):** qa-testes
+- **Resumo:** QA da Fase 6 no estado integrado. `e2e/gamification.spec.ts` rodou pela primeira vez e passa; E2E completa, testes de funções e `pnpm check` verdes. Cinco achados de uso, nenhum bloqueante, num handoff ao `gamificacao`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `e2e/global-setup.ts`: `close-gamification-days` desligado durante a E2E, junto dos outros jobs de relógio.
+  - `e2e/gamification.spec.ts`: o chip com 0 aceita "0 dia" e "0 dias" (`/^0 dias? de ofensiva$/`), porque a regra de plural do português põe o 0 no singular (QA6-1). O resto da spec passou como estava e cobre XP, comemoração com e sem reduzir movimento, meta no anel, ofensiva no chip, "Primeira tarefa", dia perfeito, ranking em família ligado, em empresa desligado e ligado pelo dono, e teto sem evento nem comemoração.
+  - Handoff `20261103-0405-qa-testes-para-gamificacao-achados-da-fase-6`: QA6-1 a QA6-5.
+- **Arquivos/módulos principais:** `e2e/global-setup.ts`, `e2e/gamification.spec.ts`, o handoff acima
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm exec playwright test e2e/gamification.spec.ts --project=app`; `pnpm e2e` com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória.
+- **Verificado:** `gamification.spec.ts` 4 de 4. `pnpm e2e` completo uma vez: 74 ok, 0 falhas, 1 pulado (o "sem chave VAPID"), incluindo as specs antigas de tarefa e prova com o bônus e o teto. `pnpm functions:test` 178 de 178. `pnpm check` passou (17 de 17 e 10 de 10; core 688). Percurso temporário (não commitado) de Hoje com o chip, cartão de comemoração, Perfil com o painel, ranking no grupo e tela de dia perfeito a 320, 375 e 1280 px, claro e escuro, e com reduzir movimento a 375 escuro: sem rolagem lateral, sem texto cortado, nenhum alvo abaixo de 44 px, foco visível em todas as paradas do Perfil, confete ausente com reduzir movimento, tela de dia perfeito como `dialog` nomeado que prende o foco, fecha com Esc e devolve o foco. Duas sondas confirmaram QA6-2 (uma tarefa só: cartão da conquista, sem tela de dia perfeito) e QA6-3 (meta cumprida no teto: banco com ofensiva 1, chip em 0).
+- **Não verificado:** leitor de tela real (só papéis e rótulos no DOM), som e vibração num aparelho, Safari e iPhone, o caso da "Semana perfeita" de QA6-2 (inferido do código), o caso da foto em análise de QA6-3, projeto hospedado. Sem mutação.
+- **Pendências / próximos passos:** `docs/agentes/QUADRO.md` ainda tem F6-1 a F6-5 "a fazer" (item da seção 10, do orquestrador). Achados com o `gamificacao`; depois de QA6-1, apertar a E2E para "0 dias".

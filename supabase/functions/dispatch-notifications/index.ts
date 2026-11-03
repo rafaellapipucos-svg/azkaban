@@ -3,16 +3,16 @@
 // what (claim_notification_batch) and records what happened (report_notification_results); this
 // function only renders and sends. Logs carry counts and codes, never an endpoint, a key, a title, a
 // phone, a user id or a payload. Each run claims only the channels it can send (ADR-0009, section 2):
-// without the VAPID secrets the push waits and WhatsApp goes on.
+// without the VAPID secrets the push waits and WhatsApp goes on. The devices of the app ride the push
+// row (ADR-0012, section 11) through NativePushChannel: a fake Expo unless NATIVE_PUSH_PROVIDER=expo.
 import { notificationDefaults, notificationRules } from '@azkaban/config';
 import {
-  dailySummarySourceSchema,
-  deliveryChannelSchema,
-  notificationItemSchema,
-  occurrenceStatusSchema,
-  phoneE164Schema,
+  nativePushAndroidChannelId,
+  nativePushMessageSchema,
   whatsappOutboundSchema,
+  type NativePushMessage,
   type NotificationItem,
+  type PushPayload,
   type WhatsAppOutbound,
 } from '@azkaban/contracts';
 import { buildPushPayload, type PushSource } from '@azkaban/core';
@@ -32,8 +32,10 @@ import {
   type OutboundMessage,
   type Report,
 } from './dispatch.ts';
+import { parseItem } from './items.ts';
+import { NativePushChannel, nativePushTransport } from './native-push.ts';
 import { makeTranslate, type Messages, type Translate } from './translate.ts';
-import { loadVapid, WebPushChannel } from './web-push.ts';
+import { loadVapid, ttlSeconds, WebPushChannel } from './web-push.ts';
 
 /** One file per language of packages/i18n. A profile in a language without one gets the default. */
 const messages: Record<string, Messages> = { 'pt-BR': ptBR as Messages };
@@ -43,57 +45,12 @@ const SEND_TIMEOUT_MS = 10_000;
 
 const reply = responder();
 
-const itemSchema = z.object({
-  outboxId: z.guid(),
-  notificationId: z.guid(),
-  channel: deliveryChannelSchema,
-  type: z.string(),
-  data: z.record(z.string(), z.unknown()),
-  occurrenceId: z.guid().nullable(),
-  locale: z.string(),
-  taskTitle: z.string().nullable(),
-  requiresPhotoProof: z.boolean(),
-  attempts: z.int().min(1),
-  scheduledFor: z.string(),
-  subscriptions: z.array(
-    z.object({ id: z.guid(), endpoint: z.string(), p256dh: z.string(), auth: z.string() }),
-  ),
-  timezone: z.string(),
-  overdueAt: z.string().nullable(),
-  occurrenceStatus: occurrenceStatusSchema.nullable(),
-  phone: phoneE164Schema.nullable(),
-  summary: dailySummarySourceSchema.nullable(),
-});
 const claimSchema = z.object({
   items: z.array(z.unknown()),
   expired: z.int().min(0),
   cancelled: z.int().min(0),
   deferred: z.int().min(0),
 });
-
-/** The item, with its type and data checked against the contract of the bell, or its id to fail it. */
-function parseItem(raw: unknown): OutboundMessage | { invalid: string | null } {
-  const item = itemSchema.safeParse(raw);
-  if (!item.success) {
-    const id = z.object({ outboxId: z.guid() }).safeParse(raw);
-    return { invalid: id.success ? id.data.outboxId : null };
-  }
-  const source = notificationItemSchema.safeParse({
-    id: item.data.notificationId,
-    type: item.data.type,
-    data: item.data.data,
-    occurrenceId: item.data.occurrenceId,
-    taskTitle: item.data.taskTitle,
-    createdAt: item.data.scheduledFor,
-    readAt: null,
-  });
-  // WhatsApp needs the number, and the summary its source: the claim sends both, or the row is broken.
-  const complete =
-    item.data.channel !== 'whatsapp' ||
-    (item.data.phone !== null &&
-      (item.data.type !== 'daily_summary' || item.data.summary !== null));
-  return source.success && complete ? item.data : { invalid: item.data.outboxId };
-}
 
 /** The profile's language when there is a file for it, else the default. Also the one of Intl. */
 const knownLocale = (locale: string) => (messages[locale] ? locale : defaults.locale);
@@ -110,7 +67,7 @@ function translatorFor(locale: string): Translate {
 }
 
 /** The payload, validated by the contract inside buildPushPayload. Only the encrypted body carries it. */
-function render(message: OutboundMessage): string {
+function payload(message: OutboundMessage): PushPayload {
   const source = {
     id: message.notificationId,
     type: message.type as NotificationItem['type'],
@@ -122,13 +79,26 @@ function render(message: OutboundMessage): string {
     overdueAt: message.overdueAt,
     occurrenceStatus: message.occurrenceStatus,
   } as PushSource;
-  return JSON.stringify(
-    buildPushPayload(source, message.requiresPhotoProof, translatorFor(message.locale), {
-      locale: knownLocale(message.locale),
-      lateCompletionWindowHours: taskRules.lateCompletionWindowHours,
-      now: new Date(),
-    }),
-  );
+  return buildPushPayload(source, message.requiresPhotoProof, translatorFor(message.locale), {
+    locale: knownLocale(message.locale),
+    lateCompletionWindowHours: taskRules.lateCompletionWindowHours,
+    now: new Date(),
+  });
+}
+
+const render = (message: OutboundMessage) => JSON.stringify(payload(message));
+
+/** The same title, body and tap as the Web Push, for one device (ADR-0012, section 11). */
+function renderNative(message: OutboundMessage, to: string): NativePushMessage {
+  const { v, notificationId, type, url, title, body } = payload(message);
+  return nativePushMessageSchema.parse({
+    to,
+    title,
+    body,
+    data: { v, notificationId, type, url },
+    channelId: nativePushAndroidChannelId,
+    ttl: ttlSeconds(message, Date.now(), notificationDefaults),
+  });
 }
 
 const languages: Record<string, string> = whatsappDefaults.templateLanguages;
@@ -179,7 +149,8 @@ Deno.serve(async (req) => {
     }
 
     // Before any claim, the channels this run can send. Only those are claimed: a row claimed without
-    // keys to send it would only wait for its lease. Without VAPID, the push rows stay pending.
+    // keys to send it would only wait for its lease. Without VAPID, the push rows stay pending, the
+    // devices of the app included: they share the row.
     const admin = serviceClient();
     const channels: NotificationChannel[] = [];
     const vapid = await loadVapid(
@@ -188,6 +159,16 @@ Deno.serve(async (req) => {
       Deno.env.get('VAPID_SUBJECT'),
     );
     if (vapid) {
+      const transport = nativePushTransport(
+        {
+          NATIVE_PUSH_PROVIDER: Deno.env.get('NATIVE_PUSH_PROVIDER'),
+          EXPO_ACCESS_TOKEN: Deno.env.get('EXPO_ACCESS_TOKEN'),
+        },
+        fetch,
+      );
+      const native =
+        transport &&
+        new NativePushChannel({ ...transport, render: renderNative, timeoutMs: SEND_TIMEOUT_MS });
       channels.push(
         new WebPushChannel({
           vapid,
@@ -196,6 +177,7 @@ Deno.serve(async (req) => {
           ttl: notificationDefaults,
           fetch,
           timeoutMs: SEND_TIMEOUT_MS,
+          native,
         }),
       );
     }

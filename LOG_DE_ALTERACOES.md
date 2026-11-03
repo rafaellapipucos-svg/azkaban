@@ -1840,3 +1840,18 @@
 - **Verificado:** no Chromium (Playwright), `/design-system` com `.env.local` falso, já apagado, e sem a pilha. Nunito ExtraBold 12 px, claro e escuro iguais. 320 px: abas de 44, 53, 63, 64, 53 e 44 px, todas com 64 de altura; menor folga entre rótulos 2,3 px; todo rótulo dentro da própria aba; sem rolagem lateral. 375 px: folga mínima 15,4 px. 1280 px: 46,4 px. Cor do rótulo `muted` sobre `surface` passa AA nos dois temas. `pnpm check` passou (10 de 10 e 8 de 8). `pnpm build:web` passou.
 - **Não verificado:** a barra real do app (`AppTabBar`), que pede sessão; Android e iOS; leitor de tela (rótulo e papel não mudaram). Sem E2E nem mutação: a lógica é um ternário.
 - **Pendências / próximos passos:** uma sétima aba (terceira área) não cabe a 320 px nem a 12 px; aí a resposta é outra (só ícones abaixo de certa largura, ou menos abas).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:21 (BRT)
+
+- **Branch:** chore/security-phase-7, criada a partir de feat/phase-7-shopping (7528ceb)
+- **Agente(s):** revisor-seguranca
+- **Resumo:** Revisão de segurança da Fase 7 (lista de compras), com PoCs na pilha B. Nenhum achado alto ou médio. Três baixos (SEG7-1 a SEG7-3) e três informativos (SEG7-4 a SEG7-6). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Handoffs `20261103-0321-revisor-seguranca-para-arquiteto-compras` (SEG7-1 vínculo com tarefa que o membro não vê; SEG7-2 sem teto de listas por escopo; SEG7-3 controle e direção em nome, nota e emoji, no texto compartilhado) e `20261103-0321-revisor-seguranca-para-banco-de-dados-compras` (SEG7-4 desvio largo por `pg_trigger_depth()`; SEG7-5 oráculo de existência por UUID conhecido; SEG7-6 delta `NaN`/`Infinity`).
+- **Arquivos/módulos principais:** `docs/agentes/handoffs/`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. O `DELETE` do Realtime só com o id segue o risco aceito do SEG4-4 (ADR-0011, seção 7).
+- **Como testar:** `bash docs/agentes/ferramentas/pilha-b.sh db`, `pnpm exec supabase db reset` e os PoCs dos handoffs, como `authenticated` com `request.jwt.claims`.
+- **Verificado (pilha B, só Postgres):** outro grupo não vê listas, itens nem catálogo; owner e admin não veem lista, item nem catálogo pessoal de um membro; ex-membro não vê, não apaga a lista que criou, não ajusta item nem cria lista; `added_by`, `checked_at`, `checked_by`, `list_id`, `status`, `completed_by`, `group_id`, `insert` direto em `shopping_lists` e `delete` do catálogo dão 42501; catálogo pessoal para outro dono e catálogo do grupo por `member` dão `forbidden`; de outro grupo, `forbidden` igual para nome existente e novo no catálogo, lista existente e inexistente, e nas cinco RPCs; `catalog_item_id` de outro escopo, `forbidden`; vínculo com tarefa privada, de outro grupo ou inexistente, `task_link_invalid`; lista finalizada recusa `delete` de item e `update`; 201 itens, `list_full`. Funções: todas `security definer` com `search_path` vazio; `seed_*`, guardas e `shopping_rules()` sem `execute` para clientes; `anon` sem nenhuma. Publicação com `notifications` e as duas tabelas, `replica identity` padrão. `pnpm db:check-permissions`, matriz em sincronia (33 linhas). Nenhum segredo no diff.
+- **Não verificado:** Realtime em si (a B `db` não tem): o filtro `list_id=eq` e o `DELETE` só com id ficaram na leitura do código, que ignora o id que não mostra. `pnpm db:test`, `pnpm check` e E2E não rodaram (revisão sem mudança de código). Navegador, iOS, Android e projeto hospedado.
+- **Pendências / próximos passos:** decisão do `arquiteto` em SEG7-1 a SEG7-3; SEG7-4 a SEG7-6 a critério do `banco-de-dados`. Pilha B parada.

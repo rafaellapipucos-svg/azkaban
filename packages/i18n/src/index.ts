@@ -5,6 +5,7 @@ import auth from './pt-BR/auth.json';
 import calendar from './pt-BR/calendar.json';
 import common from './pt-BR/common.json';
 import contexts from './pt-BR/contexts.json';
+import gamification from './pt-BR/gamification.json';
 import groups from './pt-BR/groups.json';
 import notifications from './pt-BR/notifications.json';
 import proof from './pt-BR/proof.json';
@@ -27,6 +28,7 @@ export function initI18n() {
         tasks,
         proof,
         notifications,
+        gamification,
         ui,
       },
     },

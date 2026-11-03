@@ -148,6 +148,7 @@ export {
   type StreakState,
 } from './gamification/streak';
 export { applyCap, capRoom, occurrenceXpWithBonus, type OccurrenceAward } from './gamification/xp';
+export { rankingEnabled } from './gamification/ranking';
 export {
   celebrationsFor,
   reachedAchievements,

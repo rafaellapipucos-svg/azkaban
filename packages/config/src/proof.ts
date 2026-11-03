@@ -27,7 +27,7 @@ export const proofRules = {
   recordRetentionDays: 365,
   signedUrlTtlSeconds: 60,
   /** Raise it when the notice changes, so everyone reads the new text before the next proof. */
-  consentVersion: 2,
+  consentVersion: 3,
 } as const;
 
 /** Client and function defaults, with nothing for the database to mirror. */

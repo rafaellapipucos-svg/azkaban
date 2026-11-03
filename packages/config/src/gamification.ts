@@ -45,7 +45,7 @@ export const gamificationRules = {
    */
   historyDays: 400,
   /** The job that closes local days. Days further back than `maxCatchUpDays` are not recounted. */
-  closeJob: { batchSize: 200, maxCatchUpDays: 30 },
+  closeJob: { batchSize: 64, maxCatchUpDays: 30 },
 } as const;
 
 /** Client values, with nothing to mirror. */

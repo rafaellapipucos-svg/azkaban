@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 create extension if not exists pgrowlocks with schema extensions;
-select plan(46);
+select plan(47);
 
 create function pg_temp.u(p text) returns uuid language sql as $$
   select ('00000000-0000-0000-0000-' || lpad(p, 12, '0'))::uuid;
@@ -80,6 +80,7 @@ select is(public.gamification_rules() -> 'xp' -> 'capWindowHours', '24'::jsonb, 
 select is(public.gamification_rules() -> 'historyDays', '400'::jsonb, 'historyDays is mirrored');
 select is(public.gamification_rules() -> 'ranking' -> 'weekStartsOn', '1'::jsonb, 'weekStartsOn is mirrored');
 select is(public.gamification_rules() -> 'ranking' -> 'maxWeeks', '2'::jsonb, 'maxWeeks is mirrored');
+select is(public.gamification_rules() -> 'closeJob' -> 'batchSize', '64'::jsonb, 'closeJob.batchSize is 64, inside the subtransaction cache (SEG6-7)');
 
 -- ===== SEG6-1: the zone of the profile =====
 select pg_temp.login(pg_temp.u('1'));

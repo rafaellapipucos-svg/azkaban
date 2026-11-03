@@ -4,7 +4,7 @@
 -- with the same code as a real denial, so a rejection alone proves little.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(579);
+select plan(587);
 
 -- The XP amounts below are those of Phase 3. The proof bonus of ADR-0010 is tested in
 -- rls_gamification, so it is off here, inside this transaction only.
@@ -42,7 +42,7 @@ insert into public.contexts (id, area_id, group_id, owner_user_id, name, color_t
     'Rua A, 1', -23.55, -46.63, 150);
 
 -- Alice, Caio and Duda accepted the notice. Fred and Bea did not.
-update public.profiles set proof_consent_version = 2, proof_consent_at = now()
+update public.profiles set proof_consent_version = 3, proof_consent_at = now()
 where id in ('00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000c',
   '00000000-0000-0000-0000-00000000000d');
 
@@ -274,7 +274,7 @@ select is((select count(*) from public.occurrence_transitions), 23::bigint, 'the
 select is((select string_agg(from_status || '>' || to_status, ',' order by from_status::text, to_status::text) from public.occurrence_transitions where actor = 'reviewer'), 'done>missed,done>partial,missed>done,partial>done', 'and they are the reviewer''s');
 select is((select string_agg(role::text, ',' order by role::text) from public.role_permissions where permission_key = 'proof.review'), 'admin,owner', 'proof.review belongs to owner and admin, and not to member');
 select is((select (value ->> 'maxBytes')::int from public.app_settings where key = 'proof_rules'), 2097152, 'proof_rules are seeded');
-select is((public.proof_rules() ->> 'consentVersion')::int, 2, 'and read by the accessor');
+select is((public.proof_rules() ->> 'consentVersion')::int, 3, 'and read by the accessor');
 select is((select public from storage.buckets where id = 'task-proofs'), false, 'the proofs bucket is private');
 select is((select file_size_limit from storage.buckets where id = 'task-proofs'), 2097152::bigint, 'it has the size limit of proofRules');
 select is((select allowed_mime_types from storage.buckets where id = 'task-proofs'), array['image/jpeg'], 'and only takes jpeg');
@@ -306,7 +306,7 @@ select is((select count(*) from public.contexts where name = 'Sem local'), 0::bi
 
 -- Consent columns: read by the owner, written only by record_proof_consent
 select pg_temp.login(pg_temp.u('d'));
-select is((select proof_consent_version from public.profiles where id = auth.uid()), 2, 'a user reads their own consent');
+select is((select proof_consent_version from public.profiles where id = auth.uid()), 3, 'a user reads their own consent');
 select throws_ok($$update public.profiles set proof_consent_version = 5 where id = auth.uid()$$, '42501', 'permission denied for table profiles', 'but cannot write it');
 select throws_ok($$update public.profiles set proof_consent_at = now() where id = auth.uid()$$, '42501', 'permission denied for table profiles', 'nor its date');
 select lives_ok($$update public.profiles set display_name = 'Duda B' where id = auth.uid()$$, 'while the other profile fields stay editable');
@@ -686,7 +686,7 @@ select throws_ok($$select public.issue_proof_challenge(pg_temp.occ('PH1'))$$, '4
 -- Left the group
 select pg_temp.pg();
 select pg_temp.mkp('PHF', '20000000-0000-0000-0000-00000000000a', pg_temp.u('f'), pg_temp.u('f'), 'group');
-update public.profiles set proof_consent_version = 2 where id = pg_temp.u('f');
+update public.profiles set proof_consent_version = 3 where id = pg_temp.u('f');
 select pg_temp.login(pg_temp.u('f'));
 select lives_ok($$select public.issue_proof_challenge(pg_temp.occ('PHF'))$$, 'Fred, a member, asks for a challenge');
 select pg_temp.pg();
@@ -733,23 +733,43 @@ select pg_temp.pg();
 select pg_temp.mkp('PHG', '20000000-0000-0000-0000-00000000000a', pg_temp.u('f'), pg_temp.u('f'), 'group');
 select pg_temp.login(pg_temp.u('f'));
 select throws_ok($$select public.issue_proof_challenge(pg_temp.occ('PHG'))$$, 'P0001', 'proof_consent_required', 'without the notice accepted: proof_consent_required');
-select throws_ok($$select public.record_proof_consent(3)$$, '22023', 'invalid_consent_version', 'the consent only takes the current version');
-select throws_ok($$select public.record_proof_consent(1)$$, '22023', 'invalid_consent_version', 'not an older one either');
-select lives_ok($$select public.record_proof_consent(2)$$, 'the current version is recorded');
-select is((select proof_consent_version from public.profiles where id = auth.uid()), 2, 'with its version');
+select throws_ok($$select public.record_proof_consent(4)$$, '22023', 'invalid_consent_version', 'the consent only takes the current version');
+select throws_ok($$select public.record_proof_consent(2)$$, '22023', 'invalid_consent_version', 'not an older one either');
+select lives_ok($$select public.record_proof_consent(3)$$, 'the current version is recorded');
+select is((select proof_consent_version from public.profiles where id = auth.uid()), 3, 'with its version');
 select ok((select proof_consent_at from public.profiles where id = auth.uid()) is not null, 'and its date');
 select lives_ok($$select public.issue_proof_challenge(pg_temp.occ('PHG'))$$, 'and then the challenge is issued');
 select pg_temp.pg();
 -- A new notice version asks everyone again (39)
-update public.app_settings set value = jsonb_set(value, '{consentVersion}', '3') where key = 'proof_rules';
+update public.app_settings set value = jsonb_set(value, '{consentVersion}', '4') where key = 'proof_rules';
 select pg_temp.login(pg_temp.u('d'));
 select throws_ok($$select public.issue_proof_challenge(pg_temp.occ('PHS'))$$, 'P0001', 'proof_consent_required', 'after consentVersion goes up, an old acceptance is not enough');
-select throws_ok($$select public.record_proof_consent(2)$$, '22023', 'invalid_consent_version', 'and the old version cannot be recorded again');
-select lives_ok($$select public.record_proof_consent(3)$$, 'the new version can');
+select throws_ok($$select public.record_proof_consent(3)$$, '22023', 'invalid_consent_version', 'and the old version cannot be recorded again');
+select lives_ok($$select public.record_proof_consent(4)$$, 'the new version can');
 select lives_ok($$select public.issue_proof_challenge(pg_temp.occ('PHS'))$$, 'and then the challenge is issued');
 select pg_temp.pg();
-update public.app_settings set value = jsonb_set(value, '{consentVersion}', '2') where key = 'proof_rules';
+update public.app_settings set value = jsonb_set(value, '{consentVersion}', '3') where key = 'proof_rules';
+update public.profiles set proof_consent_version = 3 where id = pg_temp.u('d');
+-- ADR-0012, section 6: version 3 is live, and who accepted the 2 is asked again, on issue and on claim
 update public.profiles set proof_consent_version = 2 where id = pg_temp.u('d');
+select pg_temp.login(pg_temp.u('d'));
+select throws_ok($$select public.issue_proof_challenge(pg_temp.occ('PHS'))$$, 'P0001', 'proof_consent_required', 'an acceptance of version 2 no longer issues a challenge');
+select pg_temp.pg();
+update public.profiles set proof_consent_version = 3 where id = pg_temp.u('d');
+select pg_temp.login(pg_temp.u('d'));
+select pg_temp.sv('n_v2', public.issue_proof_challenge(pg_temp.occ('PHS')) ->> 'nonce');
+select pg_temp.pg();
+update public.profiles set proof_consent_version = 2 where id = pg_temp.u('d');
+select pg_temp.service();
+select throws_ok($$select public.claim_proof_challenge(pg_temp.g('n_v2')::uuid, pg_temp.u('d'))$$, 'P0001', 'proof_consent_required', 'nor carries a photo through the claim');
+select pg_temp.pg();
+select pg_temp.login(pg_temp.u('d'));
+select lives_ok($$select public.record_proof_consent(3)$$, 'version 3 is accepted');
+select pg_temp.pg();
+select pg_temp.service();
+select lives_ok($$select public.claim_proof_challenge(pg_temp.g('n_v2')::uuid, pg_temp.u('d'))$$, 'and then the same nonce is claimed');
+select pg_temp.pg();
+select is((select string_agg(version::text, ',' order by version) from public.proof_consents where user_id = pg_temp.u('d') and revoked_at is null and version >= 3), '3,4', 'each version accepted keeps its own row');
 -- The order of the table: the first failing line is the one reported
 select pg_temp.mk('NPX', '20000000-0000-0000-0000-00000000000a', pg_temp.u('c'), pg_temp.u('d'), 'group', now() + interval '2 days');
 update public.task_occurrences set status = 'cancelled' where id = pg_temp.occ('NPX');
@@ -767,7 +787,7 @@ select pg_temp.login(pg_temp.u('d'));
 select throws_ok($$select public.issue_proof_challenge(pg_temp.occ('PH5'))$$, 'P0001', 'late_window_expired', 'the window comes before the missing consent');
 select pg_temp.pg();
 update public.task_occurrences set overdue_at = now() + interval '1 day' where id = pg_temp.occ('PH5');
-update public.profiles set proof_consent_version = 2 where id = pg_temp.u('d');
+update public.profiles set proof_consent_version = 3 where id = pg_temp.u('d');
 -- The shape of the answer
 select pg_temp.login(pg_temp.u('d'));
 select pg_temp.sv('ok_challenge', public.issue_proof_challenge(pg_temp.occ('PH5'))::text);
@@ -838,13 +858,28 @@ select throws_ok($$select public.issue_proof_challenge(pg_temp.occ('PH4'))$$, 'P
 select pg_temp.pg();
 -- 30 bodies read in the day: Alice used 30 challenges two hours ago, out of the hourly limit
 delete from public.proof_challenges;
-update public.profiles set proof_consent_version = 2 where id = pg_temp.u('a');
+update public.profiles set proof_consent_version = 3 where id = pg_temp.u('a');
 select pg_temp.mkp('PHA', '20000000-0000-0000-0000-00000000000a', pg_temp.u('a'), pg_temp.u('a'), 'group');
 insert into public.proof_challenges (occurrence_id, user_id, created_at, expires_at, used_at)
 select pg_temp.occ('PH5'), pg_temp.u('a'), now() - interval '2 hours', now() - interval '115 minutes', now() - interval '2 hours'
 from generate_series(1, 29) n;
 select pg_temp.login(pg_temp.u('a'));
 select lives_ok($$select public.issue_proof_challenge(pg_temp.occ('PHA'))$$, '29 used in the day still leave room for one more challenge');
+select pg_temp.pg();
+-- ADR-0012, section 13, item 3: the issued and still alive count too, so 29 used plus 30 issued is not 59
+select pg_temp.login(pg_temp.u('a'));
+select throws_ok($$select public.issue_proof_challenge(pg_temp.occ('PHA'))$$, 'P0001', 'challenge_rate_limited', 'with 29 used and 1 issued still alive, the next challenge is refused');
+select pg_temp.pg();
+update public.proof_challenges set created_at = now() - interval '10 minutes', expires_at = now() - interval '5 minutes' where user_id = pg_temp.u('a') and used_at is null;
+select pg_temp.login(pg_temp.u('a'));
+select lives_ok($$select public.issue_proof_challenge(pg_temp.occ('PHA'))$$, 'once that nonce expires unused, it stops counting');
+select pg_temp.pg();
+-- a nonce used a minute ago, whose expiry is still ahead, counts once and not twice
+delete from public.proof_challenges where user_id = pg_temp.u('a') and used_at is null;
+update public.proof_challenges set created_at = now() - interval '1 minute', expires_at = now() + interval '4 minutes', used_at = now() - interval '30 seconds'
+where id = (select id from public.proof_challenges where user_id = pg_temp.u('a') limit 1);
+select pg_temp.login(pg_temp.u('a'));
+select lives_ok($$select public.issue_proof_challenge(pg_temp.occ('PHA'))$$, 'a used nonce still inside its lifetime is counted once');
 select pg_temp.pg();
 delete from public.proof_challenges where user_id = pg_temp.u('a') and used_at is null;
 insert into public.proof_challenges (occurrence_id, user_id, created_at, expires_at, used_at)
@@ -961,7 +996,7 @@ select lives_ok($$select pg_temp.commit(pg_temp.g('n45e')::uuid, pg_temp.u('d'))
 
 -- 46. An assignee who left the group
 select pg_temp.mkp('C46', '20000000-0000-0000-0000-00000000000b', pg_temp.u('b'), pg_temp.u('d'), 'group');
-update public.profiles set proof_consent_version = 2 where id = pg_temp.u('d');
+update public.profiles set proof_consent_version = 3 where id = pg_temp.u('d');
 select pg_temp.sv('n46', pg_temp.claimed(pg_temp.u('d'), pg_temp.occ('C46'))::text);
 delete from public.group_members where user_id = pg_temp.u('d') and group_id = '10000000-0000-0000-0000-00000000000b';
 select throws_ok($$select pg_temp.commit(pg_temp.g('n46')::uuid, pg_temp.u('d'))$$, '42501', 'forbidden', 'a user who left the group cannot commit');
@@ -1221,7 +1256,7 @@ select pg_temp.mkp('V1', '20000000-0000-0000-0000-00000000000a', pg_temp.u('c'),
 select pg_temp.mk_occ('V1', now() + interval '1 day');
 select pg_temp.mk_occ('V1', now() + interval '2 days');
 update public.task_occurrences set assignee_id = pg_temp.u('f') where id = pg_temp.occ('V1', 1);
-update public.profiles set proof_consent_version = 2 where id = pg_temp.u('f');
+update public.profiles set proof_consent_version = 3 where id = pg_temp.u('f');
 select pg_temp.prove(pg_temp.u('f'), pg_temp.occ('V1', 1));
 select pg_temp.prove(pg_temp.u('d'), pg_temp.occ('V1', 2));
 select pg_temp.sv('v_f', pg_temp.proof_of(pg_temp.occ('V1', 1))::text);
@@ -1331,7 +1366,7 @@ delete from storage.buckets where id = 'control';
 
 -- ===== Flags that only the owner or manage_group switch (31) =====
 insert into public.role_permissions (role, permission_key) values ('member', 'task.edit_assigned');
-update public.profiles set proof_consent_version = 2 where id = pg_temp.u('f');
+update public.profiles set proof_consent_version = 3 where id = pg_temp.u('f');
 select pg_temp.mkp('FL1', '20000000-0000-0000-0000-00000000000a', pg_temp.u('c'), pg_temp.u('f'), 'group', now() + interval '2 days', false, true, 'FREQ=DAILY');
 select pg_temp.mk_occ('FL1', now() + interval '1 day');
 select pg_temp.mk_occ('FL1', now() + interval '2 days');
@@ -1455,7 +1490,7 @@ select pg_temp.pg();
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-000000000010', 'gina@test.local', '{"display_name": "Gina"}');
 insert into public.group_members (group_id, user_id, role) values ('10000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-000000000010', 'member');
-update public.profiles set proof_consent_version = 2 where id = '00000000-0000-0000-0000-000000000010';
+update public.profiles set proof_consent_version = 3 where id = '00000000-0000-0000-0000-000000000010';
 select pg_temp.mkp('GG', '20000000-0000-0000-0000-00000000000b', pg_temp.u('b'), '00000000-0000-0000-0000-000000000010', 'group');
 select pg_temp.prove('00000000-0000-0000-0000-000000000010', pg_temp.occ('GG'));
 select pg_temp.sv('v_g', pg_temp.proof_of(pg_temp.occ('GG'))::text);
@@ -1630,7 +1665,7 @@ select pg_temp.pg();
 -- SEG-3. Hana fills her limits in a group and deletes it, with the same calls as the review's PoC
 insert into auth.users (id, email, raw_user_meta_data) values
   ('00000000-0000-0000-0000-000000000011', 'hana@test.local', '{"display_name": "Hana"}');
-update public.profiles set proof_consent_version = 2 where id = '00000000-0000-0000-0000-000000000011';
+update public.profiles set proof_consent_version = 3 where id = '00000000-0000-0000-0000-000000000011';
 insert into public.groups (id, name, type, owner_id) values
   ('10000000-0000-0000-0000-0000000000c1', 'Casa H1', 'family', '00000000-0000-0000-0000-000000000011'),
   ('10000000-0000-0000-0000-0000000000c2', 'Casa H2', 'family', '00000000-0000-0000-0000-000000000011');
@@ -1678,10 +1713,10 @@ select pg_temp.pg();
 
 -- SEG-5. Each version accepted, once
 select pg_temp.login(pg_temp.u('b'));
-select lives_ok($$select public.record_proof_consent(2)$$, 'Bea accepts the notice');
-select lives_ok($$select public.record_proof_consent(2)$$, 'and accepts it again');
-select is((select count(*) from public.proof_consents where user_id = auth.uid() and version = 2), 1::bigint, 'one row for the version');
-select is((select proof_consent_version from public.profiles where id = auth.uid()), 2, 'and the profile follows');
+select lives_ok($$select public.record_proof_consent(3)$$, 'Bea accepts the notice');
+select lives_ok($$select public.record_proof_consent(3)$$, 'and accepts it again');
+select is((select count(*) from public.proof_consents where user_id = auth.uid() and version = 3), 1::bigint, 'one row for the version');
+select is((select proof_consent_version from public.profiles where id = auth.uid()), 3, 'and the profile follows');
 select throws_ok($$insert into public.proof_consents (user_id, version) values (auth.uid(), 9)$$, '42501', 'permission denied for table proof_consents', 'the client does not write the record');
 select throws_ok($$update public.proof_consents set accepted_at = now()$$, '42501', 'permission denied for table proof_consents', 'nor rewrite it');
 select throws_ok($$delete from public.proof_consents$$, '42501', 'permission denied for table proof_consents', 'nor delete it');

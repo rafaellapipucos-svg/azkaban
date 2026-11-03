@@ -10,7 +10,9 @@ import {
   whatsappSendResultSchema,
   whatsappSignatureSchema,
   whatsappTextParamSchema,
+  whatsappWebhookMessageSchema,
   whatsappWebhookSchema,
+  whatsappWebhookStatusSchema,
 } from './whatsapp';
 
 const id = '11111111-1111-4111-8111-111111111111';
@@ -69,6 +71,11 @@ describe('whatsappTextParamSchema', () => {
       expect(ok(whatsappTextParamSchema, value)).toBe(false);
     },
   );
+
+  // A title from someone else could reverse what the reader sees, from our number (SEG5-6).
+  it.each(['fatura‮fdp.exe‬', 'a⁦b⁩'])('refuses the bidi control in %j', (value) => {
+    expect(ok(whatsappTextParamSchema, value)).toBe(false);
+  });
 });
 
 describe('dailySummaryPreferencesSchema', () => {
@@ -208,12 +215,28 @@ describe('whatsappWebhookSchema', () => {
     entry: [{ id: '1', changes: [{ field: 'messages', value }] }],
   };
 
-  it('reads statuses and messages and drops what it does not use', () => {
+  it('reads statuses and messages one by one and drops what it does not use', () => {
     const parsed = whatsappWebhookSchema.parse(body);
     const change = parsed.entry[0]!.changes[0]!.value;
-    expect(change.statuses?.[0]?.errors).toEqual([{ code: 131026 }]);
-    expect(change.messages?.[1]?.button?.text).toBe('Parar');
+    expect(whatsappWebhookStatusSchema.parse(change.statuses?.[0]).errors).toEqual([
+      { code: 131026 },
+    ]);
+    expect(whatsappWebhookMessageSchema.parse(change.messages?.[1]).button?.text).toBe('Parar');
     expect(change).not.toHaveProperty('messaging_product');
+  });
+
+  // One element out of shape must not drop a signed batch with a stop word in it (SEG5-3).
+  it('keeps the batch when one element is out of shape', () => {
+    const statuses = [{ id: 'x'.repeat(129), status: 'sent' }, ...value.statuses];
+    const parsed = whatsappWebhookSchema.parse({
+      ...body,
+      entry: [{ changes: [{ field: 'messages', value: { ...value, statuses } }] }],
+    });
+    const read = parsed.entry[0]!.changes[0]!.value.statuses!;
+    expect(read.map((s) => whatsappWebhookStatusSchema.safeParse(s).success)).toEqual([
+      false,
+      true,
+    ]);
   });
 
   it('refuses another object', () => {

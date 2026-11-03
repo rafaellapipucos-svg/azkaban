@@ -97,6 +97,17 @@ Regras completas no [ADR-0008](adr/0008-notificacoes-push-pwa-vermelho-automatic
 - O vermelho automático é a função SQL `auto_miss_occurrences`, a cada 5 minutos, por `auto_miss_at`. Os triggers de status gravam histórico, XP e o aviso.
 - `notificationRules` (`packages/config`) tem espelho em `app_settings`, chave `notification_rules`. O WhatsApp da Fase 5 entra como mais um canal na mesma outbox.
 
+## WhatsApp
+
+Regras completas no [ADR-0009](adr/0009-whatsapp-verificacao-opt-in-resumo-diario.md).
+
+- `WhatsAppProvider` tem duas implementações nas Edge Functions. `ConsoleProvider` é o padrão, sem credenciais, e grava em `whatsapp_console_messages`, que só a service role lê e a E2E consulta. `MetaCloudProvider` fala com a Cloud API e só entra com `WHATSAPP_PROVIDER=meta`, por decisão do humano.
+- O WhatsApp é mais um canal da outbox: `WhatsAppChannel` em `dispatch-notifications`, só para os tipos de `notificationRules.whatsappTypes` (hoje, `daily_summary`) e só para perfis com telefone verificado e opt-in mais novo que o opt-out. O claim confere de novo.
+- O telefone é verificado por um código num template de autenticação: `phone-verification` envia, `confirm_phone_verification` confere. O código só existe como hash, com limites por pessoa e por número.
+- O resumo diário é a função SQL `enqueue_daily_summaries`, a cada minuto, uma vez por usuário e data local. O claim lê a fonte na hora do envio, e `buildDailySummary`, em core, monta os parâmetros do template.
+- `whatsapp-webhook` não usa JWT: confere a assinatura dos bytes brutos, grava os status em `whatsapp_messages` e trata PARAR. O resto das mensagens é ignorado sem guardar.
+- `whatsappRules` tem espelho em `app_settings`, chave `whatsapp_rules`. Telefone, código e texto nunca vão a log.
+
 ## Banco
 
 Desenvolvimento em Supabase local (`pnpm db:start`, exige Docker), nas portas 544xx para conviver com outros projetos locais: `apps/app/.env.development.local` aponta o `pnpm dev` para ele. O projeto hospedado recebe migrations por `supabase db push --db-url "$SUPABASE_DB_URL"`, e só após revisão.

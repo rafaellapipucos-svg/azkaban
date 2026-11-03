@@ -1323,3 +1323,22 @@
 - **Verificado:** antes, 503 com o erro de boot no log; depois, 204 e nenhum `boot error` no log. `pnpm functions:test`: 114 de 114, 27 suítes. `pnpm check`: 17 de 17 tarefas e 9 de 9 suítes.
 - **Não verificado:** E2E (fica com o orquestrador). Hora tirada de UTC menos 3, porque o PowerShell foi bloqueado.
 - **Pendências / próximos passos:** nenhuma desta correção.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 00:33 (BRT)
+
+- **Branch:** docs/whatsapp-adr, criada a partir de feat/phase-4-notifications (e54968d)
+- **Agente(s):** arquiteto
+- **Resumo:** F5-1. ADR-0009 decide o WhatsApp da Fase 5: provedor (`console` por padrão, Meta só por decisão do humano), canal na outbox, verificação de telefone por código no próprio WhatsApp, opt-in e opt-out, resumo diário, templates, webhook, custos, LGPD e o prazo do vermelho no push (handoff 1451). Contratos, config e handoffs publicados. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `docs/adr/0009-whatsapp-verificacao-opt-in-resumo-diario.md` (novo); remissão no ADR-0008, seção 11; seção "WhatsApp" em `docs/arquitetura.md`.
+  - `packages/contracts/src/whatsapp.ts` e `whatsapp.test.ts` (novos): E.164, código, pedido e confirmação (a confirmação devolve o erro em vez de levantar, para não desfazer a contagem de tentativas), opt-in, estado, preferências do resumo, fonte e saída da função pura, parâmetro de template (sem controle, U+2028/2029 nem mais de quatro espaços), mensagem e resultado do provedor, status, assinatura, o mínimo do webhook e os códigos de erro.
+  - `packages/config/src/whatsapp.ts` (novo): `whatsappRules` (espelho `whatsapp_rules`) e `whatsappDefaults`. `whatsapp-env.ts` (novo): `parseWhatsAppEnv`, `console` quando vazio, os quatro segredos obrigatórios com `meta`. `notifications.ts`: `activeChannels` com `whatsapp`, `whatsappTypes: ['daily_summary']`, `defaultChannels.daily_summary`.
+  - `supabase/functions/.env.example`: os cinco nomes `WHATSAPP_*`, sem valor.
+  - Handoffs `20261103-0030-arquiteto-para-{banco-de-dados,backend-funcoes,notificacoes-whatsapp}-whatsapp`.
+- **Arquivos/módulos principais:** `docs/adr/0009-*.md`, `packages/contracts/src/whatsapp.ts`, `packages/config/src/{whatsapp,whatsapp-env,notifications}.ts`
+- **Migrations:** nenhuma; espelhos e tabelas são do `banco-de-dados`.
+- **Decisões/ADRs:** ADR-0009. Só o resumo diário vai por WhatsApp; job do resumo em SQL a cada minuto, idempotente por usuário e data local; fonte lida no claim; linha do sino nasce lida; claim com `p_channels`; PARAR pela mensagem inteira normalizada, também por `wa_id`; `whatsapp_messages` sem acesso do cliente; E2E lê o código e o resumo em `whatsapp_console_messages` (só service role, 1 dia). Prazo no push: o claim devolve `overdueAt`, `occurrenceStatus` e `timezone`. `daily_summary` entra em `notificationTypeSchema` pelo `notificacoes-whatsapp`, pré-aprovado, porque quebra o `switch` de core.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/contracts exec vitest run src/whatsapp.test.ts`.
+- **Verificado:** `pnpm install --frozen-lockfile` e `pnpm check` passaram (contracts 89, config 13, core 556). Mutação: a regex de E.164 sem âncoras faz 4 testes falharem; restaurada. Documentação da Meta lida por `curl` em 2026-11-03 (preços, componentes, autenticação, TTL, webhook, status, erros, limites, opt-in, categorias).
+- **Não verificado:** na documentação atual da Meta, a regra de quebra de linha, tab e espaços dentro do parâmetro (só aparece o erro genérico 132018), um limite por parâmetro, a tabela em reais e o número de teste gratuito. Nada rodou contra a pilha nem contra a Meta. `pnpm db:check-permissions` vai acusar `notification_rules` e `whatsapp_rules` até a migration.
+- **Pendências / próximos passos:** os três handoffs. Humano: os 12 itens da seção 16 do ADR-0009, e se e quando ligar a Meta (seção 10). Sugestão ao orquestrador: um item de banco na Fase 5 e o F5-5 dividido entre banco (job SQL) e funções (canal).

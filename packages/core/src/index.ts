@@ -131,3 +131,24 @@ export {
   type SummaryOptions,
 } from './notifications/whatsapp';
 export { deviceLabel } from './notifications/deviceLabel';
+export { levelForXp, type LevelCurve, type LevelInfo } from './gamification/level';
+export {
+  dailyGoal,
+  dayCounts,
+  foldStreak,
+  type DailyGoal,
+  type UserDayCounts,
+  type FoldedDay,
+  type GoalCounts,
+  type GoalRules,
+  type StreakDay,
+  type StreakFold,
+  type StreakRules,
+  type StreakState,
+} from './gamification/streak';
+export { applyCap, capRoom, occurrenceXpWithBonus, type OccurrenceAward } from './gamification/xp';
+export {
+  celebrationsFor,
+  reachedAchievements,
+  type Celebration,
+} from './gamification/celebrations';

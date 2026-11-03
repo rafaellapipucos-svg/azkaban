@@ -9,6 +9,7 @@
 #   bash docs/agentes/ferramentas/pilha-b.sh parar      para a B e devolve o config.toml original
 #
 # Regras:
+# - Uma pilha B por vez na máquina, de um checkout só; o script recusa subir uma segunda.
 # - E2E e `pnpm dev` só na pilha A: a porta 8091, o e-mail 54424 e o .env.development.local do app são da A.
 # - `db` pode rodar durante uma E2E da A; `funcoes` não (a máquina tem 15 GB).
 # - Nunca `supabase stop --all`, nunca `docker stop` genérico: só `parar`.
@@ -19,6 +20,11 @@ b_env() {
   export SUPABASE_URL=http://127.0.0.1:54521 DB_CONTAINER=supabase_db_azkaban-b COMPOSE_PROJECT=azkaban-b
 }
 ligar() {
+  # Uma pilha B por máquina: dois checkouts com `azkaban-b` dividiriam os mesmos contêineres.
+  if docker ps --format '{{.Names}}' | grep -q '_azkaban-b$'; then
+    echo "a pilha B já está de pé (outro checkout?); use a A ou espere" >&2
+    exit 1
+  fi
   if grep -q '^project_id = "azkaban-b"$' "$cfg"; then return; fi
   git diff --quiet -- "$cfg" || { echo "$cfg tem mudanças locais; pare" >&2; exit 1; }
   sed -i -E \
@@ -52,7 +58,7 @@ case "$1" in
     echo "pilha B parada e desfeita"
     ;;
   *)
-    sed -n 2,17p "$0"
+    sed -n 2,18p "$0"
     exit 1
     ;;
 esac

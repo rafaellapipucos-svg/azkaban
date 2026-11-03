@@ -177,14 +177,14 @@ isOneToOne: false
                   ]
                 },"groups": {
                   Row: {
-                    "created_at": string,"id": string,"name": string,"owner_id": string,"settings": NonNullable<Json>,"type": string,"group_ranking_enabled": boolean | null
+                    "created_at": string,"id": string,"name": string,"owner_id": string,"ranking_enabled_at": string | null,"settings": NonNullable<Json>,"type": string,"group_ranking_enabled": boolean | null
                   }
                   ComputedFields: "group_ranking_enabled"
                   Insert: {
-                    "created_at"?: string,"id"?: string,"name": string,"owner_id"?: string,"settings"?: NonNullable<Json>,"type": string
+                    "created_at"?: string,"id"?: string,"name": string,"owner_id"?: string,"ranking_enabled_at"?: string | null,"settings"?: NonNullable<Json>,"type": string
                   }
                   Update: {
-                    "created_at"?: string,"id"?: string,"name"?: string,"owner_id"?: string,"settings"?: NonNullable<Json>,"type"?: string
+                    "created_at"?: string,"id"?: string,"name"?: string,"owner_id"?: string,"ranking_enabled_at"?: string | null,"settings"?: NonNullable<Json>,"type"?: string
                   }
                   Relationships: [
                     {
@@ -823,6 +823,9 @@ isOneToOne: false
 "exclude_kept_days":
 { Args: { "p_task_id": string }; Returns: undefined
                            },
+"gamification_history_floor":
+{ Args: { "p_created_at": string,"p_tz": string }; Returns: string
+                           },
 "gamification_rules":
 { Args: Record<PropertyKey, never>; Returns: Json
                            },
@@ -843,7 +846,7 @@ isOneToOne: false
             }[]
                            },
 "group_ranking":
-{ Args: { "p_group_id": string,"p_timezone": string,"p_week_start": string }; Returns: {
+{ Args: { "p_group_id": string,"p_week_start": string }; Returns: {
               "display_name": string,"rank": number,"user_id": string,"xp": number
             }[]
                            },
@@ -933,9 +936,6 @@ isOneToOne: false
                            },
 "refold_streak":
 { Args: { "p_from": string,"p_user": string }; Returns: undefined
-                           },
-"refresh_user_day":
-{ Args: { "p_date": string,"p_user": string }; Returns: undefined
                            },
 "refresh_user_day_counts":
 { Args: { "p_date": string,"p_user": string }; Returns: undefined

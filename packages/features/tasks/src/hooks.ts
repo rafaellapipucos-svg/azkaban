@@ -1,10 +1,5 @@
 import { taskDefaults, taskRules } from '@azkaban/config';
-import type {
-  OccurrenceListItem,
-  OccurrenceTransitionInput,
-  Task,
-  TaskErrorCode,
-} from '@azkaban/contracts';
+import type { OccurrenceListItem, OccurrenceTransitionInput, Task } from '@azkaban/contracts';
 import {
   availableTransitions,
   canManageGroupTask,
@@ -16,14 +11,23 @@ import {
   localDayRange,
   materializeWithFollowUps,
 } from '@azkaban/core';
-import { taskErrorCode, tasksRepository, useCurrentUser } from '@azkaban/data';
+import {
+  occurrenceStatusAction,
+  offlineQueueFull,
+  taskErrorCode,
+  tasksRepository,
+  useCurrentUser,
+  type TaskFailureCode,
+} from '@azkaban/data';
 import { storage } from '@azkaban/platform';
-import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query';
+import { onlineManager, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { tasksConfig } from './config';
 
 export type OccurrenceDetail = { item: OccurrenceListItem; task: Task };
 export type Transition = ReturnType<typeof availableTransitions>[number];
+/** `offline`: no connection, and the change cannot wait in the queue. */
+export type StatusError = TaskFailureCode | 'generic' | 'offline';
 
 const MINUTE_MS = 60_000;
 
@@ -146,77 +150,61 @@ export function withOptimisticStatus(
   };
 }
 
-type Snapshot = {
-  lists: [QueryKey, OccurrenceListItem[] | undefined][];
-  detail: OccurrenceDetail | undefined;
-};
-
 /**
- * Status changes with optimistic updates: the row changes at once, and goes back if the database
- * refuses. Every list and the detail screen share the cache, so they stay in step.
+ * Status changes go through the offline queue (ADR-0012, section 5) with an optimistic update: the
+ * row changes at once, also without a connection, and the database answer replaces it when the
+ * action settles. Every list and the detail screen share the cache, so they stay in step. A refusal
+ * is shown here and refetched; one of an action that waited in the queue also becomes a notice.
  */
 export function useStatusChange() {
   const queryClient = useQueryClient();
-  const [error, setError] = useState<TaskErrorCode | 'generic' | null>(null);
+  const [error, setError] = useState<StatusError | null>(null);
 
   const mutation = useMutation({
-    mutationFn: tasksRepository.setStatus,
-    onMutate: async (input: OccurrenceTransitionInput): Promise<Snapshot> => {
+    ...occurrenceStatusAction,
+    // Returns nothing: the context is saved with a waiting action, and a snapshot of every list
+    // does not belong on the disk. The refetch on settle undoes a refused change.
+    onMutate: async (input: OccurrenceTransitionInput) => {
       setError(null);
       const detailKey = ['occurrence', input.occurrenceId];
       await queryClient.cancelQueries({ queryKey: ['occurrences'] });
       await queryClient.cancelQueries({ queryKey: detailKey });
-      const snapshot: Snapshot = {
-        lists: queryClient.getQueriesData<OccurrenceListItem[]>({ queryKey: ['occurrences'] }),
-        detail: queryClient.getQueryData<OccurrenceDetail>(detailKey),
-      };
       const now = new Date();
       queryClient.setQueriesData<OccurrenceListItem[]>({ queryKey: ['occurrences'] }, (list) =>
         list?.map((item) =>
           item.id === input.occurrenceId ? withOptimisticStatus(item, input, now) : item,
         ),
       );
-      if (snapshot.detail) {
-        queryClient.setQueryData<OccurrenceDetail>(detailKey, {
-          ...snapshot.detail,
-          item: withOptimisticStatus(snapshot.detail.item, input, now),
-        });
-      }
-      return snapshot;
+      queryClient.setQueryData<OccurrenceDetail>(
+        detailKey,
+        (detail) => detail && { ...detail, item: withOptimisticStatus(detail.item, input, now) },
+      );
     },
-    onError: (failure, input, snapshot) => {
-      snapshot?.lists.forEach(([key, data]) => queryClient.setQueryData(key, data));
-      if (snapshot?.detail) {
-        queryClient.setQueryData(['occurrence', input.occurrenceId], snapshot.detail);
-      }
-      setError(taskErrorCode(failure) ?? 'generic');
-    },
-    // Invalidating alone is not enough: a first read still in flight has no data to replace, so the
-    // refetch would join it, get the state from before the save and clear the invalid mark.
-    // `proof-current` is the photo module's key, not imported: reopening a task drops its photo.
-    onSettled: (_data, _failure, input) =>
-      Promise.all(
-        [
-          ['occurrences'],
-          ['occurrence', input.occurrenceId],
-          ['history', input.occurrenceId],
-          ['proof-current', input.occurrenceId],
-        ].map(async (queryKey) => {
-          await queryClient.cancelQueries({ queryKey });
-          await queryClient.invalidateQueries({ queryKey });
-        }),
-      ),
+    onError: (failure) => setError(taskErrorCode(failure) ?? 'generic'),
   });
 
   const change = useCallback(
-    (item: OccurrenceListItem, toStatus: OccurrenceTransitionInput['toStatus'], reason?: string) =>
+    (
+      item: OccurrenceListItem,
+      toStatus: OccurrenceTransitionInput['toStatus'],
+      reason?: string,
+    ) => {
+      // A photo task never waits in the queue (ADR-0007, section 16), and the queue has a ceiling.
+      if (
+        !onlineManager.isOnline() &&
+        (item.task.requiresPhotoProof || offlineQueueFull(queryClient))
+      ) {
+        setError('offline');
+        return;
+      }
       mutation.mutate({
         occurrenceId: item.id,
         toStatus,
         expectedStatus: item.status,
         reason: reason?.trim() ? reason.trim() : null,
-      }),
-    [mutation],
+      });
+    },
+    [mutation, queryClient],
   );
   return { change, error, clearError: () => setError(null), pending: mutation.isPending };
 }

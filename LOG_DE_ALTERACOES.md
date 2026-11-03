@@ -3762,3 +3762,19 @@
 - **Verificado:** com o `.vitest-cache` da raiz apagado, `pnpm exec turbo run test --force` três vezes seguidas, 13/13 em todas; os 13 caches criados por pacote, nenhum na raiz. `pnpm check` passou.
 - **Não verificado:** a falha original não foi reproduzida antes da correção (é intermitente); a correção vem da leitura do código do vitest (`FileSystemModuleCache`). Uso direto de `pnpm --filter <pacote> exec vitest run` (sem o script) continua usando o cache da raiz, o que só importa se rodar em paralelo. CI no Linux. Hora pelo UTC−3 (PowerShell barrado).
 - **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 12:42 (BRT)
+
+- **Branch:** feat/backlog-after-phase-8 (a partir de `feat/phase-8-polish`, `c74cce6`)
+- **Agente(s):** orquestrador
+- **Resumo:** fecha o backlog pós-Fase 8 dentro dos limites: BL-1 a BL-23 feitos e integrados, correções da revisão de segurança (BL23-1, 2 no nativo, 4 e 5) e três problemas antigos que a E2E expôs. BL-24 a BL-38 ficam bloqueados por decisão do humano.
+- **Alterações:**
+  - `docs/agentes/QUADRO.md`: BL-1 a BL-23 passam a feito; nova linha BL-38 (login CSRF no web, decisão PKCE ou A', ADR-0004).
+  - Integrados, além dos BL: modo `E2E_BUILD=1` com env público completo, cache de módulos do vitest por pacote (corrida `ENOTEMPTY` no turbo), aviso de Fast Refresh do Expo parado com movimento reduzido (a intermitência da a11y desde a Fase 8), "Nova tarefa" espera os contextos, timeouts de ação e navegação no Playwright.
+- **Arquivos/módulos principais:** `docs/agentes/QUADRO.md`, `LOG_DE_ALTERACOES.md`.
+- **Migrations:** nenhuma neste bloco (as do backlog são `20261105100000` a `20261105120200`, do banco-de-dados).
+- **Decisões/ADRs:** ADR-0004 ganhou a seção do login CSRF (proposta, à espera do humano); ADR-0012 §3, §11 e §18 atualizados pelo arquiteto.
+- **Como testar:** `docs/agentes/ferramentas/verificar-fase.sh` com `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória e `NATIVE_PUSH_PROVIDER=fake` no `supabase/functions/.env` local; `pnpm bundle:size`; `pnpm expo:doctor`.
+- **Verificado:** em `9ba9d1a`, banco limpo: db:test 1957/1957 antes e depois da E2E, db:check-permissions, lint, fronteiras, build:web, functions:test 225/225, E2E 97 passaram e 1 pulado nas duas rodadas, bundle 403 564 B (teto 427 641), expo-doctor 20/20. O passo typecheck+test caiu por `ENOTEMPTY` no cache compartilhado do vitest; repetido passou (30/30) e a causa foi corrigida em `eabd6f6`; depois disso `turbo run typecheck test --force` e `pnpm check` passaram em `6eea146`.
+- **Não verificado:** nativo (deep link, NetInfo, haptics, push nativo, token Expo), API real da Expo, CI no Linux, hospedado. A E2E completa não foi repetida depois de `9ba9d1a` (as mudanças seguintes são do modo build da E2E e do script de teste).
+- **Pendências / próximos passos:** PR do backlog para `feat/phase-8-polish`; respostas do humano em BL-24 a BL-38.

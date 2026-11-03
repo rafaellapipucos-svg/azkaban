@@ -18,6 +18,13 @@ export const whatsappRules = {
     /** Rolling 24 hours. Each code is a paid message and lands on someone's phone. */
     maxSendsPerUserPerDay: 5,
     maxSendsPerPhonePerDay: 5,
+    /**
+     * Every code of every user in a rolling 24 hours: new accounts are free, so the per-user cap alone
+     * does not bound the bill (ADR-0009, section 18, SEG5-5). Over it, `phone_rate_limited`.
+     */
+    maxSendsPerDay: 200,
+    /** E.164 country codes a code may go to. The price of Meta varies by country. */
+    allowedCountryCodes: ['55'],
     /** Rows live this long, enough for the rolling day of the limits. */
     retentionHours: 48,
   },

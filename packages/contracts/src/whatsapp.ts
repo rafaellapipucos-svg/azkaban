@@ -116,12 +116,14 @@ export type DailySummarySource = z.infer<typeof dailySummarySourceSchema>;
  * A template parameter. Meta refuses a parameter with a line break or a tab, or with more than four
  * spaces in a row (ADR-0009, section 5), so the template keeps the line breaks and each parameter is
  * one line. `\p{Cc}` covers LF, CR, tab and every other control character; U+2028 and U+2029 are
- * line breaks too.
+ * line breaks too. The bidirectional controls (U+202A to U+202E, U+2066 to U+2069) would let a title
+ * written by someone else reverse what the reader sees, in a message from our number (ADR-0009,
+ * section 18, SEG5-6).
  */
 export const whatsappTextParamSchema = z
   .string()
   .max(1024)
-  .regex(/^(?!.* {5})(?=.*\S)[^\p{Cc}\u2028\u2029]+$/u);
+  .regex(/^(?!.* {5})(?=.*\S)[^\p{Cc}\u2028\u2029\u202a-\u202e\u2066-\u2069]+$/u);
 
 /**
  * Output of the pure function: the named parameters of `whatsappDefaults.templates.dailySummary`.
@@ -202,7 +204,8 @@ export type WhatsAppMessageStatus = z.infer<typeof whatsappMessageStatusSchema>;
 /** `X-Hub-Signature-256`: HMAC-SHA256 of the raw body with the app secret, in lowercase hex. */
 export const whatsappSignatureSchema = z.string().regex(/^sha256=[0-9a-f]{64}$/);
 
-const webhookStatus = z.object({
+/** One element of `statuses`, parsed on its own: a bad one is ignored, not the batch (SEG5-3). */
+export const whatsappWebhookStatusSchema = z.object({
   id: z.string().min(1).max(128),
   /** `sent`, `delivered`, `read` or `failed`; anything else is ignored. */
   status: z.string().max(32),
@@ -217,7 +220,8 @@ const webhookStatus = z.object({
     .optional(),
 });
 
-const webhookMessage = z.object({
+/** One element of `messages`, parsed on its own, like the statuses. */
+export const whatsappWebhookMessageSchema = z.object({
   from: z.string().regex(/^\d{6,15}$/),
   id: z.string().min(1).max(128),
   type: z.string().max(32),
@@ -229,6 +233,9 @@ const webhookMessage = z.object({
 /**
  * The part of a webhook POST the function reads, after the signature. Unknown keys are dropped, and
  * only `statuses` and the stop words in `messages` matter; the rest is ignored and never stored.
+ * The elements are `unknown` on purpose: the function parses each one with
+ * `whatsappWebhookStatusSchema` or `whatsappWebhookMessageSchema`, so one element out of shape does
+ * not drop a signed batch with stop words in it (ADR-0009, section 18, SEG5-3).
  */
 export const whatsappWebhookSchema = z.object({
   object: z.literal('whatsapp_business_account'),
@@ -241,8 +248,8 @@ export const whatsappWebhookSchema = z.object({
               field: z.string(),
               value: z.object({
                 metadata: z.object({ phone_number_id: z.string() }).optional(),
-                statuses: z.array(webhookStatus).max(1000).optional(),
-                messages: z.array(webhookMessage).max(1000).optional(),
+                statuses: z.array(z.unknown()).max(1000).optional(),
+                messages: z.array(z.unknown()).max(1000).optional(),
               }),
             }),
           )
@@ -255,8 +262,10 @@ export type WhatsAppWebhook = z.infer<typeof whatsappWebhookSchema>;
 
 /** Raised by the RPCs and answered by `phone-verification`. Any other message is the generic failure. */
 export const whatsappErrorCodeSchema = z.enum([
-  /** Too many codes for this user or this number, or too soon after the last one. */
+  /** Too many codes for this user or this number, or too soon after the last one, or the daily cap of all codes. */
   'phone_rate_limited',
+  /** The country code is not in `whatsappRules.verification.allowedCountryCodes` (SEG5-5). */
+  'phone_country_not_allowed',
   /** Wrong code. The same code has `whatsappRules.verification.maxAttempts`. */
   'phone_code_invalid',
   /** No live code: expired, used, replaced or out of attempts. Ask for a new one. */

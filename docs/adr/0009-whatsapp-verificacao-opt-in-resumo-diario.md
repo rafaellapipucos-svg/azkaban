@@ -41,7 +41,7 @@ O WhatsApp entra como o ADR-0008, seção 11, previu, sem mudar backoff nem repo
   - `daily_summary` expira em `scheduled_for + whatsappRules.dailySummary.catchUpMinutes`, não em `maxDelayHours`: um resumo das 8h entregue à noite não serve. Com `daily_summary_skip_empty` e a fonte vazia na hora do envio, `cancelled` com `summary_empty`;
   - o silêncio vale para o WhatsApp como para o push (ADR-0008, seção 5), com a mesma exceção do lembrete. `daily_summary` não passa pelo silêncio: tem horário próprio;
   - cada item ganha `timezone` (do perfil), `overdueAt` e `occurrenceStatus` (da ocorrência, nulos sem ela; seção 9), `phone` (E.164, só em `whatsapp`) e `summary` (`dailySummarySourceSchema`, só em `daily_summary`).
-- **`WhatsAppChannel`** implementa `NotificationChannel` em `dispatch.ts`: monta a mensagem a partir do tipo e do item, envia pelo provedor, e devolve `sent` com `{ providerMessageId, waId, template }`, ou `retry`/`failed` com o código.
+- **`WhatsAppChannel`** implementa `NotificationChannel` em `dispatch.ts`: monta a mensagem a partir do tipo e do item, envia pelo provedor, e devolve `sent` com `{ providerMessageId, waId, template }`, ou `retry`/`failed` com o código. Um provedor que lança é `retry` com `wa_provider_error` (seção 17).
 - **`report_notification_results`** aceita, num `sent` de `whatsapp`, o campo `whatsapp: { providerMessageId, waId, template }` e grava a linha de `whatsapp_messages` na mesma transação.
 - Entrega pelo menos uma vez, como no push. Se a função morrer entre o envio e o report, o resumo sai duas vezes; não há `tag` que esconda. É raro, e custa uma mensagem.
 
@@ -59,7 +59,7 @@ Por um código de uso único enviado pelo próprio WhatsApp, num template de aut
 **`phone_verifications`:** `id`, `user_id` (cascata), `phone_e164` (`check` de E.164), `code_hash`, `attempts`, `expires_at`, `consumed_at`, `created_at`. RLS ligada e nenhum `grant` a `anon` nem `authenticated`.
 
 - `code_hash` = SHA-256 hexadecimal de `id || ':' || código` (`extensions.digest`). O código nunca é gravado. Com seis dígitos, o hash vazado se quebra por força bruta, mas o código vive 10 minutos e só vale com a sessão do dono.
-- Limites em `whatsappRules.verification`, com espelho: validade de 10 minutos, 5 tentativas por código, reenvio depois de 60 segundos, 5 envios por usuário e 5 por número em 24 horas corridas. O limite por número impede usar o app para encher de códigos o WhatsApp de outra pessoa. Isso cumpre o rate limiting de OTP do prompt mestre (seção 9); F8-4 fica só com os convites.
+- Limites em `whatsappRules.verification`, com espelho: validade de 10 minutos, 5 tentativas por código, reenvio depois de 60 segundos, 5 envios por usuário e 5 por número em 24 horas corridas. O limite por número impede usar o app para encher de códigos o WhatsApp de outra pessoa. Isso cumpre o rate limiting de OTP do prompt mestre (seção 9); F8-4 fica só com os convites. Há também um teto global diário e uma lista de países (seção 18, SEG5-5).
 - Linhas saem depois de `retentionHours` (48), pelo cron diário de retenção.
 
 **Troca e remoção do número.** O número de `profiles` só muda quando o código confere. Confirmar um número diferente do atual grava `phone_e164` e `phone_verified_at`, e zera `whatsapp_opt_in_at` e `whatsapp_opt_in_version`: o consentimento era para o número antigo. `remove_phone()` zera telefone, verificação e opt-in. Nos dois casos, o claim cancela o que estava na fila (seção 2).
@@ -71,7 +71,7 @@ O mesmo número pode estar verificado em duas contas (um aparelho da casa, por e
 **Colunas em `profiles`:** `phone_e164`, `phone_verified_at` (os dois nulos ou os dois preenchidos), `whatsapp_opt_in_at` e `whatsapp_opt_in_version` (idem), `whatsapp_opt_out_at` e `whatsapp_opt_out_source` (`app` ou `webhook`). Sem `grant update` em nenhuma: só as RPCs escrevem. O dono lê a própria linha, como hoje (`whatsappStatusSchema`). `group_member_profiles()` continua sem telefone.
 
 - **Opt-in:** `whatsapp_opt_in(p_consent_version)`, `authenticated`. Levanta `phone_not_verified` sem telefone verificado, e `invalid_consent_version` se a versão não for `whatsappRules.consentVersion`. Grava `whatsapp_opt_in_at = now()` e a versão. Como no ADR-0007, o texto de cada versão está no git (`packages/i18n`, chaves `whatsapp.consent.v1.*`), e subir a versão pede o aceite de novo.
-- **O aviso diz:** o nome do app (a política da Meta exige o nome de quem envia), o número, o que chega (o resumo diário com os títulos das tarefas, e os códigos de verificação), que a mensagem passa pelos servidores da Meta, que não há custo para a pessoa, e como parar: responder PARAR ou desligar no app.
+- **O aviso diz:** o nome do app (a política da Meta exige o nome de quem envia), o número, o que chega (o resumo diário com os títulos das tarefas e os nomes das áreas e contextos, e os códigos de verificação), que a mensagem passa pelos servidores da Meta, que não há custo para a pessoa, que o número fica guardado até ser removido no app, e como parar: responder PARAR ou desligar no app. Com a política de privacidade (F8-3), aponta para ela (seção 18, SEG5-7).
 - **Opt-out pelo app:** `whatsapp_opt_out()`, `authenticated`, grava `whatsapp_opt_out_at = now()` e `source = 'app'`. Repetir não muda a data.
 - **Opt-out pelo webhook:** seção 7. Ele não religa nada: voltar é só pelo app, com o aviso.
 - O opt-in e o opt-out mais recentes ficam nas colunas. Um histórico só de acréscimo, como `proof_consents`, entra se o humano pedir.
@@ -92,7 +92,7 @@ O mesmo número pode estar verificado em duas contas (um aparelho da casa, por e
 
 **A linha do sino nasce lida** (`read_at = created_at`). O sino a lista como "Resumo do dia", com toque para Hoje (`/`), mas ela não soma no contador nem aparece no aviso ao vivo. A linha existe porque a outbox pende dela.
 
-**O resumo só sai por WhatsApp nesta fase.** `defaultChannels.daily_summary` é `{ web_push: false, whatsapp: true }`, e o job ignora quem não tem WhatsApp. Um resumo por push, de graça, é decisão do humano (seção 16).
+**O resumo só sai por WhatsApp nesta fase.** `defaultChannels.daily_summary` é `{ web_push: false, whatsapp: true }`, e o job ignora quem não tem WhatsApp. Um resumo por push, de graça, é decisão do humano (seção 16), e hoje nem seria possível (seção 17).
 
 **Fonte** (`dailySummarySourceSchema`), montada pelo banco no claim, na hora do envio, com o mesmo acesso do sino: ocorrências de que a pessoa é **responsável**, de tarefas não arquivadas, em grupos de que ainda é membro (ADR-0005, seção 9):
 
@@ -157,11 +157,11 @@ Botões: URL "Abrir o app" → https://<domínio de produção>/ ; resposta ráp
   1. Sem `WHATSAPP_APP_SECRET`: 500 `whatsapp_not_configured`.
   2. O corpo bruto é lido com `readLimited` até `webhookMaxBytes` (1 MiB; a Meta junta até 1.000 eventos num `POST`). Passou: 413.
   3. `X-Hub-Signature-256` no formato de `whatsappSignatureSchema` e um HMAC-SHA256 dos **bytes brutos** com o segredo do app, conferido por `crypto.subtle.verify`, que compara em tempo constante. O corpo nunca é reserializado antes. Falhou: 401.
-  4. JSON e `whatsappWebhookSchema`. Assinado e inválido é 200, com `invalid_payload` no log. Um 4xx faria a Meta repetir por sete dias algo que nunca vai passar.
+  4. JSON e `whatsappWebhookSchema`. Assinado e inválido é 200, com `invalid_payload` no log. Cada status e cada mensagem é validado à parte, e o inválido soma em `ignored` (seção 18, SEG5-3). Um 4xx faria a Meta repetir por sete dias algo que nunca vai passar.
   5. Com `meta`, só valem as mudanças de `field = messages` com `metadata.phone_number_id` igual ao nosso.
   6. **Status:** `sent`, `delivered`, `read` e `failed` vão de uma vez a `record_whatsapp_statuses(p_events jsonb)`, só `service_role`, por `provider_message_id`. O status só avança: `accepted` < `sent` < `delivered` < `read`, e `failed` vale sobre qualquer um. O erro vira `wa_<código>`. Id desconhecido e status de outro nome são ignorados. Isso torna o evento repetido inofensivo. A linha da outbox continua `sent`, porque registra o despacho, e a entrega mora em `whatsapp_messages`.
   7. **Mensagens recebidas:** só `text.body` e `button.text` são lidos. O texto inteiro, normalizado (sem acento, pontuação e espaço nas pontas, em minúsculas), igual a uma das `whatsappDefaults.stopWords` (`parar`, `pare`, `stop`, `sair`, `cancelar`, `descadastrar`) chama `whatsapp_stop_by_wa_id(p_wa_id)`, só `service_role`.
-     - A busca é pelos dígitos de `phone_e164` **ou** pelo `recipient_wa_id` já visto em `whatsapp_messages`, porque o `wa_id` de um número brasileiro pode vir sem o nono dígito.
+     - A busca é pelos dígitos de `phone_e164`, com a regra do nono dígito, porque o `wa_id` de um número brasileiro pode vir sem ele. Não procura mais em `whatsapp_messages` (seção 18, SEG5-1).
      - Grava o opt-out com `source = 'webhook'` em todo perfil pronto daquele número, e devolve quantos mudaram.
      - Se algum mudou, a função responde com um texto curto de confirmação (`kind: 'text'`, dentro da janela aberta pela pessoa), por tentativa única. Repetir o evento não muda ninguém, então não confirma de novo.
      - Qualquer outra mensagem é ignorada: nada é gravado nem logado.
@@ -233,7 +233,7 @@ A verificação da empresa não é obrigatória para começar: sem ela, o limite
 - **Finalidade e mínimo:** o telefone serve para o resumo e para o código. Nenhum outro uso, e ninguém mais o vê. O admin do grupo não vê o telefone de ninguém: nenhuma tela precisa disso, e `group_member_profiles()` continua sem ele. O convite por telefone (ADR-0004) fica fora desta fase. Quando vier, procura o número sem devolvê-lo.
 - **Consentimento:** versão e data no perfil. Opt-out a qualquer hora, pelo app ou por PARAR, com data e origem. O aviso diz que a Meta processa as mensagens, inclusive os títulos das tarefas.
 - **Retenção:** códigos por 48 horas, status de mensagem por 30 dias, caixa de saída de desenvolvimento por 1 dia. O telefone fica enquanto a pessoa quiser, e `remove_phone()` o apaga.
-- **Exportar e excluir** (F8-3): a exportação inclui telefone, verificação, opt-in e opt-out, preferências do resumo e as linhas de `whatsapp_messages` do usuário (sem conteúdo, como estão). Excluir a conta apaga tudo por cascata de `user_id`. `whatsapp_console_messages` não tem `user_id` e some em um dia.
+- **Exportar e excluir** (F8-3): a exportação inclui telefone, verificação, opt-in e opt-out, preferências do resumo, as linhas de `phone_verifications` do usuário (os números digitados, por até 48 horas, sem o hash do código) e as de `whatsapp_messages` (sem conteúdo, como estão). Excluir a conta apaga o resto por cascata de `user_id`. As linhas de `phone_verifications` sobrevivem sem `user_id` até a retenção de 48 horas, para o limite por número continuar valendo (seção 18, SEG5-4). `whatsapp_console_messages` não tem `user_id` e some em um dia.
 - **Logs:** seções 1 e 7.
 - **Funcionários:** o WhatsApp é opcional e só da própria pessoa; o admin não liga nem vê. A transparência de F8-3 diz isso.
 
@@ -261,14 +261,15 @@ Em `packages/contracts/src/whatsapp.ts`:
 - `whatsappOptInSchema`, `whatsappStatusSchema`, `dailySummaryPreferencesSchema`;
 - `dailySummaryNotificationDataSchema`, `dailySummaryTaskSchema`, `dailySummarySourceSchema`, `dailySummaryRenderSchema`;
 - `whatsappTextParamSchema`, `whatsappOutboundSchema`, `whatsappSendResultSchema`, `whatsappMessageStatusSchema`;
-- `whatsappSignatureSchema`, `whatsappWebhookSchema`, `whatsappErrorCodeSchema`.
+- `whatsappSignatureSchema`, `whatsappWebhookSchema`, `whatsappWebhookStatusSchema`, `whatsappWebhookMessageSchema`, `whatsappErrorCodeSchema` (com `phone_country_not_allowed`, seção 18).
 
 **Mudança pré-aprovada:** `daily_summary` entra em `notificationTypeSchema` e em `notificationItemSchema`, com `data = dailySummaryNotificationDataSchema`. Quem faz é `notificacoes-whatsapp`, no mesmo commit dos casos em `buildPushPayload`, `notificationUrl` (→ `/`) e no sino, porque o `switch` de core deixa de compilar sem eles.
 
 Os códigos novos de `last_error`, todos dentro dos 64 caracteres:
 
 - do claim: `whatsapp_not_ready`, `whatsapp_type_not_allowed`, `summary_empty`;
-- do provedor: `wa_<código>`, `wa_http_<status>`, `wa_rate_limited`, `wa_network`, `wa_timeout`, `wa_redirect`, `wa_bad_response`.
+- do provedor: `wa_<código>`, `wa_http_<status>`, `wa_rate_limited`, `wa_network`, `wa_timeout`, `wa_redirect`, `wa_bad_response`;
+- do canal: `wa_provider_error` (seção 17).
 
 ### 14. Divisão do trabalho
 
@@ -322,6 +323,53 @@ Padrões reversíveis, escolhidos para não travar a fase:
 10. **O mesmo número pode estar em mais de uma conta**, e o PARAR desliga todas.
 11. **Sem login por telefone** nesta fase.
 12. **Verificação:** 5 códigos por dia por pessoa e por número, 10 minutos de validade, 5 tentativas.
+13. **Só números do Brasil** (`allowedCountryCodes: ["55"]`) e **no máximo 200 códigos por dia no total** (`maxSendsPerDay`), seção 18, SEG5-5.
+14. **URL em título vai como está** no resumo, clicável no WhatsApp (seção 18, SEG5-6).
+
+### 17. Diferenças da implementação
+
+O que a implementação fez diferente deste texto, aceito pelo orquestrador em 2026-11-03. Vale sobre as seções anteriores onde há diferença, e os trechos afetados remetem para cá.
+
+**Provedor que lança vira `retry` com `wa_provider_error`.** Só o `ConsoleProvider` lança, quando o `insert` em `whatsapp_console_messages` falha; o `MetaCloudProvider` responde códigos (seção 1). Nada chegou a ninguém, então repetir não duplica: a linha volta pelo backoff e pelo `maxAttempts` de sempre (ADR-0008, seção 6). Uma falha de **montagem** (tipo fora de `whatsappTypes`, resumo que o contrato recusa) continua `failed` com `send_error`, porque repetir não a conserta. Na `phone-verification`, o provedor que lança é 502 `whatsapp_send_failed`, e o código conta no limite, como o envio que falha (seção 3).
+
+**A tela não mostra o WhatsApp na lista de tipos.** Em `/settings/notifications`, as chaves por canal são só do push. O resumo, único tipo de `whatsappTypes`, é ligado e desligado por `daily_summary_enabled`, na seção do WhatsApp, junto do horário e das outras preferências da seção 5: a mesma escolha não mora em dois lugares. A linha `(daily_summary, whatsapp)` de `notification_preferences` fica no padrão (ligada, por `defaultChannels`) e nenhuma tela a grava. **Teto:** se um segundo tipo entrar em `whatsappTypes`, a chave por canal do WhatsApp volta à lista para ele, e o resumo continua na seção própria.
+
+**O resumo nunca vai por push.** `notificationUrl` leva o resumo a Hoje (`/`), e `internalPathSchema` recusa `/` sozinho, então `buildPushPayload` lança para `daily_summary`. Com `defaultChannels.daily_summary.web_push = false` e o `enqueue_notification` que não grava push para ele, a linha nunca nasce. Um resumo por push (seção 16, item 7) exige uma rota própria para Hoje que passe no contrato, e o texto do push.
+
+### 18. Revisão de segurança da Fase 5
+
+Decisões sobre os achados da primeira passada da revisão de segurança (handoffs `20261103-0158-revisor-seguranca-*`), em 2026-11-03. Valem sobre as seções anteriores onde há diferença, e os trechos afetados remetem para cá.
+
+**SEG5-1 (média): o PARAR só acha o perfil pelo número atual.** `whatsapp_stop_by_wa_id` deixa de procurar o `wa_id` em `whatsapp_messages`. Hoje, uma linha `phone_code` de um número digitado errado, ou o resumo de um número antigo ou reciclado, desligaria quem já usa outro número. A busca passa a ser só pelos dígitos de `phone_e164`, com a regra do nono dígito do Brasil (`+55 DD 9XXXXXXXX` casa com o `wa_id` `55DDXXXXXXXX`). É determinística, vale antes do primeiro resumo e cobre o PARAR em resposta ao próprio código. A seção 7 fica corrigida assim. Dono: `banco-de-dados`.
+
+**SEG5-2 (baixa): PARAR com caractere invisível para.** A normalização da resposta usa NFKD e tira também `\p{Cf}`. "Não quero parar" continua não parando. Dono: `backend-funcoes`.
+
+**SEG5-3 (baixa): um elemento fora do formato não descarta o lote.** `whatsappWebhookSchema` valida só o envelope, com `statuses` e `messages` como `unknown[]`. A função valida cada elemento com `whatsappWebhookStatusSchema` ou `whatsappWebhookMessageSchema` e soma os inválidos em `ignored`. Um opt-out dentro de um lote com um status estranho não se perde. Feito no contrato; a função é do `backend-funcoes`.
+
+**SEG5-4 (baixa, média com F8-3): o limite por número sobrevive à exclusão da conta.** `phone_verifications.user_id` passa a `on delete set null`, como as provas no SEG-3 da Fase 3. A linha guarda o número e a data até a retenção de 48 horas. A seção 11 fica corrigida assim. Dono: `banco-de-dados`.
+
+**SEG5-5 (baixa, custo): teto global e lista de países.** Padrões reversíveis, a confirmar pelo humano (seção 16, item 13):
+
+- `whatsappRules.verification.allowedCountryCodes = ["55"]`. `start_phone_verification` devolve `{ error: 'phone_country_not_allowed' }` para outro código de país, sem gravar linha nem contar no limite, e a função responde 400 com esse código. Os códigos de país do E.164 não são prefixo uns dos outros, então basta comparar o começo do número. O preço da Meta varia por país, e mandar códigos de autenticação para números de tarifa alta é um abuso conhecido.
+- `whatsappRules.verification.maxSendsPerDay = 200`: todos os códigos de todos os usuários em 24 horas corridas, contados em `phone_verifications`. Acima disso, `phone_rate_limited` com `retryAfterSeconds` até a linha mais antiga sair da janela. Contas novas são grátis, então o limite por usuário sozinho não segura a conta. 200 códigos custam uns US$ 1,36 por dia ao preço da seção 10, e cobrem 50 usuários com folga. **Teto:** quem atinge o teto trava a verificação de todos por até um dia. Se acontecer, o caminho é um limite por endereço IP na função.
+- Espelho em `app_settings.whatsapp_rules`, pela migration do `banco-de-dados`. Até ela entrar, `pnpm db:check-permissions` acusa `whatsapp_rules`.
+- **Riscos aceitos:** o limite por número deixa qualquer conta bloquear por 24 horas a verificação do número de outra pessoa, com 5 pedidos; e `phone_rate_limited` revela que alguém pediu códigos para aquele número há pouco, sem revelar a conta. A alternativa, limitar só por usuário, abriria o assédio por códigos, que é pior.
+
+**SEG5-6 (baixa): os controles bidirecionais saem, e a URL vai como está.**
+
+- `cleanParam` remove `\p{Cf}` (controles bidirecionais, caracteres de largura zero e afins), exceto U+200D, que une os emojis compostos. Dono: `notificacoes-whatsapp`.
+- `whatsappTextParamSchema` recusa U+202A a U+202E e U+2066 a U+2069. Feito no contrato: um parâmetro com eles é falha de montagem (`send_error`), nunca uma mensagem disfarçada.
+- **URL aceita e registrada.** Um título com URL chega clicável, do número do Azkaban. Quem escreve o título é membro do grupo com permissão de criar tarefa, e o mesmo texto já aparece no app. Desarmar (tirar o esquema, trocar o ponto) estragaria títulos legítimos ("Relatório.pdf", "site.com.br") e não pegaria todas as formas que o WhatsApp transforma em link. Sem o controle bidirecional, o link não se disfarça. **Teto:** denúncias de destinatários baixam a nota de qualidade do número na Meta. Se isso acontecer, ou se um grupo passar a ter membros que não se conhecem, o resumo passa a desarmar URLs. A confirmar pelo humano (seção 16, item 14).
+
+**SEG5-7 (baixa, LGPD): o aviso v1 muda antes de valer.** Ainda é rascunho e nenhuma mensagem real saiu, então muda sem `v2`. O texto de `whatsapp.consent.v1.*` passa a dizer:
+
+- no que chega: os títulos das tarefas **e os nomes das áreas e contextos**;
+- numa linha nova: o número fica guardado enquanto você quiser, e pode ser removido a qualquer hora aqui no app;
+- quando F8-3 publicar a política de privacidade, um link para ela. Até lá, nada.
+
+As seções 4 e 11 (a exportação de `phone_verifications`) ficam corrigidas assim. Dono do texto: `notificacoes-whatsapp`.
+
+**SEG5-8 (baixa, preventivo): segredo de demonstração recusado com `meta`.** `parseWhatsAppEnv` recusa `WHATSAPP_APP_SECRET` e `WHATSAPP_VERIFY_TOKEN` que começam com `local-demo-` quando o provedor é `meta`. Feito em `packages/config`, com teste. Com `console` eles continuam aceitos, porque a pilha local e o CI precisam deles. **Risco aceito:** com `console` no projeto hospedado e o valor de demonstração copiado, alguém forja um PARAR; mas com `console` ninguém recebe o código, nenhum perfil fica pronto, e não há o que desligar. O `CRON_SECRET=local-demo-cron-secret` fica como está: quem o tem chama as funções de cron, que só fazem o trabalho que o cron já faria, e a implantação manda gerar um valor aleatório.
 
 ## Alternativas
 
@@ -341,7 +389,7 @@ Padrões reversíveis, escolhidos para não travar a fase:
 
 - `banco-de-dados` entrega antes da integração de `backend-funcoes` e das telas. `pnpm db:check-permissions` acusa `notification_rules` e `whatsapp_rules` até lá.
 - O despacho passa a funcionar sem VAPID para o WhatsApp, e o push sem VAPID espera em vez de falhar.
-- A tela de preferências passa a ver `whatsapp` em `activeChannels`. Só os tipos de `whatsappTypes` mostram a opção.
+- A tela de preferências não mostra o WhatsApp na lista de tipos; o resumo tem a seção própria (seção 17).
 - Nenhuma mensagem real sai até o humano decidir. A E2E do resumo com o provedor de teste (definição de pronto) usa `whatsapp_console_messages`.
 - Entrega pelo menos uma vez: um resumo pode, raramente, chegar duas vezes.
 - O título das tarefas passa pelos servidores da Meta quando o WhatsApp estiver ligado, e o aviso de consentimento diz isso.

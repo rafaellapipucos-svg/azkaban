@@ -2831,3 +2831,42 @@
 - **Decisões/ADRs:** nenhuma.
 - **Como testar:** `pnpm check`.
 - **Pendências / próximos passos:** E2E não rodados. Outros erros da prévia (rede, 5xx) seguem sem mensagem na tela, como antes.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:04 (BRT)
+
+- **Branch:** chore/qa-phase-8, criada a partir de feat/phase-8-polish (9c801db), com `feat/phase-8-polish` integrada até 42f421d
+- **Agente(s):** qa-testes
+- **Resumo:** QA da Fase 8 na base integrada: as specs novas com o Realtime frio, F8-1 (percurso de acessibilidade de 31 telas sem dependência nova) e as metas medidas de F8-6. Nove achados, QA8-1 a QA8-9. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree. A sessão foi interrompida por um reinício da máquina e retomada.
+- **Alterações:**
+  - `e2e/privacy.spec.ts`: o teste do dono volta a Hoje antes de abrir Privacidade (a página do grupo não tem barra de abas). Dois testes novos: a quarta exportação do dia diz quanto esperar; e login com mais de 15 minutos (token com `amr` de 20 minutos atrás, numa sessão nova), marcado `test.fail` por QA8-2.
+  - `e2e/offline-queue.spec.ts`: sair com uma alteração pendente sem conexão pede confirmação e descarta a fila. Passa com o `networkMode` já integrado.
+  - `e2e/a11y.spec.ts` (novo): 31 telas (6 sem sessão e 25 com), a 320, 375 e 1280 px, claro e escuro, com reduzir movimento. Confere nome acessível, contraste AA contra o fundo pintado (emoji fora), alvos de 44 px, rolagem lateral, texto cortado, imagem sem nome, um `h1`, `lang`, título, animação rodando ou `transform` mudando, zoom de 200% (188 px CSS) e Tab com anel de foco. Os problemas conhecidos estão numa lista `known`, cada um com o número do achado; um problema novo faz a spec falhar.
+  - `e2e/performance.spec.ts` (novo): chamadas REST ao abrir Hoje com 50 ocorrências (só o N+1 barra, no máximo 3 por rota), Hoje e "no mercado" com 200 linhas com CPU 4×, e quadros do confete com CPU 4×.
+  - `e2e/push-setup.spec.ts`: `grantPermissions(['notifications'])` antes do cadastro, como pedia o handoff `20261103-0650`. Não bastou (QA8-8).
+  - Handoffs: `20261103-0745-qa-testes-para-notificacoes-whatsapp-canal-realtime-repetido` (QA8-1 e QA8-8), `20261103-0745-qa-testes-para-auth-grupos-reautenticacao-na-previa` (QA8-2 e QA8-7), `20261103-0755-qa-testes-para-arquiteto-requisicoes-de-hoje` (QA8-3), `20261103-0755-qa-testes-para-design-system-contraste-e-zoom` (QA8-4 e QA8-6), `20261103-0755-qa-testes-para-tarefas-calendario-acessibilidade-da-fase-8` (QA8-5, QA8-6 e QA8-7), `20261103-0805-qa-testes-para-backend-funcoes-aceite-v3-nos-testes` (QA8-9).
+- **Achados:** QA8-1 (alta): abrir de novo a mesma lista pela tarefa troca a tela pelo erro `cannot add postgres_changes callbacks`, porque `channel(name)` devolve o canal já assinado; 4 de 4. QA8-2 (alta): com login de mais de 15 minutos, a prévia da exclusão responde `reauth_required`, a tela mostra "Algo deu errado" e o formulário de senha nunca aparece. QA8-3 (média): 17 chamadas REST em Hoje, para uma meta de 8. QA8-4 (média): contraste de 3,31:1 nas contagens do calendário (claro) e de 2,34:1 no "–" de Equipe (escuro). QA8-5 (baixa): dia do mês com 38 px de largura a 320 px. QA8-6 (média): a 200%, a barra de seis abas rola 76 px para o lado e os dias da semana saem cortados. QA8-7 (baixa): Hoje tem dois `h1`; `/contexts`, `/groups/<id>` e o convite inválido não têm nenhum. QA8-8 (média): o passo de push não aparece na E2E com chave VAPID. QA8-9 (alta): `functions:test` vermelho, porque `proof-kit.ts` grava o aceite da versão 2.
+- **Medidas (F8-6), Windows 11 Home, Chromium do Playwright, servidor de dev, pilha A, rodando junto com a E2E completa:**
+  - Meta 2: 17 chamadas REST, sem N+1.
+  - Meta 3, Hoje com 200: 5 053 ms e 4 526 ms da última resposta REST até o primeiro quadro com linha. A meta é menos de 1 s: não cumprida.
+  - Meta 3, "no mercado" com 200: 1 091, 1 190 e 567 ms, perto da meta.
+  - Meta 3, mês do calendário: não medido.
+  - Meta 4, confete: 0 quadros acima de 50 ms em 350 (pior 41 ms) com a spec sozinha; 12 em 298 (pior 102) e 8 em 299 (pior 79) com a E2E completa em paralelo. A meta é no máximo 2.
+  - Meta 5 (Lighthouse) e meta 1 (pacote) não medidas.
+  - Os tempos vêm do servidor de dev, não do build.
+- **Acessibilidade (F8-1):** nenhum controle sem nome; nenhum alvo abaixo de 44 px fora do mês a 320 px; nenhuma rolagem lateral a 320, 375 e 1280 px; anel de foco em todo controle alcançado por Tab; nenhuma animação nem `transform` mudando com reduzir movimento; `lang` `pt-BR` e título em todas as telas. Sem axe, porque o `@axe-core/playwright` seria dependência nova.
+- **Como testar:** pilha A, `pnpm exec supabase db reset`, `pnpm exec playwright test e2e/a11y.spec.ts e2e/performance.spec.ts e2e/privacy.spec.ts e2e/offline-queue.spec.ts --project=app`.
+- **Verificado:**
+  - Logo depois do `db reset`, Realtime frio, `gamification`, `notifications-bell` e `shopping` com `--repeat-each=4`: 40 ok e 4 falhas, todas QA8-1.
+  - `pnpm e2e` completo uma vez, com a chave VAPID gerada em memória: 86 ok, 3 falhas, 1 pulado e 4 não rodados (o projeto `jobs`). As falhas: QA8-1; QA8-8; e `performance.spec.ts`, por um erro da própria spec na medida do calendário, já tirada.
+  - Uma segunda `pnpm e2e` saiu por engano (o lançador ignorou o filtro) e foi interrompida pela metade, em 51 de 94. Nela, `push-setup` falhou de novo e `tasks-materialize.spec.ts:129` falhou uma vez; não investiguei essa falha.
+  - `pnpm functions:test` duas vezes, a segunda para diagnóstico: 207 testes, 144 ok, 41 falhas e 22 cancelados (QA8-9).
+  - `pnpm check` passou (17 de 17 e 11 de 11; `functions:imports` 10 de 10).
+  - Pilha A parada com `supabase stop`, sem `--all`; pilha B não tocada.
+- **Não verificado:**
+  - Leitor de tela real (NVDA ou VoiceOver: entrar, concluir uma tarefa, abrir a lista de compras); fica com o humano (ADR-0012, seção 9, item 7). Também ficam com ele o anúncio das regiões vivas pelo leitor, a ordem de leitura e se o foco fica preso nas folhas e é devolvido (`useRestoreFocus`).
+  - Contraste de placeholder, de texto sobre imagem e de estados de hover e foco.
+  - Reduzir movimento na comemoração de tela cheia e no mascote em uso: a `gamification.spec` cobre o cartão sem confete.
+  - Telas que não entraram no percurso: `/proofs/<id>` e `/tasks/<id>/proof` (pedem prova e câmera), `/design-system`, a seção de excluir aberta, folhas e diálogos.
+  - Lighthouse, `pnpm build:web` e `bundle:size`; Safari e iPhone; nativo; projeto hospedado; CSP (depende de F8-8).
+  - A `performance.spec.ts` depois de tirar a medida do calendário: a parte de Hoje e a do mercado rodaram na segunda E2E, a do confete passou, mas a spec inteira não rodou de novo sozinha. Sem mutação.
+- **Pendências / próximos passos:** os seis handoffs acima. Tirar o `test.fail` de QA8-2 e as linhas de `known` em `a11y.spec.ts` conforme os donos corrigirem. Lighthouse e o tempo do mês quando houver build servido.

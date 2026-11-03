@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { expect, test, type Page } from '@playwright/test';
 import { proofRules } from '../packages/config/src/proof';
+import { mint } from '../supabase/functions/_shared/proof-kit';
 import { button, clientOf, groupWithMember, newUser, signUp, text } from './proof-fixtures';
 
 // Needs `pnpm db:start` and the Edge Functions `account-export` and `account-delete` (ADR-0012,
@@ -50,6 +51,9 @@ test('an owner is blocked until passing the group on, then deletes the account',
   await page.getByLabel('Nome do grupo').fill('Só eu');
   await button(page, 'Criar grupo').click();
   await expect(button(page, 'Convidar membro')).toBeVisible();
+  // The group's page has no tab bar.
+  await page.goto('/');
+  await expect(today(page)).toBeVisible();
 
   // The preview names the group with other people and offers the way to it.
   await openPrivacy(page);
@@ -100,4 +104,55 @@ test('revokes the photo proof acceptance and links to the transparency text', as
   ).toBeVisible();
   // The nine items of ADR-0012, section 7.
   await expect(page.getByRole('heading', { level: 2 })).toHaveCount(9);
+});
+
+test('the fourth export of the day says how long to wait', async ({ page }) => {
+  await signUp(page, newUser('Limite'));
+  await expect(today(page)).toBeVisible();
+  // Three exports spent outside the page (privacyDefaults: 3 a day), the fourth through the screen.
+  const client = clientOf(await userIdOf(page));
+  for (let n = 0; n < 3; n++)
+    expect((await client.functions.invoke('account-export')).error).toBeNull();
+
+  await openPrivacy(page);
+  await button(page, 'Baixar meus dados').click();
+  await expect(
+    page.getByText(
+      /^Você já exportou o máximo por hoje\. Tente de novo em \d+ (hora|horas|minuto|minutos)\.$/,
+    ),
+  ).toBeVisible();
+});
+
+// QA8-2: with a sign-in older than 15 minutes, the preview itself answers `reauth_required`, and the
+// screen shows "Algo deu errado" with "Conferir de novo" instead of the password form, which appears only
+// after a preview that worked. Expected to fail until auth-grupos fixes it; then drop `test.fail`.
+test('a sign-in older than 15 minutes asks for the password before deleting', async ({
+  browser,
+  page: first,
+}) => {
+  test.fail(true, 'QA8-2: the preview answers reauth_required and the form never shows');
+  const user = newUser('Antiga');
+  await signUp(first, user);
+  await expect(today(first)).toBeVisible();
+  // The same session in a new context, its token swapped for one whose latest sign-in was 20
+  // minutes ago.
+  const token = mint(await userIdOf(first), {
+    email: user.email,
+    amr: [{ method: 'password', timestamp: Math.floor(Date.now() / 1000) - 20 * 60 }],
+  });
+  const state = await first.context().storageState();
+  for (const { localStorage } of state.origins)
+    for (const entry of localStorage)
+      if (entry.name.endsWith('-auth-token'))
+        entry.value = JSON.stringify({ ...JSON.parse(entry.value), access_token: token });
+  const page = await (await browser.newContext({ storageState: state })).newPage();
+  await page.goto('/');
+  await expect(today(page)).toBeVisible();
+
+  await openPrivacy(page);
+  await button(page, 'Ver o que será excluído').click();
+  await expect(text(page, 'Confirme que é você')).toBeVisible({ timeout: 10_000 });
+  await page.getByLabel('Senha').fill(user.password);
+  await button(page, 'Confirmar e excluir').click();
+  await expect(page.getByText('Tudo em ordem, todo dia')).toBeVisible();
 });

@@ -38,11 +38,12 @@ export default defineConfig({
   testDir: './e2e',
   globalSetup: './e2e/global-setup.ts',
   // `notifications-jobs` calls the reminder and red jobs, which act on every row of the database, as
-  // a cron tick does: it runs after the rest, so it touches no other spec's task. A failure in `app`
-  // skips it (`--no-deps` runs it alone).
+  // a cron tick does: it runs after the rest, so it touches no other spec's task. As the teardown of
+  // `app`, and not a dependent, it still runs when `app` fails (BL-22). A teardown runs in full, so a
+  // run filtered by file runs it too: `--no-deps` leaves it out, and `--project=jobs` runs it alone.
   projects: [
-    { name: 'app', testIgnore: /notifications-jobs\.spec\.ts/ },
-    { name: 'jobs', testMatch: /notifications-jobs\.spec\.ts/, dependencies: ['app'] },
+    { name: 'app', testIgnore: /notifications-jobs\.spec\.ts/, teardown: 'jobs' },
+    { name: 'jobs', testMatch: /notifications-jobs\.spec\.ts/ },
   ],
   timeout: 90_000,
   // The local runtime kills a worker past 2 s of CPU, with a 546. At the default of half the cores

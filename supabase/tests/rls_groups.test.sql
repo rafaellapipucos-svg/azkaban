@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(56);
+select plan(57);
 
 -- Alice owns Casa A, Bea owns Casa B, Duda is a member of both, Caio is admin of Casa A, Eva is outside.
 insert into auth.users (id, email, raw_user_meta_data) values
@@ -92,7 +92,7 @@ select is((select count(*) from public.group_members where user_id = '00000000-0
 select pg_temp.login('00000000-0000-0000-0000-00000000000e');
 select is((select group_name from public.get_invite_preview('VALID222')), 'Casa A', 'valid code previews the group');
 select is((select count(*) from public.get_invite_preview('EXPIRED2')), 0::bigint, 'expired code shows nothing');
-select throws_ok($$select public.accept_invite('EXPIRED2')$$, 'P0002', 'invite_invalid', 'expired code is rejected');
+select is(public.accept_invite('EXPIRED2'), null, 'expired code is rejected: null is invite_invalid (SEG8-2)');
 select is(public.accept_invite('valid222'), '10000000-0000-0000-0000-00000000000a'::uuid, 'valid code joins, case-insensitively');
 select is((select count(*) from public.groups), 1::bigint, 'joining reveals only that group');
 select is((select role::text from public.group_members where user_id = auth.uid()), 'member', 'invite grants its role');
@@ -101,7 +101,8 @@ select is((select role::text from public.group_members where user_id = auth.uid(
 reset role;
 insert into auth.users (id, email) values ('00000000-0000-0000-0000-00000000000f', 'fred@test.local');
 select pg_temp.login('00000000-0000-0000-0000-00000000000f');
-select throws_ok($$select public.accept_invite('VALID222')$$, 'P0002', 'invite_invalid', 'used-up code is rejected');
+select is(public.accept_invite('VALID222'), null, 'used-up code is rejected');
+select is((select count(*) from public.group_members where user_id = auth.uid()), 0::bigint, 'and joins nothing');
 
 select lives_ok($$insert into public.groups (name, type) values ('Nova', 'other')$$, 'any user can create a group');
 
@@ -135,7 +136,7 @@ select pg_temp.login('00000000-0000-0000-0000-00000000000a');
 select is((select count(*) from public.group_members where user_id = '00000000-0000-0000-0000-00000000000d' and group_id = '10000000-0000-0000-0000-00000000000a'), 0::bigint, 'member is gone');
 select is((select count(*) from public.group_invites where group_id = '10000000-0000-0000-0000-00000000000a' and revoked_at is null), 0::bigint, 'removal revokes the group invites');
 select pg_temp.login('00000000-0000-0000-0000-00000000000d');
-select throws_ok($$select public.accept_invite('MEMBERCOD2')$$, 'P0002', 'invite_invalid', 'removed member cannot rejoin with an old link');
+select is(public.accept_invite('MEMBERCOD2'), null, 'removed member cannot rejoin with an old link');
 
 -- Leaving on your own does not touch invites
 select pg_temp.login('00000000-0000-0000-0000-00000000000a');

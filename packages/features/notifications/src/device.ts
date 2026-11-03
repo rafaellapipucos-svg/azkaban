@@ -1,6 +1,8 @@
 import { authRepository, notificationErrorCode, notificationsRepository } from '@azkaban/data';
+import { nativePushAndroidChannelId } from '@azkaban/contracts';
 import {
   currentPushSubscription,
+  nativePushToken,
   storage,
   subscribePush,
   unsubscribePush,
@@ -38,18 +40,27 @@ export async function thisDeviceId(userId: string) {
 
 export type EnableResult = 'enabled' | 'dismissed' | 'not_allowed' | 'failed';
 
-/** From a tap only: it asks for the permission. */
+/**
+ * From a tap only: it asks for the permission. Native first (ADR-0012, section 11): on web, and on
+ * native without `features.nativePush` or the EAS project id, `nativePushToken` answers null without
+ * asking, and the Web Push path runs as before (on native it answers null too).
+ */
 export async function enableThisDevice(
   userId: string,
   vapidPublicKey: string,
+  androidChannelName: string,
 ): Promise<EnableResult> {
   try {
-    const subscription = await subscribePush(vapidPublicKey);
-    if (!subscription) return 'dismissed';
-    await remember({
-      userId,
-      deviceId: await notificationsRepository.registerDevice(subscription),
+    const native = await nativePushToken({
+      id: nativePushAndroidChannelId,
+      name: androidChannelName,
     });
+    const subscription = native ? null : await subscribePush(vapidPublicKey);
+    const deviceId = native
+      ? await notificationsRepository.registerNativeDevice(native)
+      : subscription && (await notificationsRepository.registerDevice(subscription));
+    if (!deviceId) return 'dismissed';
+    await remember({ userId, deviceId });
     return 'enabled';
   } catch (error) {
     if (notificationErrorCode(error) !== 'push_endpoint_not_allowed') return 'failed';

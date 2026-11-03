@@ -44,7 +44,13 @@ export {
   subscribePush,
   unsubscribePush,
 } from './push';
-export type { PushPermission, PushSubscriptionData, PushSupport } from './push';
+export type {
+  AndroidPushChannel,
+  NativePushTokenData,
+  PushPermission,
+  PushSubscriptionData,
+  PushSupport,
+} from './push';
 
 export const storage = AsyncStorage;
 

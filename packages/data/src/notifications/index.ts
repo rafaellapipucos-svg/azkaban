@@ -1,5 +1,6 @@
 import {
   dailySummaryPreferencesSchema,
+  nativePushSubscriptionInputSchema,
   notificationErrorCodeSchema,
   notificationItemSchema,
   phoneVerificationConfirmResultSchema,
@@ -11,6 +12,7 @@ import {
   whatsappStatusSchema,
   type DailySummaryPreferences,
   type DeliveryChannel,
+  type NativePushSubscriptionInput,
   type NotificationErrorCode,
   type NotificationItem,
   type NotificationPreference,
@@ -349,6 +351,20 @@ export const notificationsRepository = {
       p_p256dh: keys.p256dh,
       p_auth: keys.auth,
       // The function turns a blank label into null.
+      p_user_agent: userAgent ?? '',
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * The native sibling (ADR-0012, section 11): idempotent by Expo token. A token outside the contract
+   * throws before the network; the RPC's `invalid_push_subscription` is the generic failure.
+   */
+  async registerNativeDevice(input: NativePushSubscriptionInput): Promise<string> {
+    const { token, userAgent } = nativePushSubscriptionInputSchema.parse(input);
+    const { data, error } = await db().rpc('register_native_push_subscription', {
+      p_token: token,
       p_user_agent: userAgent ?? '',
     });
     if (error) throw error;

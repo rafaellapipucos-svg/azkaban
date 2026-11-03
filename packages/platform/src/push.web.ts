@@ -1,6 +1,18 @@
-import type { PushPermission, PushSubscriptionData, PushSupport } from './push';
+import type {
+  AndroidPushChannel,
+  NativePushTokenData,
+  PushPermission,
+  PushSubscriptionData,
+  PushSupport,
+} from './push';
 
-export type { PushPermission, PushSubscriptionData, PushSupport } from './push';
+export type {
+  AndroidPushChannel,
+  NativePushTokenData,
+  PushPermission,
+  PushSubscriptionData,
+  PushSupport,
+} from './push';
 
 /** Served from the root by `apps/app/public`, with scope `/`. */
 const workerUrl = '/sw.js';
@@ -104,8 +116,10 @@ export async function unsubscribePush() {
 }
 
 /** Native only: `sw.js` opens a tapped notification here. */
-export async function nativePushToken(androidChannelName: string): Promise<string | null> {
-  void androidChannelName;
+export async function nativePushToken(
+  channel: AndroidPushChannel,
+): Promise<NativePushTokenData | null> {
+  void channel;
   return null;
 }
 

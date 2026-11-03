@@ -46,6 +46,12 @@ describe('access and address', () => {
     expect(canShop({ memberships: [] }, 'shopping.create_list', 'g1')).toBe(false);
   });
 
+  it('lets a group member shop but not edit the catalog', () => {
+    const member = { memberships: [{ groupId: 'g1', role: 'member' as const }] };
+    expect(canShop(member, 'shopping.complete_list', 'g1')).toBe(true);
+    expect(canShop(member, 'shopping.manage_catalog', 'g1')).toBe(false);
+  });
+
   it('keeps the mode in the address, building by default', () => {
     expect(readMode('market')).toBe('market');
     expect(readMode(undefined)).toBe('build');

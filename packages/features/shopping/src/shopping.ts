@@ -6,6 +6,8 @@ export const shoppingPaths = {
   lists: '/shopping',
   history: (groupId: string | null) =>
     groupId ? `/shopping/history?group=${groupId}` : '/shopping/history',
+  catalog: (groupId: string | null) =>
+    groupId ? `/shopping/catalog?group=${groupId}` : '/shopping/catalog',
   list: (id: string, mode?: ShoppingMode) =>
     mode ? `/shopping/${id}?mode=${mode}` : `/shopping/${id}`,
 } as const;
@@ -21,11 +23,7 @@ export const shoppingConfig = {
   stepperBatchMs: 300,
 } as const;
 
-type ShoppingPermission =
-  | 'shopping.create_list'
-  | 'shopping.complete_list'
-  | 'shopping.manage_catalog'
-  | 'shopping.manage_lists';
+type ShoppingPermission = Extract<Permission, `shopping.${string}`>;
 
 /**
  * A personal list and catalog are only ever seen by their owner, who may do everything there. In
@@ -36,10 +34,7 @@ export function canShop(
   permission: ShoppingPermission,
   groupId: string | null,
 ) {
-  if (groupId === null) return true;
-  // ponytail: cast until auth-grupos adds the four keys to matrix.ts (ADR-0011, section 3); until
-  // then a group answers false. Drop the cast with them.
-  return can(user, permission as string as Permission, { id: groupId });
+  return groupId === null || can(user, permission, { id: groupId });
 }
 
 /** i18n key for a failure: the database's code when it raised one we know, else the generic text. */

@@ -13,4 +13,10 @@ export {
 } from './proof';
 export { useCurrentUser } from './session';
 export { notificationErrorCode, notificationsRepository, type BellItem } from './notifications';
-export { shoppingRepository, type ShoppingRepository } from './shopping';
+export {
+  shoppingErrorCode,
+  shoppingRepository,
+  type ShoppingCatalogItemUpdate,
+  type ShoppingChange,
+  type ShoppingRepository,
+} from './shopping';

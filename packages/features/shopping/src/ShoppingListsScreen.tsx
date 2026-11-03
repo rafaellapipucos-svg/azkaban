@@ -107,6 +107,13 @@ export function ShoppingListsScreen() {
         label={t('lists.history')}
         onPress={() => router.push(shoppingPaths.history(groupId))}
       />
+      {canShop(user, 'shopping.manage_catalog', groupId) ? (
+        <Button
+          variant="secondary"
+          label={t('lists.catalog')}
+          onPress={() => router.push(shoppingPaths.catalog(groupId))}
+        />
+      ) : null}
     </Screen>
   );
 }

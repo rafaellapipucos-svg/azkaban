@@ -1886,3 +1886,22 @@
 - **Verificado (pilha B, só Postgres):** outro grupo não vê listas, itens nem catálogo; owner e admin não veem lista, item nem catálogo pessoal de um membro; ex-membro não vê, não apaga a lista que criou, não ajusta item nem cria lista; `added_by`, `checked_at`, `checked_by`, `list_id`, `status`, `completed_by`, `group_id`, `insert` direto em `shopping_lists` e `delete` do catálogo dão 42501; catálogo pessoal para outro dono e catálogo do grupo por `member` dão `forbidden`; de outro grupo, `forbidden` igual para nome existente e novo no catálogo, lista existente e inexistente, e nas cinco RPCs; `catalog_item_id` de outro escopo, `forbidden`; vínculo com tarefa privada, de outro grupo ou inexistente, `task_link_invalid`; lista finalizada recusa `delete` de item e `update`; 201 itens, `list_full`. Funções: todas `security definer` com `search_path` vazio; `seed_*`, guardas e `shopping_rules()` sem `execute` para clientes; `anon` sem nenhuma. Publicação com `notifications` e as duas tabelas, `replica identity` padrão. `pnpm db:check-permissions`, matriz em sincronia (33 linhas). Nenhum segredo no diff.
 - **Não verificado:** Realtime em si (a B `db` não tem): o filtro `list_id=eq` e o `DELETE` só com id ficaram na leitura do código, que ignora o id que não mostra. `pnpm db:test`, `pnpm check` e E2E não rodaram (revisão sem mudança de código). Navegador, iOS, Android e projeto hospedado.
 - **Pendências / próximos passos:** decisão do `arquiteto` em SEG7-1 a SEG7-3; SEG7-4 a SEG7-6 a critério do `banco-de-dados`. Pilha B parada.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:30 (BRT)
+
+- **Branch:** docs/shopping-security-decisions, criada a partir de feat/phase-7-shopping (b5e70fa)
+- **Agente(s):** arquiteto
+- **Resumo:** Decisões sobre a revisão de segurança da Fase 7 (SEG7-1 a SEG7-6) no ADR-0011, seção 16, com a parte de contrato e config feita e um handoff para cada dono. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/contracts/src/shopping.ts`: `shoppingControlCharacterPattern` (`\p{Cc}`, U+2028, U+2029, U+202A a U+202E, U+2066 a U+2069, o mesmo conjunto do WhatsApp) e `shoppingNameSchema`; nome, nota e emoji de compras recusam esses caracteres (SEG7-3). `lists_full` em `shoppingErrorCodeSchema` (SEG7-2). Testes: cada caractere recusado em nome, nota, emoji e nome de lista; equivalência com `\p{Cc}` de U+0000 a U+009F; emojis com ZWJ, FE0F, bandeira e tom de pele, e os vizinhos das faixas aceitos.
+  - `packages/config/src/shopping.ts`: `shoppingRules.maxOpenListsPerScope = 50`, padrão a confirmar pelo humano.
+  - `packages/i18n/src/pt-BR/shopping.json`: texto provisório de `errors.lists_full`, fora do escopo, só para o teste de cobertura dos códigos; `compras` revisa.
+  - ADR-0011: seção 16 nova. SEG7-1: a premissa da seção 8 estava errada; o vínculo é id inerte para quem não lê a tarefa, e a navegação o trata como ausente. SEG7-2: 50 abertas por grupo e por pessoa, finalizadas fora. SEG7-3: a regra vale só para compras, não para todo `nameSchema` (o `not valid` não salva dados antigos, porque o Postgres confere todo `update`); `check` validado com classe explícita, sem `[[:cntrl:]]`. SEG7-4 e SEG7-6 confirmados; SEG7-5 aceito, com a visibilidade antes do `for update` só em `create_shopping_list`, que já muda. Seções 1, 4, 8 e 15 (itens 11 e 12) remetem para ela.
+  - Handoffs `20261103-0328-arquiteto-para-{banco-de-dados,compras}-compras-seguranca`.
+- **Arquivos/módulos principais:** `packages/contracts/src/shopping{,.test}.ts`, `packages/config/src/shopping.ts`, `packages/i18n/src/pt-BR/shopping.json`, `docs/adr/0011-lista-de-compras.md`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma; espelho, teto e `check`s são do `banco-de-dados`.
+- **Decisões/ADRs:** ADR-0011, seção 16.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (lint, boundaries, typecheck, testes; contracts 127, config 19; `functions:imports` 8 de 8). Mutação: 8 mutantes (tirar U+2028/2029, `\p{Cc}`, encurtar cada ponta das duas faixas de direção, tirar a regra do nome, da nota e do emoji), todos mortos.
+- **Não verificado:** `pnpm db:check-permissions` vai acusar `shopping_rules` até a migration do `banco-de-dados`. A classe explícita do `check` não rodou no Postgres. Telas não mudaram.
+- **Pendências / próximos passos:** `banco-de-dados`: espelho, teto, `check`s, SEG7-4 a SEG7-6. `compras`: SEG7-1 na navegação, `shoppingNameSchema` nos formulários, texto de `lists_full`. Humano: itens 11 e 12 da seção 15.

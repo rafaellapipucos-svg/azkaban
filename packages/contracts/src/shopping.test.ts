@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   shoppingCatalogItemInputSchema,
+  shoppingControlCharacterPattern,
   shoppingListCreateInputSchema,
   shoppingListItemInputSchema,
   shoppingListItemUpdateInputSchema,
@@ -49,6 +50,51 @@ describe('shoppingListItemInputSchema', () => {
   it('caps the note', () => {
     const note = 'x'.repeat(201);
     expect(shoppingListItemInputSchema.safeParse({ ...item, note }).success).toBe(false);
+  });
+});
+
+// SEG7-3. Built from code points, so no invisible character sits in this file.
+describe('control characters', () => {
+  const ch = (codePoint: number) => String.fromCodePoint(codePoint);
+  const refused = [
+    0x0a, 0x0d, 0x09, 0x00, 0x1f, 0x7f, 0x85, 0x9f, 0x2028, 0x2029, 0x202a, 0x202c, 0x202e, 0x2066,
+    0x2068, 0x2069,
+  ];
+
+  it.each(refused)('refuses code point %i inside a name, a note and an emoji', (codePoint) => {
+    const text = `a${ch(codePoint)}b`;
+    expect(shoppingListItemInputSchema.safeParse({ ...item, name: text }).success).toBe(false);
+    expect(shoppingListItemInputSchema.safeParse({ ...item, note: text }).success).toBe(false);
+    expect(shoppingListItemInputSchema.safeParse({ ...item, emoji: text }).success).toBe(false);
+    expect(shoppingListCreateInputSchema.safeParse({ groupId: null, name: text }).success).toBe(
+      false,
+    );
+  });
+
+  it('covers every \\p{Cc} code point', () => {
+    for (let codePoint = 0; codePoint <= 0x9f; codePoint += 1) {
+      const control = /\p{Cc}/u.test(ch(codePoint));
+      expect(shoppingControlCharacterPattern.test(ch(codePoint)), String(codePoint)).toBe(control);
+    }
+  });
+
+  it('keeps composed emojis, accents and the neighbours of the refused ranges', () => {
+    const emojis = [
+      `${ch(0x1f469)}${ch(0x200d)}${ch(0x1f373)}`,
+      `${ch(0x2764)}${ch(0xfe0f)}`,
+      `${ch(0x1f1e7)}${ch(0x1f1f7)}`,
+      `${ch(0x1f44d)}${ch(0x1f3fd)}`,
+    ];
+    for (const emoji of emojis) {
+      expect(shoppingListItemInputSchema.safeParse({ ...item, emoji }).success, emoji).toBe(true);
+    }
+    const name = `P${ch(0xe3)}o ${ch(0x2027)}${ch(0x202f)}${ch(0x2065)}${ch(0x206a)} a${ch(0xa0)}b`;
+    expect(shoppingListItemInputSchema.safeParse({ ...item, name }).success).toBe(true);
+  });
+
+  it('trims a trailing line break instead of refusing it', () => {
+    const parsed = shoppingListItemInputSchema.parse({ ...item, name: 'Arroz\n' });
+    expect(parsed.name).toBe('Arroz');
   });
 });
 

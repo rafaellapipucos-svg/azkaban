@@ -20,7 +20,8 @@ Refinos da seção 8:
 - **Quantidade** é `numeric(10,3)`, maior que zero e até 9999 (`shoppingQuantityMax`). Unidade e categoria são enums do Postgres, `shopping_unit` e `shopping_category`, na ordem de `packages/contracts/src/shopping-vocabulary.ts`. A ordem das categorias é a ordem de exibição, de um mercado brasileiro típico, com `other` por último.
 - `added_by`, `added_at`, `checked_at` e `checked_by` são carimbados pelo banco. O cliente nunca os escreve.
 - `id` de lista e de item pode vir do cliente (seção 12).
-- **Limites**, em `shoppingRules`: 200 itens por lista e 500 itens não arquivados por catálogo.
+- **Limites**, em `shoppingRules`: 200 itens por lista, 500 itens não arquivados por catálogo e 50 listas abertas por escopo (seção 16, SEG7-2).
+- **Texto:** nome, nota e emoji recusam quebra de linha, caracteres de controle e controles de direção (seção 16, SEG7-3).
 
 ### 2. Catálogo e seed
 
@@ -61,7 +62,7 @@ Funções auxiliares `security definer`: `can_view_shopping_list(list_id)` (dono
 
 RPCs, todas `security definer` com as checagens explícitas, e que travam a linha da lista (`for update`):
 
-- `create_shopping_list(p_id, p_group_id, p_name, p_from_list_id)`: confere `shopping.create_list` ou o escopo pessoal. Com `p_from_list_id`, a origem precisa estar visível e no mesmo escopo, e todos os itens dela são copiados desmarcados, com quantidade, unidade e nota, e `added_by` = quem copiou.
+- `create_shopping_list(p_id, p_group_id, p_name, p_from_list_id)`: confere `shopping.create_list` ou o escopo pessoal, e `maxOpenListsPerScope` (`lists_full`, seção 16). Com `p_from_list_id`, a origem precisa estar visível e no mesmo escopo, e todos os itens dela são copiados desmarcados, com quantidade, unidade e nota, e `added_by` = quem copiou.
 - `complete_shopping_list(p_list_id)`: `open` → `completed`, uma vez. Confere `shopping.complete_list` ou o dono. Itens não marcados ficam como estão: o histórico mostra o que não foi comprado.
 - `adjust_shopping_item_quantity(p_item_id, p_delta)` e `add_catalog_item_to_list(p_list_id, p_catalog_item_id, p_delta)`: seção 5.
 - `set_shopping_item_checked(p_item_id, p_checked)`: grava ou limpa `checked_at` e `checked_by` com `now()` e `auth.uid()`. É um valor, não uma troca.
@@ -95,8 +96,9 @@ Os códigos de erro estão em `shoppingErrorCodeSchema`.
 
 ### 8. Vínculo com tarefa
 
-- `shopping_lists.linked_task_id`, `on delete set null`, gravado pelo `update` comum. O trigger confere que quem grava vê a tarefa (`can_view_task`) e que ela é do mesmo escopo: numa lista do grupo, `tasks.group_id` igual e `visibility = 'group'`, para todos os membros que veem a lista verem a tarefa; numa lista pessoal, qualquer tarefa que o dono veja. Fora disso, `task_link_invalid`.
-- **O vínculo é só navegação.** Finalizar a lista não muda o estado de nenhuma ocorrência. Concluir a tarefa continua por `set_occurrence_status` ou, com foto, pela prova ([ADR-0007](0007-prova-por-foto.md)), e a máquina de estados segue com um caminho só. Ao finalizar uma lista vinculada, a tela oferece abrir a tarefa.
+- `shopping_lists.linked_task_id`, `on delete set null`, gravado pelo `update` comum. O trigger confere que quem grava vê a tarefa (`can_view_task`) e que ela é do mesmo escopo: numa lista do grupo, `tasks.group_id` igual e `visibility = 'group'`; numa lista pessoal, qualquer tarefa que o dono veja. Fora disso, `task_link_invalid`.
+- **Quem vê a lista nem sempre vê a tarefa** (seção 16, SEG7-1). `visibility = 'group'` não abre a tarefa a todo membro: `can_view_task` mostra só ao criador, aos responsáveis e a quem tem `task.view_group`. Para os outros membros, `linked_task_id` é um id inerte, e a tela trata a tarefa que não consegue ler como vínculo ausente. Exigir `visibility = 'group'` continua valendo: impede que uma tarefa privada seja exposta pelo id numa lista do grupo.
+- **O vínculo é só navegação.** Finalizar a lista não muda o estado de nenhuma ocorrência. Concluir a tarefa continua por `set_occurrence_status` ou, com foto, pela prova ([ADR-0007](0007-prova-por-foto.md)), e a máquina de estados segue com um caminho só. Ao finalizar uma lista vinculada, a tela oferece abrir a tarefa, se a pessoa a lê.
 - A tarefa mostra a lista vinculada por composição na rota, como no [ADR-0006](0006-calendario-equipe-navegacao.md): `tasks` e `shopping` não se importam.
 
 ### 9. XP de compra (F7-5, depende da Fase 6)
@@ -168,6 +170,49 @@ Padrões reversíveis:
 8. **Compartilhar leva só o que falta comprar.**
 9. **Aba "Compras"** na barra, entre Calendário e Perfil. Com duas áreas, são seis abas a 375 px.
 10. **Sem aviso no sino** quando alguém adiciona item ou finaliza uma lista.
+11. **50 listas abertas por grupo e por pessoa** (seção 16, SEG7-2).
+12. **A recusa de caracteres de controle vale só para os textos de compras**, não para os outros nomes do app (seção 16, SEG7-3).
+
+### 16. Revisão de segurança da Fase 7
+
+Decisões sobre os achados da revisão de segurança da lista de compras (handoffs `20261103-0321-revisor-seguranca-*`), em 2026-11-03. Valem sobre as seções anteriores onde há diferença, e os trechos afetados remetem para cá. Nenhum achado alto ou médio.
+
+**SEG7-1 (baixa): quem vê a lista nem sempre vê a tarefa vinculada.** A premissa da seção 8 estava errada: `visibility = 'group'` não abre a tarefa a todo membro, porque `can_view_task` só a mostra ao criador, aos responsáveis (da tarefa ou de uma ocorrência) e a quem tem `task.view_group`. A seção 8 fica corrigida assim:
+
+- A regra do trigger não muda. Exigir o mesmo grupo e `visibility = 'group'` ainda impede que uma tarefa privada seja exposta pelo id numa lista do grupo.
+- Para quem não lê a tarefa, `linked_task_id` é um id inerte: um UUID aleatório, sem título nem estado.
+- **A navegação trata a tarefa que não consegue ler como vínculo ausente:** nem botão "abrir a tarefa" na lista, nem oferta ao finalizar. Nada de "não encontrado". Dono: `compras`.
+- Restringir o vínculo a quem tem `task.view_group` foi descartado: os membros continuariam sem ver a tarefa.
+
+**SEG7-2 (baixa): teto de listas abertas por escopo.** `shoppingRules.maxOpenListsPerScope = 50`: listas `open` por grupo, e listas pessoais `open` por pessoa. Espelho em `app_settings.shopping_rules`; até a migration do `banco-de-dados`, `pnpm db:check-permissions` acusa a diferença.
+
+- `create_shopping_list` conta, sob uma trava por escopo (`pg_advisory_xact_lock`, como o `catalog_full`), antes de inserir, e com `p_from_list_id` também. No teto: `lists_full` (`54000`), novo em `shoppingErrorCodeSchema`.
+- Listas finalizadas ficam fora da conta: o histórico cresce, e quem chega ao teto finaliza ou exclui uma lista.
+- **Teto:** limita o que polui a tela das listas abertas, não o volume. Um membro ainda cria, finaliza e recria em série (cada uma com até 200 itens). Isso é o rate limiting de F8-4.
+- Padrão reversível, a confirmar pelo humano (seção 15, item 11). Mudar é uma linha em `packages/config` e uma migration.
+
+**SEG7-3 (baixa): texto de compras sem caracteres de controle nem de direção.**
+
+- **Contrato (feito):** `shoppingControlCharacterPattern` recusa `\p{Cc}` (quebra de linha, tabulação e os demais controles, de U+0000 a U+001F e de U+007F a U+009F), U+2028 e U+2029 (quebras de linha também) e os controles de direção U+202A a U+202E e U+2066 a U+2069. É o mesmo conjunto de `whatsappTextParamSchema` (ADR-0009, seção 18). Vale para `shoppingNameSchema` (nome de lista, de item e de item do catálogo), `shoppingNoteSchema` e `shoppingEmojiSchema`. U+200D (ZWJ) e U+FE0F ficam: compõem emojis. Quebra de linha nas pontas continua sendo aparada, não recusada.
+- **Banco:** um `check` em cada coluna de texto das tabelas de compras (`shopping_catalog_items.name` e `emoji`, `shopping_lists.name`, `shopping_list_items.name`, `note` e `emoji`), com classe explícita, sem `[[:cntrl:]]`, que depende do locale do servidor:
+
+  ```sql
+  check (name !~ '[\u0001-\u001f\u007f-\u009f\u2028\u2029\u202a-\u202e\u2066-\u2069]')
+  ```
+
+  Validado, sem `not valid`: as tabelas são desta fase e o seed passa no contrato (teste em `packages/config`). Se o banco tiver uma linha fora da regra, a migration falha, e é isso que queremos ver.
+
+- **Só para compras, não para todo `nameSchema`.** `nameSchema` segue igual para grupos, contextos e nomes de exibição, e o título de tarefa tem esquema próprio. Os motivos:
+  - O vetor é o texto compartilhado: compras é o único lugar onde texto escrito por um membro vai, montado, para fora do app pela mão de outro. O resumo do WhatsApp, que leva títulos, áreas e contextos, já se protege (`whatsappTextParamSchema` e `cleanParam`, SEG5-6). Na tela, o React escapa tudo.
+  - Subir a regra pede um `check` em `profiles`, `groups` e `contexts`, que têm dados desde a Fase 1. Um `check ... not valid` não salva os dados antigos: o Postgres confere a linha nova em todo `update`, então uma pessoa com quebra de linha no nome não mudaria nem o fuso até corrigir o nome. Seria preciso uma migration que reescreve dados de usuários, por um risco que hoje não tem caminho para fora do app.
+  - **Quando subir:** quando outro texto que sai do app juntar nomes escritos por outra pessoa (por exemplo, um convite com o nome do grupo, ou a exportação de F8-3). Aí, uma migration que troca os controles por espaço, seguida do `check` validado, e o padrão passa para `common.ts`.
+- **Tela:** o formulário mostra o erro de texto inválido pela falha do contrato. O banco nunca é a primeira barreira do app correto, então não há código de erro novo. O `check` é para quem chama o PostgREST direto. Dono: `compras`.
+
+**SEG7-4 (informativo): o desvio por `pg_trigger_depth() > 1` passa a aceitar só o que uma ação de chave estrangeira faz.** Direção do revisor confirmada. Em `shopping_lists`: `update` em que a única diferença é `linked_task_id`, `created_by` ou `completed_by` virando nulo. Em `shopping_list_items`: `delete` (cascata da lista) ou `update` em que só `added_by`, `checked_by` ou `catalog_item_id` viram nulos. O resto segue pelas checagens normais. Prova: pgTAP com um trigger temporário de profundidade 2 tentando mudar `status`. Precisa ficar antes de F7-5, que põe um trigger em `shopping_lists`. Dono: `banco-de-dados`.
+
+**SEG7-5 (informativo): oráculo de existência por UUID conhecido. Aceito.** Exige o UUID, que é aleatório e não vaza. `create_shopping_list` muda por SEG7-2, então nela a visibilidade da lista de origem passa a ser conferida antes do `for update` e antes de diferenciar "não existe" (`forbidden` nos dois casos). As outras RPCs mudam só quando forem tocadas por outro motivo. Dono: `banco-de-dados`.
+
+**SEG7-6 (informativo): delta não finito.** `invalid_argument` (`22023`) também para `p_delta = 'NaN'` e `abs(p_delta) = 'Infinity'`, junto do zero. O contrato já recusa `NaN` e infinito (`z.number()`), então o app correto não chega lá e nada muda no cliente. Sem ganho para o atacante, mas é uma linha. Dono: `banco-de-dados`.
 
 ## Alternativas
 

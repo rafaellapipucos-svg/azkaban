@@ -121,11 +121,11 @@ insert into public.contexts (id, area_id, group_id, owner_user_id, name, color_t
   ('50000000-0000-0000-0000-000000000003', (select id from public.areas where key = 'home'), '40000000-0000-0000-0000-000000000002', null, 'Solo ctx', 'teal', 'x', pg_temp.u('d'));
 
 -- D accepted the notice; WhatsApp and the phone are on.
-update public.profiles set proof_consent_version = 2, proof_consent_at = now(), phone_e164 = '+5511999990001',
+update public.profiles set proof_consent_version = 3, proof_consent_at = now(), phone_e164 = '+5511999990001',
   phone_verified_at = now(), whatsapp_opt_in_at = now(), whatsapp_opt_in_version = 1
 where id = pg_temp.u('d');
 insert into public.proof_consents (user_id, version) values (pg_temp.u('d'), 2);
-update public.profiles set proof_consent_version = 2, proof_consent_at = now() where id = pg_temp.u('a');
+update public.profiles set proof_consent_version = 3, proof_consent_at = now() where id = pg_temp.u('a');
 insert into public.proof_consents (user_id, version) values (pg_temp.u('a'), 2);
 
 -- Tasks: D's own, D's in the shared group, one D made for O, one O made for D, one in Solo, photo ones.
@@ -232,7 +232,7 @@ select pg_temp.pg();
 
 -- ===== Revoking the photo notice =====
 select pg_temp.login(pg_temp.u('c'));
-select public.record_proof_consent(2);
+select public.record_proof_consent(3);
 select public.revoke_proof_consent();
 select pg_temp.pg();
 select is((select proof_consent_version from public.profiles where id = pg_temp.u('c')), null,
@@ -242,17 +242,17 @@ select is((select count(*)::int from public.proof_consents where user_id = pg_te
   'the acceptance stays, marked revoked');
 select pg_temp.login(pg_temp.u('c'));
 select lives_ok($$select public.revoke_proof_consent()$$, 'revoking again is a no-op');
-select public.record_proof_consent(2);
+select public.record_proof_consent(3);
 select is((select count(*)::int from public.proof_consents where user_id = auth.uid()), 2,
   'accepting again writes a new row: the history stays whole');
 select is((select count(*)::int from public.proof_consents where user_id = auth.uid() and revoked_at is null), 1,
   'with one live acceptance');
-select lives_ok($$select public.record_proof_consent(2)$$, 'accepting the live version again is a no-op');
+select lives_ok($$select public.record_proof_consent(3)$$, 'accepting the live version again is a no-op');
 select is((select count(*)::int from public.proof_consents where user_id = auth.uid()), 2, 'no row is added');
 select throws_ok($$update public.proof_consents set revoked_at = now()$$, '42501', null,
   'the client does not revoke by writing the table');
 select pg_temp.pg();
-select throws_ok($$insert into public.proof_consents (user_id, version) values ('00000000-0000-0000-0000-00000000000c', 2)$$,
+select throws_ok($$insert into public.proof_consents (user_id, version) values ('00000000-0000-0000-0000-00000000000c', 3)$$,
   '23505', null, 'two live rows of the same version are refused');
 select throws_ok($$select public.revoke_proof_consent()$$, '42501', 'forbidden', 'without a user, forbidden');
 
@@ -268,7 +268,7 @@ select throws_ok($$select public.claim_proof_challenge(pg_temp.g('nonce'), '0000
 select pg_temp.pg();
 select is((select used_at from public.proof_challenges where id = pg_temp.g('nonce')), null, 'which leaves it unused');
 select pg_temp.login(pg_temp.u('a'));
-select public.record_proof_consent(2);
+select public.record_proof_consent(3);
 select pg_temp.service();
 select lives_ok($$select public.claim_proof_challenge(pg_temp.g('nonce'), '00000000-0000-0000-0000-00000000000a')$$,
   'accepted again, the same nonce is claimed');

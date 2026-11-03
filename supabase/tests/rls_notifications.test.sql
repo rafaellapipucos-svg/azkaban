@@ -27,7 +27,7 @@ insert into public.contexts (id, area_id, group_id, owner_user_id, name, color_t
   ('20000000-0000-0000-0000-00000000000d', (select id from public.areas where key = 'home'),
     null, '00000000-0000-0000-0000-00000000000d', 'Duda', 'teal', 'x', '00000000-0000-0000-0000-00000000000d');
 
-update public.profiles set proof_consent_version = 2, proof_consent_at = now()
+update public.profiles set proof_consent_version = 3, proof_consent_at = now()
 where id in ('00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000d');
 
 create function pg_temp.login(id uuid) returns void language plpgsql as $$

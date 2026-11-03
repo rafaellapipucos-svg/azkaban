@@ -2688,3 +2688,21 @@
 - **Verificado:** `pnpm check` passou (17 de 17 e 11 de 11; data 29, feature-shopping 21, core 719, contracts 146, platform 53; `functions:imports` 10 de 10); `pnpm build:web` exportou. Sem mutação.
 - **Não verificado:** nenhuma E2E rodou (sem pilha, por decisão do orquestrador); o teste offline depende de `useOfflineQueue` em `apps/app/app/_layout.tsx`, que ainda não está ligado nesta base; o `p_request_id` e o `23505` contra o banco real; o XP de verdade (trigger do `banco-de-dados` em andamento); nativo.
 - **Pendências / próximos passos:** orquestrador liga `useOfflineQueue` no layout; rodar `e2e/shopping.spec.ts` com a pilha; `design-system` pode dar `disabled` ao `ConfirmButton` (hoje, sem rede, a tela troca por um `Button` desligado).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:43 (BRT)
+
+- **Branch:** feat/phase-8-backlog-db, criada a partir de feat/phase-8-polish (439f363)
+- **Agente(s):** banco-de-dados
+- **Resumo:** backlog do banco do ADR-0012 (seção 13, itens 3 e 4) e a versão 3 do aviso da prova (seção 6). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `issue_proof_challenge`: o limite diário conta os usados nas últimas 24 horas mais os emitidos ainda vivos e não usados, numa contagem só (cada nonce conta uma vez, vivo e depois usado; a trava por usuário segura a soma). 29 usados mais 30 emitidos juntos já não chegam a 59.
+  - Espelho `gamification_rules.closeJob.batchSize` = 64 (SEG6-7) e a linha em `packages/config/src/gamification.ts`, por delegação do orquestrador.
+  - Espelho `proof_rules.consentVersion` = 3 e a linha em `packages/config/src/proof.ts`, por delegação do orquestrador. `record_proof_consent` só aceita a 3; `issue_proof_challenge` e `claim_proof_challenge` comparam `<` com o espelho, então quem aceitou a 2 é levado a aceitar de novo. Nenhuma função mudou para isso.
+  - pgTAP: `rls_proof` ganha 8 testes (nonce vivo conta, nonce vencido não, usado dentro da vida conta uma vez; aceite da 2 recusado na emissão e no claim, a 3 libera o mesmo nonce, uma linha por versão) e os fixtures passam para a versão 3; `rls_account_privacy` e `rls_notifications` só nos fixtures; `rls_gamification_security` ganha o teste do `batchSize`.
+- **Arquivos/módulos principais:** `supabase/migrations/2026110413{0000,0100,0200}_*.sql`, `supabase/tests/rls_{proof,account_privacy,notifications,gamification_security}.test.sql`, `packages/config/src/{gamification,proof}.ts`
+- **Migrations:** 20261104130000_proof_daily_limit_live_nonces, 20261104130100_close_job_batch_size, 20261104130200_proof_consent_version_3. Aplicadas só na pilha B local.
+- **Decisões/ADRs:** nenhuma nova. O nonce emitido e vencido sem uso deixa de contar no dia (não custou corpo lido).
+- **Como testar:** pilha B `db`; `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`, `pnpm check`.
+- **Verificado:** `pnpm db:test` 12 arquivos, 1895 testes, PASS; `pnpm db:check-permissions` em sincronia (`supabase_db_azkaban-b`, prova e gamificação); `pnpm db:types` sem diferença; `pnpm check` passou (17 de 17 e 11 de 11). Mutação no limite diário, aplicando a função mutante no banco e rodando `rls_proof` (587): controle 587 de 587; mortas 4 de 5 (sem o termo dos vivos, sem `expires_at`, só os vivos, `>` no lugar de `>=`); sobreviveu a sem `used_at is null` no termo dos vivos, equivalente (uma linha usada só existe dentro das 24 horas, e o `or` conta a linha uma vez).
+- **Não verificado:** E2E (fora desta tarefa); o projeto hospedado; a corrida de duas emissões simultâneas (só a trava já existente). `rls_notifications` falhou uma vez no teste 209 na primeira rodada logo depois do `db reset` e passou nas três seguintes, sem mudança; não investigado.
+- **Pendências / próximos passos:** `prova-foto` troca `proof.consent.deletion` e acompanha `CONSENT_VERSION` em `e2e/proof-fixtures.ts` e o `p_version: 2` de `e2e/privacy.spec.ts` (handoff `20261103-0619`); até lá a E2E da prova e a de privacidade quebram com `invalid_consent_version`.

@@ -3746,3 +3746,19 @@
 - **Verificado:** os três casos de `--list` acima; o modo padrão lista os 98 testes; script avulso (não versionado) importou o `playwright.config.ts` com um `.env.development.local` temporário só com as duas chaves do Supabase e passou `webServer.env` por `parseClientEnv`: válido, `Azkaban`/`azkaban`, `EXPO_NO_DOTENV=1`. `pnpm check` passou.
 - **Não verificado:** o build e a suíte de fato (`pnpm build:web` + E2E), por não haver pilha livre. Hora pelo UTC−3 (PowerShell barrado).
 - **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 12:39 (BRT)
+
+- **Branch:** fix/vitest-cache-per-package (a partir de `feat/backlog-after-phase-8`, `3e97da4`)
+- **Agente(s):** arquiteto
+- **Resumo:** Cada pacote passa a usar o próprio cache de módulos do vitest. Corrige a falha intermitente `ENOTEMPTY: directory not empty, rmdir '<repo>\node_modules\.vitest-cache'` em `turbo run test --force`.
+- **Alterações:**
+  - Causa: o `fsModuleCache` do vitest 5 vem ligado por padrão e, sem `fsModuleCachePath`, grava em `join(searchForWorkspaceRoot(root), "node_modules", ".vitest-cache")`, ou seja, na raiz do workspace (não tem a ver com o `nodeLinker: hoisted`). Os 13 vitest que o turbo roda em paralelo dividiam esse diretório, e um o apagava enquanto outro escrevia.
+  - O script `test` dos 13 pacotes virou `vitest run --fsModuleCachePath node_modules/.vitest-cache`; o caminho é resolvido a partir da raiz do pacote. O `.gitignore` já cobre (`node_modules/` em qualquer nível).
+- **Arquivos/módulos principais:** `package.json` de `apps/app`, `packages/{config,contracts,core,data,platform,ui}` e `packages/features/{auth,gamification,notifications,proof,shopping,tasks}`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma
+- **Como testar:** `pnpm exec turbo run test --force` repetido; o cache fica em `<pacote>/node_modules/.vitest-cache`, e a raiz não ganha `node_modules/.vitest-cache`.
+- **Verificado:** com o `.vitest-cache` da raiz apagado, `pnpm exec turbo run test --force` três vezes seguidas, 13/13 em todas; os 13 caches criados por pacote, nenhum na raiz. `pnpm check` passou.
+- **Não verificado:** a falha original não foi reproduzida antes da correção (é intermitente); a correção vem da leitura do código do vitest (`FileSystemModuleCache`). Uso direto de `pnpm --filter <pacote> exec vitest run` (sem o script) continua usando o cache da raiz, o que só importa se rodar em paralelo. CI no Linux. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** nenhuma.

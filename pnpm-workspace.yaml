@@ -20,3 +20,7 @@ catalog:
 
 minimumReleaseAgeExclude:
   - i18next@26.6.0
+
+# ponytail: deno postinstall only copies the binary next to bin.cjs, which does it on first run anyway
+allowBuilds:
+  deno: false

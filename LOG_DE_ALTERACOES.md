@@ -3407,3 +3407,26 @@
 - **Verificado:** `pnpm check` verde (data 64 testes, eram 53; feature-auth com os 2 novos). Formato real dos erros conferido no código instalado: `postgrest-js` devolve `status: 0` numa falha de fetch; `auth-js` dá `AuthRetryableFetchError` com status 0 ou 5xx e `AuthApiError` com 429.
 - **Não verificado:** sem pilha e sem E2E (BL-22): nenhum 429 real do GoTrue nem do gatilho `invite_create`, nenhuma tela aberta no navegador. Nativo real (o link vencido precisa do APK). `feature-groups` não tem executor de testes; o mapa da tela do convite não tem teste próprio (o `callFailure` tem, e o `Record` obriga um texto por código). Um `setSession` que falha por rede no nativo também cai em "link venceu".
 - **Pendências / próximos passos:** o caminho do link vencido (`next`) não é levado para a tela de entrar; o link novo vai para `/`. Um `forbidden` de consulta só relê os papéis depois das 3 tentativas padrão do React Query (alguns segundos); as mudanças, na hora.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:28 (BRT)
+
+- **Branch:** chore/functions-deno-check, criada a partir de feat/backlog-after-phase-8 (7b1b5c3)
+- **Agente(s):** backend-funcoes
+- **Resumo:** BL-20. As Edge Functions entram no `pnpm check` com `deno check`, pelo pacote npm `deno` 2.1.4, a mesma versão do Deno do Edge Runtime local. Sete erros de tipo em quatro funções, corrigidos só nos tipos. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `package.json`: devDependency `deno` `2.1.4` (fixa). `docker run --rm public.ecr.aws/supabase/edge-runtime:v1.77.8 --version`, a imagem do Supabase CLI 2.122.0, imprime `deno 2.1.4`. Script `typecheck:functions`, chamado pelo `check` depois do `typecheck:e2e`. O `pnpm add deno` do pnpm 12 instala o Deno como runtime (`devEngines.runtime`, baixado do GitHub); foi desfeito em favor do pacote npm, que é o pedido do BL-20 e não depende do `devEngines`.
+  - `pnpm-workspace.yaml`: `allowBuilds: { deno: false }`. O pnpm 12 falha a instalação com script de build não aprovado; o `postinstall` do `deno` só copia o binário de `@deno/<plataforma>` para junto do `bin.cjs`, e o `bin.cjs` faz isso na primeira execução.
+  - `pnpm-lock.yaml`: só `deno@2.1.4` e os seis `@deno/<plataforma>@2.1.4` opcionais. `pnpm install --frozen-lockfile` passa.
+  - `supabase/functions/_shared/check-types.mjs` (novo): `deno check --quiet --no-lock --config <slug>/deno.json <slug>/index.ts` para cada função servida (pasta sem `_` e com `index.ts`, como o `import-maps.test.ts`). Só o grafo de runtime: os testes rodam no Node, e os que o E2E importa (`proof-kit.ts`) já passam pelo `typecheck:e2e`. `--no-lock` para não criar `deno.lock` em cada função.
+  - Erros encontrados e corrigidos (7, todos só de tipo):
+    - `dispatch-notifications` (2): `packages/core` importa os tipos `Occurrence` e `OccurrenceStatus` de `@azkaban/contracts`, que nesta função é `_shared/contracts.ts`, e ele não os reexportava. `_shared/contracts.ts` passa a reexportá-los com `type` (apagado em runtime).
+    - `materialize-occurrences` (2): o `check` recebia `{ data: T }` e o cliente tipa `data` como `X[] | null`; agora recebe `data: T | null` e devolve `result.data as T` (só chega ali sem erro).
+    - `proof-retention` (2): o `StorageError` não tem `code`, e `{ code?: string }` é tipo "fraco"; o `error` do `check` passa a `{ code?: string; message: string }`.
+    - `whatsapp-webhook` (1): `Uint8Array<ArrayBuffer>` não existe no TypeScript 5.6 do Deno 2.1.4; `_shared/whatsapp/webhook.ts` usa `raw as BufferSource`, que vale também nos libs novos.
+- **Arquivos/módulos principais:** `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `supabase/functions/_shared/{check-types.mjs,contracts.ts,whatsapp/webhook.ts}`, `supabase/functions/{materialize-occurrences,proof-retention}/index.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. Os npm transitivos que o `deno check` baixa não são travados (sem `deno.lock`, como no runtime); as versões diretas já são fixas em cada `deno.json`.
+- **Como testar:** `pnpm typecheck:functions`; `pnpm check`.
+- **Verificado:** `pnpm check` passou (inclui `deno check: 9 functions`, cerca de 2 s com o cache do Deno). Um erro de tipo posto de propósito em `proof-url/index.ts` fez o script sair com 1 e nomear a função. `node --test` dos testes de unidade das funções que não pedem pilha (`webhook`, `provider`, `checks`, `push`, `account`): 89 de 89. `pnpm install --frozen-lockfile` passa.
+- **Não verificado:** `pnpm functions:test` e E2E (sem pilha). O CI no Linux: o `@deno/linux-x64-glibc` vem do registro npm e o `deno check` baixa os pacotes `npm:` do registro público, sem segredo, mas não rodou lá. ESLint nas funções (a outra metade do BL-20, "se couber") não foi feito.
+- **Pendências / próximos passos:** o job `check` do CI já roda `pnpm check`, então nada a mudar em `.github/workflows/`. Ao subir o Supabase CLI, conferir a versão do Deno da imagem nova e acompanhar a do `deno`.

@@ -3,4 +3,8 @@
 // extensionless imports these files make among themselves.
 export * from '../../../packages/contracts/src/notifications.ts';
 export * from '../../../packages/contracts/src/whatsapp.ts';
-export { occurrenceStatusSchema } from '../../../packages/contracts/src/tasks.ts';
+export {
+  occurrenceStatusSchema,
+  type Occurrence,
+  type OccurrenceStatus,
+} from '../../../packages/contracts/src/tasks.ts';

@@ -211,6 +211,9 @@ importers:
       '@playwright/test':
         specifier: ^1.64.1
         version: 1.64.1
+      deno:
+        specifier: 2.1.4
+        version: 2.1.4
       dependency-cruiser:
         specifier: ^18.7.0
         version: 18.7.0
@@ -1437,6 +1440,38 @@ packages:
   '@conventional-changelog/template@1.4.0':
     resolution: {integrity: sha512-aalGyl7dbB5PArRebDIX43ZvBlXrYm9uWzGJ26t+4SzJVPsOuvfILGGbw5X4yX7i50YEmJ8zvbiWnqH/AAnZqg==}
     engines: {node: '>=22'}
+
+  '@deno/darwin-arm64@2.1.4':
+    resolution: {integrity: sha512-Fn7PzbJOtd0J7YN480fAzNt9TZ4mlyAyYUxaigXOYZw/zeD8qFsZds4NVxkpdxkG0B5YR4EmgWdxcHJMrgCZlg==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@deno/darwin-x64@2.1.4':
+    resolution: {integrity: sha512-pAxTbT3U1BWFaeNS3NbxAexYUFjj23QYPfvDYIUCS7qnMExRzhSALGbQa8wpn+2640kDsZjqr6B5vnIGEPVl9w==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@deno/linux-arm64-glibc@2.1.4':
+    resolution: {integrity: sha512-pBWgd7wsrJ3cYP1epu/fNMkreIC7iahNMH1LWdCYRjxJAcZo7OYChKQ0VK89zXPEwOn6IdXX7S2aIgNIAsSmnw==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@deno/linux-x64-glibc@2.1.4':
+    resolution: {integrity: sha512-EjVrCS51yw2OCYHiVDC2mhlqxH2dJ6cJrGxxDEDvMojm9Nj5IloSGPecLvlBtAtd9z1NFs0Ouv8n581rrtphEA==}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@deno/win32-arm64@2.1.4':
+    resolution: {integrity: sha512-wEVGdrZJ7b0cp3/yGoXeBhEiUy/i9woTROEv6Sl4LUqFpnH1OQ4SvOJNOs0bzqaFCiqen1SyCgK0mSo9OIi9zQ==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@deno/win32-x64@2.1.4':
+    resolution: {integrity: sha512-FAJJEGEoFfGTIJUsnibAY5OTKsdtUUftgexArpopiCbFwB+i+cHZ6hBEYd8krhDLkzDcx4EAA6MaUxyiyjliuQ==}
+    cpu: [x64]
+    os: [win32]
 
   '@ecies/ciphers@0.2.6':
     resolution: {integrity: sha512-patgsRPKGkhhoBjETV4XxD0En4ui5fbX0hzayqI3M8tvNMGUoUvmyYAIWwlxBc1KX5cturfqByYdj5bYGRpN9g==}
@@ -2979,6 +3014,10 @@ packages:
   define-lazy-prop@2.0.0:
     resolution: {integrity: sha512-Ds09qNh8yw3khSjiJjiUInaGX9xlqZDY7JVryGxdxV7NPeuqQfplOpQ66yJFZut3jLa5zOwkXw1g9EI2uKh4Og==}
     engines: {node: '>=8'}
+
+  deno@2.1.4:
+    resolution: {integrity: sha512-62N0sXvubvWKv4n0ioCvphAVLJ0DWoNQ5JPmuwGs7O/Y9M3f65hjbzKoruE8BhBCQjV4yr7T3K6KQ+G2M3uWpQ==}
+    hasBin: true
 
   depd@2.0.0:
     resolution: {integrity: sha512-g7nH6P6dyDioJogAAGprGpCtVImJhpPk/roCzdb3fIh61/s/nPsfR6onyMwkCAR/OlC3yBC0lESvUoQEAssIrw==}
@@ -5932,6 +5971,24 @@ snapshots:
 
   '@conventional-changelog/template@1.4.0': {}
 
+  '@deno/darwin-arm64@2.1.4':
+    optional: true
+
+  '@deno/darwin-x64@2.1.4':
+    optional: true
+
+  '@deno/linux-arm64-glibc@2.1.4':
+    optional: true
+
+  '@deno/linux-x64-glibc@2.1.4':
+    optional: true
+
+  '@deno/win32-arm64@2.1.4':
+    optional: true
+
+  '@deno/win32-x64@2.1.4':
+    optional: true
+
   '@ecies/ciphers@0.2.6(@noble/ciphers@1.3.0)':
     dependencies:
       '@noble/ciphers': 1.3.0
@@ -7551,6 +7608,15 @@ snapshots:
       clone: 1.0.4
 
   define-lazy-prop@2.0.0: {}
+
+  deno@2.1.4:
+    optionalDependencies:
+      '@deno/darwin-arm64': 2.1.4
+      '@deno/darwin-x64': 2.1.4
+      '@deno/linux-arm64-glibc': 2.1.4
+      '@deno/linux-x64-glibc': 2.1.4
+      '@deno/win32-arm64': 2.1.4
+      '@deno/win32-x64': 2.1.4
 
   depd@2.0.0: {}
 

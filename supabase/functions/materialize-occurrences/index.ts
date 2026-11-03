@@ -70,13 +70,14 @@ async function sameSecret(given: string, expected: string): Promise<boolean> {
 }
 
 class DatabaseError extends Error {}
-function check<T>(stage: string, result: { data: T; error: { code?: string } | null }): T {
+// `data` is null only together with an error, which throws; the client types do not tie the two.
+function check<T>(stage: string, result: { data: T | null; error: { code?: string } | null }): T {
   if (result.error) {
     // The code and the stage only: messages can quote rows.
     console.error(JSON.stringify({ event: 'materialize_failed', stage, code: result.error.code }));
     throw new DatabaseError(stage);
   }
-  return result.data;
+  return result.data as T;
 }
 
 /** The recurring tasks that still need work, stalest cursor first (never materialized first). */

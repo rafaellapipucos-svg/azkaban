@@ -3039,3 +3039,20 @@
 - **Verificado:** leitura do diff inteiro relevante para segurança; varredura de segredos no diff e na árvore de `42b955d`; grep de fronteiras e de chamadas ao Supabase em features, ui, core e rotas.
 - **Não verificado:** nada rodou contra banco (sem pilha): os pgTAP de SEG8-1 a SEG8-4 e o deadlock de SEG8-2P-1 são leitura, sem PoC; `pnpm check` não rodou (só o LOG mudou); os PNGs novos de marca não foram inspecionados por metadados; o hospedado.
 - **Pendências / próximos passos:** nenhum handoff (nada alto ou médio). SEG8-2P-1 e SEG8-2P-2 podem entrar no backlog de polimento se o humano quiser.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:35 (BRT)
+
+- **Branch:** `fix/remount-on-user-change`, criada a partir de `feat/phase-8-polish` (`c522f50`)
+- **Agente(s):** auth-grupos
+- **Resumo:** corrige SEG8-2P-2. O reset do cache em `useEffect` no layout raiz rodava depois dos efeitos dos filhos: numa troca direta de A para B as telas desenhavam uma vez com os dados de A, e o `fetchQuery` do `CelebrationHost` podia gravar no aparelho o nível celebrado de A para B. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/data/src/session/userChange.ts`: `useClearCacheOnUserChange` passa a esvaziar o cache de consultas (`getQueryCache().clear()`) no próprio render, pelo padrão do React de guardar o valor do render anterior em estado, antes de qualquer filho, e devolve um número que sobe a cada troca. Sem `useEffect`. As mutações ficam de fora, como antes.
+  - `apps/app/app/_layout.tsx`: só monta. O `Stack` recebe `key` com esse número, e a árvore inteira monta de novo sobre o cache vazio. `useOfflineQueue` continua no `RootLayout`, fora da árvore remontada.
+  - O número não sobe no primeiro login (`null` para A) nem na renovação do token (A para A): entrar não remonta nada.
+- **Arquivos/módulos principais:** `packages/data/src/session/userChange.ts`, `apps/app/app/_layout.tsx`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 12 de 12; `functions:imports` 10 de 10). Os 3 testes de `cacheBelongsToAnother` seguem valendo; a regra de quando limpar não mudou.
+- **Não verificado:** o hook e a remontagem num React de verdade (não há `@testing-library` em `packages/data`); como o Expo Router refaz o `Stack` raiz com `key` nova (a navegação deve sair do estado do contêiner ou da URL); a troca direta de A para B e a revogação real do token; nativo; E2E.
+- **Pendências / próximos passos:** QA, numa próxima passada na pilha A: sair pelo botão e entrar com outra conta, conferindo que a navegação volta a `/welcome` e depois a Hoje sem tela em branco.

@@ -635,19 +635,24 @@ describe('native push (ADR-0012, section 11)', () => {
     });
   });
 
-  test('the transport: fake by default, the real API only with expo and a token', () => {
+  test('the transport: fake only when written, the real API only with expo and a token', () => {
     const real = (async () => new Response(null)) as typeof fetch;
     const logs: string[] = [];
     const log = (line: string) => logs.push(line);
-    assert.notEqual(nativePushTransport({}, real, log)!.fetch, real);
-    assert.notEqual(nativePushTransport({ NATIVE_PUSH_PROVIDER: '' }, real, log)!.fetch, real);
+    // BL23-1: absent or empty is not configured, never a silent fake.
+    assert.equal(nativePushTransport({}, real, log), null);
+    assert.equal(nativePushTransport({ NATIVE_PUSH_PROVIDER: '' }, real, log), null);
+    const fake = nativePushTransport({ NATIVE_PUSH_PROVIDER: 'fake' }, real, log)!;
+    assert.notEqual(fake.fetch, real);
+    assert.equal(fake.accessToken, undefined);
     assert.equal(nativePushTransport({ NATIVE_PUSH_PROVIDER: 'expo' }, real, log), null);
     assert.equal(
       nativePushTransport({ NATIVE_PUSH_PROVIDER: 'expo', EXPO_ACCESS_TOKEN: 'short' }, real, log),
       null,
     );
     assert.equal(nativePushTransport({ NATIVE_PUSH_PROVIDER: 'other' }, real, log), null);
-    assert.deepEqual(logs, Array(3).fill(JSON.stringify({ event: 'native_push_not_configured' })));
+    assert.equal(nativePushTransport({ NATIVE_PUSH_PROVIDER: 'Fake' }, real, log), null);
+    assert.deepEqual(logs, Array(6).fill(JSON.stringify({ event: 'native_push_not_configured' })));
     const secret = 'y'.repeat(40);
     const chosen = nativePushTransport(
       { NATIVE_PUSH_PROVIDER: 'expo', EXPO_ACCESS_TOKEN: secret },

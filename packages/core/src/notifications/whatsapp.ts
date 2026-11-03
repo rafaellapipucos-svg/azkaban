@@ -25,6 +25,15 @@ export function normalizePhone(input: string, countryCode = '55'): string | null
   return phoneE164Schema.safeParse(e164).success ? e164 : null;
 }
 
+/**
+ * An E.164 for reading: a Brazilian number as `+55 11 98765-4321` (a landline as `+55 11 3333-4444`),
+ * any other country as it is.
+ */
+export function formatPhone(e164: string): string {
+  const br = /^\+55(\d{2})(\d{4,5})(\d{4})$/.exec(e164);
+  return br ? `+55 ${br[1]} ${br[2]}-${br[3]}` : e164;
+}
+
 /** Verified, and an opt-in newer than the last opt-out: the same rule as the database. */
 export function isWhatsAppReady(status: WhatsAppStatus): boolean {
   const { phoneE164, phoneVerifiedAt, optInAt, optOutAt } = status;

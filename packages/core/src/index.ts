@@ -123,6 +123,7 @@ export {
 export {
   buildDailySummary,
   cleanParam,
+  formatPhone,
   isDailySummaryEmpty,
   isWhatsAppReady,
   normalizePhone,

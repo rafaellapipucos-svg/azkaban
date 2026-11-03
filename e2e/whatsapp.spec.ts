@@ -108,6 +108,8 @@ test('verify the number by the code, opt in, get the daily summary, turn off and
   // A number of its own, so the per-number limit of other runs never applies
   const national = `119${String(randomInt(10_000_000, 99_999_999))}`;
   const phone = `+55${national}`;
+  // As the screen shows it (formatPhone)
+  const shown = `+55 ${national.slice(0, 2)} ${national.slice(2, 7)}-${national.slice(7)}`;
 
   await page.goto('/settings/notifications');
   await expect(page).toHaveTitle(/^Notificações · /);
@@ -122,9 +124,15 @@ test('verify the number by the code, opt in, get the daily summary, turn off and
     .getByLabel('Número com DDD')
     .fill(`(${national.slice(0, 2)}) ${national.slice(2, 7)}-${national.slice(7)}`);
   await button(page, 'Enviar código').click();
-  await expect(page.getByText(`Enviamos um código pelo WhatsApp para ${phone}.`)).toBeVisible();
+  await expect(page.getByText(`Enviamos um código pelo WhatsApp para ${shown}.`)).toBeVisible();
   // `resendSeconds`: another code only after the countdown
   await expect(page.getByText(/^Você pode pedir outro código em \d+ segundos?\.$/)).toBeVisible();
+  await expect(button(page, 'Pedir outro código')).toBeDisabled();
+
+  // Back from WhatsApp the browser often reloads the tab: the code step and its countdown stay
+  await page.reload();
+  await expect(page.getByText(`Enviamos um código pelo WhatsApp para ${shown}.`)).toBeVisible();
+  await expect(page.getByLabel('Código de 6 dígitos')).toBeVisible();
   await expect(button(page, 'Pedir outro código')).toBeDisabled();
 
   const { code } = await lastMessage(phone, (message) => message.kind === 'code');
@@ -140,10 +148,10 @@ test('verify the number by the code, opt in, get the daily summary, turn off and
 
   // The notice of consent version 1, with the number, then the opt-in
   await expect(
-    page.getByText(`As mensagens vêm do Azkaban, para o número ${phone}.`),
+    page.getByText(`As mensagens vêm do Azkaban, para o número ${shown}.`),
   ).toBeVisible();
   await button(page, 'Ativar o WhatsApp').click();
-  await expect(page.getByText(`Ativo para ${phone}.`)).toBeVisible();
+  await expect(page.getByText(`Ativo para ${shown}.`)).toBeVisible();
   const ready = await admin
     .from('profiles')
     .select('phone_e164, phone_verified_at, whatsapp_opt_in_at, whatsapp_opt_in_version')
@@ -240,7 +248,7 @@ test('verify the number by the code, opt in, get the daily summary, turn off and
   await page.goto('/settings/notifications');
   await expect(page.getByText('Desligado.')).toBeVisible();
   await button(page, 'Ativar o WhatsApp').click();
-  await expect(page.getByText(`Ativo para ${phone}.`)).toBeVisible();
+  await expect(page.getByText(`Ativo para ${shown}.`)).toBeVisible();
 
   // Off in the app, then the number removed
   await button(page, 'Parar de receber pelo WhatsApp').click();
@@ -340,6 +348,8 @@ test('the WhatsApp screens fit every size and scheme, and show the errors of the
   const me = await signedUp(page);
   const national = `119${String(randomInt(10_000_000, 99_999_999))}`;
   const phone = `+55${national}`;
+  // As the screen shows it (formatPhone)
+  const shown = `+55 ${national.slice(0, 2)} ${national.slice(2, 7)}-${national.slice(7)}`;
   // No phone number in any address the page opens or calls
   const urls: string[] = [];
   page.on('request', (request) => urls.push(request.url()));
@@ -353,7 +363,7 @@ test('the WhatsApp screens fit every size and scheme, and show the errors of the
 
   await page.getByLabel('Número com DDD').fill(`${national.slice(0, 2)} ${national.slice(2)}`);
   await button(page, 'Enviar código').click();
-  await expect(page.getByText(`Enviamos um código pelo WhatsApp para ${phone}.`)).toBeVisible();
+  await expect(page.getByText(`Enviamos um código pelo WhatsApp para ${shown}.`)).toBeVisible();
   // The countdown ticks down
   const countdown = page.getByText(/^Você pode pedir outro código em \d+ segundos?\.$/);
   const seconds = async () => Number(/(\d+)/.exec((await countdown.textContent()) ?? '')![1]);
@@ -376,11 +386,15 @@ test('the WhatsApp screens fit every size and scheme, and show the errors of the
   await button(page, 'Confirmar').click();
   await expect(page.getByText('Esse código não vale mais. Peça outro.')).toBeVisible();
 
-  // Asking again before `resendSeconds`, from a fresh screen: the function's 429, with its wait
+  // Asking again before `resendSeconds`, from a fresh tab (nothing kept in its session): the
+  // function's 429, as a wait between two codes and not as too many codes
+  await page
+    .locator('html')
+    .evaluate((html) => html.ownerDocument.defaultView!.sessionStorage.clear());
   await page.reload();
   await page.getByLabel('Número com DDD').fill(national);
   await button(page, 'Enviar código').click();
-  await expect(page.getByText('Muitos códigos pedidos. Tente de novo mais tarde.')).toBeVisible();
+  await expect(page.getByText('Espere um pouco para pedir outro código.')).toBeVisible();
   await expect(countdown).toBeVisible();
   await expect(button(page, 'Enviar código')).toBeDisabled();
 
@@ -392,11 +406,11 @@ test('the WhatsApp screens fit every size and scheme, and show the errors of the
   expect(verified.error).toBeNull();
   await page.reload();
   await expect(
-    page.getByText(`As mensagens vêm do Azkaban, para o número ${phone}.`),
+    page.getByText(`As mensagens vêm do Azkaban, para o número ${shown}.`),
   ).toBeVisible();
   await walk(page, 'consent');
   await button(page, 'Ativar o WhatsApp').click();
-  await expect(page.getByText(`Ativo para ${phone}.`)).toBeVisible();
+  await expect(page.getByText(`Ativo para ${shown}.`)).toBeVisible();
   await walk(page, 'on');
 
   for (const digits of [national, national.slice(2), phone]) {

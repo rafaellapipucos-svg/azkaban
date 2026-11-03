@@ -1,9 +1,15 @@
 import { whatsappRules } from '@azkaban/config';
-import { whatsappErrorCodeSchema, type WhatsAppStatus } from '@azkaban/contracts';
+import {
+  instantSchema,
+  phoneE164Schema,
+  whatsappErrorCodeSchema,
+  type PhoneVerificationError,
+  type WhatsAppStatus,
+} from '@azkaban/contracts';
 import { isWhatsAppReady, normalizePhone } from '@azkaban/core';
 import { z } from 'zod';
 
-const { allowedCountryCodes } = whatsappRules.verification;
+const { allowedCountryCodes, resendSeconds } = whatsappRules.verification;
 
 /**
  * The number form. A country out of `allowedCountryCodes`, typed in its field or as `+` in the
@@ -68,4 +74,43 @@ export function whatsappErrorKey(failure: unknown): string {
         : null;
   const code = whatsappErrorCodeSchema.safeParse(raw);
   return `whatsapp.errors.${code.success ? code.data : 'generic'}`;
+}
+
+/**
+ * The key of the sent code in the tab's session (QA5-1): back from WhatsApp, the browser often reloads
+ * the tab, and the code step must still be there. Only the number the code went to and its times;
+ * never the code.
+ */
+export const pendingCodeKey = 'azkaban.whatsapp.pendingCode';
+
+const pendingCodeSchema = z.object({
+  userId: z.string().min(1),
+  phone: phoneE164Schema,
+  expiresAt: instantSchema,
+  resendAt: instantSchema,
+});
+export type PendingCode = z.infer<typeof pendingCodeSchema>;
+
+/** The kept code of this user while it is alive, or null (another user, dead, or not ours). */
+export function readPendingCode(raw: string | null, userId: string, now: number) {
+  if (!raw || !userId) return null;
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  const pending = pendingCodeSchema.safeParse(value);
+  if (!pending.success || pending.data.userId !== userId) return null;
+  return Date.parse(pending.data.expiresAt) > now ? pending.data : null;
+}
+
+/**
+ * The i18n key of a refused request. `phone_rate_limited` within `resendSeconds` is the wait between
+ * two codes, not too many codes (QA5-2); the countdown under it says how long.
+ */
+export function requestRefusalKey({ error, retryAfterSeconds }: PhoneVerificationError): string {
+  if (error === 'phone_rate_limited' && (retryAfterSeconds ?? Infinity) <= resendSeconds)
+    return 'whatsapp.errors.phone_resend_wait';
+  return whatsappErrorKey(error);
 }

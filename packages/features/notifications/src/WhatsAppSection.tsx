@@ -4,9 +4,10 @@ import {
   type DailySummaryPreferences,
   type WhatsAppStatus,
 } from '@azkaban/contracts';
-import { normalizePhone } from '@azkaban/core';
+import { formatPhone, normalizePhone } from '@azkaban/core';
 import { notificationsRepository, useCurrentUser } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
+import { readSessionValue, writeSessionValue } from '@azkaban/platform';
 import {
   Body,
   Button,
@@ -26,7 +27,10 @@ import { useController, useForm, type Control } from 'react-hook-form';
 import { View } from 'react-native';
 import { z } from 'zod';
 import {
+  pendingCodeKey,
   phoneFormSchema,
+  readPendingCode,
+  requestRefusalKey,
   secondsUntil,
   waitParts,
   whatsappErrorKey,
@@ -71,10 +75,26 @@ export function WhatsAppSection() {
   const { t } = useTranslation('notifications');
   const queryClient = useQueryClient();
   const state = useQuery({ queryKey: whatsappKey, queryFn: notificationsRepository.getWhatsApp });
-  // The number the last code went to, while its screen is up. Lost on reload: the person asks again.
+  const { user } = useCurrentUser();
+  // The number the last code went to, while its screen is up. Kept in the tab's session with its
+  // times, so a reload on the way back from WhatsApp keeps the code step (QA5-1).
   const [sentTo, setSentTo] = useState<string | null>(null);
   // When another code may be asked for: `resendAt`, or now plus `retryAfterSeconds` of a refusal.
   const [waitUntil, setWaitUntil] = useState<string | null>(null);
+  // Restored once the user is known, so another account in the same tab never sees it.
+  const [restoredFor, setRestoredFor] = useState('');
+  if (user.id && restoredFor !== user.id) {
+    setRestoredFor(user.id);
+    const pending = readPendingCode(readSessionValue(pendingCodeKey), user.id, Date.now());
+    if (pending) {
+      setSentTo(pending.phone);
+      setWaitUntil(pending.resendAt);
+    }
+  }
+  const forgetCode = () => {
+    writeSessionValue(pendingCodeKey, null);
+    setSentTo(null);
+  };
   const refresh = () => queryClient.invalidateQueries({ queryKey: whatsappKey });
 
   const request = useMutation({
@@ -87,12 +107,13 @@ export function WhatsAppSection() {
       }
       setWaitUntil(result.resendAt);
       setSentTo(phone);
+      writeSessionValue(pendingCodeKey, JSON.stringify({ userId: user.id, phone, ...result }));
     },
   });
   const requestError = request.isError
     ? whatsappErrorKey(request.error)
     : request.data && 'error' in request.data
-      ? whatsappErrorKey(request.data.error)
+      ? requestRefusalKey(request.data)
       : null;
 
   const step = state.data ? whatsappStep(state.data.status, sentTo !== null, consentVersion) : null;
@@ -119,11 +140,11 @@ export function WhatsAppSection() {
           onResend={() => request.mutate(sentTo)}
           onChangeNumber={() => {
             request.reset();
-            setSentTo(null);
+            forgetCode();
           }}
           onConfirmed={async () => {
             await refresh();
-            setSentTo(null);
+            forgetCode();
           }}
         />
       ) : null}
@@ -231,7 +252,7 @@ function CodeStep({
   return (
     <>
       <Body className="font-heavy">{t('whatsapp.code.title')}</Body>
-      <Muted>{t('whatsapp.code.hint', { phone })}</Muted>
+      <Muted>{t('whatsapp.code.hint', { phone: formatPhone(phone) })}</Muted>
       <FormTextField
         control={control}
         name="code"
@@ -297,7 +318,7 @@ function ConsentStep({ status, onDone }: { status: WhatsAppStatus; onDone: () =>
       {status.optOutAt ? <Body>{t('whatsapp.status.off')}</Body> : null}
       <View className="gap-2 rounded-lg border-2 border-border bg-surface p-4 dark:border-border-dark dark:bg-surface-dark">
         <Body className="font-heavy">{t(`${consent}.title`)}</Body>
-        <Body>{t(`${consent}.sender`, { phone: status.phoneE164 })}</Body>
+        <Body>{t(`${consent}.sender`, { phone: formatPhone(status.phoneE164 ?? '') })}</Body>
         <Body>{t(`${consent}.what`)}</Body>
         <Body>{t(`${consent}.meta`)}</Body>
         <Body>{t(`${consent}.cost`)}</Body>
@@ -331,7 +352,9 @@ function OnStep({
   });
   return (
     <>
-      <Body role="status">{t('whatsapp.status.on', { phone: status.phoneE164 })}</Body>
+      <Body role="status">
+        {t('whatsapp.status.on', { phone: formatPhone(status.phoneE164 ?? '') })}
+      </Body>
       <DailySummaryForm summary={summary} onDone={onDone} />
       <Button
         variant="secondary"

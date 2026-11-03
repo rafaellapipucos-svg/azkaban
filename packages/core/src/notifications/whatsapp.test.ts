@@ -10,6 +10,7 @@ import type { Translate } from './pushPayload';
 import {
   buildDailySummary,
   cleanParam,
+  formatPhone,
   isDailySummaryEmpty,
   isWhatsAppReady,
   normalizePhone,
@@ -246,6 +247,18 @@ describe('cleanParam', () => {
     expect(whatsappTextParamSchema.parse(cleanParam(title))).toBe(
       'Relat\u00f3rio x \u{1f469}\u200d\u{1f4bb}',
     );
+  });
+});
+
+describe('formatPhone', () => {
+  it.each([
+    ['+5511917058802', '+55 11 91705-8802'],
+    ['+551133334444', '+55 11 3333-4444'],
+    ['+351912345678', '+351912345678'],
+    ['+14155550100', '+14155550100'],
+    ['+55119170588021', '+55119170588021'],
+  ])('turns %j into %j', (input, output) => {
+    expect(formatPhone(input)).toBe(output);
   });
 });
 

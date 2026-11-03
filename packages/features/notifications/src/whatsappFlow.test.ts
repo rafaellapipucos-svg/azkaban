@@ -4,6 +4,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   phoneFormSchema,
+  readPendingCode,
+  requestRefusalKey,
   secondsUntil,
   waitParts,
   whatsappErrorKey,
@@ -110,5 +112,46 @@ describe('whatsappErrorKey', () => {
     expect(whatsappErrorKey(new Error('Failed to fetch'))).toBe('whatsapp.errors.generic');
     expect(whatsappErrorKey({ message: 'forbidden' })).toBe('whatsapp.errors.generic');
     expect(whatsappErrorKey(null)).toBe('whatsapp.errors.generic');
+  });
+});
+
+describe('readPendingCode', () => {
+  const now = Date.parse('2026-11-03T10:00:00.000Z');
+  const kept = {
+    userId: 'u1',
+    phone: '+5511987654321',
+    expiresAt: '2026-11-03T10:05:00.000Z',
+    resendAt: '2026-11-03T09:56:00.000Z',
+  };
+  const raw = JSON.stringify(kept);
+
+  it('gives back the code step of this user while the code lives', () => {
+    expect(readPendingCode(raw, 'u1', now)).toEqual(kept);
+  });
+
+  it('nothing for another user, a dead code, an unknown user or a broken value', () => {
+    expect(readPendingCode(raw, 'u2', now)).toBeNull();
+    expect(readPendingCode(raw, '', now)).toBeNull();
+    expect(readPendingCode(raw, 'u1', Date.parse(kept.expiresAt))).toBeNull();
+    expect(readPendingCode('{', 'u1', now)).toBeNull();
+    expect(readPendingCode(JSON.stringify({ ...kept, phone: '123' }), 'u1', now)).toBeNull();
+    expect(readPendingCode(null, 'u1', now)).toBeNull();
+  });
+});
+
+describe('requestRefusalKey', () => {
+  it('the wait between two codes is not "too many codes" (QA5-2)', () => {
+    expect(requestRefusalKey({ error: 'phone_rate_limited', retryAfterSeconds: 58 })).toBe(
+      'whatsapp.errors.phone_resend_wait',
+    );
+    expect(requestRefusalKey({ error: 'phone_rate_limited', retryAfterSeconds: 3600 })).toBe(
+      'whatsapp.errors.phone_rate_limited',
+    );
+    expect(requestRefusalKey({ error: 'phone_rate_limited' })).toBe(
+      'whatsapp.errors.phone_rate_limited',
+    );
+    expect(requestRefusalKey({ error: 'phone_country_not_allowed' })).toBe(
+      'whatsapp.errors.phone_country_not_allowed',
+    );
   });
 });

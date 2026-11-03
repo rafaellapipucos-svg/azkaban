@@ -2816,3 +2816,18 @@
 - **Decisões/ADRs:** nenhuma. O texto do 429 não traz a espera (o `hint`), como no resto dos módulos.
 - **Como testar:** `pnpm check`; `pnpm --filter @azkaban/data exec vitest run src/groups`.
 - **Pendências / próximos passos:** nenhum E2E esperava o erro antigo (`e2e/accounts.spec.ts` checa o código revogado pela prévia, que já devolvia vazio); E2E não rodados. `previewInvite` também gasta o limite e, num 429, a tela fica sem a prévia e sem mensagem; não mudou aqui.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 07:25 (BRT)
+
+- **Branch:** `fix/invite-preview-rate-limit` (de `feat/phase-8-polish`, `42f421d`)
+- **Agente(s):** auth-grupos
+- **Resumo:** a prévia do convite também gasta o limite `invite_lookup` (SEG8-2); com `PT429`, a tela de entrar no grupo agora diz `join.rateLimited` em vez de abrir sem prévia e sem mensagem.
+- **Alterações:**
+  - `groupsRepository.previewInvite` lança `Error('rate_limited', { cause })` com `PT429`, como o `acceptInvite`.
+  - `JoinGroupScreen` mostra o estado vazio com `join.rateLimited` quando a prévia esbarra no limite, e a consulta da prévia não tenta de novo depois de um `rate_limited` (cada tentativa gastaria mais do limite).
+  - Testes de `previewInvite` (prévia lida, código que não serve, 429) em `packages/data/src/groups/groups.test.ts`.
+- **Arquivos/módulos principais:** `packages/data/src/groups/index.ts`, `packages/data/src/groups/groups.test.ts`, `packages/features/groups/src/JoinGroupScreen.tsx`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm check`.
+- **Pendências / próximos passos:** E2E não rodados. Outros erros da prévia (rede, 5xx) seguem sem mensagem na tela, como antes.

@@ -18,7 +18,7 @@
     "react": "catalog:",
     "react-hook-form": "^7.91.0",
     "react-native": "catalog:",
-    "react-native-safe-area-context": "^5.11.0",
+    "react-native-safe-area-context": "~5.10.1",
     "react-native-svg": "^15.16.0"
   },
   "devDependencies": {

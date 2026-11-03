@@ -1323,3 +1323,22 @@
 - **Verificado:** antes, 503 com o erro de boot no log; depois, 204 e nenhum `boot error` no log. `pnpm functions:test`: 114 de 114, 27 suítes. `pnpm check`: 17 de 17 tarefas e 9 de 9 suítes.
 - **Não verificado:** E2E (fica com o orquestrador). Hora tirada de UTC menos 3, porque o PowerShell foi bloqueado.
 - **Pendências / próximos passos:** nenhuma desta correção.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 00:53 (BRT)
+
+- **Branch:** fix/e2e-phase-4-close, criada a partir de feat/phase-4-notifications (3b428b2)
+- **Agente(s):** qa-testes
+- **Resumo:** As duas falhas da verificação final da Fase 4 corrigidas na E2E. Os jobs de relógio do pg_cron ficam desligados durante a suíte, e a spec que os chama direto roda por último, o que tira da suíte a classe de falha "lembrete ou vermelho no meio de um teste, conforme a hora".
+- **Alterações:**
+  - `e2e/global-setup.ts` (novo): desliga `enqueue-due-reminders` e `auto-miss-occurrences` com `cron.alter_job` (via `supabase db query --local`) e religa no teardown.
+  - `playwright.config.ts`: `globalSetup` e dois projetos, `app` (tudo menos `notifications-jobs`) e `jobs` (`notifications-jobs`, com `dependencies: ['app']`). Os dois jobs agem em todas as linhas do banco, então chamá-los no meio da suíte tocava as tarefas das outras specs. Rodar só `notifications-jobs` pede `--project=jobs --no-deps`.
+  - `e2e/proof-fixtures.ts`: `shieldFromAutoMiss` removido, com as três chamadas em `tasks-late-and-count.spec.ts` e `tasks-proof.spec.ts`; `e2e/notifications-bell.spec.ts`: sai o `reminders: []` da tarefa. Os dois existiam só contra o cron e as chamadas diretas.
+  - `e2e/notifications-bell.spec.ts` e `notifications-jobs.spec.ts`: o que é da lista é procurado dentro de `[role="main"]:visible`; o aviso ao vivo fica fora dela e repetia o texto (`notifications-bell.spec.ts:78`).
+  - Handoff `20261103-0049-qa-testes-para-notificacoes-whatsapp-aviso-na-lista` (QA4-5, baixa): em `/notifications`, o aviso ao vivo repete o primeiro item da lista.
+- **Arquivos/módulos principais:** `e2e/`, `playwright.config.ts`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`, `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm e2e` (com uma chave pública VAPID no ambiente, rodam os testes de push).
+- **Verificado:** specs afetadas primeiro: `notifications-bell`, `tasks-ui-fixes`, `tasks-late-and-count` e `tasks-proof` no projeto `app`, 18 de 18; `notifications-jobs` com `--no-deps`, 4 de 4. `pnpm e2e` completo uma vez, banco limpo, com chave pública gerada em memória e passada só ao processo: 68 passaram, 1 pulado (o "sem chave"), nenhuma falha, sem `retries`. Depois de cada execução, os seis jobs de `cron.job` voltaram a `active = true`. `pnpm check` passou (17 de 17 e 9 de 9).
+- **Não verificado:** a suíte completa rodou por volta de 00:50, quando o lembrete de 30 minutos das tarefas criadas pelo formulário (na próxima hora) já estava vencido, e passou; mas foi uma execução só. Nada no CI (o `supabase db query --local` é da CLI 2.122 do lockfile, a mesma do CI). Uma execução interrompida antes do teardown deixa os dois jobs desligados até a próxima execução ou `db reset`. Hora derivada de UTC menos 3 (PowerShell bloqueado).
+- **Pendências / próximos passos:** QA4-5, conforme o handoff. Uma falha no projeto `app` pula o `jobs` naquela execução.

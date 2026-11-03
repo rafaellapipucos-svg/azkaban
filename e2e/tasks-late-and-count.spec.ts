@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import { expect, test, type Page } from '@playwright/test';
-import { shieldFromAutoMiss } from './proof-fixtures';
 
 // Needs `pnpm db:start`, which serves the functions too (repeating tasks are materialized
 // by the Edge Function). Accounts are unique per run and exist only in the local database.
@@ -60,7 +59,6 @@ test('a task overdue inside the late window counts as done late, and past it onl
   const today = todayLocal();
   await createOn(page, 'Ontem sem fazer', plusDays(today, -1));
   await createOn(page, 'Há cinco dias', plusDays(today, -5));
-  await shieldFromAutoMiss(page);
 
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Atrasadas' })).toBeVisible();
@@ -91,7 +89,6 @@ test('a screen that still thinks the window is open gets the late_window_expired
   await signUpWithContext(page, 'Janela');
   const due = plusDays(todayLocal(), -5);
   await createOn(page, 'Fora da janela', due);
-  await shieldFromAutoMiss(page);
   await page.goto('/');
   await page.getByText('Fora da janela', { exact: true }).first().click();
   await expect(page.getByRole('heading', { name: 'Fora da janela' })).toBeVisible();

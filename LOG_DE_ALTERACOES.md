@@ -1726,3 +1726,19 @@
 - **Verificado:** na pilha B (só Postgres, `supabase_db_azkaban-b`): `db reset`, `pnpm db:test` com 5 arquivos e 1378 testes, todos passando; os de SEG5-1 seguem iguais. `pnpm db:check-permissions` em sincronia. `pnpm check` passou (17 de 17 e 9 de 9). Mutação, desfeita: a regex antiga aplicada no banco derruba os 4 testes novos (102 a 105); restaurada, 151 de 151.
 - **Não verificado:** o webhook servido contra a função nova (sem E2E nem `functions:test`, por pedido do orquestrador).
 - **Pendências / próximos passos:** o texto do ADR-0009, seção 18, com o `arquiteto`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:41 (BRT)
+
+- **Branch:** fix/local-stack-cjs, criada a partir de feat/phase-5-whatsapp (`24f76cd`)
+- **Agente(s):** backend-funcoes
+- **Resumo:** `pnpm e2e` voltou a carregar as specs. O Playwright compila as specs, e com elas `proof-kit.ts` e `local-stack.mjs`, para CommonJS, onde o `import.meta` que achava o `config.toml` não existe: 0 testes em 0 arquivos. Agora `local-stack.mjs` acha `supabase/config.toml` subindo a partir de `process.cwd()`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `findConfig(from)` em `local-stack.mjs`, sem `import.meta`; o ambiente vence o config e um config sem as chaves continua lançando erro.
+  - Teste novo: o config é achado a partir de uma pasta interna e da raiz do checkout.
+- **Arquivos/módulos principais:** `supabase/functions/_shared/local-stack.mjs`, `supabase/functions/_shared/local-stack.test.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. Os comandos precisam rodar de dentro do checkout, como já fazem todos os scripts do `package.json`.
+- **Como testar:** `node --test supabase/functions/_shared/local-stack.test.ts`, `pnpm exec playwright test --list`, `pnpm functions:test` e `pnpm e2e`, na pilha A.
+- **Verificado (pilha A, banco limpo):** antes, `playwright test --list` dava o `SyntaxError` e 0 testes; depois, 71 testes em 18 arquivos. `local-stack.test.ts`: 7 de 7. `pnpm functions:test`: 178 de 178. `pnpm e2e` com uma chave VAPID gerada em memória: 70 passaram, 1 pulado (o que só roda sem a chave). `pnpm check` passa.
+- **Não verificado:** CI, pilha B e projeto hospedado.
+- **Pendências / próximos passos:** nenhuma. Pilha A parada.

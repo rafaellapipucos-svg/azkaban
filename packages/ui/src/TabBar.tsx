@@ -16,9 +16,11 @@ export type TabBarItem = {
  * The app's bottom bar, inside a `navigation` landmark. Each tab is as wide as its label and the
  * leftover width is shared, so "Calendário" and "Doméstico" fit whole at 320 px (equal fifths cut
  * them). A label that still does not fit wraps to a second line instead of an ellipsis. Six tabs need
- * 348 px at 14 px, so past five the labels drop to 12 px; the touch target stays 44 px. Narrower
- * than the tabs need (six at 200% zoom on a 375 px phone, 188 CSS px), the bar scrolls sideways
- * inside itself, so the page does not.
+ * 348 px at 14 px, so past five the labels drop to 12 px; the touch target stays 44 px. Labels use
+ * the body weight and half of spacing[1] on each side, so neighbours never touch: in Chromium the six
+ * tabs take 318 of 320 px with it (the heavy weight would take 326 and scroll). Narrower than the
+ * tabs need (six at 200% zoom on a 375 px phone, 188 CSS px), the bar scrolls sideways inside
+ * itself, so the page does not.
  */
 export function TabBar({ items }: { items: readonly TabBarItem[] }) {
   const { t } = useTranslation('ui');
@@ -52,6 +54,8 @@ export function TabBar({ items }: { items: readonly TabBarItem[] }) {
                 minWidth: sizes.touch,
                 minHeight: layout.tabBarHeight,
                 gap: spacing[1],
+                // Two halves: spacing[1] between neighbouring labels even when the bar is full.
+                paddingHorizontal: spacing[1] / 2,
               }}
               className={`items-center justify-center border-t-4 ${
                 tab.selected ? 'border-primary dark:border-primary-light' : 'border-transparent'
@@ -62,7 +66,7 @@ export function TabBar({ items }: { items: readonly TabBarItem[] }) {
               </Text>
               <Text
                 numberOfLines={2}
-                className={`text-center font-heavy ${labelSize} ${
+                className={`text-center font-body ${labelSize} ${
                   tab.selected
                     ? 'text-primary dark:text-primary-light'
                     : 'text-muted dark:text-muted-dark'

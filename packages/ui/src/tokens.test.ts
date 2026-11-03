@@ -15,7 +15,8 @@ function contrast(a: string, b: string) {
 }
 
 // Every text color on every fill it is drawn on (ADR-0012, section 9, item 2): 4.5:1, AA for
-// normal text. The labels are small, so no pair leans on the 3:1 allowed for large text.
+// normal text. The labels are small, so no pair leans on the 3:1 allowed for large text. `muted` on
+// `surface` (and the dark pair) is also the disabled Button and ConfirmButton (buttonLook.tsx).
 const onPage = (texts: (keyof typeof colors)[], fills: (keyof typeof colors)[]) =>
   texts.flatMap((text) => fills.map((fill) => [text, fill] as const));
 const textPairs = [

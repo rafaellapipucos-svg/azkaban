@@ -108,6 +108,12 @@ export function DesignSystemScreen() {
         <Button label="Disabled" disabled />
         <Button label="Loading" loading />
         <ConfirmButton label="Confirm" confirmLabel="Sure?" onConfirm={() => undefined} />
+        <ConfirmButton
+          label="Confirm disabled"
+          confirmLabel="Sure?"
+          onConfirm={() => undefined}
+          disabled
+        />
 
         <Subtitle>{t('designSystem.status')}</Subtitle>
         <View className="flex-row flex-wrap gap-2">

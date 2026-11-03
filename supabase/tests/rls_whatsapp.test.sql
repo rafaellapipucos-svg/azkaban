@@ -681,6 +681,27 @@ create function pg_temp.zone(p_k int) returns text language sql as $$
   where extract(hour from now() at time zone z) between 3 and 20
   order by n offset p_k - 1 limit 1;
 $$;
+-- One run of the job, counted in this test's users only (101 to 10a): a profile of another session (the
+-- E2E's) may become due mid-test, since every statement sees what others committed. The run's own answer
+-- must still be every summary it wrote, of anyone: the rows with this transaction's now(), which no other
+-- session's rows have.
+create function pg_temp.summaries() returns int language plpgsql as $$
+declare
+  ours_before int;
+  mine_before int;
+  written int;
+begin
+  select count(*) filter (where user_id::text like '00000000-0000-0000-0000-0000000001__'),
+    count(*) filter (where created_at = now())
+  into ours_before, mine_before from public.notifications where type = 'daily_summary';
+  written := public.enqueue_daily_summaries();
+  if written <> (select count(*) from public.notifications where type = 'daily_summary' and created_at = now()) - mine_before then
+    raise exception 'the job answered % but wrote another number', written;
+  end if;
+  return (select count(*) from public.notifications
+    where type = 'daily_summary' and user_id::text like '00000000-0000-0000-0000-0000000001__') - ours_before;
+end;
+$$;
 -- p_minutes before the local now of the profile's zone.
 create function pg_temp.job_profile(p text, p_zone int, p_minutes int) returns void language sql as $$
   select pg_temp.ready(pg_temp.u(p), '+55119' || lpad(('x' || lpad(p, 8, '0'))::bit(32)::int::text, 8, '0'));
@@ -712,7 +733,7 @@ from unnest(array['101', '102', '105', '108']) k;
 update public.profiles set phone_e164 = null, phone_verified_at = null, whatsapp_opt_in_at = null, whatsapp_opt_in_version = null
 where id = pg_temp.u('108');
 
-select is(public.enqueue_daily_summaries(), 4, 'the job writes the summaries due');
+select is(pg_temp.summaries(), 4, 'the job writes the summaries due');
 -- Only this test's job users (101 to 10a): other users, of the E2E run too, may share the database.
 select is((select string_agg(right(user_id::text, 3) || '=' || (data ->> 'localDate'), ',' order by user_id)
   from public.notifications where type = 'daily_summary' and user_id::text like '00000000-0000-0000-0000-0000000001__'),
@@ -730,11 +751,11 @@ select is((select scheduled_for from public.notification_outbox ob join public.n
   'the outbox row is due at the chosen local time');
 update public.profiles set daily_summary_skip_empty = true where id = pg_temp.u('109');
 update public.profiles set daily_summary_last_date = null where id = pg_temp.u('10a');
-select is(public.enqueue_daily_summaries(), 0, 'an empty day with skip_empty writes nothing');
+select is(pg_temp.summaries(), 0, 'an empty day with skip_empty writes nothing');
 select is((select daily_summary_last_date from public.profiles where id = pg_temp.u('10a')), (now() at time zone pg_temp.zone(1))::date,
   'but the day is marked, so it is not looked at again');
 update public.profiles set daily_summary_last_date = null where id = pg_temp.u('101');
-select is(public.enqueue_daily_summaries(), 0, 'running again writes nothing: the key holds even when the date is lost');
+select is(pg_temp.summaries(), 0, 'running again writes nothing: the key holds even when the date is lost');
 select is((select count(*) from public.notifications where type = 'daily_summary' and user_id::text like '00000000-0000-0000-0000-0000000001__'), 4::bigint,
   'and nothing is duplicated');
 

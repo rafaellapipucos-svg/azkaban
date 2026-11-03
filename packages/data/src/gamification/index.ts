@@ -82,6 +82,17 @@ export const gamificationRepository = {
       : null;
   },
 
+  /** When the profile was created: "Últimos dias" starts on its local day (QA6-5). */
+  async getMemberSince(): Promise<string> {
+    const { data, error } = await db()
+      .from('profiles')
+      .select('created_at')
+      .eq('id', await currentUserId())
+      .single();
+    if (error) throw error;
+    return data.created_at;
+  },
+
   /** `user_day_stats` from `from` to `to`, both included. A missing day had nothing planned. */
   async listDays(from: string, to: string): Promise<UserDayStats[]> {
     const { data, error } = await db()

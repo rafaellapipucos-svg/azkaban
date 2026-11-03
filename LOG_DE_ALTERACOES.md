@@ -2023,6 +2023,8 @@
 - **Não verificado:** a E2E não rodou (pilha ocupada); o repositório não falou com um banco, e `group_ranking` de dois argumentos só existe com a migration; nenhuma tela aberta num navegador.
 - **Pendências / próximos passos:** integrar com a migration do `banco-de-dados`, deixando prevalecer o `database.types.ts` regenerado; rodar a E2E com a pilha.
 
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:07 (BRT)
+
 - **Branch:** chore/qa-phase-6, criada a partir de feat/phase-6-gamification (058bce3)
 - **Agente(s):** qa-testes
 - **Resumo:** QA da Fase 6 no estado integrado. `e2e/gamification.spec.ts` rodou pela primeira vez e passa; E2E completa, testes de funções e `pnpm check` verdes. Cinco achados de uso, nenhum bloqueante, num handoff ao `gamificacao`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
@@ -2037,3 +2039,22 @@
 - **Verificado:** `gamification.spec.ts` 4 de 4. `pnpm e2e` completo uma vez: 74 ok, 0 falhas, 1 pulado (o "sem chave VAPID"), incluindo as specs antigas de tarefa e prova com o bônus e o teto. `pnpm functions:test` 178 de 178. `pnpm check` passou (17 de 17 e 10 de 10; core 688). Percurso temporário (não commitado) de Hoje com o chip, cartão de comemoração, Perfil com o painel, ranking no grupo e tela de dia perfeito a 320, 375 e 1280 px, claro e escuro, e com reduzir movimento a 375 escuro: sem rolagem lateral, sem texto cortado, nenhum alvo abaixo de 44 px, foco visível em todas as paradas do Perfil, confete ausente com reduzir movimento, tela de dia perfeito como `dialog` nomeado que prende o foco, fecha com Esc e devolve o foco. Duas sondas confirmaram QA6-2 (uma tarefa só: cartão da conquista, sem tela de dia perfeito) e QA6-3 (meta cumprida no teto: banco com ofensiva 1, chip em 0).
 - **Não verificado:** leitor de tela real (só papéis e rótulos no DOM), som e vibração num aparelho, Safari e iPhone, o caso da "Semana perfeita" de QA6-2 (inferido do código), o caso da foto em análise de QA6-3, projeto hospedado. Sem mutação.
 - **Pendências / próximos passos:** `docs/agentes/QUADRO.md` ainda tem F6-1 a F6-5 "a fazer" (item da seção 10, do orquestrador). Achados com o `gamificacao`; depois de QA6-1, apertar a E2E para "0 dias".
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:16 (BRT)
+
+- **Branch:** fix/gamification-client-security, depois do merge de feat/phase-6-gamification (e9509c6)
+- **Agente(s):** gamificacao
+- **Resumo:** achados do QA da Fase 6 (handoff 20261103-0405-qa-testes-para-gamificacao). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree. No merge, o `log-merge.cjs` juntou o cabeçalho da entrada do `qa-testes` com o meu, que tinham o mesmo texto ("04:07"); o cabeçalho foi reposto à mão.
+- **Alterações:**
+  - QA6-2: `celebrationsFor` põe o `perfect_day` sempre primeiro, e o `CelebrationHost` abre a tela de dia perfeito com conquista, nível e marco como linhas. Handoff ao `arquiteto` para o texto da seção 8.
+  - QA6-3: o `CelebrationHost` relê `user_stats` depois de toda mutação bem-sucedida, o que cobre a conclusão sem evento (no teto ou com foto em análise). Não precisou do banco nem de `tasks`. O marco da ofensiva desse caso continua só na próxima rajada.
+  - QA6-4: precisa de um slot no `ProfileScreen`; fica para o `auth-grupos`, com handoff.
+  - QA6-5: "Últimos dias" começa no dia local da criação do perfil (`recentDays` no core e `getMemberSince` no repositório), com hoje sempre presente.
+  - QA6-1: `streak.days_zero` e `streak.best_zero` ("0 dias"); a E2E agora espera `'0 dias de ofensiva'`.
+- **Arquivos/módulos principais:** `packages/core/src/gamification/{celebrations,streak}{,.test}.ts`, `packages/core/src/index.ts`, `packages/data/src/gamification/index.ts`, `packages/features/gamification/src/{CelebrationHost,ProgressPanel}.tsx`, `packages/features/gamification/src/{hooks,source}.ts`, `packages/i18n/src/pt-BR/gamification.json`, `e2e/gamification.spec.ts`, três handoffs `20261103-0415-gamificacao-para-*`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** o dia perfeito ganha a tela (ADR-0010, seção 8, com o texto pedido ao `arquiteto`).
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/gamification`; com a pilha, a E2E inteira.
+- **Verificado:** `pnpm check` passou (17 de 17 e 10 de 10; core 692; `functions:imports` 8 de 8). `pnpm build:web` passou. Mutações, desfeitas: sem a prioridade do dia perfeito, cai 1 teste de `celebrations.test.ts`; sem o piso de um dia em `recentDays`, cai 1 de `streak.test.ts`.
+- **Não verificado:** nenhuma E2E rodou. Risco: uma conta nova que conclui a única tarefa do dia agora vê a tela de dia perfeito, que bloqueia a tela, em vez do cartão. `tasks.spec.ts` ("quick create…") e outras specs devem travar nela (handoff ao `qa-testes`). A releitura das stats não foi vista num navegador.
+- **Pendências / próximos passos:** rodar a E2E inteira e fechar o `dialog` onde ele travar; o slot do `auth-grupos`; o texto do ADR pelo `arquiteto`.

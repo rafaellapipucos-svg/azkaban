@@ -1,5 +1,5 @@
 import { gamificationDefaults, gamificationRules } from '@azkaban/config';
-import { addDays, capRoom, levelForXp, localDateOf, startOfWeek } from '@azkaban/core';
+import { addDays, capRoom, levelForXp, localDateOf, recentDays, startOfWeek } from '@azkaban/core';
 import { useCurrentUser } from '@azkaban/data';
 import { canPlayTone, canVibrate } from '@azkaban/platform';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -30,13 +30,28 @@ export function useProgress() {
   };
 }
 
+/**
+ * The last `recentDays`, today first, from the local day the profile was created at the earliest
+ * (QA6-5): days before the account are not "Sem tarefas". `dates` is empty until it loads.
+ */
 export function useRecentDays() {
+  const { timezone } = useCurrentUser();
   const today = useToday();
   const from = addDays(today, 1 - gamificationUi.recentDays);
-  return useQuery({
-    queryKey: [...gamificationKey, 'days', from, today],
-    queryFn: () => source.listDays(from, today),
+  const query = useQuery({
+    queryKey: [...gamificationKey, 'days', from, today, timezone],
+    queryFn: async () => {
+      const [since, days] = await Promise.all([
+        source.getMemberSince(),
+        source.listDays(from, today),
+      ]);
+      return { first: localDateOf(timezone, Date.parse(since)), days };
+    },
   });
+  return {
+    ...query,
+    dates: query.data ? recentDays(today, query.data.first, gamificationUi.recentDays) : [],
+  };
 }
 
 export function useAchievements() {

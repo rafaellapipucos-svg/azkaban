@@ -8,8 +8,10 @@
   },
   "streak": {
     "title": "Ofensiva",
+    "days_zero": "{{count}} dias de ofensiva",
     "days_one": "{{count}} dia de ofensiva",
     "days_other": "{{count}} dias de ofensiva",
+    "best_zero": "Recorde: {{count}} dias",
     "best_one": "Recorde: {{count}} dia",
     "best_other": "Recorde: {{count}} dias",
     "freezes_one": "{{count}} proteção",

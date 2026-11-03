@@ -55,8 +55,7 @@ test('finishing tasks: XP, the celebration with confetti, the goal ring, the str
   await quickCreate(page, 'Regar as plantas');
   await quickCreate(page, 'Arrumar a cama');
   await expect(goal(page)).toHaveAttribute('aria-valuetext', '0 de 2');
-  // pt's plural rule makes 0 singular ("0 dia"); either form passes until a `_zero` key settles it.
-  await expect(page.getByRole('button', { name: /^0 dias? de ofensiva$/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: '0 dias de ofensiva' })).toBeVisible();
 
   // The first one: XP, and the achievement on top of the plain celebration, in one card
   await finish(page, 'Regar as plantas');

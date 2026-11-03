@@ -5,6 +5,7 @@ import {
   dailyGoal,
   dayCounts,
   foldStreak,
+  recentDays,
   type GoalRules,
   type StreakDay,
   type StreakRules,
@@ -335,5 +336,24 @@ describe('foldStreak: empty and missing days', () => {
     expect(around(['2026-03-07', '2026-03-08', '2026-03-09'])).toBe(3);
     expect(around(['2026-10-31', '2026-11-01', '2026-11-02'])).toBe(3);
     expect(around(['2026-02-28', '2026-03-01'])).toBe(2);
+  });
+});
+
+describe('recentDays (QA6-5)', () => {
+  it('lists the last days, today first', () => {
+    expect(recentDays('2026-11-03', '2026-01-01', 3)).toEqual([
+      '2026-11-03',
+      '2026-11-02',
+      '2026-11-01',
+    ]);
+  });
+
+  it('starts on the day the profile was created', () => {
+    expect(recentDays('2026-11-03', '2026-11-02', 7)).toEqual(['2026-11-03', '2026-11-02']);
+    expect(recentDays('2026-11-03', '2026-11-03', 7)).toEqual(['2026-11-03']);
+  });
+
+  it('keeps today when the creation day is after it', () => {
+    expect(recentDays('2026-11-03', '2026-11-04', 7)).toEqual(['2026-11-03']);
   });
 });

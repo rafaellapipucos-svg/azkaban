@@ -137,6 +137,7 @@ export {
   dailyGoal,
   dayCounts,
   foldStreak,
+  recentDays,
   type DailyGoal,
   type UserDayCounts,
   type FoldedDay,

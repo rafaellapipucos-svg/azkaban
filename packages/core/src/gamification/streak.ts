@@ -1,5 +1,6 @@
 import type { OccurrenceListItem } from '@azkaban/contracts';
 import { isPerfectDay, occurrenceDay, summarizeDay } from '../tasks/calendarDay';
+import { daysBetween } from '../tasks/calendarGrid';
 import { addDays } from '../tasks/form';
 
 /** Same shape as `gamificationRules.goal` in config, which core does not import. */
@@ -127,4 +128,13 @@ export function foldStreak(
     if (byDate.has(date)) folded.push({ ...state, localDate: date, goalMet, perfect, freezeUsed });
   }
   return { ...state, days: folded };
+}
+
+/**
+ * The last `count` local days for "Últimos dias", today first, none before `first`, the local day the
+ * profile was created (QA6-5). Today is always there, even when a timezone change puts `first` after it.
+ */
+export function recentDays(today: string, first: string, count: number): string[] {
+  const length = Math.min(count, Math.max(1, daysBetween(first, today) + 1));
+  return Array.from({ length }, (_, i) => addDays(today, -i));
 }

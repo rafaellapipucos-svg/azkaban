@@ -32,6 +32,7 @@ const demoTabs = [
   { key: 'work', icon: '💼', label: 'designSystem.tabWork' },
   { key: 'home', icon: '🏠', label: 'designSystem.tabHome' },
   { key: 'calendar', icon: '📅', label: 'designSystem.tabCalendar' },
+  { key: 'shopping', icon: '🛒', label: 'designSystem.tabShopping' },
   { key: 'profile', icon: '🙂', label: 'designSystem.tabProfile' },
 ] as const;
 

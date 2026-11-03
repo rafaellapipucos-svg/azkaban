@@ -72,7 +72,8 @@ export const fontFamily = {
   heavy: 'Nunito_800ExtraBold',
 } as const;
 
-export const fontSize = { sm: 14, md: 16, lg: 20, xl: 32 } as const;
+/** `xs` is only for the tab bar with more than five tabs, so six labels fit whole at 320 px. */
+export const fontSize = { xs: 12, sm: 14, md: 16, lg: 20, xl: 32 } as const;
 
 export const layout = { maxContentWidth: 560, tabBarHeight: 64 } as const;
 

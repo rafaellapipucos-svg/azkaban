@@ -3315,3 +3315,20 @@
 - **Verificado:** `pnpm check` passou (17 de 17 e 12 de 12; shopping 21 testes).
 - **Não verificado:** a tela no navegador e a E2E (sem pilha; fica para o BL-22); nativo; leitor de tela. Não há teste de unidade da regra de desligar: é só `!online` no componente, e o pacote não tem ambiente de React.
 - **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:16 (BRT)
+
+- **Branch:** `chore/e2e-typecheck`, criada a partir de `feat/backlog-after-phase-8` (`9bbaf00`)
+- **Agente(s):** arquiteto (correção dos tipos por exceção do orquestrador, no lugar de `qa-testes`)
+- **Resumo:** BL-11. O `pnpm check` passa a checar os tipos de `e2e/` e de `playwright.config.ts`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `e2e/tsconfig.json`: estende `tsconfig.base.json` (strict, `noUncheckedIndexedAccess`), com `dom` (os callbacks de `page.evaluate` rodam no navegador), `types: ["node"]`, `allowImportingTsExtensions` (o `proof-kit` importa `packages/config/src/*.ts`) e `allowJs` sem `checkJs` (o `proof-kit` importa `local-stack.mjs`, que fica sem checagem). Inclui `../playwright.config.ts`.
+  - `package.json`: script `typecheck:e2e` (`tsc -p e2e`), chamado pelo `check` logo depois do `typecheck`. Fora do turbo: `e2e/` não é pacote do workspace.
+  - Erros de tipo: nenhum nos arquivos de `e2e/` nem no `playwright.config.ts`. Apareceram 3, todos em `supabase/functions/_shared/proof-kit.ts`, que as specs importam: o `.mjs` sem declaração (resolvido pelo `allowJs`), `body: bytes` no `fetch` (o `BodyInit` do TS 6 só aceita view de `ArrayBuffer`; virou `bytes as Uint8Array<ArrayBuffer>`) e `reply.then(resolve)` num `Promise<void>` (virou `new Promise<void>` com `reply.then(() => resolve())`). As duas edições só mexem em tipo; o comportamento não muda.
+- **Arquivos/módulos principais:** `e2e/tsconfig.json`, `package.json`, `supabase/functions/_shared/proof-kit.ts`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova. `@types/node` vem do `nodeLinker: hoisted` (dependência de outros pacotes), como já acontece com `@supabase/supabase-js` no `proof-kit`; não entrou como dependência direta da raiz.
+- **Como testar:** `pnpm check`; `pnpm typecheck:e2e`; `pnpm exec playwright test --list`.
+- **Verificado:** `pnpm check` passou com o `typecheck:e2e`. `pnpm exec playwright test --list`: 95 testes em 26 arquivos, o mesmo número que com o `proof-kit.ts` de `9bbaf00`. O `proof-kit.ts` editado carrega no Node (remoção de tipos), 29 exports.
+- **Não verificado:** E2E e `pnpm functions:test` (sem pilha); o `proof-kit` é usado pelos dois, mas a mudança é só de tipo. `supabase/functions/` continua sem typecheck próprio: só o `proof-kit` e o que ele importa entram, por tabela.
+- **Pendências / próximos passos:** marcar o BL-11 no quadro. Se o repositório quiser `@types/node` declarado, ele entra como dependência direta da raiz (já está no lockfile, 26.6.6).

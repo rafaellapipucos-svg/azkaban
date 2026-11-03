@@ -32,6 +32,7 @@ export function JoinGroupScreen({ code, signedIn }: { code: string; signedIn: bo
   if (!signedIn) {
     return (
       <Screen title={t('join.title')}>
+        <Title>{t('join.title')}</Title>
         <EmptyState mood="happy" text={t('join.signInFirst')}>
           <Button
             label={t('join.signIn')}
@@ -48,6 +49,7 @@ export function JoinGroupScreen({ code, signedIn }: { code: string; signedIn: bo
   if (preview.data === null || previewLimited) {
     return (
       <Screen title={t('join.title')}>
+        <Title>{t('join.title')}</Title>
         <EmptyState mood="worried" text={t(previewLimited ? 'join.rateLimited' : 'join.invalid')}>
           <Button
             variant="secondary"

@@ -123,14 +123,12 @@ test('the fourth export of the day says how long to wait', async ({ page }) => {
   ).toBeVisible();
 });
 
-// QA8-2: with a sign-in older than 15 minutes, the preview itself answers `reauth_required`, and the
-// screen shows "Algo deu errado" with "Conferir de novo" instead of the password form, which appears only
-// after a preview that worked. Expected to fail until auth-grupos fixes it; then drop `test.fail`.
+// QA8-2: with a sign-in older than 15 minutes, the preview itself answers `reauth_required`. The screen
+// asks for the password, then reads the preview again; deleting still takes the word.
 test('a sign-in older than 15 minutes asks for the password before deleting', async ({
   browser,
   page: first,
 }) => {
-  test.fail(true, 'QA8-2: the preview answers reauth_required and the form never shows');
   const user = newUser('Antiga');
   await signUp(first, user);
   await expect(today(first)).toBeVisible();
@@ -152,7 +150,10 @@ test('a sign-in older than 15 minutes asks for the password before deleting', as
   await openPrivacy(page);
   await button(page, 'Ver o que será excluído').click();
   await expect(text(page, 'Confirme que é você')).toBeVisible({ timeout: 10_000 });
+  await expect(text(page, 'Algo deu errado. Tente de novo.')).toHaveCount(0);
   await page.getByLabel('Senha').fill(user.password);
-  await button(page, 'Confirmar e excluir').click();
+  await button(page, 'Confirmar').click();
+  await page.getByLabel('Digite EXCLUIR para confirmar').fill('EXCLUIR');
+  await button(page, 'Excluir minha conta para sempre').click();
   await expect(page.getByText('Tudo em ordem, todo dia')).toBeVisible();
 });

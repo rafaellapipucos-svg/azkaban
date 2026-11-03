@@ -2871,6 +2871,25 @@
   - A `performance.spec.ts` depois de tirar a medida do calendário: a parte de Hoje e a do mercado rodaram na segunda E2E, a do confete passou, mas a spec inteira não rodou de novo sozinha. Sem mutação.
 - **Pendências / próximos passos:** os seis handoffs acima. Tirar o `test.fail` de QA8-2 e as linhas de `known` em `a11y.spec.ts` conforme os donos corrigirem. Lighthouse e o tempo do mês quando houver build servido.
 
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:13 (BRT)
+
+- **Branch:** `fix/privacy-reauth-preview` (de `feat/phase-8-polish`, `c2d46b5`)
+- **Agente(s):** auth-grupos
+- **Resumo:** QA8-2 e a parte de grupos de QA8-7. A prévia da exclusão que responde `reauth_required` agora mostra "Confirme que é você" (senha ou link por e-mail) e, depois de entrar de novo, lê a prévia outra vez; a exclusão continua pedindo EXCLUIR. O detalhe do grupo e o convite (sem sessão ou inválido) ganharam um `h1`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `deleteStep` e `afterReauth` (novo, `packages/features/auth/src/deleteStep.ts`): a decisão do que a seção de excluir mostra. Um `reauth_required` da prévia ou da exclusão leva ao formulário; depois de entrar, a exclusão que pediu roda de novo, e a prévia que pediu é relida, nunca uma exclusão que a pessoa não viu.
+  - `PrivacyScreen`: a seção de excluir segue `deleteStep`; o botão do formulário diz "Confirmar" quando relê a prévia e "Confirmar e excluir" quando exclui. Chave nova `privacy.delete.reauthContinue`.
+  - Teste de unidade `deleteStep.test.ts` (4 testes); `@azkaban/feature-auth` passou a ter `vitest` e o script `test`.
+  - `GroupDetailScreen`: `Title` com o nome do grupo para todos; o `Subtitle` com o nome, só de quem não edita, saiu. `JoinGroupScreen`: `Title` "Convite" nos dois estados vazios.
+  - `e2e/privacy.spec.ts`: sem `test.fail`; depois da senha, "Confirmar", EXCLUIR e "Excluir minha conta para sempre". `e2e/a11y.spec.ts`: a linha de QA8-7 em `known` ficou só com `/` e `/contexts` (de `tarefas-calendario`).
+- **Arquivos/módulos principais:** `packages/features/auth/src/PrivacyScreen.tsx`, `packages/features/auth/src/deleteStep.ts`, `packages/features/auth/src/deleteStep.test.ts`, `packages/features/auth/package.json`, `pnpm-lock.yaml`, `packages/i18n/src/pt-BR/auth.json`, `packages/features/groups/src/GroupDetailScreen.tsx`, `packages/features/groups/src/JoinGroupScreen.tsx`, `e2e/privacy.spec.ts`, `e2e/a11y.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm check`; pilha A, `pnpm exec playwright test e2e/privacy.spec.ts e2e/a11y.spec.ts --project=app`.
+- **Verificado:** `pnpm check` passou (lint, boundaries, typecheck 17 de 17, test 12 de 12, com os 4 novos; `functions:imports` 10 de 10). `pnpm build:web` passou.
+- **Não verificado:** E2E não rodados (sem pilha), nem o de privacidade nem o de acessibilidade. O link por e-mail a partir da prévia não foi testado: ele volta a `/settings/privacy` com a seção fechada, e a pessoa abre de novo.
+- **Pendências / próximos passos:** QA rodar as duas specs na pilha A.
+
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:14 (BRT)
 
 - **Branch:** `fix/proof-kit-consent-v3` (base `feat/phase-8-polish`, `c2d46b5`)

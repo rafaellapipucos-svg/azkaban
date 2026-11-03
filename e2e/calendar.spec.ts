@@ -119,8 +119,8 @@ test('a task appears on its day, and two green tasks make a perfect day', async 
     `${longDay(other)}, sem tarefas`,
   );
 
-  // The calendar sits between the areas and Perfil
-  const tabs = ['Hoje', 'Trabalho', 'Doméstico', 'Calendário', 'Perfil'];
+  // The calendar sits between the areas and Compras, then Perfil
+  const tabs = ['Hoje', 'Trabalho', 'Doméstico', 'Calendário', 'Compras', 'Perfil'];
   for (const [index, name] of tabs.entries()) {
     await expect(page.getByRole('tab').nth(index)).toHaveAttribute('aria-label', name);
   }

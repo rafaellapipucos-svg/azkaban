@@ -105,7 +105,7 @@ export function BuildMode({
 
   // A catalog row is keyed by its catalog id, so the first taps on an entry add up before the item
   // exists. The request goes by the item once it is in the cache, and by the catalog entry before.
-  const { pending, add } = usePendingDeltas(async (key, delta) => {
+  const { pending, add } = usePendingDeltas(listId, async (key, delta) => {
     const cached = queryClient.getQueryData<ShoppingListItem[]>(shoppingKeys.items(listId)) ?? [];
     const found = cached.find((item) => item.id === key || item.catalogItemId === key);
     try {

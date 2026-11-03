@@ -57,7 +57,19 @@
     "loading": "Carregando listas…",
     "load": "Não foi possível carregar as listas.",
     "retry": "Tentar de novo",
-    "history": "Histórico"
+    "history": "Histórico",
+    "catalog": "Editar catálogo"
+  },
+  "catalog": {
+    "title": "Catálogo de compras",
+    "hint": "Toque num item para renomear, mudar a categoria ou a unidade, ou arquivar. Itens novos entram pelo “Salvar no catálogo” ao montar uma lista.",
+    "edit": "Editar {{name}}",
+    "name": "Nome do item",
+    "unit": "Unidade padrão",
+    "save": "Salvar",
+    "archive": "Arquivar",
+    "archived": "Arquivados",
+    "restore": "Restaurar {{name}}"
   },
   "history": {
     "title": "Histórico de compras",

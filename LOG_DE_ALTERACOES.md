@@ -3137,3 +3137,22 @@
 - **Verificado:** as 12 execuções da spec de desempenho no build passaram; `pnpm bundle:size`; `e2e/a11y.spec.ts` 6 de 6; `pnpm check` passou.
 - **Não verificado:** a falha de a11y na E2E completa (`pnpm e2e` não rodou; a spec de a11y rodou sozinha); o mês com dados de mais de um dia; Lighthouse (meta 5, fica para F8-8); nativo; o hospedado.
 - **Pendências / próximos passos:** `gamificacao`: `user_stats` uma vez só (handoff `20261103-0930`). Depois disso, `qa-testes` barra `calls.length <= 14`. Arquiteto: revisar a `webServer` com `E2E_BUILD` e o texto do ADR sobre `expo serve`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 09:31 (BRT)
+
+- **Branch:** perf/user-stats-once (a partir de `feat/phase-8-polish`, `3d8fbaa`)
+- **Agente(s):** gamificacao
+- **Resumo:** abrir Hoje lê `user_stats` uma vez só (handoff `20261103-0930-qa-testes-para-gamificacao-user-stats-duas-vezes`). A meta 2 de F8-6 cai de 15 para 14 chamadas REST no build e vira barreira.
+- **Alterações:**
+  - `packages/config/src/gamification.ts`: `gamificationDefaults.statsStaleMs` (30 s), valor de cliente, sem espelho no banco.
+  - `packages/features/gamification/src/hooks.ts`: `statsQuery` ganha `staleTime: statsStaleMs`. O `StreakChip` monta depois da leitura de base do `CelebrationHost` e usa o dado dela. Continua indo ao servidor: a leitura de cada rajada (`flush` chama `source.getStats()` direto), a invalidação de `gamificationKey` depois de cada rajada e a de `['gamification','stats']` depois de cada mutação bem-sucedida (`invalidateQueries` refaz a consulta seja qual for o `staleTime`). A troca de usuário limpa o cache (`userChange.ts`), então a base nunca é de outra conta.
+  - `packages/features/gamification/src/CelebrationHost.tsx`: só o comentário da base.
+  - `packages/features/gamification/src/hooks.test.ts` (novo): duas `fetchQuery` seguidas fazem uma leitura; depois de invalidar, lê de novo. Falha sem o `staleTime`.
+  - `e2e/performance.spec.ts`: por exceção autorizada pelo orquestrador, `expect(calls.length).toBeLessThanOrEqual(14)` na meta 2. Nada mais em `e2e/`.
+- **Arquivos/módulos principais:** os acima.
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova; cumpre ADR-0012, seção 10, meta 2.
+- **Como testar:** pilha A sozinha, `E2E_BUILD=1 pnpm exec playwright test e2e/performance.spec.ts --project=app --workers=1 --repeat-each=3`; `pnpm exec playwright test e2e/gamification.spec.ts --project=app`.
+- **Verificado:** meta 2 no build: 14, 14, 14, `user_stats` uma vez; 12 de 12 na spec de desempenho com a barreira ligada; `e2e/gamification.spec.ts` 5 de 5 (servidor de dev); `pnpm check` passou.
+- **Não verificado:** `pnpm e2e` completa; nativo; hospedado; a spec de gamificação no build de produção.
+- **Pendências / próximos passos:** nenhuma deste handoff.

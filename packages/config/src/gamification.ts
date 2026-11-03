@@ -56,4 +56,9 @@ export const gamificationDefaults = {
   celebration: { sound: false, haptics: true },
   /** Streak days that get a milestone celebration. */
   streakMilestones: [7, 30, 100, 365],
+  /**
+   * `user_stats` stays fresh this long, so the StreakChip uses the read the CelebrationHost just made
+   * instead of a second one (ADR-0012, section 10, meta 2). A burst and every save invalidate it.
+   */
+  statsStaleMs: 30_000,
 } as const;

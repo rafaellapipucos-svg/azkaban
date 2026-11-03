@@ -10,8 +10,16 @@ import { gamificationSource as source } from './source';
 /** Every key of the feature starts with this, so a burst refreshes all of it at once. */
 export const gamificationKey = ['gamification'] as const;
 
-/** The one `user_stats` query: the StreakChip and the CelebrationHost baseline share it (QA8-3). */
-export const statsQuery = { queryKey: [...gamificationKey, 'stats'], queryFn: source.getStats };
+/**
+ * The one `user_stats` query: the StreakChip and the CelebrationHost baseline share it (QA8-3). Fresh
+ * for `statsStaleMs`, so the chip mounting after the baseline answered does not read again; what
+ * changes the stats invalidates the key, which refetches whatever the staleTime.
+ */
+export const statsQuery = {
+  queryKey: [...gamificationKey, 'stats'],
+  queryFn: source.getStats,
+  staleTime: gamificationDefaults.statsStaleMs,
+};
 
 export function useToday() {
   const { timezone } = useCurrentUser();

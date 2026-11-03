@@ -107,7 +107,11 @@ export function ShoppingCatalogScreen({ groupId }: { groupId: string | null }) {
           busy={save.isPending}
           error={save.isError ? t(shoppingErrorKey(save.error)) : null}
           onSave={(change) => save.mutate({ id: editing.id, change })}
-          onClose={() => setEditing(null)}
+          onClose={() => {
+            // The sheet's error leaves with it; nothing is pending once it is closed.
+            save.reset();
+            setEditing(null);
+          }}
         />
       ) : null}
     </Screen>

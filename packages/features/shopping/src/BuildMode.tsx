@@ -30,7 +30,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { shoppingKeys, usePendingDeltas, useQuantityText, useSetItem } from './hooks';
-import { shoppingTextErrorKey } from './shopping';
+import { parseNote, shoppingTextErrorKey } from './shopping';
 
 type Props = {
   listId: string;
@@ -72,6 +72,7 @@ export function BuildMode({
   const setItem = useSetItem(listId);
   const [query, setQuery] = useState('');
   const [unitFor, setUnitFor] = useState<ShoppingListItem | null>(null);
+  const [noteFor, setNoteFor] = useState<ShoppingListItem | null>(null);
 
   const live = catalog.filter(({ archivedAt }) => archivedAt === null);
   const linked = new Map(items.map((item) => [item.catalogItemId, item]));
@@ -200,24 +201,28 @@ export function BuildMode({
                     {row.emoji ? `${row.emoji} ` : ''}
                     {row.name}
                   </Body>
+                  {row.item?.note && value > 0 ? (
+                    <Muted className="text-sm">{row.item.note}</Muted>
+                  ) : null}
                   {added ? <Muted className="text-sm">{added}</Muted> : null}
                 </View>
                 <View className="flex-row flex-wrap items-center justify-between gap-2">
                   {row.item && value > 0 ? (
-                    <Pressable
-                      role="button"
-                      aria-label={t('list.unit', {
-                        name: row.name,
-                        unit: t(`unitNames.${row.unit}`),
-                      })}
-                      onPress={() => setUnitFor(row.item ?? null)}
-                      style={{ minHeight: tokens.sizes.touch }}
-                      className="justify-center rounded-full border-2 border-border px-4 active:opacity-70 dark:border-border-dark"
-                    >
-                      <Text className="font-heavy text-md text-primary dark:text-primary-light">
-                        {t(`unitNames.${row.unit}`)} ▾
-                      </Text>
-                    </Pressable>
+                    <View className="flex-row flex-wrap gap-2">
+                      <Pill
+                        label={t('list.unit', {
+                          name: row.name,
+                          unit: t(`unitNames.${row.unit}`),
+                        })}
+                        text={`${t(`unitNames.${row.unit}`)} ▾`}
+                        onPress={() => setUnitFor(row.item ?? null)}
+                      />
+                      <Pill
+                        label={t('list.note', { name: row.name })}
+                        text={t('list.noteAction')}
+                        onPress={() => setNoteFor(row.item ?? null)}
+                      />
+                    </View>
                   ) : (
                     <View />
                   )}
@@ -262,7 +267,70 @@ export function BuildMode({
         </ChipRow>
         <Button variant="secondary" label={t('list.close')} onPress={() => setUnitFor(null)} />
       </Sheet>
+
+      {noteFor ? (
+        <NoteSheet
+          key={noteFor.id}
+          item={noteFor}
+          onSave={(note) => {
+            const target = noteFor;
+            setNoteFor(null);
+            if (note !== target.note)
+              void run(() => shoppingRepository.updateItem(target.id, { note }));
+          }}
+          onClose={() => setNoteFor(null)}
+        />
+      ) : null}
     </>
+  );
+}
+
+function Pill({ label, text, onPress }: { label: string; text: string; onPress: () => void }) {
+  return (
+    <Pressable
+      role="button"
+      aria-label={label}
+      onPress={onPress}
+      style={{ minHeight: tokens.sizes.touch }}
+      className="justify-center rounded-full border-2 border-border px-4 active:opacity-70 dark:border-border-dark"
+    >
+      <Text className="font-heavy text-md text-primary dark:text-primary-light">{text}</Text>
+    </Pressable>
+  );
+}
+
+/** The item's note, last write wins (ADR-0011, section 5). Blank clears it. */
+function NoteSheet({
+  item,
+  onSave,
+  onClose,
+}: {
+  item: ShoppingListItem;
+  onSave: (note: string | null) => void;
+  onClose: () => void;
+}) {
+  const { t } = useTranslation('shopping');
+  const [note, setNote] = useState(item.note ?? '');
+  const parsed = parseNote(note);
+  const invalid = shoppingTextErrorKey(parsed);
+  const title = t('list.note', { name: item.name });
+  return (
+    <Sheet visible label={title} onClose={onClose}>
+      <Subtitle>{title}</Subtitle>
+      <Input
+        aria-label={title}
+        placeholder={t('list.noteHint')}
+        value={note}
+        onChangeText={setNote}
+      />
+      {invalid ? <ErrorText>{t(invalid)}</ErrorText> : null}
+      <Button
+        label={t('list.noteSave')}
+        disabled={!parsed.success}
+        onPress={() => (parsed.success ? onSave(parsed.data) : undefined)}
+      />
+      <Button variant="secondary" label={t('list.close')} onPress={onClose} />
+    </Sheet>
   );
 }
 

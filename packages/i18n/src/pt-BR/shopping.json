@@ -40,7 +40,7 @@
     "forbidden": "Você não tem permissão para fazer isso nesta lista.",
     "list_completed": "Esta lista já foi finalizada. Crie uma nova a partir dela para continuar.",
     "list_full": "A lista chegou ao limite de itens.",
-    "lists_full": "Já há listas abertas demais aqui. Finalize uma para criar outra.",
+    "lists_full": "Já há listas abertas demais aqui. Finalize ou exclua uma para criar outra.",
     "catalog_full": "O catálogo chegou ao limite de itens. Arquive algum para abrir espaço.",
     "catalog_item_exists": "Já existe um item com esse nome no catálogo.",
     "task_link_invalid": "Não dá para ligar esta lista a essa tarefa.",
@@ -99,10 +99,15 @@
     "formerMember": "ex-membro",
     "unit": "Unidade de {{name}}: {{unit}}. Trocar",
     "unitTitle": "Unidade de {{name}}",
+    "note": "Nota de {{name}}",
+    "noteAction": "Nota",
+    "noteHint": "Ex.: marca, tamanho. Deixe em branco para tirar.",
+    "noteSave": "Salvar nota",
     "close": "Fechar",
     "check": "{{name}}, {{quantity}}",
     "emptyMarket": "A lista está vazia. Monte a lista primeiro.",
     "toBuild": "Montar a lista",
+    "empty": "A lista está vazia.",
     "left_one": "Falta {{count}} item",
     "left_other": "Faltam {{count}} itens",
     "allDone": "Tudo no carrinho!",
@@ -113,6 +118,12 @@
     "completeHint": "Finalizar guarda a lista no histórico. Não dá para reabrir.",
     "completed": "Finalizada em {{date}}",
     "copy": "Nova lista a partir desta",
-    "back": "Voltar às listas"
+    "back": "Voltar às listas",
+    "rename": "Renomear lista",
+    "renameTitle": "Renomear lista",
+    "renameName": "Nome da lista",
+    "renameSave": "Salvar nome",
+    "delete": "Excluir lista",
+    "deleteConfirm": "Confirmar: excluir"
   }
 }

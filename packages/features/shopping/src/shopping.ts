@@ -1,4 +1,4 @@
-import { shoppingErrorCodeSchema } from '@azkaban/contracts';
+import { shoppingErrorCodeSchema, shoppingNoteSchema, type ShoppingList } from '@azkaban/contracts';
 import { can, type Permission, type PermissionUser } from '@azkaban/core';
 
 /** Where the screens live. The routes in `apps/app` mount them on these paths. */
@@ -36,6 +36,27 @@ export function canShop(
 ) {
   return groupId === null || can(user, permission, { id: groupId });
 }
+
+/**
+ * Rename and delete a list (ADR-0011, section 3): its creator while a member, or
+ * `shopping.manage_lists`; a personal list is its owner's, the only one who sees it. Mirrors
+ * `can_manage_shopping_list`, which checks again.
+ */
+export function canManageList(
+  user: PermissionUser & { id: string },
+  list: Pick<ShoppingList, 'groupId' | 'createdBy'>,
+) {
+  if (list.groupId === null) return true;
+  const member = user.memberships.some(({ groupId }) => groupId === list.groupId);
+  return (
+    (member && list.createdBy === user.id) ||
+    can(user, 'shopping.manage_lists', { id: list.groupId })
+  );
+}
+
+/** A typed note: blank clears it (null), anything else must pass the contract. */
+export const parseNote = (text: string) =>
+  shoppingNoteSchema.safeParse(text.trim() === '' ? null : text);
 
 /** i18n key for a failure: the database's code when it raised one we know, else the generic text. */
 export function shoppingErrorKey(failure: unknown): string {

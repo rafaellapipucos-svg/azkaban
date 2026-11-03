@@ -877,14 +877,14 @@ isOneToOne: false
                   ]
                 },"xp_events": {
                   Row: {
-                    "amount": number,"created_at": string,"group_id": string | null,"id": string,"local_date": string | null,"occurrence_id": string | null,"reason": string,"user_id": string
+                    "amount": number,"created_at": string,"group_id": string | null,"id": string,"local_date": string | null,"occurrence_id": string | null,"reason": string,"shopping_list_id": string | null,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "amount": number,"created_at"?: string,"group_id"?: string | null,"id"?: string,"local_date"?: string | null,"occurrence_id"?: string | null,"reason": string,"user_id": string
+                    "amount": number,"created_at"?: string,"group_id"?: string | null,"id"?: string,"local_date"?: string | null,"occurrence_id"?: string | null,"reason": string,"shopping_list_id"?: string | null,"user_id": string
                   }
                   Update: {
-                    "amount"?: number,"created_at"?: string,"group_id"?: string | null,"id"?: string,"local_date"?: string | null,"occurrence_id"?: string | null,"reason"?: string,"user_id"?: string
+                    "amount"?: number,"created_at"?: string,"group_id"?: string | null,"id"?: string,"local_date"?: string | null,"occurrence_id"?: string | null,"reason"?: string,"shopping_list_id"?: string | null,"user_id"?: string
                   }
                   Relationships: [
                     {
@@ -898,6 +898,12 @@ isOneToOne: false
       columns: ["occurrence_id"]
 isOneToOne: false
       referencedRelation: "task_occurrences"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "xp_events_shopping_list_id_fkey"
+      columns: ["shopping_list_id"]
+isOneToOne: false
+      referencedRelation: "shopping_lists"
       referencedColumns: ["id"]
     },{
       foreignKeyName: "xp_events_user_id_fkey"

@@ -2599,3 +2599,20 @@
 - **Verificado:** `pnpm check` passou (17 de 17 e 11 de 11; `@azkaban/data` 6 arquivos, 30 testes, dos quais 6 de `privacy/transport`; `@azkaban/platform` 10 arquivos, 54 testes, com o de `saveTextFile`; core 717); `pnpm build:web` exportou.
 - **Não verificado:** a E2E nova não rodou (sem pilha; as funções eram do `backend-funcoes`, em andamento); nenhuma tela foi vista no navegador (375 px, desktop, claro e escuro, axe ficam com `qa-testes`); `reauth_required` e `rate_limited` reais; o download pelo `<a download>` depois de uma espera de rede no Safari do iPhone; o nativo.
 - **Pendências / próximos passos:** `prova-foto` troca `consent.deletion` e sobe `consentVersion` para 3 (handoff); `qa-testes` roda a E2E e cobre reautenticação, limite e sair com pendências (handoff). Do handoff `20261103-0456` ficam para outra tarefa: o 429 do GoTrue nas telas de entrar, `rate_limited` nos convites e o `PushSetupCard` depois do primeiro login.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:27 (BRT)
+
+- **Branch:** feat/shopping-xp-db, criada a partir de feat/phase-8-polish (d2c8d4e)
+- **Agente(s):** banco-de-dados
+- **Resumo:** F7-5b do ADR-0011, seção 9: o XP de compra ao finalizar a lista, `shopping_completed`, com os limites contra farm. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `xp_events.shopping_list_id` (`on delete set null`), `check` de que só `shopping_completed` aponta para lista e de que ele não tem ocorrência, e `unique` parcial `(shopping_list_id) where reason = 'shopping_completed'`.
+  - Trigger `after update of status` em `shopping_lists`, `open` → `completed`: `shopping_list_award_xp`, para `completed_by`, no grupo da lista (nulo na pessoal), com `shoppingRules.xp.amount`. Sem XP com menos de `minCheckedItems` itens marcados, nem além de `maxRewardedPerDay` listas premiadas no dia local do perfil; o valor cabe no teto da janela de 24 h, com o mesmo saldo e a mesma trava por usuário de `occurrence_award_xp`.
+  - pgTAP `rls_shopping_xp.test.sql`, 16 testes. Tipos regerados.
+- **Arquivos/módulos principais:** `supabase/migrations/20261104140000_shopping_xp.sql`, `supabase/tests/rls_shopping_xp.test.sql`, `packages/data/src/database.types.ts`
+- **Migrations:** 20261104140000_shopping_xp. Aplicada só na pilha B local.
+- **Decisões/ADRs:** o XP de compra entra no teto (ADR-0010, seção 2; `cappedXpEventReasons` e o saldo de `occurrence_award_xp` já o listavam). O evento sem ocorrência é um par sozinho no saldo; como é sempre positivo e nunca compensado, o piso zero não tira nada, e não há caminho de farm por ali. Lista do grupo conta para o ranking, a pessoal não (grupo nulo). Uma lista que bate no teto não grava evento e não conta entre as duas do dia. Residual aceito: trocar o fuso move o dia local e pode premiar mais listas, ainda limitadas pelo teto de 300 em 24 h. O espelho de `shopping_rules` já tinha `xp`. O trigger só escreve em `xp_events` (e `user_stats`), nunca nas tabelas de compras, então o desvio de SEG7-4 não fica no caminho.
+- **Como testar:** `pnpm db:reset`, `pnpm db:test`, `pnpm db:check-permissions`, `pnpm check`.
+- **Verificado:** `pnpm db:test` 12 arquivos, 1886 testes, PASS; `pnpm db:check-permissions` em sincronia (`supabase_db_azkaban-b`); `pnpm check` passou (17 de 17). Mutações, cada uma numa transação desfeita, 5 de 5 mortas: mínimo 2 em vez de 3, contar itens não marcados, sem limite por dia, contar dias anteriores, sem o `unique`. Controle sem mutação, 16 de 16.
+- **Não verificado:** o projeto hospedado; a corrida de duas finalizações simultâneas da mesma pessoa (só a trava, sem teste concorrente); a tela e a comemoração do evento novo.
+- **Pendências / próximos passos:** `xpEventSchema` e o comentário de `xpEventReasonSchema` em `packages/contracts/src/tasks.ts` ainda chamam `shopping_completed` de reservado e não têm `shoppingListId` (o Zod descarta a coluna a mais, nada quebra).

@@ -3001,3 +3001,21 @@
 - **Não verificado:** a E2E de desempenho (sem pilha). Sem teste de unidade: `packages/data` não tem ambiente de React nem `@testing-library`, e a mudança é uma opção de consulta.
 - **Riscos:** a sessão que termina sem passar pelo botão de sair (refresh token revogado por um "sair de todos" em outro aparelho) não limpa o cache; se outra pessoa entrar na mesma aba em menos de 60 s da última leitura, vê o perfil e os grupos anteriores até a chave vencer. A RLS barra os dados; a interface erra nomes e botões. Antes o refetch na montagem cobria isso. Corte possível: limpar o cache no layout raiz quando o `user.id` da sessão muda.
 - **Pendências / próximos passos:** QA rodar `e2e/performance.spec.ts` na pilha A.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:27 (BRT)
+
+- **Branch:** `fix/clear-cache-on-user-change`, criada a partir de `feat/phase-8-polish` (`df7993e`)
+- **Agente(s):** auth-grupos
+- **Resumo:** fecha o risco da entrada de 08:22. Com `useCurrentUser` fresco por 60 s, a sessão que termina sem o botão de sair (refresh token revogado) deixava o perfil e os grupos da conta anterior para a próxima. Agora o cache de consultas se esvazia sempre que o `user.id` da sessão muda, inclusive para `null`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/data/src/session/userChange.ts`: `cacheBelongsToAnother(previous, next)` decide (havia usuário e ele mudou) e `useClearCacheOnUserChange(client, userId)` chama `client.resetQueries()`. Reset, e não `clear`, porque uma tela ainda montada recebe o aviso e busca de novo como o novo usuário. As mutações ficam: a fila offline já tira as suas da memória ao parar (`startOfflineQueue`).
+  - `packages/data/src/session/index.ts` e `packages/data/src/index.ts`: exportam o hook.
+  - `apps/app/app/_layout.tsx`: só monta o hook, ao lado de `useOfflineQueue`, com o mesmo `session?.user.id`.
+  - `packages/data/src/session/userChange.test.ts`: 3 testes (antes do primeiro login, mesmo usuário na renovação do token, saída e troca).
+- **Arquivos/módulos principais:** `packages/data/src/session/userChange.ts`, `packages/data/src/session/userChange.test.ts`, `packages/data/src/session/index.ts`, `packages/data/src/index.ts`, `apps/app/app/_layout.tsx`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 12 de 12; `functions:imports` 10 de 10); os 3 testes novos passam.
+- **Não verificado:** o hook em si num React de verdade (não há `@testing-library` em `packages/data`; só a decisão é testada); a revogação real do refresh token; a troca direta de A para B sem passar por `null` (link mágico de outra conta com sessão aberta), em que as telas de A desenham uma vez com o cache antigo antes do reset; nativo; E2E.
+- **Pendências / próximos passos:** nenhuma.

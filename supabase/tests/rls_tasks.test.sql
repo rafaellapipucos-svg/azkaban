@@ -929,9 +929,10 @@ select is(has_schema_privilege('authenticated', 'cron', 'usage'), false, 'cron: 
 select pg_temp.pg();
 select vault.create_secret('http://example.invalid/functions/v1/materialize-occurrences', 'materialize_url');
 select vault.create_secret('local-secret', 'cron_secret');
-select is((select count(*) from net.http_request_queue), 0::bigint, 'net: the queue starts empty');
+-- Only this test's URL: the cron jobs and the E2E run queue requests of their own.
+select is((select count(*) from net.http_request_queue where url like 'http://example.invalid/%'), 0::bigint, 'net: the queue starts empty');
 select lives_ok($$select public.call_materialize_occurrences()$$, 'net: the cron call still runs for its owner');
-select is((select count(*) from net.http_request_queue), 1::bigint, 'net: and queued one request');
+select is((select count(*) from net.http_request_queue where url like 'http://example.invalid/%'), 1::bigint, 'net: and queued one request');
 
 -- Archived contexts take no new tasks
 update public.contexts set archived_at = now() where id = '20000000-0000-0000-0000-0000000000a2';

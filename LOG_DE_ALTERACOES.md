@@ -1742,3 +1742,18 @@
 - **Verificado (pilha A, banco limpo):** antes, `playwright test --list` dava o `SyntaxError` e 0 testes; depois, 71 testes em 18 arquivos. `local-stack.test.ts`: 7 de 7. `pnpm functions:test`: 178 de 178. `pnpm e2e` com uma chave VAPID gerada em memória: 70 passaram, 1 pulado (o que só roda sem a chave). `pnpm check` passa.
 - **Não verificado:** CI, pilha B e projeto hospedado.
 - **Pendências / próximos passos:** nenhuma. Pilha A parada.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:57 (BRT)
+
+- **Branch:** feat/phase-5-whatsapp
+- **Agente(s):** orquestrador
+- **Resumo:** Fase 5 (WhatsApp com provedor de console) fechada. Verificação final em banco limpo toda verde. Nenhuma mensagem real sai: ligar a Meta é decisão do humano (ADR-0009, seções 10 e 16).
+- **Alterações:**
+  - Integradas, nesta ordem: ADR-0009, contratos e config (`arquiteto`); provedores e parsing do webhook (`backend-funcoes`); core do resumo e prazo no push (`notificacoes-whatsapp`); dez migrations (`banco-de-dados`); telas (`notificacoes-whatsapp`); despacho, `phone-verification` e `whatsapp-webhook` (`backend-funcoes`); QA (`qa-testes`); revisão de segurança em duas passadas (`revisor-seguranca`); correções SEG5-1 a SEG5-10 e QA5-1 a QA5-5 pelos donos; implantação e guarda dos imports das funções no `pnpm check` (`arquiteto`).
+  - Pilha B enxuta (`docs/agentes/ferramentas/pilha-b.sh`, aprovada pelo humano): só Postgres (~60 MB) ou só funções (~0,85 GB), com portas 545xx, uma por máquina; os testes de funções, o `db:check-permissions` e a E2E passam a achar a pilha pelo `config.toml` do checkout, e a E2E recusa rodar fora da A.
+  - `docs/agentes/QUADRO.md`: Fase 5 refeita com a divisão real (F5-1 a F5-9) e marcada como feita.
+- **Decisões/ADRs:** aceitas pelo orquestrador e registradas no ADR-0009 (seções 17 e 18): o resumo é ligado só na seção do WhatsApp; o resumo nunca vai por push; provedor que lança vira nova tentativa; PARAR casa só com o telefone atual e a variante do nono dígito de celular; só +55 e teto global de 200 códigos por dia (a confirmar pelo humano). `packages/platform` ganhou `sessionValue` pelo `notificacoes-whatsapp` (fora do escopo dele, aceito).
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`; `bash docs/agentes/ferramentas/verificar-fase.sh <checkout> <log>` com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória no ambiente.
+- **Verificado:** em `8850f41`, todos os 14 passos de `verificar-fase.sh`: `db:test` 1378 de 1378 antes e depois da E2E; `db:check-permissions` em dia (inclui `whatsapp_rules`); `turbo typecheck test --force` (core 605, contracts 92, platform 46, notifications 17, config 15, ui 11, app 8, data 7, proof 6); lint, `boundaries`, `build:web`; `functions:test` 178 de 178; E2E duas vezes com 70 ok, 0 falhas e 1 pulado (o "sem chave VAPID"). Rodadas anteriores pegaram dois defeitos que nenhum agente viu: as specs não carregavam por `import.meta` no ajudante dos testes (corrigido) e, antes disso, o webhook intermediário dando 500 em lote inválido (conferido 200 com `curl` assinado). Varredura de segredos no diff `feat/phase-4-notifications..`: só nomes nos `.env.example` e os `local-demo-` aprovados.
+- **Não verificado:** a Meta de verdade (nada foi enviado), Safari e iPhone, leitor de tela real, CI do PR, projeto hospedado.
+- **Pendências / próximos passos:** PR para `feat/phase-4-notifications`; perguntas ao humano (ADR-0009, seção 16, e SEG5-5/6/7); Fases 6 e 7 já em andamento em `feat/phase-6-gamification` e `feat/phase-7-shopping`.

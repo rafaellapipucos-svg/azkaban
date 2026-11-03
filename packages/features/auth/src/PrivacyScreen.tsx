@@ -1,4 +1,4 @@
-import { privacyDefaults, proofRules, rateLimitRules } from '@azkaban/config';
+import { privacyController, privacyDefaults, proofRules, rateLimitRules } from '@azkaban/config';
 import {
   authRepository,
   discardOfflineQueue,
@@ -71,7 +71,12 @@ export function PrivacyScreen({ children }: { children?: ReactNode }) {
         label={t('privacy.transparency')}
         onPress={() => router.push('/transparency')}
       />
-      <Muted>{t('privacy.policyPending')}</Muted>
+      <Card>
+        <Subtitle>{t('privacy.policy.title')}</Subtitle>
+        <Body>{t('privacy.policy.controller', { name: privacyController.name })}</Body>
+        <Body>{t('privacy.policy.contact', { email: privacyController.contactEmail })}</Body>
+        <Body>{t('privacy.policy.legalBasis')}</Body>
+      </Card>
       <DeleteSection />
     </Screen>
   );

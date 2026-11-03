@@ -3810,3 +3810,19 @@
 - **Verificado:** `pnpm check` passou.
 - **Não verificado:** o passo no CI (sem push, sem PR de rascunho). Fixar as actions por SHA fica para uma mudança do workflow inteiro. Hora pelo UTC−3 (PowerShell barrado).
 - **Pendências / próximos passos:** o PR de rascunho do "Como testar".
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 17:24 (BRT)
+
+- **Branch:** feat/web-link-and-controller (a partir de `feat/launch-decisions`, `33132dc`)
+- **Agente(s):** auth-grupos
+- **Resumo:** duas decisões do humano. BL-38 com a opção A' no web: um link mágico não troca mais a sessão ativa de outra conta. BL-27: controlador, encarregado e base legal na tela Privacidade e na transparência.
+- **Alterações:**
+  - BL-38: `packages/data/src/client.ts` passa a `detectSessionInUrl: false` nas duas plataformas. `useSessionFromLink` roda também no web e lê a URL com `authRepository.setSessionFromLink`, que no web não exige o marcador de pedido (a A' não pede). Sessão de outra conta ativa: os tokens são ignorados, a rota é trocada por `/profile?link=other-account` (sai o fragmento da barra de endereço) e o Perfil mostra `profile.linkOtherAccount`. Sem sessão ou com a mesma conta, entra (a reautenticação antes de excluir a conta depende disso). Novo `linkOtherAccount` exportado por `@azkaban/data`; no nativo, o caso de outra conta também mostra a mensagem em vez de ir calado para o caminho. Link vencido no web agora cai em `/sign-in?link=expired`, como no nativo.
+  - BL-27: `privacyController` em `packages/config` (nome `Rafaell Bezerra Saraiva`, e-mail do encarregado `privacidade@tabolao.com`). A tela Privacidade troca o aviso `privacy.policyPending` por um cartão "Quem responde pelos seus dados" (controlador pessoa física, contato do encarregado, base legal consentimento para funcionários). A transparência ganha um cartão no fim com os mesmos dados, sem título próprio, para manter os nove itens da seção 7 do ADR-0012 (e a contagem de títulos da E2E).
+- **Arquivos/módulos principais:** `packages/data/src/client.ts`, `packages/data/src/auth/index.ts`, `packages/features/auth/src/useSessionFromLink.ts`, `packages/features/auth/src/ProfileScreen.tsx`, `packages/features/auth/src/PrivacyScreen.tsx`, `packages/features/groups/src/TransparencyScreen.tsx`, `packages/config/src/limits.ts`, `packages/i18n/src/pt-BR/auth.json`, `packages/i18n/src/pt-BR/groups.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** BL-38 opção A' e BL-27 decididos pelo humano. O ADR-0004 (fluxo implícito) e o ADR-0012, seção 17, itens 1 e 2, ainda descrevem as pendências como abertas: atualizar é do arquiteto.
+- **Como testar:** `pnpm --filter @azkaban/data exec vitest run src/auth` (web: sem sessão entra, mesma conta entra, outra conta não troca). No web, com a conta A logada, abrir um link de entrada da conta B: continua A, a URL fica `/profile?link=other-account` e o Perfil explica.
+- **Verificado:** testes de unidade acima e `pnpm check` passaram.
+- **Não verificado:** sem pilha e sem E2E, por decisão. Não rodei no navegador o login por link, a confirmação de cadastro e a reautenticação pelo novo caminho; em particular, que o `router.replace` do expo-router tira o fragmento da URL quando o caminho do link é a rota atual. Nativo não rodado. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** continua aberto, custo aceito da A': um navegador sem sessão que abre o link de outra pessoa entra na conta dela (login CSRF). Atualizar ADR-0004, ADR-0012 §17 e o QUADRO (BL-27, BL-38). Um E2E de link mágico no web, quando houver pilha.

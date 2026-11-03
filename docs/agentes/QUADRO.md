@@ -97,13 +97,14 @@ O provedor real (Meta) fica para o humano decidir (ADR-0009, seções 10 e 16); 
 
 ## Fase 7: Lista de compras
 
-| ID   | Título                                          | Agente         | Status  | Depende de | Branch | Handoff |
-| ---- | ----------------------------------------------- | -------------- | ------- | ---------- | ------ | ------- |
-| F7-1 | Contratos, migrations, RLS e seed do catálogo   | banco-de-dados | a fazer | F1         | —      | —       |
-| F7-2 | Montar lista com stepper, busca e item avulso   | compras        | a fazer | F7-1       | —      | —       |
-| F7-3 | Modo no mercado com tempo real                  | compras        | a fazer | F7-2       | —      | —       |
-| F7-4 | Finalizar, histórico, nova lista e compartilhar | compras        | a fazer | F7-3       | —      | —       |
-| F7-5 | Vincular a tarefa e XP de compra                | compras        | a fazer | F7-3, F6-1 | —      | —       |
+| ID   | Título                                                                                                  | Agente                                                               | Status  | Depende de  | Branch                                                                        | Handoff                                                             |
+| ---- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ------- | ----------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| F7-1 | ADR-0011, contratos, config e seed do catálogo; migrations, RLS, RPCs e Realtime; permissões no cliente | arquiteto, banco-de-dados, auth-grupos                               | feito   | F1          | docs/shopping-adr, feat/shopping-db, feat/shopping-permissions                | 20261103-0230-arquiteto-para-*-compras.md                           |
+| F7-2 | Montar lista com stepper, busca, item avulso, nota e catálogo do grupo                                  | compras                                                              | feito   | F7-1        | feat/shopping-core-ui, feat/shopping-live, fix/shopping-qa7                   | 20261103-0254-banco-de-dados-para-compras-compras.md                |
+| F7-3 | Modo no mercado com tempo real                                                                          | compras                                                              | feito   | F7-2        | feat/shopping-live                                                            | —                                                                   |
+| F7-4 | Finalizar, histórico, nova lista, renomear, excluir e compartilhar                                      | compras                                                              | feito   | F7-3        | feat/shopping-live, fix/shopping-qa7                                          | —                                                                   |
+| F7-5 | Vincular a tarefa e XP de compra                                                                        | compras, banco-de-dados                                              | a fazer | F7-3, F6-2  | —                                                                             | ADR-0011, seções 8, 9 e 16; entra depois de integrar as Fases 6 e 7 |
+| F7-6 | QA e revisão de segurança da fase (QA7-1 a QA7-4, SEG7-1 a SEG7-6), barra de seis abas                  | qa-testes, revisor-seguranca, design-system, compras, banco-de-dados | feito   | F7-1 a F7-4 | chore/qa-phase-7, chore/security-phase-7, fix/shopping-*, fix/tabbar-six-tabs | 20261103-0321-revisor-seguranca-para-*-compras.md                   |
 
 ## Fase 8: Polimento
 

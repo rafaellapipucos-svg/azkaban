@@ -54,17 +54,22 @@ test('Hoje with 50 occurrences makes few REST calls, and 200 draw fast with the 
   const userId = await signUpWithContext(page, 'Muitas');
   seedTasks(userId, 50);
 
-  const calls: string[] = [];
-  page.on('request', (request) => {
-    if (request.url().includes('/rest/v1/')) calls.push(new URL(request.url()).pathname);
-  });
   await page.reload();
   await expect(check(page, 'Tarefa 001', 'Pendente')).toBeVisible();
   await page.waitForLoadState('networkidle');
+  // The resource entries of the new document, not `page.on('request')`: that one also counted a
+  // `notifications` the page before the reload sent while unloading (4 in a run of the build).
+  const calls = await page.evaluate(() =>
+    performance
+      .getEntriesByType('resource')
+      .map((e) => new URL(e.name).pathname)
+      .filter((path) => path.startsWith('/rest/v1/')),
+  );
   test.info().annotations.push({ type: 'rest calls, Hoje with 50', description: calls.join(' ') });
   console.log(`F8-6 goal 2: ${calls.length} REST calls opening Hoje with 50 occurrences`, calls);
-  // The goal is 8 (QA8-3: 17 on 2026-11-03, not yet met). The barrier is only "no N+1": no path
-  // more than 3 times, whatever the number of occurrences.
+  // The goal is 14 (ADR-0012, section 10, QA8-3). Not a barrier yet: the build of 2026-11-03 made
+  // 15, `user_stats` twice (handoff to `gamificacao`). The barrier is "no N+1": no path more than 3
+  // times, whatever the number of occurrences.
   const perPath = new Map<string, number>();
   for (const path of calls) perPath.set(path, (perPath.get(path) ?? 0) + 1);
   expect(Math.max(...perPath.values())).toBeLessThanOrEqual(3);
@@ -79,8 +84,25 @@ test('Hoje with 50 occurrences makes few REST calls, and 200 draw fast with the 
   const today = await drawTime(page, 'task_occurrences');
   test.info().annotations.push({ type: 'Hoje 200, CPU 4x', description: JSON.stringify(today) });
   console.log('F8-6 goal 3, Hoje with 200, CPU 4x:', today);
-  // ponytail: the month of the calendar is not timed; its days have no row to count. Add a marker
-  // the month draws last when the goal needs the number.
+});
+
+test('the month of the calendar with 200 tasks today draws fast with the CPU 4x slower', async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  const userId = await signUpWithContext(page, 'Mes');
+  seedTasks(userId, 200);
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+  // The marker: today's cell, once its spoken summary counts the 200 ("2026" holds no "200").
+  const today = '[aria-current="date"][aria-label*="200"]';
+  await page.addInitScript(sampleFrames(today));
+  await page.goto('/calendar');
+  await expect(page.locator(today)).toBeVisible({ timeout: 60_000 });
+  await page.waitForTimeout(2000);
+  const month = await drawTime(page, 'task_occurrences');
+  test.info().annotations.push({ type: 'month 200, CPU 4x', description: JSON.stringify(month) });
+  console.log('F8-6 goal 3, month with 200, CPU 4x:', month);
 });
 
 test('"No mercado" with 200 items draws fast with the CPU 4x slower', async ({ page }) => {

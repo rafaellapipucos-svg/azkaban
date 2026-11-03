@@ -114,7 +114,20 @@ function audit(doc: HTMLElement) {
     h1: headings,
     lang: doc.getAttribute('lang') ?? '',
     title: doc.ownerDocument.title,
-    animations: doc.ownerDocument.getAnimations().filter((a) => a.playState === 'running').length,
+    // What runs, by name, so a rare hit says whose it is (QA8, 2026-11-03: one run in three).
+    animations: doc.ownerDocument
+      .getAnimations()
+      .filter((a) => a.playState === 'running')
+      .map((a) => {
+        const target = (a.effect as KeyframeEffect | null)?.target;
+        const what =
+          a instanceof CSSTransition
+            ? `transition ${a.transitionProperty}`
+            : a instanceof CSSAnimation
+              ? `animation ${a.animationName}`
+              : 'script animation';
+        return `${what} on ${target ? short(target) : 'nothing'}`;
+      }),
     transforms: [...main.querySelectorAll('*')].map((el) => getComputedStyle(el).transform).join(),
   };
 }
@@ -147,7 +160,8 @@ async function check(page: Page, step: string) {
       if (first.h1 !== 1) note('h1 count', [`${where}: ${first.h1}`]);
       if (first.lang !== 'pt-BR') note('lang', [`${where}: "${first.lang}"`]);
       if (!first.title) note('title', [where]);
-      if (second.animations > 0) note('running animations with reduce', [where]);
+      if (second.animations.length)
+        note('running animations with reduce', [`${where}: ${second.animations.join(', ')}`]);
       if (first.transforms !== second.transforms) note('moving with reduce', [where]);
     }
   }

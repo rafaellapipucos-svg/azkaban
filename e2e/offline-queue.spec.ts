@@ -65,3 +65,40 @@ test('a status marked offline survives closing the tab and reaches the database 
   await next.getByText('Regar as plantas', { exact: true }).locator('visible=true').click();
   await expect(next.getByText('Pendente → Feito')).toHaveCount(1);
 });
+
+// Offline, the sign-out mutation itself pauses (default `networkMode`), so "Sair e descartar" spins
+// and the queue stays on the disk. Expected to fail until the `networkMode` decision lands; then drop
+// `test.fail`.
+test('signing out with changes still waiting asks first, then drops them', async ({
+  context,
+  page,
+}) => {
+  test.fail(true, 'networkMode: the sign-out mutation pauses offline');
+  await page.goto('/sign-up');
+  await page.getByLabel('Seu nome').fill('Saída');
+  await page.getByLabel('E-mail', { exact: true }).fill(`saida-${randomUUID()}@example.com`);
+  await page.getByLabel('Senha').fill(randomUUID());
+  await button(page, 'Criar conta').first().click();
+  await button(page, 'Novo contexto').click();
+  await page.getByLabel('Nome', { exact: true }).fill('Casa');
+  await button(page, 'Salvar').click();
+  await expect(page.getByRole('heading', { name: 'Hoje', exact: true })).toBeVisible();
+  await quickCreate(page, 'Lavar a louça');
+  await quickCreate(page, 'Passar o pano');
+
+  await context.setOffline(true);
+  await check(page, 'Lavar a louça', 'Pendente').click();
+  await expect.poll(() => savedQueue(context)).toContain('occurrence-status');
+  await page
+    .getByRole('tab', { name: 'Perfil' })
+    .or(page.getByRole('link', { name: 'Perfil' }))
+    .first()
+    .click();
+  await button(page, 'Sair').click();
+  await expect(
+    page.getByText('1 alteração ainda não foi enviada. Se sair agora, ela será perdida.'),
+  ).toBeVisible();
+  await button(page, 'Sair e descartar').click();
+  await expect(page.getByText('Tudo em ordem, todo dia')).toBeVisible();
+  await expect.poll(() => savedQueue(context)).not.toContain('occurrence-status');
+});

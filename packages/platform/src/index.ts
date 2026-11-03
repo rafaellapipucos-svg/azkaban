@@ -31,6 +31,8 @@ export { activateOnSpace, useRestoreFocus, type SpaceActivation } from './keyboa
 export { useOnline } from './network';
 export { useDocumentTitle } from './documentTitle';
 export { readSessionValue, writeSessionValue } from './sessionValue';
+export { canVibrate, vibrate } from './haptics';
+export { canPlayTone, playTone, type Tone } from './celebrationSound';
 export {
   currentPushSubscription,
   pushPermission,

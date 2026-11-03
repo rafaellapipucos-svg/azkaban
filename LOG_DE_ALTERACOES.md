@@ -1806,3 +1806,22 @@
 - **Verificado:** `pnpm check` passou (core 666 testes em 27 arquivos, contratos 104). Mutação: voltar `capRoom` para `max(0, …)` derruba 1 de 13 em `xp.test.ts`; desfeita.
 - **Não verificado:** nada contra o banco; `occurrence_award_xp` ainda não existe (F6-2).
 - **Pendências / próximos passos:** o `banco-de-dados` aplica a fórmula em F6-2.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:08 (BRT)
+
+- **Branch:** feat/gamification-shell, criada a partir de feat/phase-6-gamification (293bfe7)
+- **Agente(s):** gamificacao
+- **Resumo:** A parte de F6-3 a F6-5 que não depende do banco: adapters de vibração e som, preferências por aparelho, i18n, `StreakChip`, `CelebrationHost`, painel de progresso e ranking, todos sobre uma interface de repositório com dados falsos até a F6-2. Nada montado em `apps/app`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/platform`: `canVibrate`/`vibrate` (web `navigator.vibrate`, engole a recusa do navegador; nativo vazio até F8-7) e `canPlayTone`/`playTone` (web Web Audio com oscilador e envelope, sem arquivo; nativo vazio). Sem dependência nova.
+  - `packages/core/src/gamification/ranking.ts`: `rankingEnabled(group, defaultByType)`, a chave de `settings` ou o padrão do tipo, desligado para tipo desconhecido (inclusive `constructor`).
+  - `packages/features/gamification`: `source.ts` com `GamificationSource` (o que as telas leem, mais `subscribe` do Realtime e `setRankingEnabled`), `RankingError` e `fakeGamificationSource`; `gamificationSource` é o único ponto a trocar pelo repositório real. `preferences.ts`: som e vibração no aparelho com os padrões de `gamificationDefaults.celebration`, valor corrompido ou armazenamento bloqueado voltam ao padrão; maior nível comemorado por conta no aparelho, só sobe; `celebrationFeedback`. `hooks.ts` com React Query sob a chave `['gamification']`. `StreakChip` (nada até carregar), `CelebrationHost` (rajada de 600 ms, uma leitura de `user_stats`, `celebrationsFor` do core, nível comemorado semeado com o nível atual na montagem, dia perfeito em tela inteira, cartão fecha sozinho em 6 s), `ProgressPanel` (nível, `XpBar`, teto atingido, ofensiva e proteções, últimos 7 dias, conquistas, chaves de som e vibração desabilitadas onde o aparelho não suporta) e `GroupRanking` (chave só com `can(user, 'group.update', group)`, `ranking_disabled` explicado).
+  - `packages/i18n/src/pt-BR/gamification.json`: nível, ofensiva, teto, últimos dias, as cinco conquistas, ranking, comemorações e preferências.
+  - `pnpm-lock.yaml`: só os links de workspace do pacote da feature.
+- **Arquivos/módulos principais:** `packages/platform/src/{haptics,celebrationSound}{,.web}.ts`, `packages/core/src/gamification/ranking{,.test}.ts`, `packages/features/gamification/src/*`, `packages/i18n/src/{index.ts,pt-BR/gamification.json}`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. Reduzir movimento não desliga som nem vibração: o ADR-0010, seção 8, tira só o confete e o movimento do mascote, que os componentes de `packages/ui` já fazem. O cartão de comemoração fica no centro, para não cobrir o cabeçalho nem a faixa do aviso de notificações.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/feature-gamification test`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 10 de 10; core 672 testes, 6 novos em `ranking.test.ts`; platform 49, 3 novos em `haptics.web.test.ts`; feature 15 em `preferences.test.ts`). `pnpm build:web` passou.
+- **Não verificado:** nenhuma tela foi renderizada (nada está montado em `apps/app` e não houve navegador); o tom da Web Audio e a vibração num aparelho real; nada contra o banco.
+- **Pendências / próximos passos:** depois da F6-2, `packages/data/src/gamification` implementando `GamificationSource` e a troca em `source.ts`; a rota monta `CelebrationHost` no layout, `StreakChip` no slot de Hoje, `ProgressPanel` no `ProfileScreen` e `GroupRanking` no `GroupDetailScreen`.

@@ -4,4 +4,6 @@ export const notificationsConfig = {
   toastMs: 6000,
   /** Where this browser remembers which account turned push on, and its row. */
   thisDeviceKey: 'notifications.thisDevice',
+  /** Set once this device showed the push step after signing in (ADR-0012, section 13, item 2). */
+  pushOfferedKey: 'notifications.pushOffered',
 } as const;

@@ -91,7 +91,8 @@ export async function syncThisDevice(userId: string, vapidPublicKey: string) {
 /**
  * Call once at start. A session that ends without the Sign out button (expired, revoked elsewhere,
  * storage cleared) stops push here too (ADR-0008, section 17, SEG4-8). Without a session the row
- * stays, but the endpoint dies: the push service answers 410 and the dispatch deletes it.
+ * stays, but the endpoint dies: the push service answers 410 and the dispatch deletes it. On native,
+ * `unsubscribePush` unregisters the device, so Expo answers `DeviceNotRegistered` and the same happens.
  */
 export function stopPushWhenSignedOut() {
   return authRepository.onSessionChange((session) => {

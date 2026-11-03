@@ -3300,3 +3300,18 @@
 - **Verificado:** `pnpm check` passou (lint, `boundaries` sem violação, typecheck 17 de 17, testes 12 de 12 pacotes, contracts 159 e config 25 testes, `functions:imports`).
 - **Não verificado:** nada contra a pilha. `pnpm db:check-permissions` só vai conferir `privacy_rules` quando o BL-12 puser a comparação no script. O formato real do token e da resposta da Expo não foi conferido contra a API (sem conta e sem gasto). "Nenhuma função devolve 503" foi conferido por busca no código, não por teste (o teste é do BL-14). Depois do BL-4, um `WHATSAPP_PHONE_NUMBER_ID` malformado no `console` deixa o WhatsApp "não configurado" quando o BL-14 passar a ler pelo `parseWhatsAppEnv`.
 - **Pendências / próximos passos:** handoffs para `banco-de-dados` (BL-5 e BL-12), `prova-foto` (BL-10), `backend-funcoes` (BL-14, inclusive o teste que barra 503 e a leitura do número pelo env) e `notificacoes-whatsapp` (BL-19).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:15 (BRT)
+
+- **Branch:** fix/shopping-offline-confirm, criada a partir de feat/backlog-after-phase-8 (a8b1886)
+- **Agente(s):** shopping
+- **Resumo:** BL-18. Finalizar lista sem rede volta a ser o `ConfirmButton`, agora com `disabled`, em vez de um `Button` desligado no lugar. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `ShoppingListScreen`: um único `ConfirmButton` com `disabled={!online}`; o aviso `list.completeOffline` continua abaixo dele só quando está sem rede. Finalizar continua fora da fila offline (ADR-0012, seção 5).
+- **Arquivos/módulos principais:** `packages/features/shopping/src/ShoppingListScreen.tsx`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. Era o único ponto de compras com a troca; excluir lista já usava o `ConfirmButton` e não depende de rede.
+- **Como testar:** `pnpm check`; abrir uma lista aberta, desligar a rede no navegador e ver Finalizar desligado com o aviso; religar e confirmar em dois passos.
+- **Verificado:** `pnpm check` passou (17 de 17 e 12 de 12; shopping 21 testes).
+- **Não verificado:** a tela no navegador e a E2E (sem pilha; fica para o BL-22); nativo; leitor de tela. Não há teste de unidade da regra de desligar: é só `!online` no componente, e o pacote não tem ambiente de React.
+- **Pendências / próximos passos:** nenhuma.

@@ -1,6 +1,13 @@
 import { pushPayloadMaxBytes, pushPayloadSchema } from '@azkaban/contracts';
 import { describe, expect, it } from 'vitest';
-import { buildPushPayload, missedLateUntil, type PushSource, type Translate } from './pushPayload';
+import {
+  buildPushPayload,
+  missedLateUntil,
+  notificationText,
+  notificationUrl,
+  type PushSource,
+  type Translate,
+} from './pushPayload';
 
 const id = '11111111-1111-4111-8111-111111111111';
 const occurrenceId = '22222222-2222-4222-8222-222222222222';
@@ -175,5 +182,80 @@ describe('missedLateUntil', () => {
     expect(
       missedLateUntil({ ...reminder(10), overdueAt, occurrenceStatus: 'missed' }, 72, now),
     ).toBeNull();
+  });
+});
+
+describe('the deadline of an automatic red (ADR-0009, section 9)', () => {
+  const late = {
+    locale: 'pt-BR',
+    lateCompletionWindowHours: 72,
+    now: new Date('2026-11-03T12:00:00.000Z'),
+  };
+  const red = (byUserId: string | null): PushSource => ({
+    id,
+    type: 'occurrence_missed',
+    occurrenceId,
+    taskTitle: 'Academia',
+    data: { byUserId },
+    timezone: 'America/Sao_Paulo',
+    overdueAt: '2026-11-02T03:00:00.000Z',
+    occurrenceStatus: 'missed',
+  });
+  const plain = 'push.occurrence_missed.auto {"task":"Academia"}';
+
+  it('says until when, in the zone of the profile', () => {
+    // 2026-11-05T03:00Z is midnight of the 5th in São Paulo, and noon in Tokyo.
+    expect(buildPushPayload(red(null), false, t, late).body).toBe(
+      `${plain} lateUntil {"when":"5 de nov., 00:00"}`,
+    );
+    const tokyo = buildPushPayload({ ...red(null), timezone: 'Asia/Tokyo' }, false, t, late);
+    expect(tokyo.body).toBe(`${plain} lateUntil {"when":"5 de nov., 12:00"}`);
+  });
+
+  it('says nothing without the new fields, the context, or a window still open', () => {
+    // As the claim of Phase 4 sends it.
+    const old: PushSource = {
+      id,
+      type: 'occurrence_missed',
+      occurrenceId,
+      taskTitle: 'Academia',
+      data: { byUserId: null },
+    };
+    expect(buildPushPayload(old, false, t, late).body).toBe(plain);
+    expect(buildPushPayload({ ...red(null), timezone: undefined }, false, t, late).body).toBe(
+      plain,
+    );
+    expect(buildPushPayload({ ...red(null), overdueAt: null }, false, t, late).body).toBe(plain);
+    expect(buildPushPayload(red(null), false, t).body).toBe(plain);
+    expect(buildPushPayload({ ...red(null), occurrenceStatus: 'done' }, false, t, late).body).toBe(
+      plain,
+    );
+    const closed = { ...late, now: new Date('2026-11-06T00:00:00.000Z') };
+    expect(buildPushPayload(red(null), false, t, closed).body).toBe(plain);
+  });
+
+  it('never gives a deadline to a red marked by a person', () => {
+    expect(buildPushPayload(red(userId), false, t, late).body).toBe(
+      'push.occurrence_missed.byUser {"task":"Academia"}',
+    );
+  });
+});
+
+describe('daily_summary', () => {
+  const summary: PushSource = {
+    id,
+    type: 'daily_summary',
+    occurrenceId: null,
+    taskTitle: null,
+    data: { localDate: '2026-11-03' },
+  };
+
+  it('is a line of the bell that opens Today, never a push', () => {
+    expect(notificationText(summary, t)).toEqual({
+      title: 'push.daily_summary.title',
+      body: 'push.daily_summary.body',
+    });
+    expect(notificationUrl(summary, false)).toBe('/');
+    expect(() => buildPushPayload(summary, false, t)).toThrow();
   });
 });

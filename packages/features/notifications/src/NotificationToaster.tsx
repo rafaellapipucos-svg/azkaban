@@ -30,9 +30,10 @@ export function NotificationToaster({ vapidPublicKey }: { vapidPublicKey?: strin
     return notificationsRepository.subscribe(user.id, ({ type, id }) => {
       void queryClient.invalidateQueries({ queryKey: bellKey });
       if (type !== 'insert') return;
+      // A row born read (the daily summary, already told by WhatsApp) is listed, not announced.
       notificationsRepository
         .get(id)
-        .then((item) => item && setShown(item))
+        .then((item) => item && !item.readAt && setShown(item))
         .catch(() => undefined);
     });
   }, [user.id, queryClient]);

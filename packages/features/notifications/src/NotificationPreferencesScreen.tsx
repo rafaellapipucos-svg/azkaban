@@ -55,6 +55,17 @@ export function NotificationPreferencesScreen({ vapidPublicKey }: { vapidPublicK
   );
 }
 
+const whatsappTypes: readonly NotificationType[] = notificationRules.whatsappTypes;
+
+/**
+ * WhatsApp offers only the types with an approved template. The push offers all but the daily
+ * summary, which goes only by WhatsApp in this phase (ADR-0009, section 5).
+ */
+const typesOf = (channel: DeliveryChannel) =>
+  notificationTypeSchema.options.filter((type) =>
+    channel === 'whatsapp' ? whatsappTypes.includes(type) : type !== 'daily_summary',
+  );
+
 function ChannelSwitches() {
   const { t } = useTranslation('notifications');
   const queryClient = useQueryClient();
@@ -79,7 +90,7 @@ function ChannelSwitches() {
       {notificationRules.activeChannels.map((channel) => (
         <View key={channel}>
           <Subtitle>{t(`channels.${channel}`)}</Subtitle>
-          {notificationTypeSchema.options.map((type) => (
+          {typesOf(channel).map((type) => (
             <SwitchRow
               key={type}
               label={t(`types.${type}`)}

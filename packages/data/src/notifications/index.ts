@@ -164,7 +164,14 @@ export const notificationsRepository = {
     // `user_id` comes from its default, `auth.uid()`.
     const { error } = await db()
       .from('notification_preferences')
-      .upsert({ type, channel, enabled }, { onConflict: 'user_id,type,channel' });
+      // ponytail: cast until the migration of `banco-de-dados` adds `daily_summary` to the enum and
+      // regenerates `database.types.ts`; then drop it. Before that, the database refuses the row.
+      .upsert(
+        { type: type as Exclude<NotificationType, 'daily_summary'>, channel, enabled },
+        {
+          onConflict: 'user_id,type,channel',
+        },
+      );
     if (error) throw error;
   },
 

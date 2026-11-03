@@ -73,12 +73,7 @@ export const dailySummaryPreferencesSchema = z.object({
 });
 export type DailySummaryPreferences = z.infer<typeof dailySummaryPreferencesSchema>;
 
-/**
- * `notifications.data` of the `daily_summary` type. The content is read at send time; the row only
- * marks the day. `notificacoes-whatsapp` adds the type to `notificationTypeSchema` and to
- * `notificationItemSchema` with this data, together with its case in core (ADR-0009, section 4).
- */
-export const dailySummaryNotificationDataSchema = z.object({ localDate: localDateSchema });
+// `dailySummaryNotificationDataSchema`, the `data` of the `daily_summary` row, is in `./notifications`.
 
 /** One occurrence in the summary. Read through the same access as the bell, at send time. */
 export const dailySummaryTaskSchema = z.object({

@@ -1361,3 +1361,23 @@
 - **Verificado:** 38 testes novos passaram (6 do grafo, 18 do provedor, 14 do webhook); com `push.test.ts` e `checks.test.ts`, 75 de 75 em Node. `tsc` estrito à parte nos arquivos novos, sem erro. `pnpm check` passou. Mutações, desfeitas: `validSignature` aceitando HMAC diferente faz 2 testes falharem; `challengeAnswer` aceitando qualquer token não vazio, 1.
 - **Não verificado:** `pnpm functions:test` completo, `db:start` e E2E (pilha ocupada pela Fase 4). O código não rodou no Deno nem no Edge Runtime. O formato real de erro e de sucesso da Meta só foi conferido contra a documentação; nada foi enviado.
 - **Pendências / próximos passos:** itens 2 e 3 e a integração do item 4, depois das migrations do `banco-de-dados`. Os nomes dos campos de `record_whatsapp_statuses` (`providerMessageId`, `status`, `at`, `errorCode`) são proposta, a combinar com ele.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 00:48 (BRT)
+
+- **Branch:** feat/whatsapp-core, criada a partir de feat/phase-5-whatsapp (ae862e3)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** Itens 1 a 3 do handoff `20261103-0030-arquiteto-para-notificacoes-whatsapp-whatsapp`, a parte sem banco: `daily_summary` no contrato, no core e no sino; `buildDailySummary`, `normalizePhone` e `isWhatsAppReady` em core; o prazo do vermelho no push (ADR-0009, seção 9); as chaves de i18n; e a coluna WhatsApp das preferências só para `whatsappTypes`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/contracts/src/notifications.ts`: `daily_summary` em `notificationTypeSchema` e `notificationItemSchema` (pré-aprovado). `dailySummaryNotificationDataSchema` mudou de `whatsapp.ts` para cá: `whatsapp.ts` importa `notifications.ts`, e o ciclo deixaria um lado indefinido.
+  - `packages/core/src/notifications/pushPayload.ts`: caso `daily_summary` (título "Resumo do dia", `notificationUrl` dá `/`); `notificationText` exportado, o texto que o sino e o push compartilham; `PushSource` com `timezone`, `overdueAt` e `occurrenceStatus` opcionais; `buildPushPayload(source, requiresPhoto, t, late?)`, que acrescenta `lateUntil` ao vermelho do job dentro da janela, no fuso do perfil. `buildPushPayload` lança para `daily_summary`, porque `internalPathSchema` recusa `/`.
+  - `packages/core/src/notifications/whatsapp.ts` (novo): `buildDailySummary` (Hoje agrupado por área e contexto na ordem da fonte, atrasadas com o dia de origem, prazos com o dia da semana e "amanhã"/"em N dias", "+N" do que não cabe, limpeza de controle e de espaços, textos curtos no vazio, fecho neutro, saída por `dailySummaryRenderSchema`), `isDailySummaryEmpty`, `cleanParam`, `normalizePhone` e `isWhatsAppReady`. Testes em `whatsapp.test.ts` e no `pushPayload.test.ts`.
+  - `packages/features/notifications`: o sino usa `notificationText` com o fuso e o idioma (o prazo saiu do hook e foi para o core); o aviso ao vivo ignora a linha já lida; as preferências mostram o WhatsApp só para `notificationRules.whatsappTypes` e tiram `daily_summary` do push.
+  - `packages/data/src/notifications/index.ts`: cast em `setPreference` até a migration do `banco-de-dados` pôr `daily_summary` no enum e regenerar `database.types.ts`.
+  - `packages/i18n/src/pt-BR/notifications.json`: `push.daily_summary`, `types.daily_summary`, `whatsapp.summary.*` (com os nomes das áreas, porque o `t` do despacho só lê este arquivo), `whatsapp.stopReply`, `whatsapp.consent.v1.*` (rascunho do aviso) e chaves das telas (`phone`, `code`, `errors`, `status`, `dailySummary`).
+  - Handoff `20261103-0050-notificacoes-whatsapp-para-backend-funcoes-resumo-e-prazo-no-despacho`, com as chaves do import map.
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova. O resumo não tem caminho de push: `internalPathSchema` recusa `/`, e a tela não oferece o push para ele.
+- **Como testar:** `pnpm --filter @azkaban/core exec vitest run src/notifications`; `pnpm check`.
+- **Verificado:** `pnpm install --frozen-lockfile`; `pnpm check` passou (17 de 17 e 9 de 9 tarefas; core 590 testes, contracts 89).
+- **Não verificado:** a pilha, o despacho no Deno e a E2E (pilha ocupada pela Fase 4); as telas no navegador. As chaves do resumo no core são testadas com uma cópia; o JSON real só é exercitado pelo despacho, quando o `backend-funcoes` ligar o canal.
+- **Pendências / próximos passos:** `backend-funcoes`, pelo handoff (import map e campos novos no `render`). `banco-de-dados`: enum com `daily_summary` e tipos regenerados; aí o cast sai. Telas e repositório do WhatsApp (itens 4 e 5) depois das RPCs. Texto do aviso de consentimento para o humano revisar.

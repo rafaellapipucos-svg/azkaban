@@ -37,6 +37,10 @@
         "partial": "{{task}} passou para Tentei.",
         "missed": "{{task}} passou para Não feito."
       }
+    },
+    "daily_summary": {
+      "title": "Resumo do dia",
+      "body": "Enviado pelo WhatsApp."
     }
   },
   "bell": {
@@ -62,7 +66,8 @@
     "occurrence_missed": "Tarefa sua que ficou como não feita",
     "occurrence_resolved": "Tarefa que você criou e outra pessoa resolveu",
     "proof_in_review": "Foto esperando a sua revisão",
-    "proof_disputed": "Foto sua que foi contestada"
+    "proof_disputed": "Foto sua que foi contestada",
+    "daily_summary": "Resumo do dia no WhatsApp"
   },
   "channels": {
     "web_push": "Notificação no aparelho",
@@ -109,6 +114,80 @@
       "title": "No iPhone e no iPad",
       "steps": "Toque em Compartilhar, depois em \"Adicionar à Tela de Início\". Abra o app pelo ícone novo e ative as notificações por lá.",
       "tooOld": "Este iPhone ou iPad precisa do iOS 16.4 ou mais novo para receber notificações. O sino continua funcionando."
+    }
+  },
+  "whatsapp": {
+    "summary": {
+      "areas": {
+        "work": "Trabalho",
+        "home": "Doméstico"
+      },
+      "group": "{{area}} · {{context}}:",
+      "item": "{{when}} {{title}}",
+      "allDay": "dia todo",
+      "dueBy": "até {{time}}",
+      "overdueItem": "{{title}} ({{day}})",
+      "deadlineItem": "{{title}}, {{weekday}} ({{relative}})",
+      "inDays_one": "amanhã",
+      "inDays_other": "em {{count}} dias",
+      "more": "+{{count}}",
+      "empty": {
+        "today": "nada marcado",
+        "overdue": "nenhuma",
+        "deadlines": "nenhum"
+      },
+      "overdueOff": "não incluídas",
+      "footer": "Os detalhes estão no app."
+    },
+    "stopReply": "Pronto, você não vai mais receber mensagens do Azkaban por aqui. Para voltar, ative o WhatsApp de novo no app.",
+    "consent": {
+      "v1": {
+        "title": "Receber o resumo pelo WhatsApp",
+        "sender": "As mensagens vêm do Azkaban, para o número {{phone}}.",
+        "what": "Chegam o resumo diário das suas tarefas, com os títulos delas, no horário que você escolher, e os códigos de verificação do número.",
+        "meta": "As mensagens passam pelos servidores da Meta, dona do WhatsApp.",
+        "cost": "Você não paga nada por elas.",
+        "stop": "Para parar, responda PARAR a qualquer mensagem ou desligue aqui no app.",
+        "accept": "Ativar o WhatsApp"
+      }
+    },
+    "phone": {
+      "title": "Seu número de WhatsApp",
+      "label": "Número com DDD",
+      "country": "País",
+      "invalid": "Confira o número, com DDD.",
+      "send": "Enviar código"
+    },
+    "code": {
+      "title": "Código de verificação",
+      "label": "Código de {{count}} dígitos",
+      "hint": "Enviamos um código pelo WhatsApp para {{phone}}.",
+      "confirm": "Confirmar",
+      "resendIn_one": "Pedir outro código em {{count}} segundo",
+      "resendIn_other": "Pedir outro código em {{count}} segundos",
+      "resend": "Pedir outro código"
+    },
+    "errors": {
+      "phone_rate_limited": "Muitos códigos pedidos. Tente de novo mais tarde.",
+      "phone_code_invalid": "Código errado. Confira e tente de novo.",
+      "phone_code_expired": "Esse código não vale mais. Peça outro.",
+      "phone_not_verified": "Confirme o número antes.",
+      "invalid_consent_version": "O aviso mudou. Leia de novo e ative.",
+      "whatsapp_send_failed": "Não deu para enviar o código. Confira o número."
+    },
+    "status": {
+      "on": "Ativo para {{phone}}.",
+      "off": "Desligado.",
+      "turnOff": "Parar de receber pelo WhatsApp",
+      "remove": "Remover o número"
+    },
+    "dailySummary": {
+      "title": "Resumo diário",
+      "enabled": "Receber o resumo diário",
+      "time": "Horário",
+      "includeOverdue": "Incluir as atrasadas",
+      "deadlineDays": "Prazos dos próximos dias",
+      "skipEmpty": "Não enviar em dia sem nada marcado"
     }
   }
 }

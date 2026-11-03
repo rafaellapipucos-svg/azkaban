@@ -14,11 +14,12 @@ import { clip, type Translate } from './pushPayload';
 // on the short `t` (dot keys, `{{name}}` and plural by `count`).
 
 /**
- * E.164 from what a person types: spaces, dashes, dots and parentheses go, a leading `0` of a
- * national number too, and a number without `+` gets `countryCode`. Null when it is not a phone.
+ * E.164 from what a person types: spaces, dashes, dots and parentheses go, a leading `00` is the
+ * international prefix (`+`), a leading `0` of a national number goes, and a number without `+` gets
+ * `countryCode`. Null when it is not a phone.
  */
 export function normalizePhone(input: string, countryCode = '55'): string | null {
-  const compact = input.replace(/[\s().-]/g, '');
+  const compact = input.replace(/[\s().-]/g, '').replace(/^00/, '+');
   if (!/^\+?\d+$/.test(compact)) return null;
   const e164 = compact.startsWith('+') ? compact : `+${countryCode}${compact.replace(/^0+/, '')}`;
   return phoneE164Schema.safeParse(e164).success ? e164 : null;
@@ -42,10 +43,16 @@ export function isDailySummaryEmpty(source: DailySummarySource): boolean {
 /**
  * One line for a template parameter: every control character (line breaks and tabs included) and
  * every run of white space becomes one space. Meta refuses a parameter with a line break, a tab or
- * more than four spaces in a row (`whatsappTextParamSchema`).
+ * more than four spaces in a row (`whatsappTextParamSchema`). Format characters (`\p{Cf}`: the
+ * bidirectional controls, zero width spaces and the like) go, so a title written by someone else
+ * cannot reverse what the reader sees (ADR-0009, section 18, SEG5-6). U+200D stays: it joins the
+ * composed emojis.
  */
 export function cleanParam(text: string): string {
-  return text.replace(/[\p{Cc}\s]+/gu, ' ').trim();
+  return text
+    .replace(/(?!‍)\p{Cf}/gu, '')
+    .replace(/[\p{Cc}\s]+/gu, ' ')
+    .trim();
 }
 
 export type SummaryBudgets = Record<keyof DailySummaryRender, number>;

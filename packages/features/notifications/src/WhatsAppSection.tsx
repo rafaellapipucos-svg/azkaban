@@ -25,18 +25,20 @@ import { useEffect, useReducer, useState } from 'react';
 import { useController, useForm, type Control } from 'react-hook-form';
 import { View } from 'react-native';
 import { z } from 'zod';
-import { secondsUntil, waitParts, whatsappErrorKey, whatsappStep } from './whatsappFlow';
+import {
+  phoneFormSchema,
+  secondsUntil,
+  waitParts,
+  whatsappErrorKey,
+  whatsappStep,
+  type PhoneForm,
+} from './whatsappFlow';
 
 const whatsappKey = ['whatsapp'];
 const { consentVersion } = whatsappRules;
 const { codeLength } = whatsappRules.verification;
 /** The notice the user accepts is the one of the version sent to `whatsapp_opt_in`. */
 const consent = `whatsapp.consent.v${consentVersion}`;
-
-const phoneFormSchema = z
-  .object({ country: z.string().regex(/^\d{1,3}$/), number: z.string() })
-  .refine(({ number, country }) => normalizePhone(number, country) !== null, { path: ['number'] });
-type PhoneForm = z.infer<typeof phoneFormSchema>;
 
 const codeFormSchema = z.object({ code: z.string().regex(new RegExp(`^\\d{${codeLength}}$`)) });
 type CodeForm = z.infer<typeof codeFormSchema>;
@@ -160,7 +162,8 @@ function PhoneStep({
         control={control}
         name="country"
         label={t('whatsapp.phone.country')}
-        errorText={t('whatsapp.phone.countryInvalid')}
+        // ponytail: one text for a malformed and a refused country while only Brazil is allowed.
+        errorText={t('whatsapp.errors.phone_country_not_allowed')}
         keyboardType="number-pad"
         inputMode="numeric"
         maxLength={3}
@@ -299,6 +302,7 @@ function ConsentStep({ status, onDone }: { status: WhatsAppStatus; onDone: () =>
         <Body>{t(`${consent}.meta`)}</Body>
         <Body>{t(`${consent}.cost`)}</Body>
         <Body>{t(`${consent}.stop`)}</Body>
+        <Body>{t(`${consent}.phone`)}</Body>
         <Button
           label={t(`${consent}.accept`)}
           loading={optIn.isPending}

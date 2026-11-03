@@ -1,5 +1,19 @@
+import { whatsappErrorCodeSchema } from '@azkaban/contracts';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { secondsUntil, waitParts, whatsappErrorKey, whatsappStep } from './whatsappFlow';
+import {
+  phoneFormSchema,
+  secondsUntil,
+  waitParts,
+  whatsappErrorKey,
+  whatsappStep,
+} from './whatsappFlow';
+
+const packages = join(import.meta.dirname, '..', '..', '..');
+const messages = JSON.parse(
+  readFileSync(join(packages, 'i18n', 'src', 'pt-BR', 'notifications.json'), 'utf8'),
+) as { whatsapp: { errors: Record<string, string> } };
 
 const none = {
   phoneE164: null,
@@ -33,6 +47,27 @@ describe('whatsappStep', () => {
   });
 });
 
+describe('phoneFormSchema', () => {
+  const errorPath = (form: { country: string; number: string }) =>
+    phoneFormSchema.safeParse(form).error?.issues.map((issue) => issue.path.join('.'));
+
+  it('takes a Brazilian number, also typed with +55 or 0055', () => {
+    expect(errorPath({ country: '55', number: '(11) 98765-4321' })).toBeUndefined();
+    expect(errorPath({ country: '55', number: '+55 11 98765-4321' })).toBeUndefined();
+    expect(errorPath({ country: '55', number: '0055 11 98765-4321' })).toBeUndefined();
+  });
+
+  it('refuses another country in its field or in the number, before asking (SEG5-5)', () => {
+    expect(errorPath({ country: '351', number: '912 345 678' })).toEqual(['country']);
+    expect(errorPath({ country: '55', number: '+351 912 345 678' })).toEqual(['country']);
+    expect(errorPath({ country: '55', number: '00351 912 345 678' })).toEqual(['country']);
+  });
+
+  it('a number that is not a phone is the number field', () => {
+    expect(errorPath({ country: '55', number: 'abc' })).toEqual(['number']);
+  });
+});
+
 describe('secondsUntil', () => {
   const now = Date.parse('2026-11-03T10:00:00.000Z');
   it('rounds up and never goes below zero', () => {
@@ -59,6 +94,15 @@ describe('whatsappErrorKey', () => {
     expect(whatsappErrorKey('phone_rate_limited')).toBe('whatsapp.errors.phone_rate_limited');
     expect(whatsappErrorKey({ message: 'invalid_consent_version', code: '22023' })).toBe(
       'whatsapp.errors.invalid_consent_version',
+    );
+  });
+
+  it('every code of the contract has its own message, so none falls to the generic one', () => {
+    for (const code of whatsappErrorCodeSchema.options) {
+      expect(messages.whatsapp.errors[code], code).toBeTruthy();
+    }
+    expect(whatsappErrorKey('phone_country_not_allowed')).toBe(
+      'whatsapp.errors.phone_country_not_allowed',
     );
   });
 

@@ -1,5 +1,26 @@
+import { whatsappRules } from '@azkaban/config';
 import { whatsappErrorCodeSchema, type WhatsAppStatus } from '@azkaban/contracts';
-import { isWhatsAppReady } from '@azkaban/core';
+import { isWhatsAppReady, normalizePhone } from '@azkaban/core';
+import { z } from 'zod';
+
+const { allowedCountryCodes } = whatsappRules.verification;
+
+/**
+ * The number form. A country out of `allowedCountryCodes`, typed in its field or as `+` in the
+ * number, is refused here, before a request; the database refuses it anyway (SEG5-5). The E.164
+ * country codes are not prefixes of one another, so the start of the number is enough.
+ */
+export const phoneFormSchema = z
+  .object({ country: z.string().regex(/^\d{1,3}$/), number: z.string() })
+  .refine(({ number, country }) => normalizePhone(number, country) !== null, { path: ['number'] })
+  .refine(
+    ({ number, country }) => {
+      const phone = normalizePhone(number, country);
+      return !phone || allowedCountryCodes.some((code) => phone.startsWith(`+${code}`));
+    },
+    { path: ['country'] },
+  );
+export type PhoneForm = z.infer<typeof phoneFormSchema>;
 
 /** What the WhatsApp section shows: the number, the code, the notice, or the summary settings. */
 export type WhatsAppStep = 'phone' | 'code' | 'consent' | 'on';

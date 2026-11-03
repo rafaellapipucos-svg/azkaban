@@ -144,10 +144,11 @@
       "v1": {
         "title": "Receber o resumo pelo WhatsApp",
         "sender": "As mensagens vêm do Azkaban, para o número {{phone}}.",
-        "what": "Chegam o resumo diário das suas tarefas, com os títulos delas, no horário que você escolher, e os códigos de verificação do número.",
+        "what": "Chegam o resumo diário das suas tarefas, com os títulos delas e os nomes das áreas e contextos, no horário que você escolher, e os códigos de verificação do número.",
         "meta": "As mensagens passam pelos servidores da Meta, dona do WhatsApp.",
         "cost": "Você não paga nada por elas.",
         "stop": "Para parar, responda PARAR a qualquer mensagem ou desligue aqui no app.",
+        "phone": "Seu número fica guardado enquanto você quiser, e pode ser removido a qualquer hora aqui no app.",
         "accept": "Ativar o WhatsApp"
       }
     },
@@ -156,7 +157,6 @@
       "title": "Seu número de WhatsApp",
       "label": "Número com DDD",
       "country": "Código do país",
-      "countryInvalid": "Use só números, como 55.",
       "invalid": "Confira o número, com DDD.",
       "send": "Enviar código"
     },
@@ -181,6 +181,7 @@
     "errors": {
       "generic": "Não deu para concluir. Tente de novo.",
       "phone_rate_limited": "Muitos códigos pedidos. Tente de novo mais tarde.",
+      "phone_country_not_allowed": "Por enquanto, só números do Brasil (+55).",
       "phone_code_invalid": "Código errado. Confira e tente de novo.",
       "phone_code_expired": "Esse código não vale mais. Peça outro.",
       "phone_not_verified": "Confirme o número antes.",

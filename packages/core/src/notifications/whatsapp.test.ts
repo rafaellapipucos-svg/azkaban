@@ -3,6 +3,7 @@ import {
   type DailySummarySource,
   type DailySummaryTask,
   type WhatsAppStatus,
+  whatsappTextParamSchema,
 } from '@azkaban/contracts';
 import { describe, expect, it } from 'vitest';
 import type { Translate } from './pushPayload';
@@ -223,8 +224,28 @@ describe('cleanParam', () => {
     ['a\u0007b\u007fc\u0085d', 'a b c d'],
     ['a b c', 'a b c'],
     ['  a  ', 'a'],
+    // SEG5-6: format characters go, so a title cannot reverse or hide what the reader sees.
+    ['Nota \u202efdp.XIPalex\u202c ok', 'Nota fdp.XIPalex ok'],
+    ['a\u200eb\u200fc', 'abc'],
+    ['a\u200bb\ufeffc\u2060d', 'abcd'],
+    ['\u2066a\u2067b\u2068c\u2069', 'abc'],
+    ['\u202aa\u202bb\u202dc', 'abc'],
+    ['a \u200b b', 'a b'],
   ])('turns %j into %j', (input, output) => {
     expect(cleanParam(input)).toBe(output);
+  });
+
+  it('keeps the joiner of a composed emoji whole', () => {
+    const family = '\u{1f468}\u200d\u{1f469}\u200d\u{1f467}';
+    expect(cleanParam(`Jantar ${family}\u202e`)).toBe(`Jantar ${family}`);
+  });
+
+  it('gives what the contract accepts, from a title it refuses', () => {
+    const title = '\u202eRelat\u00f3rio\u202c \u2066x\u2069\u200b\u200e \u{1f469}\u200d\u{1f4bb}';
+    expect(whatsappTextParamSchema.safeParse(title).success).toBe(false);
+    expect(whatsappTextParamSchema.parse(cleanParam(title))).toBe(
+      'Relat\u00f3rio x \u{1f469}\u200d\u{1f4bb}',
+    );
   });
 });
 
@@ -236,6 +257,8 @@ describe('normalizePhone', () => {
     ['011 98765-4321', '+5511987654321'],
     ['+1 415.555.0100', '+14155550100'],
     ['+351 912 345 678', '+351912345678'],
+    ['0055 11 98765-4321', '+5511987654321'],
+    ['00351 912 345 678', '+351912345678'],
   ])('turns %j into %j', (input, output) => {
     expect(normalizePhone(input)).toBe(output);
   });

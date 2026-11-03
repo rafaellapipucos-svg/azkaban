@@ -110,6 +110,8 @@
     "denied": "As notificações estão bloqueadas. Libere nas configurações do navegador ou do aparelho.",
     "unsupported": "Este navegador não recebe notificações. O sino continua funcionando.",
     "failed": "Não deu para ativar agora. Tente de novo.",
+    "notNow": "Agora não",
+    "continue": "Continuar",
     "ios": {
       "title": "No iPhone e no iPad",
       "steps": "Toque em Compartilhar, depois em \"Adicionar à Tela de Início\". Abra o app pelo ícone novo e ative as notificações por lá.",
@@ -137,7 +139,14 @@
         "deadlines": "nenhum"
       },
       "overdueOff": "não incluídas",
-      "footer": "Os detalhes estão no app."
+      "footer": "Os detalhes estão no app.",
+      "streak": {
+        "days_one": "Ofensiva de {{count}} dia.",
+        "days_other": "Ofensiva de {{count}} dias.",
+        "start": "Comece uma ofensiva hoje.",
+        "goal_one": "Meta de hoje: {{count}} tarefa.",
+        "goal_other": "Meta de hoje: {{count}} tarefas."
+      }
     },
     "stopReply": "Pronto, você não vai mais receber mensagens do Azkaban por aqui. Para voltar, ative o WhatsApp de novo no app.",
     "consent": {

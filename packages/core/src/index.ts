@@ -61,6 +61,7 @@ export {
   localDayRange,
   planArea,
   planToday,
+  todayGoal,
   type AreaPlan,
   type TodayPlan,
 } from './tasks/today';
@@ -142,3 +143,27 @@ export {
   shoppingShareText,
   type CategorySection,
 } from './shopping/shopping';
+export { levelForXp, type LevelCurve, type LevelInfo } from './gamification/level';
+export {
+  dailyGoal,
+  dayCounts,
+  foldStreak,
+  recentDays,
+  type DailyGoal,
+  type UserDayCounts,
+  type FoldedDay,
+  type GoalCounts,
+  type GoalRules,
+  type StreakDay,
+  type StreakFold,
+  type StreakRules,
+  type StreakState,
+} from './gamification/streak';
+export { applyCap, capRoom, occurrenceXpWithBonus, type OccurrenceAward } from './gamification/xp';
+export { rankingEnabled } from './gamification/ranking';
+export {
+  celebrationsFor,
+  mergeCelebrations,
+  reachedAchievements,
+  type Celebration,
+} from './gamification/celebrations';

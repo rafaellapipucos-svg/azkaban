@@ -1,4 +1,4 @@
-import type { OccurrenceListItem, RecurrenceInput, TaskErrorCode } from '@azkaban/contracts';
+import type { OccurrenceListItem, RecurrenceInput } from '@azkaban/contracts';
 import { addDays, localDateOf, localTimeOf } from '@azkaban/core';
 
 export type Translate = (key: string, options?: Record<string, unknown>) => string;
@@ -98,4 +98,5 @@ export function formErrorKey(error: unknown): string | null {
 }
 
 /** Key of the message for a database refusal. Codes the UI cannot act on get the generic text. */
-export const errorKey = (code: TaskErrorCode | 'generic' | null) => `errors.${code ?? 'generic'}`;
+/** A task failure code, `generic`, `offline`, or a reason of the offline queue. */
+export const errorKey = (code: string | null) => `errors.${code ?? 'generic'}`;

@@ -40,8 +40,9 @@ export const authRepository = {
     if (error) throw error;
   },
 
-  async signOut() {
-    const { error } = await db().auth.signOut();
+  /** `local` ends only this device's session, for an account the server already deleted. */
+  async signOut(scope: 'global' | 'local' = 'global') {
+    const { error } = await db().auth.signOut({ scope });
     if (error) throw error;
   },
 };

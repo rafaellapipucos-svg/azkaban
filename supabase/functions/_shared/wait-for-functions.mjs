@@ -12,6 +12,8 @@ const names = [
   'dispatch-notifications',
   'phone-verification',
   'whatsapp-webhook',
+  'account-export',
+  'account-delete',
 ];
 
 for (const name of names) {

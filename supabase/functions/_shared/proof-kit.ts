@@ -15,6 +15,9 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { gamificationRules } from '../../../packages/config/src/gamification.ts';
+import { proofRules } from '../../../packages/config/src/proof.ts';
+import { taskRules } from '../../../packages/config/src/tasks.ts';
 import { apiUrl, dbContainer, project } from './local-stack.mjs';
 
 export const API = apiUrl;
@@ -87,15 +90,38 @@ export function backdateProof(proofId: string, interval: string) {
     commit;`);
 }
 
+/** The XP events of an occurrence as `reason=amount`, sorted, or `none`. */
+export const xpOf = (occurrenceId: string) =>
+  sql(
+    `select coalesce(string_agg(reason || '=' || amount, ',' order by reason, amount), 'none') from public.xp_events where occurrence_id = '${occurrenceId}'`,
+  )[0];
+
+/** What an easy occurrence done on time with a counted proof earns: the base and the proof bonus (ADR-0010, section 1). */
+export const PAID_WITH_PROOF = `occurrence_done=${taskRules.xp.status.done * taskRules.xp.difficultyWeight.easy},proof_bonus=${gamificationRules.xp.proofBonus}`;
+
 // ----------------------------------------------------------------------------------------- people
 
-export type Person = { id: string; client: SupabaseClient; bearer: Record<string, string> };
+export type Person = {
+  id: string;
+  client: SupabaseClient;
+  bearer: Record<string, string>;
+  /** Only after a real sign-in. */
+  refreshToken?: string;
+};
 
 const b64 = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url');
-function mint(sub: string): string {
+/** A token for `sub` with the local JWT secret. `claims` adds to or replaces the defaults (`amr`, say). */
+export function mint(sub: string, claims: Record<string, unknown> = {}): string {
   const now = Math.floor(Date.now() / 1000);
   const head = b64({ alg: 'HS256', typ: 'JWT' });
-  const body = b64({ sub, role: 'authenticated', aud: 'authenticated', iat: now, exp: now + 3600 });
+  const body = b64({
+    sub,
+    role: 'authenticated',
+    aud: 'authenticated',
+    iat: now,
+    exp: now + 3600,
+    ...claims,
+  });
   const sig = createHmac('sha256', JWT_SECRET).update(`${head}.${body}`).digest('base64url');
   return `${head}.${body}.${sig}`;
 }
@@ -114,6 +140,7 @@ export async function newPerson(name: string, signIn = false): Promise<Person> {
   assert.ifError(error);
   created.push(data.user!.id);
   let token = mint(data.user!.id);
+  let refreshToken: string | undefined;
   if (signIn) {
     const session = await createClient(API, ANON, options).auth.signInWithPassword({
       email,
@@ -121,12 +148,13 @@ export async function newPerson(name: string, signIn = false): Promise<Person> {
     });
     assert.ifError(session.error);
     token = session.data.session!.access_token;
+    refreshToken = session.data.session!.refresh_token;
   }
   const client = createClient(API, ANON, {
     ...options,
     global: { headers: { Authorization: `Bearer ${token}` } },
   });
-  return { id: data.user!.id, client, bearer: { authorization: `Bearer ${token}` } };
+  return { id: data.user!.id, client, bearer: { authorization: `Bearer ${token}` }, refreshToken };
 }
 
 // ------------------------------------------------------------------------------------------ group
@@ -204,7 +232,9 @@ export async function newAuthor(
     .insert({ group_id: group.id, user_id: author.id, role: 'member' });
   assert.ifError(joined.error);
   if (consent) {
-    const accepted = await author.client.rpc('record_proof_consent', { p_version: 2 });
+    const accepted = await author.client.rpc('record_proof_consent', {
+      p_version: proofRules.consentVersion,
+    });
     assert.ifError(accepted.error);
   }
   return author;

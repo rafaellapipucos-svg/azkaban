@@ -63,7 +63,11 @@
     "proof_flags_locked": "Um administrador definiu as regras de foto desta tarefa. Só quem administra o grupo pode mudá-las.",
     "proof_visibility_locked": "Esta tarefa já tem foto enviada, então não pode mudar entre privada e do grupo. Crie outra tarefa.",
     "proof_disputed": "Um administrador contestou a foto desta tarefa. Só quem revisa fotos pode mudar o estado dela agora.",
-    "overdue_occurrence_blocks_edit": "Esta tarefa tem uma repetição atrasada que a mudança apagaria. Marque-a como feita ou como não feita antes, ou edite só esta."
+    "overdue_occurrence_blocks_edit": "Esta tarefa tem uma repetição atrasada que a mudança apagaria. Marque-a como feita ou como não feita antes, ou edite só esta.",
+    "rate_limited": "Foram muitas mudanças em pouco tempo. Espere um pouco e tente de novo.",
+    "offline": "Sem conexão. Esta mudança precisa de internet; tente de novo quando ela voltar.",
+    "expired": "ficou mais de {{hours}} horas sem conexão.",
+    "invalid": "os dados guardados no aparelho não eram válidos."
   },
   "materialize": {
     "running": "Criando as repetições da tarefa...",
@@ -81,8 +85,9 @@
   "today": {
     "title": "Hoje",
     "goal": "Meta do dia",
-    "goalValue": "{{done}} de {{total}}",
-    "goalHint": "Tarefas de hoje que você já fez.",
+    "goalValue": "{{completed}} de {{needed}}",
+    "goalHint": "Faça {{percent}}% das tarefas de hoje, contando as atrasadas.",
+    "goalMet": "Meta cumprida. Bom trabalho!",
     "xp": "{{count}} XP hoje",
     "created": "Pronto! A tarefa foi criada.",
     "noContext": "Para criar tarefas, primeiro crie um contexto: um lugar da sua vida, como Casa ou Escritório.",
@@ -316,5 +321,12 @@
     "daySpoken": "{{day}}: {{done}} de {{total}} feitas, {{tone}}",
     "noTasksInWeek": "sem tarefas na semana",
     "memberSpoken": "{{name}}. {{rate}}. {{days}}. Abrir o calendário"
+  },
+  "offline": {
+    "none": "Sem conexão.",
+    "pending_one": "Sem conexão: {{count}} alteração será enviada quando a internet voltar.",
+    "pending_other": "Sem conexão: {{count}} alterações serão enviadas quando a internet voltar.",
+    "discarded": "Uma mudança de estado não foi enviada: {{reason}}",
+    "dismiss": "Fechar aviso"
   }
 }

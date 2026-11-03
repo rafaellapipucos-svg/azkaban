@@ -4,3 +4,4 @@ export { NotificationPreferencesScreen } from './NotificationPreferencesScreen';
 export { NotificationsScreen } from './NotificationsScreen';
 export { NotificationToaster } from './NotificationToaster';
 export { PushSetupCard } from './PushSetupCard';
+export { PushSetupStep, useOpenPushedPaths, usePushSetupOffer } from './PushSetupStep';

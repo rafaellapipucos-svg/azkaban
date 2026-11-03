@@ -1,60 +1,109 @@
 import { useTranslation } from '@azkaban/i18n';
+import { useEffect, useRef } from 'react';
+import { Animated, Easing } from 'react-native';
 import Svg, { Circle, Ellipse, G, Path } from 'react-native-svg';
-import { mascotColors as c, sizes } from './tokens';
+import { mascotMotion } from './celebration';
+import { mascotBox, mascotShapes as shape } from './mascotArt';
+import { mascotColors as c, motion, sizes } from './tokens';
+import { nativeDriver, useReducedMotion } from './useReducedMotion';
 
-export type MascotMood = 'happy' | 'celebrating' | 'worried' | 'sleeping';
+export type MascotMood = keyof typeof shape.mouths;
 
-const mouths: Record<MascotMood, string> = {
-  happy: 'M50 70 Q60 80 70 70',
-  celebrating: 'M46 66 Q60 88 74 66 Z',
-  worried: 'M50 76 Q60 68 70 76',
-  sleeping: 'M54 74 Q60 77 66 74',
-};
+// Two hops for `celebrating`, a sway for `worried`; the same 0..1 value drives both.
+const steps = [0, 0.25, 0.5, 0.75, 1];
+const jump = [0, -sizes.mascotJump, 0, -sizes.mascotJump / 2, 0];
+const shake = [0, -sizes.mascotShake, sizes.mascotShake, -sizes.mascotShake, 0];
 
 // Broto: an original sprout-headed seedling, because the app is about things growing day by day.
 export function Mascot({
   mood = 'happy',
   size = sizes.mascot,
+  animate = false,
 }: {
   mood?: MascotMood;
   size?: number;
+  /** Plays a short move once, when shown and when the mood changes. Never with reduced motion. */
+  animate?: boolean;
 }) {
   const { t } = useTranslation();
+  const reduced = useReducedMotion();
+  const move = animate ? mascotMotion(mood, reduced) : null;
+  const value = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!move) return;
+    value.setValue(0);
+    const run = Animated.timing(value, {
+      toValue: 1,
+      duration: motion.mascot,
+      easing: Easing.inOut(Easing.quad),
+      useNativeDriver: nativeDriver,
+    });
+    run.start();
+    return () => run.stop();
+  }, [move, value]);
   const closedEyes = mood === 'sleeping';
+  const offset = value.interpolate({
+    inputRange: steps,
+    outputRange: move === 'shake' ? shake : jump,
+  });
   return (
-    <Svg
-      width={size}
-      height={size}
-      viewBox="0 0 120 120"
-      role="img"
-      aria-label={t(`mascot.${mood}`)}
+    <Animated.View
+      style={{
+        transform:
+          move === 'shake' ? [{ translateX: offset }] : [{ translateY: move ? offset : 0 }],
+      }}
     >
-      <Path d="M60 26 Q58 12 44 8 Q44 24 60 26 Z" fill={c.leaf} />
-      <Path d="M60 26 Q62 14 78 12 Q76 26 60 26 Z" fill={c.leaf} />
-      <Ellipse cx="60" cy="68" rx="42" ry="44" fill={c.body} />
-      <Ellipse cx="60" cy="84" rx="26" ry="24" fill={c.belly} />
-      {closedEyes ? (
-        <G stroke={c.ink} strokeWidth="4" strokeLinecap="round" fill="none">
-          <Path d="M36 56 Q42 62 48 56" />
-          <Path d="M72 56 Q78 62 84 56" />
-        </G>
-      ) : (
-        <G>
-          <Circle cx="42" cy="56" r="11" fill="#FFFFFF" />
-          <Circle cx="78" cy="56" r="11" fill="#FFFFFF" />
-          <Circle cx="44" cy={mood === 'worried' ? 60 : 56} r="6" fill={c.ink} />
-          <Circle cx="80" cy={mood === 'worried' ? 60 : 56} r="6" fill={c.ink} />
-        </G>
-      )}
-      <Circle cx="28" cy="70" r="6" fill={c.blush} opacity={0.7} />
-      <Circle cx="92" cy="70" r="6" fill={c.blush} opacity={0.7} />
-      <Path
-        d={mouths[mood]}
-        stroke={c.ink}
-        strokeWidth="4"
-        strokeLinecap="round"
-        fill={mood === 'celebrating' ? c.ink : 'none'}
-      />
-    </Svg>
+      <Svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${mascotBox} ${mascotBox}`}
+        role="img"
+        aria-label={t(`mascot.${mood}`)}
+      >
+        {shape.leaves.map((d) => (
+          <Path key={d} d={d} fill={c.leaf} />
+        ))}
+        <Ellipse {...shape.body} fill={c.body} />
+        <Ellipse {...shape.belly} fill={c.belly} />
+        {closedEyes ? (
+          <G stroke={c.ink} strokeWidth={shape.stroke} strokeLinecap="round" fill="none">
+            {shape.closedEyes.map((d) => (
+              <Path key={d} d={d} />
+            ))}
+          </G>
+        ) : (
+          <G>
+            {shape.eyes.x.map((x) => (
+              <G key={x}>
+                <Circle cx={x} cy={shape.eyes.y} r={shape.eyes.r} fill={c.eye} />
+                <Circle
+                  cx={x + 2}
+                  cy={shape.eyes.y + (mood === 'worried' ? 4 : 0)}
+                  r={shape.eyes.pupil}
+                  fill={c.ink}
+                />
+              </G>
+            ))}
+          </G>
+        )}
+        {shape.blush.x.map((x) => (
+          <Circle
+            key={x}
+            cx={x}
+            cy={shape.blush.y}
+            r={shape.blush.r}
+            fill={c.blush}
+            opacity={shape.blush.opacity}
+          />
+        ))}
+        <Path
+          d={shape.mouths[mood]}
+          stroke={c.ink}
+          strokeWidth={shape.stroke}
+          strokeLinecap="round"
+          fill={mood === 'celebrating' ? c.ink : 'none'}
+        />
+      </Svg>
+    </Animated.View>
   );
 }

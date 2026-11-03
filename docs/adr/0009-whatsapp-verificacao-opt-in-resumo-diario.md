@@ -318,7 +318,7 @@ Padrões reversíveis, escolhidos para não travar a fase:
 5. **Resumo às 8h**, editável. Ele não respeita o silêncio.
 6. **O resumo é só das tarefas da própria pessoa.** Uma linha com a equipe para o admin entra se for pedida, e muda o template.
 7. **Sem resumo por push ou e-mail.** Seria a alternativa sem custo para quem não quer o WhatsApp.
-8. **Ofensiva e meta** entram quando a Fase 6 criar `user_stats`. Até lá, um fecho neutro.
+8. **Ofensiva e meta** entram quando a Fase 6 criar `user_stats`. Até lá, um fecho neutro. Definidas no [ADR-0010](0010-gamificacao-xp-ofensiva-conquistas-ranking.md), seção 9.
 9. **Palavras de parada:** parar, pare, stop, sair, cancelar e descadastrar, a mensagem inteira. "Quero parar amanhã" não para.
 10. **O mesmo número pode estar em mais de uma conta**, e o PARAR desliga todas.
 11. **Sem login por telefone** nesta fase.
@@ -340,7 +340,7 @@ O que a implementação fez diferente deste texto, aceito pelo orquestrador em 2
 
 Decisões sobre os achados da primeira passada da revisão de segurança (handoffs `20261103-0158-revisor-seguranca-*`), em 2026-11-03. Valem sobre as seções anteriores onde há diferença, e os trechos afetados remetem para cá.
 
-**SEG5-1 (média): o PARAR só acha o perfil pelo número atual.** `whatsapp_stop_by_wa_id` deixa de procurar o `wa_id` em `whatsapp_messages`. Hoje, uma linha `phone_code` de um número digitado errado, ou o resumo de um número antigo ou reciclado, desligaria quem já usa outro número. A busca passa a ser só pelos dígitos de `phone_e164`, com a regra do nono dígito do Brasil (`+55 DD 9XXXXXXXX` casa com o `wa_id` `55DDXXXXXXXX`). É determinística, vale antes do primeiro resumo e cobre o PARAR em resposta ao próprio código. A seção 7 fica corrigida assim. Dono: `banco-de-dados`.
+**SEG5-1 (média): o PARAR só acha o perfil pelo número atual.** `whatsapp_stop_by_wa_id` deixa de procurar o `wa_id` em `whatsapp_messages`. Hoje, uma linha `phone_code` de um número digitado errado, ou o resumo de um número antigo ou reciclado, desligaria quem já usa outro número. A busca passa a ser só pelos dígitos de `phone_e164`, com a regra do nono dígito do Brasil: os dois lados passam por `regexp_replace(…, '^(55[0-9]{2})9([6-9][0-9]{7})$', '\1\2')`, então `+55 DD 9XXXXXXXX` casa com o `wa_id` `55DDXXXXXXXX` só quando o dígito depois do 9 é de 6 a 9, o de celular. Um fixo (2 a 5) nunca perde dígito, e um celular de nove dígitos não casa com o fixo de mesmos oito finais (SEG5-9, migration `20261103160000_whatsapp_stop_ninth_digit_mobile_only.sql`). É determinística, vale antes do primeiro resumo e cobre o PARAR em resposta ao próprio código. A seção 7 fica corrigida assim. Dono: `banco-de-dados`.
 
 **SEG5-2 (baixa): PARAR com caractere invisível para.** A normalização da resposta usa NFKD e tira também `\p{Cf}`. "Não quero parar" continua não parando. Dono: `backend-funcoes`.
 

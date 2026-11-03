@@ -1727,6 +1727,399 @@
 - **Não verificado:** o webhook servido contra a função nova (sem E2E nem `functions:test`, por pedido do orquestrador).
 - **Pendências / próximos passos:** o texto do ADR-0009, seção 18, com o `arquiteto`.
 
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:41 (BRT)
+
+- **Branch:** fix/local-stack-cjs, criada a partir de feat/phase-5-whatsapp (`24f76cd`)
+- **Agente(s):** backend-funcoes
+- **Resumo:** `pnpm e2e` voltou a carregar as specs. O Playwright compila as specs, e com elas `proof-kit.ts` e `local-stack.mjs`, para CommonJS, onde o `import.meta` que achava o `config.toml` não existe: 0 testes em 0 arquivos. Agora `local-stack.mjs` acha `supabase/config.toml` subindo a partir de `process.cwd()`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `findConfig(from)` em `local-stack.mjs`, sem `import.meta`; o ambiente vence o config e um config sem as chaves continua lançando erro.
+  - Teste novo: o config é achado a partir de uma pasta interna e da raiz do checkout.
+- **Arquivos/módulos principais:** `supabase/functions/_shared/local-stack.mjs`, `supabase/functions/_shared/local-stack.test.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. Os comandos precisam rodar de dentro do checkout, como já fazem todos os scripts do `package.json`.
+- **Como testar:** `node --test supabase/functions/_shared/local-stack.test.ts`, `pnpm exec playwright test --list`, `pnpm functions:test` e `pnpm e2e`, na pilha A.
+- **Verificado (pilha A, banco limpo):** antes, `playwright test --list` dava o `SyntaxError` e 0 testes; depois, 71 testes em 18 arquivos. `local-stack.test.ts`: 7 de 7. `pnpm functions:test`: 178 de 178. `pnpm e2e` com uma chave VAPID gerada em memória: 70 passaram, 1 pulado (o que só roda sem a chave). `pnpm check` passa.
+- **Não verificado:** CI, pilha B e projeto hospedado.
+- **Pendências / próximos passos:** nenhuma. Pilha A parada.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:57 (BRT)
+
+- **Branch:** feat/phase-5-whatsapp
+- **Agente(s):** orquestrador
+- **Resumo:** Fase 5 (WhatsApp com provedor de console) fechada. Verificação final em banco limpo toda verde. Nenhuma mensagem real sai: ligar a Meta é decisão do humano (ADR-0009, seções 10 e 16).
+- **Alterações:**
+  - Integradas, nesta ordem: ADR-0009, contratos e config (`arquiteto`); provedores e parsing do webhook (`backend-funcoes`); core do resumo e prazo no push (`notificacoes-whatsapp`); dez migrations (`banco-de-dados`); telas (`notificacoes-whatsapp`); despacho, `phone-verification` e `whatsapp-webhook` (`backend-funcoes`); QA (`qa-testes`); revisão de segurança em duas passadas (`revisor-seguranca`); correções SEG5-1 a SEG5-10 e QA5-1 a QA5-5 pelos donos; implantação e guarda dos imports das funções no `pnpm check` (`arquiteto`).
+  - Pilha B enxuta (`docs/agentes/ferramentas/pilha-b.sh`, aprovada pelo humano): só Postgres (~60 MB) ou só funções (~0,85 GB), com portas 545xx, uma por máquina; os testes de funções, o `db:check-permissions` e a E2E passam a achar a pilha pelo `config.toml` do checkout, e a E2E recusa rodar fora da A.
+  - `docs/agentes/QUADRO.md`: Fase 5 refeita com a divisão real (F5-1 a F5-9) e marcada como feita.
+- **Decisões/ADRs:** aceitas pelo orquestrador e registradas no ADR-0009 (seções 17 e 18): o resumo é ligado só na seção do WhatsApp; o resumo nunca vai por push; provedor que lança vira nova tentativa; PARAR casa só com o telefone atual e a variante do nono dígito de celular; só +55 e teto global de 200 códigos por dia (a confirmar pelo humano). `packages/platform` ganhou `sessionValue` pelo `notificacoes-whatsapp` (fora do escopo dele, aceito).
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`; `bash docs/agentes/ferramentas/verificar-fase.sh <checkout> <log>` com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória no ambiente.
+- **Verificado:** em `8850f41`, todos os 14 passos de `verificar-fase.sh`: `db:test` 1378 de 1378 antes e depois da E2E; `db:check-permissions` em dia (inclui `whatsapp_rules`); `turbo typecheck test --force` (core 605, contracts 92, platform 46, notifications 17, config 15, ui 11, app 8, data 7, proof 6); lint, `boundaries`, `build:web`; `functions:test` 178 de 178; E2E duas vezes com 70 ok, 0 falhas e 1 pulado (o "sem chave VAPID"). Rodadas anteriores pegaram dois defeitos que nenhum agente viu: as specs não carregavam por `import.meta` no ajudante dos testes (corrigido) e, antes disso, o webhook intermediário dando 500 em lote inválido (conferido 200 com `curl` assinado). Varredura de segredos no diff `feat/phase-4-notifications..`: só nomes nos `.env.example` e os `local-demo-` aprovados.
+- **Não verificado:** a Meta de verdade (nada foi enviado), Safari e iPhone, leitor de tela real, CI do PR, projeto hospedado.
+- **Pendências / próximos passos:** PR para `feat/phase-4-notifications`; perguntas ao humano (ADR-0009, seção 16, e SEG5-5/6/7); Fases 6 e 7 já em andamento em `feat/phase-6-gamification` e `feat/phase-7-shopping`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:33 (BRT)
+
+- **Branch:** docs/gamification-adr, criada a partir de feat/phase-5-whatsapp (cd98617)
+- **Agente(s):** arquiteto
+- **Resumo:** ADR-0010 da gamificação (Fase 6), com contratos, config e handoffs para os agentes trabalharem em paralelo. Fecha o XP em massa pendente desde a Fase 2 com um teto diário. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - ADR-0010: motivos novos de XP (`proof_bonus`, `perfect_day`, `perfect_day_reverted`, `shopping_completed` reservado para a Fase 7) e `xp_events.local_date`; teto diário de XP por dia local do perfil, com lock por usuário; nível derivado do total, sem coluna; meta diária por conta inteira, ofensiva como dobra dos dias (dia vazio não quebra, hoje entra só cumprido, proteção a cada 7 dias até 2) com tabela de casos canônicos para core e pgTAP; `refresh_user_day`, `refold_streak`, `grant_achievements` no trigger de status e `close_gamification_days` a cada 15 minutos; conquistas em seed, concedidas uma vez; ranking por `groups.settings.rankingEnabled`, padrão por tipo (`company` desligado), só nome e XP semanal do grupo; RLS só do dono; comemorações pelo Realtime de `xp_events` num `CelebrationHost`; `streak` do resumo diário; anel de Hoje pela meta; recálculo e backfill; divisão do trabalho e nove itens a confirmar pelo humano.
+  - `packages/contracts`: `gamification.ts` novo (`userStatsSchema`, `userDayStatsSchema`, conquistas, ranking, `rankingErrorCodeSchema`, `celebrationKindSchema`), com teste; `tasks.ts` com os motivos novos, `cappedXpEventReasons` e `xpEventSchema.localDate`; `groups.ts` com `groupSettingsSchema`; comentário de `dailySummarySourceSchema.streak`.
+  - `packages/config/src/gamification.ts`: `gamificationRules` (espelho em `app_settings`, chave `gamification_rules`) e `gamificationDefaults` (só cliente).
+  - `scripts/check-permission-mirror.mjs` compara `gamification_rules`.
+  - `docs/arquitetura.md`: seção Gamificação. ADRs 0005, 0007 e 0009 apontam para o 0010 nas pendências da Fase 6.
+  - Handoffs `20261103-0235-arquiteto-para-{banco-de-dados,gamificacao,design-system}-gamificacao`, `...-tarefas-calendario-anel-de-hoje` e `...-notificacoes-whatsapp-ofensiva-no-resumo`.
+- **Arquivos/módulos principais:** `docs/adr/0010-gamificacao-xp-ofensiva-conquistas-ranking.md`, `packages/contracts/src/{gamification.ts,gamification.test.ts,tasks.ts,groups.ts,whatsapp.ts}`, `packages/config/src/gamification.ts`, `scripts/check-permission-mirror.mjs`, `docs/arquitetura.md`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma; são do `banco-de-dados` (F6-2).
+- **Decisões/ADRs:** ADR-0010.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9 tarefas; `functions:imports` 8 de 8). Contratos: 104 testes em 5 arquivos, 12 novos em `gamification.test.ts`.
+- **Não verificado:** nada com a pilha. `pnpm db:check-permissions` acusa `gamification_rules` até a migration de F6-2. Os casos canônicos foram conferidos à mão, não em código.
+- **Pendências / próximos passos:** os cinco handoffs. Para o humano: os nove itens da seção 13 do ADR-0010. Para o orquestrador: a divisão sugerida das tarefas F6 no relatório.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:46 (BRT)
+
+- **Branch:** feat/gamification-ui-kit, criada a partir de feat/phase-6-gamification (1340eaf)
+- **Agente(s):** design-system
+- **Resumo:** Componentes visuais da gamificação (handoff `20261103-0235-arquiteto-para-design-system-gamificacao`, ADR-0010, seção 8), todos em `/design-system`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `Confetti` (rajada curta, cores de `tokens.confetti`, `onDone`; com reduzir movimento não desenha e chama `onDone` na hora; espera a resposta do sistema antes de decidir), `CelebrationCard` (mascote, título, detalhe, `others`, botão de fechar; `role="alert"` e `announceForAccessibility`; `occurrence_partial` sem confete e com mascote feliz), `PerfectDayScreen` (Modal de tela inteira, nomeado, Esc fecha, foco volta), `XpBar` (barra de progresso com rótulo e valor), `StreakBadge` (fogo e número, proteção com escudo e contagem, rótulo falado, fogo apagado em 0, pressionável opcional) e `AchievementBadge` (concedida ou bloqueada por cadeado, círculo tracejado e texto de estado, não só cor).
+  - `Mascot` ganha `animate`: pulo em `celebrating`, balanço em `worried`, parado com reduzir movimento. Padrão desligado, então as telas que já usam o mascote não mudam.
+  - `useMotionPreference` (interno): `null` até o sistema responder; `useReducedMotion` passa a usá-lo, sem mudar o comportamento.
+  - Tokens: `motion.mascot`, `motion.celebrate`, `confetti` (quantidade e cores da paleta), `sizes.mascotLarge`, `mascotJump`, `mascotShake`, `xpBar`, `achievement`, `confettiPiece`.
+  - `celebration.ts`: as decisões puras (plano do confete, movimento do mascote, aparência por tipo, peças determinísticas), com teste.
+  - Textos de demonstração em `ui.json`.
+- **Arquivos/módulos principais:** `packages/ui/src/{Confetti,CelebrationCard,PerfectDayScreen,XpBar,StreakBadge,AchievementBadge,Mascot,celebration,useReducedMotion,tokens,DesignSystemScreen,index}.ts(x)`, `packages/i18n/src/pt-BR/ui.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** animação com o `Animated` do React Native, como `ProgressRing` e `TaskCheck`, e confete com `View`s, em vez do `react-native-reanimated` e do `react-native-svg` citados no ADR: o Reanimated não é dependência de `packages/ui`, e acrescentá-lo mudaria o lockfile. O resultado na tela é o mesmo.
+- **Como testar:** `pnpm check`; `/design-system` em `pnpm dev`, seção Gamificação, com e sem reduzir movimento.
+- **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9); `packages/ui` com 31 testes em 2 arquivos (20 novos em `celebration.test.ts`, 2 de contraste da `XpBar`). `pnpm build:web` passou. No Chromium headless (Playwright avulso, fora da suíte E2E, com `.env.local` falso apontando para um Supabase local desligado, apagado depois), `/design-system` a 375 px claro com movimento, 375 px escuro com reduzir movimento e 1280 px claro: sem erro de console; o cartão é `alert`; o dia perfeito é `dialog` nomeado e fecha com Esc; com reduzir movimento as 28 peças de confete não existem.
+- **Não verificado:** iOS e Android (anúncio por `announceForAccessibility`, `Modal` em tela cheia, borda tracejada); leitor de tela real; E2E.
+- **Pendências / próximos passos:** a `gamificacao` monta o `CelebrationHost` com estes componentes; o `StreakBadge` entra no slot do cabeçalho de Hoje.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:47 (BRT)
+
+- **Branch:** feat/gamification-core, criada a partir de feat/phase-6-gamification (1340eaf)
+- **Agente(s):** gamificacao
+- **Resumo:** F6-1: motor puro da gamificação em `packages/core/src/gamification`, especificação executável do ADR-0010 para as telas e para o pgTAP de F6-2. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `levelForXp(totalXp, curve)`: nível pela curva, cada passo arredondado sozinho; curva inválida lança `RangeError`.
+  - `dailyGoal(counts, goal)`: meta por conta inteira, `needed` = `ceil(planned × percent / 100)`, amarelo conta com `countPartial`. `dayCounts(items, { timezone, date, assigneeId })` pelo `occurrenceDay`, `summarizeDay` e `isPerfectDay` de `core/tasks`, sem canceladas, repetidas nem de outro responsável.
+  - `foldStreak(days, { today, rules })`: dobra da seção 3; dia sem linha é vazio, hoje aberto não quebra, proteção ganha a cada múltiplo até o máximo e gasta em dia fechado sem meta. Devolve o estado de cada dia dado, `freezeUsed` incluído.
+  - `occurrenceXpWithBonus` (base de `occurrenceXp` mais `proofBonus` em `done` com prova `unreviewed` ou `approved`), `capRoom(eventsToday, dailyCap)` por `cappedXpEventReasons` e `applyCap` (base primeiro, bônus com o resto).
+  - `reachedAchievements(achievements, progress)` e `celebrationsFor(before, after, { events, achievementKeys, streakMilestones, celebratedLevel, levelCurve })`, do maior para o menor, com o nível comemorado uma vez por aparelho.
+  - Handoffs `20261103-0243-gamificacao-para-arquiteto-adr-0010-ajustes` e `20261103-0243-gamificacao-para-tarefas-calendario-meta-do-dia`.
+- **Arquivos/módulos principais:** `packages/core/src/gamification/{level,streak,xp,celebrations}.ts` e testes, `packages/core/src/index.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. `dayCounts` recebe um objeto com `assigneeId`, diferente da assinatura do handoff. O nível 10 começa em 2.579, não 2.580 como diz o ADR (handoff ao `arquiteto`).
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/gamification`.
+- **Verificado:** `pnpm check` passou. 60 testes novos em 4 arquivos (665 no core). Os 11 casos canônicos da seção 3 e os exemplos de meta são testes. Mutações, uma por regra, desfeitas: teto `max(0, …)` para `max(1, …)` derruba 2; meta `>=` para `>` derruba 24; quebra da ofensiva trocada por `streak − 1` derruba 4; proteção `> 0` para `>= 0` derruba 7; curva `>=` para `>` derruba 3.
+- **Não verificado:** nada contra o banco (F6-2 não começou); a paridade com o SQL depende de o pgTAP usar a mesma tabela.
+- **Pendências / próximos passos:** F6-3 a F6-5 depois de F6-2 e do design system. As três perguntas do handoff ao `arquiteto`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:49 (BRT)
+
+- **Branch:** docs/gamification-adr-fixes, criada a partir de feat/phase-6-gamification (af89f8c)
+- **Agente(s):** arquiteto
+- **Resumo:** Respostas ao handoff `20261103-0243-gamificacao-para-arquiteto-adr-0010-ajustes` e o texto do nono dígito no ADR-0009. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - ADR-0010, seção 2: `espaço = min(teto, max(0, teto − saldo do dia))`. Uma compensação de XP de outro dia não vira crédito: o espaço nunca passa do teto.
+  - `packages/core/src/gamification/xp.ts` (`capRoom`) com o `min`, e um teste novo em `xp.test.ts`. O core é do `gamificacao`; a mudança é de uma linha e decorre desta decisão.
+  - ADR-0010, seção 1: o nível 10 começa em 2.579, com os passos arredondados um a um.
+  - ADR-0010, seção 8: com o teto atingido, a conclusão vale zero, sem evento e sem comemoração; o `TaskCheck` ainda responde. Consequência aceita.
+  - ADR-0009, seção 18 (SEG5-1): a regra do nono dígito passa a citar a regex de SEG5-9, `'^(55[0-9]{2})9([6-9][0-9]{7})$'`, que só tira o 9 de celular.
+  - Handoff `20261103-0235-arquiteto-para-banco-de-dados-gamificacao` com a fórmula final (`least`/`greatest`) e um caso de pgTAP.
+- **Arquivos/módulos principais:** `docs/adr/0010-gamificacao-xp-ofensiva-conquistas-ranking.md`, `docs/adr/0009-whatsapp-verificacao-opt-in-resumo-diario.md`, `packages/core/src/gamification/xp.ts`, `packages/core/src/gamification/xp.test.ts`, o handoff acima
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0010 (seções 1, 2 e 8), ADR-0009 (seção 18).
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/gamification/xp.test.ts`.
+- **Verificado:** `pnpm check` passou (core 666 testes em 27 arquivos, contratos 104). Mutação: voltar `capRoom` para `max(0, …)` derruba 1 de 13 em `xp.test.ts`; desfeita.
+- **Não verificado:** nada contra o banco; `occurrence_award_xp` ainda não existe (F6-2).
+- **Pendências / próximos passos:** o `banco-de-dados` aplica a fórmula em F6-2.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:02 (BRT)
+
+- **Branch:** feat/today-goal-ring, criada a partir de feat/phase-6-gamification (293bfe7)
+- **Agente(s):** tarefas-calendario
+- **Resumo:** O anel de Hoje passa a mostrar a meta do dia do ADR-0010 (seções 3 e 10), e o cabeçalho de Hoje ganha o slot da ofensiva. Responde aos handoffs `20261103-0235-arquiteto-para-tarefas-calendario-anel-de-hoje` e `20261103-0243-gamificacao-para-tarefas-calendario-meta-do-dia`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `todayGoal(items, { now, timezone, assigneeId, rules })` em `core/tasks/today.ts`: `dailyGoal(dayCounts(...))` no dia local do perfil, só do usuário. A tela passa todas as ocorrências carregadas, não só `plan.today`, então um prazo vencido hoje (já em "Atrasadas", ou vermelho fora da janela) continua no anel como não cumprido, e o anel não melhora sozinho.
+  - `plan.goal` sai de `planToday`; o único uso era o anel.
+  - `TodayScreen`: o anel mostra `completed` de `needed`, cheio quando a meta é cumprida; o texto abaixo diz a porcentagem (de `gamificationRules.goal.percent`) ou "Meta cumprida". Nova prop `headerStreak`, antes de `headerRight`, para a rota pôr a ofensiva de `gamification`; a feature não a importa.
+  - i18n: `today.goalValue` com `{{completed}} de {{needed}}`, `today.goalHint` com `{{percent}}`, `today.goalMet` novo.
+- **Arquivos/módulos principais:** `packages/core/src/tasks/today.ts`, `packages/core/src/tasks/today.test.ts`, `packages/core/src/index.ts` (uma exportação), `packages/features/tasks/src/TodayScreen.tsx`, `packages/i18n/src/pt-BR/tasks.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. `plan.goal` removido em vez de mantido em paralelo.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/tasks/today.test.ts`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 9 de 9; core 670 testes em 27 arquivos, 5 novos de `todayGoal`). `pnpm build:web` passou. As E2E de Hoje (`tasks.spec.ts`, `tasks-proof.spec.ts`) esperam `0 de 1` e `1 de 1`, que continuam valendo com uma ocorrência (`needed` 1); nenhuma usava o texto antigo da dica, então não mudaram.
+- **Não verificado:** E2E (não rodadas, sem pilha); a tela no navegador; o slot preenchido, porque a rota (`apps/app`) e o `StreakChip` são da `gamificacao`.
+- **Pendências / próximos passos:** a `gamificacao` passa `headerStreak={<StreakChip />}` em `apps/app/app/(app)/(tabs)/index.tsx`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:08 (BRT)
+
+- **Branch:** feat/gamification-shell, criada a partir de feat/phase-6-gamification (293bfe7)
+- **Agente(s):** gamificacao
+- **Resumo:** A parte de F6-3 a F6-5 que não depende do banco: adapters de vibração e som, preferências por aparelho, i18n, `StreakChip`, `CelebrationHost`, painel de progresso e ranking, todos sobre uma interface de repositório com dados falsos até a F6-2. Nada montado em `apps/app`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/platform`: `canVibrate`/`vibrate` (web `navigator.vibrate`, engole a recusa do navegador; nativo vazio até F8-7) e `canPlayTone`/`playTone` (web Web Audio com oscilador e envelope, sem arquivo; nativo vazio). Sem dependência nova.
+  - `packages/core/src/gamification/ranking.ts`: `rankingEnabled(group, defaultByType)`, a chave de `settings` ou o padrão do tipo, desligado para tipo desconhecido (inclusive `constructor`).
+  - `packages/features/gamification`: `source.ts` com `GamificationSource` (o que as telas leem, mais `subscribe` do Realtime e `setRankingEnabled`), `RankingError` e `fakeGamificationSource`; `gamificationSource` é o único ponto a trocar pelo repositório real. `preferences.ts`: som e vibração no aparelho com os padrões de `gamificationDefaults.celebration`, valor corrompido ou armazenamento bloqueado voltam ao padrão; maior nível comemorado por conta no aparelho, só sobe; `celebrationFeedback`. `hooks.ts` com React Query sob a chave `['gamification']`. `StreakChip` (nada até carregar), `CelebrationHost` (rajada de 600 ms, uma leitura de `user_stats`, `celebrationsFor` do core, nível comemorado semeado com o nível atual na montagem, dia perfeito em tela inteira, cartão fecha sozinho em 6 s), `ProgressPanel` (nível, `XpBar`, teto atingido, ofensiva e proteções, últimos 7 dias, conquistas, chaves de som e vibração desabilitadas onde o aparelho não suporta) e `GroupRanking` (chave só com `can(user, 'group.update', group)`, `ranking_disabled` explicado).
+  - `packages/i18n/src/pt-BR/gamification.json`: nível, ofensiva, teto, últimos dias, as cinco conquistas, ranking, comemorações e preferências.
+  - `pnpm-lock.yaml`: só os links de workspace do pacote da feature.
+- **Arquivos/módulos principais:** `packages/platform/src/{haptics,celebrationSound}{,.web}.ts`, `packages/core/src/gamification/ranking{,.test}.ts`, `packages/features/gamification/src/*`, `packages/i18n/src/{index.ts,pt-BR/gamification.json}`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. Reduzir movimento não desliga som nem vibração: o ADR-0010, seção 8, tira só o confete e o movimento do mascote, que os componentes de `packages/ui` já fazem. O cartão de comemoração fica no centro, para não cobrir o cabeçalho nem a faixa do aviso de notificações.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/feature-gamification test`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 10 de 10; core 672 testes, 6 novos em `ranking.test.ts`; platform 49, 3 novos em `haptics.web.test.ts`; feature 15 em `preferences.test.ts`). `pnpm build:web` passou.
+- **Não verificado:** nenhuma tela foi renderizada (nada está montado em `apps/app` e não houve navegador); o tom da Web Audio e a vibração num aparelho real; nada contra o banco.
+- **Pendências / próximos passos:** depois da F6-2, `packages/data/src/gamification` implementando `GamificationSource` e a troca em `source.ts`; a rota monta `CelebrationHost` no layout, `StreakChip` no slot de Hoje, `ProgressPanel` no `ProfileScreen` e `GroupRanking` no `GroupDetailScreen`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:29 (BRT)
+
+- **Branch:** feat/gamification-db, criada a partir de feat/phase-6-gamification (293bfe7)
+- **Agente(s):** banco-de-dados
+- **Resumo:** F6-2: a gamificação no banco (ADR-0010, handoff `20261103-0235-arquiteto-para-banco-de-dados-gamificacao`). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Espelho `gamification_rules` e `gamification_rules()`.
+  - `xp_events`: `local_date`, os quatro motivos novos, `check` de `local_date` só nos motivos de dia perfeito, índices `(user_id, created_at)`, `(group_id, created_at)` e `(user_id, local_date)`.
+  - `user_stats`, `user_day_stats`, `achievements` (seed da seção 5 na migration), `user_achievements`; RLS de leitura só do dono, `achievements` para todo autenticado, nenhuma escrita do cliente. `total_xp` por trigger `after insert` em `xp_events`.
+  - `occurrence_award_xp`: `proof_bonus` em `done` com prova `unreviewed` ou `approved`; teto diário sob `pg_advisory_xact_lock` por usuário. **Desvio do ADR:** o saldo do dia conta cada ocorrência no mínimo zero; a fórmula literal deixava o caso do arquiteto gravar 600 (handoffs ao `arquiteto` e à `gamificacao`).
+  - `user_day_counts`, `refresh_user_day(user, date)`, `refold_streak(user, from)`, `grant_achievements(user)`, chamadas pelo trigger `task_occurrences_after_status_gamification` (status ou revisão da prova). `close_gamification_days()` no pg_cron (`close-gamification-days`, `*/15 * * * *`).
+  - `group_ranking(p_group_id, p_week_start, p_timezone)` com `forbidden` e `ranking_disabled`, padrão por tipo, `check` de `rankingEnabled` booleano.
+  - Realtime em `xp_events` e `user_achievements`. `daily_summary_source` preenche `streak = { current, goalToday }`.
+  - `recompute_user_gamification(user)` (só `service_role`) e backfill de todos os perfis com `last_closed_date` em ontem. `pnpm db:types`.
+  - Testes: `rls_gamification.test.sql` (96); `rls_proof` desliga o bônus na transação e conhece `group_ranking`; `rls_notifications` lista a publicação nova; `rls_whatsapp` tira `streak` da comparação.
+- **Arquivos/módulos principais:** `supabase/migrations/20261103170000` a `20261103171000`, `supabase/tests/rls_{gamification,proof,notifications,whatsapp}.test.sql`, `packages/data/src/database.types.ts`, quatro handoffs `20261103-0328-banco-de-dados-para-*`
+- **Migrations:** as 11 acima.
+- **Decisões/ADRs:** o saldo do teto por ocorrência com piso zero (a confirmar pelo `arquiteto`).
+- **Como testar:** `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`.
+- **Verificado:** `pnpm db:test` passou (6 arquivos, 1474 testes); `pnpm db:check-permissions` passou (`Gamification rules in sync`); `pnpm check` passou. Os 11 casos canônicos e as quatro metas da seção 3 passam no pgTAP. Mutações, uma por barreira, desfeitas com `db reset`: saldo do teto por soma simples dá 600 (1 falha); sem o lock (1 falha); `user_day_stats` legível por todos (2 falhas); ranking sempre ligado (3 falhas); conquista revogada ao reabrir (falha o teste do laço). Duas sessões reais concluindo ao mesmo tempo com 290 de saldo gravaram só 10.
+- **Não verificado:** `pnpm functions:test` falha em 4 testes de prova que contam 1 evento e agora veem 2 (o bônus), fora do meu escopo (handoff ao `backend-funcoes`). `pnpm e2e` não rodou nenhum teste: 7 specs falham ao carregar `supabase/functions/_shared/local-stack.mjs` ("Cannot use 'import.meta' outside a module"), arquivos que esta branch não toca. Projeto hospedado.
+- **Pendências / próximos passos:** `capRoom` com a regra por ocorrência (`gamificacao`); texto da seção 2 (`arquiteto`); `footer` do resumo (`notificacoes-whatsapp`); o job novo no `e2e/global-setup.ts` (`qa-testes`); revisão de `revisor-seguranca`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:39 (BRT)
+
+- **Branch:** docs/gamification-cap-per-occurrence, criada a partir de feat/phase-6-gamification (29bcc26)
+- **Agente(s):** arquiteto
+- **Resumo:** Aceita no ADR-0010 a regra do teto por ocorrência que o `banco-de-dados` aplicou na F6-2 (handoff `20261103-0328-banco-de-dados-para-arquiteto-teto-por-ocorrencia`) e registra duas decisões de comemoração do `gamificacao`. Só texto. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - ADR-0010, seção 2: o saldo do dia é `Σ max(0, saldo da ocorrência hoje)`, agrupando por `coalesce(occurrence_id, id do evento)`, com o `min` mantido; o exemplo de reabrir 300 de ontem e concluir 21 difíceis, que a soma simples deixava chegar a 600; reconcluir hoje o reaberto de outro dia não consome o teto.
+  - ADR-0010, seção 8: reduzir movimento não desliga som nem vibração (decisão de `gamificacao`, a confirmar pelo humano, também no item 10 da seção 13); o cartão de comemoração fica no centro e fecha sozinho em 6 s.
+  - Handoff `20261103-0235-arquiteto-para-banco-de-dados-gamificacao`: item 3 e o teste do teto com compensação de outro dia com a regra nova.
+- **Arquivos/módulos principais:** `docs/adr/0010-gamificacao-xp-ofensiva-conquistas-ranking.md`, `docs/agentes/handoffs/20261103-0235-arquiteto-para-banco-de-dados-gamificacao.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0010, seções 2, 8 e 13, atualizadas.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou.
+- **Não verificado:** nada de código; o `capRoom` do core está sendo ajustado pelo `gamificacao` em outra branch, e a migration do banco não foi relida contra o texto.
+- **Pendências / próximos passos:** confirmar com o humano o item 10 da seção 13.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:40 (BRT)
+
+- **Branch:** feat/summary-streak-footer, criada a partir de feat/phase-6-gamification (29bcc26)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** O rodapé do resumo diário mostra a ofensiva e a meta de hoje (ADR-0010, seção 9; handoffs `20261103-0235-arquiteto-para-notificacoes-whatsapp-ofensiva-no-resumo` e `20261103-0328-banco-de-dados-para-notificacoes-whatsapp-ofensiva-no-claim`). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `buildDailySummary`: `footer` vem de `footer(streak, t)`. `streak` nulo: o fecho neutro de antes. `current > 0`: "Ofensiva de N dias."; `current = 0`: "Comece uma ofensiva hoje."; depois, "Meta de hoje: N tarefas." quando `goalToday` não é nulo nem 0. Cada pedaço é um `t` com um só `count`, dentro do `t` curto do despacho; `clip` no orçamento do `footer` e `cleanParam` como os outros parâmetros.
+  - `notifications.json`: `whatsapp.summary.streak.{days,goal}_{one,other}` e `whatsapp.summary.streak.start`.
+  - Testes: sete casos de rodapé (nulo, com ofensiva, singular, sem meta, ofensiva 0 com e sem meta, meta 0) e o orçamento.
+- **Arquivos/módulos principais:** `packages/core/src/notifications/whatsapp.ts`, `packages/core/src/notifications/whatsapp.test.ts`, `packages/i18n/src/pt-BR/notifications.json`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** `goalToday = 0` (só sairia de uma meta de 0%) é lido como sem meta, para não escrever "0 tarefa". Template `daily_summary_v1` sem mudança; nenhum import novo no grafo do despacho.
+- **Como testar:** `pnpm --filter @azkaban/core exec vitest run src/notifications/whatsapp.test.ts`; `pnpm check`.
+- **Verificado:** `whatsapp.test.ts` 53 testes; `pnpm check` passou (core 684 testes; `functions:imports` 8 de 8).
+- **Não verificado:** `pnpm functions:test`, E2E `e2e/whatsapp.spec.ts` com perfil de ofensiva conhecida (sem pilha), mensagem real na Meta.
+- **Pendências / próximos passos:** os comentários de `dailySummarySourceSchema.streak` e `dailySummaryRenderSchema.footer` em `packages/contracts` ainda dizem "até a Fase 6" (`arquiteto`).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:44 (BRT)
+
+- **Branch:** feat/gamification-live, criada a partir de feat/phase-6-gamification (29bcc26)
+- **Agente(s):** gamificacao (com delegação do orquestrador para `packages/data`, as rotas de `apps/app` e a E2E)
+- **Resumo:** F6-3 a F6-5 ligadas ao banco: `capRoom` com a regra do banco, repositório real, telas montadas nas rotas e a E2E da gamificação. Responde ao handoff `20261103-0328-banco-de-dados-para-gamificacao-f6-2-pronto`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `capRoom(eventsToday, dailyCap)`: soma os motivos com teto por ocorrência (o `id` do evento quando `occurrenceId` é nulo), cada ocorrência com piso zero, e `min(teto, max(0, teto − saldo))`, como `occurrence_award_xp`. Recebe agora `id` e `occurrenceId`. Testes novos: reabrir hoje 300 de ontem e concluir 21 difíceis grava 300; `[A −300, B +30]` dá 270; reconcluir hoje o reaberto não gasta o teto; bônus de prova somado à ocorrência; evento sem ocorrência conta sozinho.
+  - `packages/data/src/gamification`: `gamificationRepository` (stats, dias, conquistas, concedidas, eventos com teto desde um instante, `group_ranking` com `RankingError`, `groups.settings` por `groupSettingsSchema` com leitura, mescla e escrita, e `subscribe` por `postgres_changes` de `INSERT` em `xp_events` e `user_achievements` filtrados por `user_id`). Linhas lidas passam pelos schemas de `packages/contracts`; motivo ou tipo desconhecido fica de fora.
+  - `packages/features/gamification`: `gamificationSource` é o repositório; o fake foi apagado. `RankingError` e `GamificationRow` vêm de `@azkaban/data`. `useCapReached` pede os eventos desde a meia-noite do fuso do perfil (`zonedInstant`), onde o banco começa a contar.
+  - `apps/app`: `CelebrationHost` no layout autenticado, `StreakChip` em `headerStreak` de Hoje (abre o perfil), `ProgressPanel` no `ProfileScreen`, `GroupRanking` no `GroupDetailScreen`; dependência `@azkaban/feature-gamification`.
+  - `e2e/gamification.spec.ts`: XP, comemoração com confete, anel da meta, ofensiva no chip e conquista "primeira tarefa"; a comemoração sem confete com reduzir movimento; ranking ligado em grupo família e desligado em empresa até o dono ligar; teto atingido sem evento, sem comemoração e com o aviso no perfil.
+- **Arquivos/módulos principais:** `packages/core/src/gamification/xp{,.test}.ts`, `packages/data/src/{gamification/index.ts,index.ts}`, `packages/features/gamification/src/{source,hooks}.ts`, `apps/app/app/(app)/{_layout.tsx,(tabs)/index.tsx,(tabs)/profile.tsx,groups/[id].tsx}`, `apps/app/package.json`, `pnpm-lock.yaml`, `e2e/gamification.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova; o core segue o desvio do banco que o `arquiteto` ainda confirma.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/gamification/xp.test.ts`; com a pilha A: `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm exec playwright test e2e/gamification.spec.ts`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 10 de 10; core 680 testes, `xp.test.ts` 17). `pnpm build:web` passou. `playwright test --list` carrega as 4 specs novas. Mutações, desfeitas: soma simples sem o piso por ocorrência derruba 2 de 17; agrupar pelo `id` do evento em vez da ocorrência derruba 3 de 17.
+- **Não verificado:** a E2E não rodou, porque a pilha A estava ocupada pelo QA da Fase 7 durante toda a tarefa; o repositório nunca falou com um banco real; nenhuma tela foi aberta num navegador.
+- **Pendências / próximos passos:** rodar `e2e/gamification.spec.ts` com a pilha A livre. O comentário de `20261103170400_occurrence_award_xp_cap.sql` ainda diz que `capRoom` soma sem o piso, mas a migration já foi integrada e não se edita.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:49 (BRT)
+
+- **Branch:** `fix/proof-tests-xp-bonus`, a partir de `feat/phase-6-gamification` (`c5e5526`)
+- **Agente(s):** backend-funcoes
+- **Resumo:** os testes de integração de prova passam a esperar o bônus de prova da Fase 6 (handoff 20261103-0328), conferindo motivo e valor de cada evento, não só a contagem.
+- **Alterações:**
+  - `_shared/proof-kit.ts`: `xpOf(occurrenceId)` devolve os eventos como `reason=amount` ordenados, ou `none`; `PAID_WITH_PROOF` é `occurrence_done=10,proof_bonus=5`, derivado de `taskRules.xp` e `gamificationRules.xp.proofBonus`.
+  - `proof-validate/validate.integration.test.ts`: "without approval" espera base e bônus.
+  - `proof-retention/retention.integration.test.ts`: o helper local `xp` (contagem) sai; a aprovação pela retenção, a retomada de uma execução interrompida e a prova vencida há um ano esperam base e bônus, e a segunda execução não duplica nenhum dos dois.
+- **Arquivos/módulos principais:** `supabase/functions/_shared/proof-kit.ts`, `supabase/functions/proof-validate/validate.integration.test.ts`, `supabase/functions/proof-retention/retention.integration.test.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0010, seção 1 (bônus de prova). Código das funções inalterado.
+- **Como testar:** `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm functions:test`. Rodado aqui só `pnpm check` e `node --test supabase/functions/_shared/import-maps.test.ts`, sem pilha.
+- **Pendências / próximos passos:** rodar `pnpm functions:test` com a pilha. Os E2E que leem `xp_events` (`proof-paths`, `notifications-jobs`, `gamification`) somam valores ou não têm prova, e não devem quebrar; não foram rodados.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:51 (BRT)
+
+- **Branch:** chore/security-phase-6, criada a partir de feat/phase-6-gamification (93321a5)
+- **Agente(s):** revisor-seguranca
+- **Resumo:** Primeira passada da revisão de segurança da Fase 6 (gamificação), só leitura e sem pilha, sobre `feat/phase-5-whatsapp..feat/phase-6-gamification`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Achados: SEG6-1 (média) trocar `profiles.timezone` reabre o teto diário; SEG6-2 (média) ocorrência de 2000 faz `refold_streak` dobrar milhares de dias por linha e trava o vermelho automático de todos; SEG6-3 (baixa) reconcluir num grupo o XP privado de outro dia não consome o teto; SEG6-4 (baixa) `group_ranking` com semana e fuso livres dá o XP diário por diferença e expõe a história ao ligar; SEG6-5 (baixa) `close_gamification_days` com `for update` em `profiles` segura os `insert` com chave estrangeira e um perfil com erro para o lote; SEG6-6 (informativo) `DELETE` de `user_achievements` pelo Realtime leva o `user_id`; LGPD para F8-3.
+  - Bom: RLS das quatro tabelas, `revoke` das funções internas, ranking com filiação antes de tudo, ex-membros e privadas fora, `rankingEnabled` só por `group.update`, lock antes da soma, compensação do bônus de prova, dia perfeito idempotente, `daily_summary_source` só com dados do próprio usuário, nenhum segredo no diff.
+  - Handoffs `20261103-0350-revisor-seguranca-para-banco-de-dados-gamificacao` e `20261103-0350-revisor-seguranca-para-arquiteto-gamificacao`.
+- **Arquivos/módulos principais:** os dois handoffs acima
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma; SEG6-1, SEG6-3 e SEG6-4 pedem decisão do `arquiteto` no ADR-0010.
+- **Como testar:** PoC de SEG6-1 em Node puro (Intl, mesma janela da migration): 10.500 pontos em 24 h com 35 zonas IANA, contra o teto de 300.
+- **Verificado:** leitura das 11 migrations, do ADR-0010, de `set_occurrence_status`, `auto_miss_occurrences`, das políticas de `groups`, `profiles` e `xp_events`, e da fonte de dados da feature; `pnpm check`.
+- **Não verificado:** nenhum PoC de banco (sem pilha nesta passada; cinco listados no handoff ao `banco-de-dados`); o repositório real e a montagem nas rotas de `gamificacao`, em andamento; o filtro do Realtime no cliente; o projeto hospedado.
+- **Pendências / próximos passos:** segunda passada na pilha, com os PoCs de banco e o repositório de `gamificacao` (inclusive `setRankingEnabled`, que lê, mescla e grava `groups.settings` e pode perder uma chave gravada ao mesmo tempo).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:00 (BRT)
+
+- **Branch:** docs/gamification-security-decisions, criada a partir de feat/phase-6-gamification (8e6fe77)
+- **Agente(s):** arquiteto
+- **Resumo:** decisões sobre a primeira passada da revisão de segurança da Fase 6 (handoffs `20261103-0350-revisor-seguranca-para-*-gamificacao`), na seção 14 do ADR-0010, com config e contrato. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - SEG6-1: o teto passa a janela móvel de 24 h, sem fuso; `profiles.timezone` validado contra `pg_timezone_names`. Dia perfeito e ofensiva seguem por dia local.
+  - SEG6-2: piso da história `greatest(criação do perfil − 1, hoje − 400)` para contar, dobrar e recalcular; bônus de dia perfeito só desde a criação; uma dobra por usuário por comando.
+  - SEG6-3: saldo da janela por `(ocorrência, group_id)`, espelhado em `capRoom`.
+  - SEG6-4: `group_ranking(p_group_id, p_week_start)` com o fuso de quem chama lido no servidor, semana alinhada a `ranking.weekStartsOn`, só as últimas 2 semanas, e soma a partir de `greatest(início da semana, groups.ranking_enabled_at, joined_at)`; coluna escrita só por trigger.
+  - SEG6-5 confirmado; SEG6-6 risco aceito, com o caminho de chave substituta ou Broadcast; LGPD para F8-3 (exportação, retenção enquanto a conta existir, texto da tela de transparência).
+  - Config: `gamificationRules.xp.capWindowHours`, `ranking.weekStartsOn`, `ranking.maxWeeks`, `historyDays`; `gamificationDefaults.rankingWeekStartsOn` aponta para o novo até a feature trocar.
+  - Contrato: comentário de `groupRankingInputSchema` (o `timezone` sai com o repositório, pelo `gamificacao`); comentários de `streak` e `footer` do resumo diário sem "até a Fase 6".
+- **Arquivos/módulos principais:** `docs/adr/0010-gamificacao-xp-ofensiva-conquistas-ranking.md`, `packages/config/src/gamification.ts`, `packages/contracts/src/{gamification,whatsapp}.ts`, dois handoffs `20261103-0400-arquiteto-para-*`
+- **Migrations:** nenhuma (o `banco-de-dados` faz as do handoff)
+- **Decisões/ADRs:** ADR-0010, seção 14, e itens 11 a 15 da seção 13.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (17 de 17; core 688 testes; `functions:imports` 8 de 8).
+- **Não verificado:** `pnpm db:check-permissions` (sem pilha); ele acusa as quatro chaves novas até a migration do banco.
+- **Pendências / próximos passos:** migrations do `banco-de-dados` e a troca de `capRoom`, `useCapReached` e do repositório do ranking pelo `gamificacao`, integradas juntas; o humano confirma os itens 11 a 15.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:07 (BRT)
+
+- **Branch:** chore/qa-phase-6, criada a partir de feat/phase-6-gamification (058bce3)
+- **Agente(s):** qa-testes
+- **Resumo:** QA da Fase 6 no estado integrado. `e2e/gamification.spec.ts` rodou pela primeira vez e passa; E2E completa, testes de funções e `pnpm check` verdes. Cinco achados de uso, nenhum bloqueante, num handoff ao `gamificacao`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `e2e/global-setup.ts`: `close-gamification-days` desligado durante a E2E, junto dos outros jobs de relógio.
+  - `e2e/gamification.spec.ts`: o chip com 0 aceita "0 dia" e "0 dias" (`/^0 dias? de ofensiva$/`), porque a regra de plural do português põe o 0 no singular (QA6-1). O resto da spec passou como estava e cobre XP, comemoração com e sem reduzir movimento, meta no anel, ofensiva no chip, "Primeira tarefa", dia perfeito, ranking em família ligado, em empresa desligado e ligado pelo dono, e teto sem evento nem comemoração.
+  - Handoff `20261103-0405-qa-testes-para-gamificacao-achados-da-fase-6`: QA6-1 a QA6-5.
+- **Arquivos/módulos principais:** `e2e/global-setup.ts`, `e2e/gamification.spec.ts`, o handoff acima
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm exec playwright test e2e/gamification.spec.ts --project=app`; `pnpm e2e` com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória.
+- **Verificado:** `gamification.spec.ts` 4 de 4. `pnpm e2e` completo uma vez: 74 ok, 0 falhas, 1 pulado (o "sem chave VAPID"), incluindo as specs antigas de tarefa e prova com o bônus e o teto. `pnpm functions:test` 178 de 178. `pnpm check` passou (17 de 17 e 10 de 10; core 688). Percurso temporário (não commitado) de Hoje com o chip, cartão de comemoração, Perfil com o painel, ranking no grupo e tela de dia perfeito a 320, 375 e 1280 px, claro e escuro, e com reduzir movimento a 375 escuro: sem rolagem lateral, sem texto cortado, nenhum alvo abaixo de 44 px, foco visível em todas as paradas do Perfil, confete ausente com reduzir movimento, tela de dia perfeito como `dialog` nomeado que prende o foco, fecha com Esc e devolve o foco. Duas sondas confirmaram QA6-2 (uma tarefa só: cartão da conquista, sem tela de dia perfeito) e QA6-3 (meta cumprida no teto: banco com ofensiva 1, chip em 0).
+- **Não verificado:** leitor de tela real (só papéis e rótulos no DOM), som e vibração num aparelho, Safari e iPhone, o caso da "Semana perfeita" de QA6-2 (inferido do código), o caso da foto em análise de QA6-3, projeto hospedado. Sem mutação.
+- **Pendências / próximos passos:** `docs/agentes/QUADRO.md` ainda tem F6-1 a F6-5 "a fazer" (item da seção 10, do orquestrador). Achados com o `gamificacao`; depois de QA6-1, apertar a E2E para "0 dias".
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:07 (BRT)
+
+- **Branch:** fix/gamification-client-security, criada a partir de feat/phase-6-gamification (6bb8f33)
+- **Agente(s):** gamificacao
+- **Resumo:** lado do cliente das decisões SEG6-1, SEG6-3 e SEG6-4 (ADR-0010, seção 14; handoff 20261103-0400-arquiteto-para-gamificacao). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - SEG6-1: `useCapReached` pede os eventos desde `now − capWindowHours`, sem fuso nem `zonedInstant`; a chave não leva o dia, uma rajada a refaz por `gamificationKey` e o relógio a cada `gamificationUi.capRefreshMs` (5 min). O aviso diz "nas últimas 24 horas".
+  - SEG6-3: `capRoom` agrupa por `(occurrenceId ?? id, groupId)`; `listCapEventsSince` e o Realtime levam `group_id`, e `XpEventItem` ganha `groupId`.
+  - SEG6-4: `groupRanking` chama `group_ranking(p_group_id, p_week_start)`; `groupRankingInputSchema` perde `timezone` (delegado pelo `arquiteto`); `useRanking` usa `gamificationRules.ranking.weekStartsOn` e só a semana corrente; `gamificationDefaults.rankingWeekStartsOn` apagado. O estado vazio explica que o ranking conta desde que foi ligado e desde a entrada.
+  - `database.types.ts`: a linha de `group_ranking` sem `p_timezone`, à mão, para o build passar até o `banco-de-dados` regenerar.
+  - E2E: textos novos do teto e do ranking vazio; o teto já não dependia da meia-noite.
+- **Arquivos/módulos principais:** `packages/core/src/gamification/xp{,.test}.ts`, `packages/data/src/{gamification/index.ts,database.types.ts}`, `packages/contracts/src/gamification.ts`, `packages/config/src/gamification.ts`, `packages/features/gamification/src/{hooks,config}.ts`, `packages/i18n/src/pt-BR/gamification.json`, `e2e/gamification.spec.ts`
+- **Migrations:** nenhuma (a do `banco-de-dados` entra junto)
+- **Decisões/ADRs:** ADR-0010, seção 14. Nenhuma nova.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/gamification/xp.test.ts`; com a pilha e a migration, `pnpm exec playwright test e2e/gamification.spec.ts`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 10 de 10; core 689 testes, `xp.test.ts` 18; `functions:imports` 8 de 8). `pnpm build:web` passou. `playwright test --list` carrega as 4 da spec. Mutação, desfeita: agrupar só pela ocorrência, sem `groupId`, derruba 1 de 18.
+- **Não verificado:** a E2E não rodou (pilha ocupada); o repositório não falou com um banco, e `group_ranking` de dois argumentos só existe com a migration; nenhuma tela aberta num navegador.
+- **Pendências / próximos passos:** integrar com a migration do `banco-de-dados`, deixando prevalecer o `database.types.ts` regenerado; rodar a E2E com a pilha.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:16 (BRT)
+
+- **Branch:** fix/gamification-client-security, depois do merge de feat/phase-6-gamification (e9509c6)
+- **Agente(s):** gamificacao
+- **Resumo:** achados do QA da Fase 6 (handoff 20261103-0405-qa-testes-para-gamificacao). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree. No merge, o `log-merge.cjs` juntou o cabeçalho da entrada do `qa-testes` com o meu, que tinham o mesmo texto ("04:07"); o cabeçalho foi reposto à mão.
+- **Alterações:**
+  - QA6-2: `celebrationsFor` põe o `perfect_day` sempre primeiro, e o `CelebrationHost` abre a tela de dia perfeito com conquista, nível e marco como linhas. Handoff ao `arquiteto` para o texto da seção 8.
+  - QA6-3: o `CelebrationHost` relê `user_stats` depois de toda mutação bem-sucedida, o que cobre a conclusão sem evento (no teto ou com foto em análise). Não precisou do banco nem de `tasks`. O marco da ofensiva desse caso continua só na próxima rajada.
+  - QA6-4: precisa de um slot no `ProfileScreen`; fica para o `auth-grupos`, com handoff.
+  - QA6-5: "Últimos dias" começa no dia local da criação do perfil (`recentDays` no core e `getMemberSince` no repositório), com hoje sempre presente.
+  - QA6-1: `streak.days_zero` e `streak.best_zero` ("0 dias"); a E2E agora espera `'0 dias de ofensiva'`.
+- **Arquivos/módulos principais:** `packages/core/src/gamification/{celebrations,streak}{,.test}.ts`, `packages/core/src/index.ts`, `packages/data/src/gamification/index.ts`, `packages/features/gamification/src/{CelebrationHost,ProgressPanel}.tsx`, `packages/features/gamification/src/{hooks,source}.ts`, `packages/i18n/src/pt-BR/gamification.json`, `e2e/gamification.spec.ts`, três handoffs `20261103-0415-gamificacao-para-*`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** o dia perfeito ganha a tela (ADR-0010, seção 8, com o texto pedido ao `arquiteto`).
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/gamification`; com a pilha, a E2E inteira.
+- **Verificado:** `pnpm check` passou (17 de 17 e 10 de 10; core 692; `functions:imports` 8 de 8). `pnpm build:web` passou. Mutações, desfeitas: sem a prioridade do dia perfeito, cai 1 teste de `celebrations.test.ts`; sem o piso de um dia em `recentDays`, cai 1 de `streak.test.ts`.
+- **Não verificado:** nenhuma E2E rodou. Risco: uma conta nova que conclui a única tarefa do dia agora vê a tela de dia perfeito, que bloqueia a tela, em vez do cartão. `tasks.spec.ts` ("quick create…") e outras specs devem travar nela (handoff ao `qa-testes`). A releitura das stats não foi vista num navegador.
+- **Pendências / próximos passos:** rodar a E2E inteira e fechar o `dialog` onde ele travar; o slot do `auth-grupos`; o texto do ADR pelo `arquiteto`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:21 (BRT)
+
+- **Branch:** fix/gamification-db-security, criada a partir de feat/phase-6-gamification (6bb8f33)
+- **Agente(s):** banco-de-dados
+- **Resumo:** correções de banco da revisão de segurança da Fase 6 (ADR-0010, seção 14), SEG6-1 a SEG6-5 e a nota de tarefas arquivadas, com os cinco PoCs do revisor como testes. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - SEG6-1: teto em janela móvel de `xp.capWindowHours` (24 h), sem fuso; `profiles.timezone` validado por trigger com `is_valid_timezone`, `invalid_timezone` (22023), depois de devolver as linhas inválidas ao padrão.
+  - SEG6-2: piso `gamification_history_floor` (criação local − 1 ou hoje − `historyDays`) na contagem, na dobra e no recálculo; `perfect_day` só desde o dia local da criação; o trigger de status passa a `for each statement` com tabelas de transição: um `refresh` por (usuário, dia) e uma dobra por usuário a partir do menor dia. `refresh_user_day` saiu (só o trigger antigo chamava).
+  - SEG6-3: saldo da janela por `(coalesce(occurrence_id, id), group_id)`.
+  - SEG6-4: `group_ranking(p_group_id, p_week_start)`, fuso de quem chama, semana alinhada a `ranking.weekStartsOn` e só as últimas `ranking.maxWeeks`; `groups.ranking_enabled_at` escrita só por trigger, com backfill `now()` nos grupos ligados; soma desde `greatest(semana, ranking_enabled_at, joined_at)`.
+  - SEG6-5: `close_gamification_days` com `for no key update of p skip locked` e um subbloco com `exception` por perfil, que não avança `last_closed_date` de quem falhou.
+  - `user_day_counts` ignora tarefas arquivadas, como Hoje e o resumo diário.
+  - Espelho de `gamification_rules` com `xp.capWindowHours`, `ranking.weekStartsOn`, `ranking.maxWeeks` e `historyDays`.
+  - Testes: `rls_gamification_security.test.sql` (46); `rls_gamification.test.sql` ajustado ao piso (perfis com a criação recuada) e ao ranking novo; `rls_whatsapp.test.sql` desliga o trigger novo para simular um fuso antigo inválido.
+- **Arquivos/módulos principais:** `supabase/migrations/20261103180000..180600`, `supabase/tests/rls_gamification_security.test.sql`, `supabase/tests/rls_gamification.test.sql`, `supabase/tests/rls_whatsapp.test.sql`, `packages/data/src/database.types.ts` (gerado), handoff `20261103-0421-banco-de-dados-para-gamificacao-seguranca-gamificacao`
+- **Migrations:** `20261103180000_gamification_rules_security`, `20261103180100_profile_timezone_valid`, `20261103180200_occurrence_award_xp_rolling_window`, `20261103180300_gamification_history_floor`, `20261103180400_user_day_counts_archived`, `20261103180500_group_ranking_since_enabled`, `20261103180600_close_gamification_days_skip_locked`
+- **Decisões/ADRs:** nenhuma nova; implementa a seção 14 do ADR-0010.
+- **Como testar:** `bash docs/agentes/ferramentas/pilha-b.sh db`, `pnpm exec supabase db reset`, `pnpm db:test`, `bash docs/agentes/ferramentas/pilha-b.sh run pnpm db:check-permissions`.
+- **Verificado:** na pilha B, `pnpm db:test` 7 arquivos, 1520 testes, todos passando; `pnpm db:check-permissions` em sincronia (contêiner `supabase_db_azkaban-b`, regras de gamificação incluídas); `pnpm check` passou. PoC 2: `auto_miss_occurrences` com 500 ocorrências de 2000 a 2025 de uma pessoa levou 338 a 444 ms, sem nenhuma linha em `user_day_stats` (teto do teste: 5 s). Mutações, cada uma derrubando o seu teste: janela pelo fuso (1 falha), sem validação de fuso (3), sem piso (4), saldo sem `group_id` (2), ranking sem `ranking_enabled_at` (1), sem `joined_at` (1), e `for update` no lugar de `for no key update` (1, lido por `pgrowlocks`).
+- **Não verificado:** a espera real entre duas sessões do PoC 5 (o teste lê o modo do lock por `pgrowlocks` numa sessão só); o tempo do código antigo no PoC 2 (sem piso, mas já com uma dobra por comando, foram 979 ms); se o `Intl` aceita zonas que `pg_timezone_names` recusa (o inverso o `db:check-permissions` já confere); E2E e Edge Functions; o projeto hospedado.
+- **Pendências / próximos passos:** integrar junto com a troca do repositório do ranking, de `groupRankingInputSchema` e de `capRoom` pelo `gamificacao`; até lá o repositório manda `p_timezone` e o PostgREST não acha a função.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:38 (BRT)
+
+- **Branch:** chore/security-phase-6, com `git merge feat/phase-6-gamification` (f12607f, avanço rápido)
+- **Agente(s):** revisor-seguranca
+- **Resumo:** Segunda passada da revisão de segurança da Fase 6, na pilha B só com Postgres. Os cinco PoCs de banco rodaram contra o código integrado, como cliente hostil (RPC `set_occurrence_status` com JWT de usuário), e SEG6-1 a SEG6-5 fecharam. Nenhum achado novo que peça correção; dois informativos. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - PoC SEG6-1: 10 difíceis (300), troca para `Pacific/Kiritimati`, a 11ª conclui com 0 pontos; `'<X>-13:37'` recusado com `invalid_timezone`. Soma na janela: 300.
+  - PoC SEG6-2: 500 tarefas avulsas de 2000 a 2026; `auto_miss_occurrences()` marcou 500 em 215 ms, nenhuma linha em `user_day_stats`; o dono de um grupo conclui uma de 2001 sem janela e não ganha dia perfeito. Resíduo dentro do piso (perfil de 500 dias, 500 tarefas nos últimos 398 dias): 296 ms, 398 linhas.
+  - PoC SEG6-3: 10 privadas concluídas há 25 h, mudadas para `group`, reabertas e reconcluídas, mais 10 novas no grupo: XP de grupo na janela 300 (com o bug seria 600).
+  - PoC SEG6-4: semana alinhada responde; deslocada de um dia e de três semanas atrás dão `invalid_argument`; a assinatura de três argumentos sumiu; `update` de `ranking_enabled_at` pelo cliente dá `permission denied`; desligar zera a coluna e religar a renova; não membro e grupo inexistente dão o mesmo `forbidden`.
+  - PoC SEG6-5: um perfil que falha vira `warning` e não avança `last_closed_date`, e o outro do lote fecha; o job usa `for no key update of p skip locked`.
+  - Cliente: `subscribe` só assina `INSERT` com `user_id=eq.<id>` nas duas tabelas, e a RLS continua sendo a barreira; `setRankingEnabled` lê, mescla e grava, mas hoje nenhum outro código grava `groups.settings`, então não há chave a perder (o comentário `ponytail` já nomeia o teto); `ranking_enabled_at` fica fora do `grant update (name, settings)`.
+  - SEG6-7, informativo: o bloco de exceção por perfil abre uma subtransação com escrita para cada um dos até 200 perfis do lote; passando de 64 numa transação, ela fica em overflow de subtransações enquanto roda, e os snapshots das outras sessões passam a consultar `pg_subtrans`. Curto e a cada 15 minutos; vigiar, ou baixar `closeJob.batchSize` para 64 se a carga aparecer.
+  - SEG6-8, informativo: quem tem `group.update` pode desligar e religar o ranking para mover `ranking_enabled_at` e, por diferença entre consultas, ler o XP de cada membro entre dois instantes. É o admin, que já vê os status na Equipe (ADR-0010, seção 7); fica registrado.
+- **Arquivos/módulos principais:** `LOG_DE_ALTERACOES.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma
+- **Como testar:** `bash docs/agentes/ferramentas/pilha-b.sh db`, `pnpm exec supabase db reset` e os cenários acima com `psql` no `supabase_db_azkaban-b`, dentro de uma transação desfeita; `supabase/tests/rls_gamification_security.test.sql` cobre os mesmos.
+- **Verificado:** os cinco PoCs e o resíduo acima; `pnpm check`. Pilha B parada no fim.
+- **Não verificado:** a espera real de um `insert` durante o lote do job em duas sessões (conferido pelo código e pela semântica de `for no key update`); `pnpm db:test` inteiro; o Realtime em execução; o projeto hospedado.
+- **Pendências / próximos passos:** nenhuma de segurança na Fase 6.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 05:00 (BRT)
+
+- **Branch:** chore/qa-phase-6-close, criada a partir de feat/phase-6-gamification (f12607f)
+- **Agente(s):** qa-testes
+- **Resumo:** fechamento do QA da Fase 6, com as correções SEG6 e QA6 integradas. A tela de dia perfeito travou só uma spec, corrigida no próprio teste; a E2E agora confere o teto de 24 h, o ranking só da semana e desde que foi ligado, o chip sem XP, "0 dias" e "Últimos dias". Um defeito novo, QA6C-1 (o cartão de comemoração bloqueia a tela), num handoff ao `gamificacao`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `e2e/tasks.spec.ts`: "quick create…" espera a tela de dia perfeito (`dialog` "Dia perfeito!") depois de concluir a única tarefa e a fecha em "Continuar". Foi a única spec que travou; um ajudante geral não se pagou.
+  - `e2e/gamification.spec.ts`: `quickCreate` espera a tarefa na lista, não só o aviso (o do anterior podia estar aberto); "Últimos dias" com uma linha só, a de hoje (QA6-5); ranking ignora 50 XP de 8 dias atrás com grupo ligado e membro há 30 dias, e ignora o XP ganho na empresa antes de ligar (SEG6-4); no teto, 4 de 5 tarefas cumprem a meta e o chip vai a "1 dia de ofensiva" sem evento nem conquista nova (QA6-3); o "sem comemoração" do teto passa a contar uma vez, porque o `toHaveCount(0)` repetia até o cartão fechar sozinho e escondia a conquista "Primeira tarefa", agora concedida antes; teste novo de QA6C-1 com `test.fail()`.
+  - Handoff `20261103-0453-qa-testes-para-gamificacao-cartao-bloqueia-a-tela`: QA6C-1 (média), QA6C-2 e QA6C-3 (baixas).
+- **Arquivos/módulos principais:** `e2e/tasks.spec.ts`, `e2e/gamification.spec.ts`, o handoff acima
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma; QA6C-2 pede ao `arquiteto` alinhar o texto do ADR-0010 sobre comemoração no teto.
+- **Como testar:** `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm exec playwright test e2e/gamification.spec.ts e2e/tasks.spec.ts --project=app`; `pnpm e2e` com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória.
+- **Verificado:** `pnpm e2e` completo uma vez, com a chave VAPID e antes do teste de QA6C-1: 72 ok, 2 falhas, 1 pulado (o "sem chave VAPID"). As falhas são de `notifications-jobs` ("the red-by-default job…", com o "Fechar aviso" coberto pelo invólucro do cartão, causa confirmada; e "a reminder that is due…", causa provável a mesma, não confirmada). As 4 de `notifications-jobs` passaram antes, sozinhas (`--no-deps`). Depois, `gamification.spec.ts` 5 de 5 (um esperado-falho) e `tasks.spec.ts` "quick create…" 1 de 1. `pnpm functions:test` 178 de 178 (rodou duas vezes; a primeira saída não foi capturada). `pnpm check` passou (17 de 17 e 10 de 10; core 692; `functions:imports` 8 de 8). Pilha A parada com `supabase stop`.
+- **Não verificado:** a E2E completa depois do teste de QA6C-1 (só a spec); a causa da segunda falha de `notifications-jobs`; QA6C-3 não se repetiu; a "Semana perfeita" com a tela de dia perfeito; leitor de tela real, Safari, iPhone; projeto hospedado. Sem mutação.
+- **Pendências / próximos passos:** QA6C-1 com o `gamificacao`; depois dele, tirar o `test.fail()` e rodar a E2E completa, que deve voltar a verde em `notifications-jobs`. `docs/agentes/QUADRO.md` é do orquestrador.
+
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:33 (BRT)
 
 - **Branch:** docs/shopping-adr, criada a partir de feat/phase-5-whatsapp (cd98617)
@@ -1762,22 +2155,6 @@
 - **Verificado:** `pnpm check` passa (core com 617 testes). Mutação: tirar `shopping.complete_list` de `member` fez 1 teste falhar; restaurado.
 - **Não verificado:** `pnpm db:check-permissions`, sem pilha e com a migration ainda em andamento. Hora derivada de UTC menos 3, porque o PowerShell foi bloqueado.
 - **Pendências / próximos passos:** entrar no mesmo merge da migration de permissões de `banco-de-dados`.
-
-### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:41 (BRT)
-
-- **Branch:** fix/local-stack-cjs, criada a partir de feat/phase-5-whatsapp (`24f76cd`)
-- **Agente(s):** backend-funcoes
-- **Resumo:** `pnpm e2e` voltou a carregar as specs. O Playwright compila as specs, e com elas `proof-kit.ts` e `local-stack.mjs`, para CommonJS, onde o `import.meta` que achava o `config.toml` não existe: 0 testes em 0 arquivos. Agora `local-stack.mjs` acha `supabase/config.toml` subindo a partir de `process.cwd()`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
-- **Alterações:**
-  - `findConfig(from)` em `local-stack.mjs`, sem `import.meta`; o ambiente vence o config e um config sem as chaves continua lançando erro.
-  - Teste novo: o config é achado a partir de uma pasta interna e da raiz do checkout.
-- **Arquivos/módulos principais:** `supabase/functions/_shared/local-stack.mjs`, `supabase/functions/_shared/local-stack.test.ts`
-- **Migrations:** nenhuma
-- **Decisões/ADRs:** nenhuma. Os comandos precisam rodar de dentro do checkout, como já fazem todos os scripts do `package.json`.
-- **Como testar:** `node --test supabase/functions/_shared/local-stack.test.ts`, `pnpm exec playwright test --list`, `pnpm functions:test` e `pnpm e2e`, na pilha A.
-- **Verificado (pilha A, banco limpo):** antes, `playwright test --list` dava o `SyntaxError` e 0 testes; depois, 71 testes em 18 arquivos. `local-stack.test.ts`: 7 de 7. `pnpm functions:test`: 178 de 178. `pnpm e2e` com uma chave VAPID gerada em memória: 70 passaram, 1 pulado (o que só roda sem a chave). `pnpm check` passa.
-- **Não verificado:** CI, pilha B e projeto hospedado.
-- **Pendências / próximos passos:** nenhuma. Pilha A parada.
 
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:47 (BRT)
 
@@ -1819,21 +2196,6 @@
 - **Verificado (pilha B, só Postgres, `supabase_db_azkaban-b`):** `db reset`; `pnpm db:test` com 6 arquivos e 1513 testes, todos passando. `pnpm check` passou (17 de 17 e 9 de 9). Preenchimento: `db reset --version 20261103160000`, um grupo e dois perfis criados, `migration up`, e os três com 44 itens. Concorrência real, em sessões paralelas: dois primeiros toques simultâneos no mesmo item do catálogo dão uma linha com 2; três passos simultâneos somam 5. Mutações, dentro da transação do teste: grupo visível a não membro (19 falhas), lista pessoal visível a outro (7), escrita em lista finalizada (8), colunas `checked_*`, `added_by`, `status` e `completed_*` liberadas (8), catálogo do grupo editável por membro sem `shopping.manage_catalog` (2).
 - **Não verificado:** o Realtime em si (a B `db` não tem), só a publicação por `pg_publication_tables` e as políticas de `select` que ele usa. Como o PostgREST serializa o nulo composto das RPCs. E2E e projeto hospedado.
 - **Pendências / próximos passos:** `pnpm db:check-permissions` acusa só a matriz: as 10 linhas `shopping.*` estão no banco e faltam em `matrix.ts`, até a branch do `auth-grupos` entrar no mesmo merge; os outros espelhos, `Shopping rules`, `categories`, `units` e `catalog seed`, estão em sincronia. F7-5 depois de F6-2. Handoff `20261103-0254-banco-de-dados-para-compras-compras`.
-
-### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:57 (BRT)
-
-- **Branch:** feat/phase-5-whatsapp
-- **Agente(s):** orquestrador
-- **Resumo:** Fase 5 (WhatsApp com provedor de console) fechada. Verificação final em banco limpo toda verde. Nenhuma mensagem real sai: ligar a Meta é decisão do humano (ADR-0009, seções 10 e 16).
-- **Alterações:**
-  - Integradas, nesta ordem: ADR-0009, contratos e config (`arquiteto`); provedores e parsing do webhook (`backend-funcoes`); core do resumo e prazo no push (`notificacoes-whatsapp`); dez migrations (`banco-de-dados`); telas (`notificacoes-whatsapp`); despacho, `phone-verification` e `whatsapp-webhook` (`backend-funcoes`); QA (`qa-testes`); revisão de segurança em duas passadas (`revisor-seguranca`); correções SEG5-1 a SEG5-10 e QA5-1 a QA5-5 pelos donos; implantação e guarda dos imports das funções no `pnpm check` (`arquiteto`).
-  - Pilha B enxuta (`docs/agentes/ferramentas/pilha-b.sh`, aprovada pelo humano): só Postgres (~60 MB) ou só funções (~0,85 GB), com portas 545xx, uma por máquina; os testes de funções, o `db:check-permissions` e a E2E passam a achar a pilha pelo `config.toml` do checkout, e a E2E recusa rodar fora da A.
-  - `docs/agentes/QUADRO.md`: Fase 5 refeita com a divisão real (F5-1 a F5-9) e marcada como feita.
-- **Decisões/ADRs:** aceitas pelo orquestrador e registradas no ADR-0009 (seções 17 e 18): o resumo é ligado só na seção do WhatsApp; o resumo nunca vai por push; provedor que lança vira nova tentativa; PARAR casa só com o telefone atual e a variante do nono dígito de celular; só +55 e teto global de 200 códigos por dia (a confirmar pelo humano). `packages/platform` ganhou `sessionValue` pelo `notificacoes-whatsapp` (fora do escopo dele, aceito).
-- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`; `bash docs/agentes/ferramentas/verificar-fase.sh <checkout> <log>` com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória no ambiente.
-- **Verificado:** em `8850f41`, todos os 14 passos de `verificar-fase.sh`: `db:test` 1378 de 1378 antes e depois da E2E; `db:check-permissions` em dia (inclui `whatsapp_rules`); `turbo typecheck test --force` (core 605, contracts 92, platform 46, notifications 17, config 15, ui 11, app 8, data 7, proof 6); lint, `boundaries`, `build:web`; `functions:test` 178 de 178; E2E duas vezes com 70 ok, 0 falhas e 1 pulado (o "sem chave VAPID"). Rodadas anteriores pegaram dois defeitos que nenhum agente viu: as specs não carregavam por `import.meta` no ajudante dos testes (corrigido) e, antes disso, o webhook intermediário dando 500 em lote inválido (conferido 200 com `curl` assinado). Varredura de segredos no diff `feat/phase-4-notifications..`: só nomes nos `.env.example` e os `local-demo-` aprovados.
-- **Não verificado:** a Meta de verdade (nada foi enviado), Safari e iPhone, leitor de tela real, CI do PR, projeto hospedado.
-- **Pendências / próximos passos:** PR para `feat/phase-4-notifications`; perguntas ao humano (ADR-0009, seção 16, e SEG5-5/6/7); Fases 6 e 7 já em andamento em `feat/phase-6-gamification` e `feat/phase-7-shopping`.
 
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 03:09 (BRT)
 
@@ -2012,6 +2374,26 @@
 - **Não verificado:** o `db:test` depois de uma E2E real com o teste novo (fica para a verificação da integração das Fases 6 e 7); Realtime de compras só pela E2E; Share nativo, Safari, iOS e Android; projeto hospedado; CI do PR.
 - **Pendências / próximos passos:** PR para `feat/phase-5-whatsapp`; F7-5 depois da Fase 6; perguntas ao humano da seção 15 do ADR-0011.
 
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 04:58 (BRT)
+
+- **Branch:** docs/phase-8-adr, criada a partir de feat/phase-7-shopping (d02fc82)
+- **Agente(s):** arquiteto
+- **Resumo:** ADR-0012 da Fase 8 (LGPD, limites de uso, fila offline e polimento), com contratos, config e um handoff por agente, para a fase correr em paralelo. Trata as tabelas da Fase 6 como existentes. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `docs/adr/0012-polimento-lgpd-limites-offline.md`: exportar (Edge Function `account-export`, JSON por `accountExportSchema`, 25 seções de todas as fases, fotos por URL assinada de 1 hora, o que fica de fora e por quê); excluir (`account-delete`, login recente por `amr`, grupo com outros membros bloqueia, grupo só da pessoa sai junto, objetos e provas dela antes de `auth.admin.deleteUser`, o que cascateia e o que fica sem nome, `account_deletions`); revogar o aceite da prova com marca própria; tela de transparência com os itens dos ADRs 0005 a 0011; retenção consolidada; limites do GoTrue no painel e `consume_rate_limit` no Postgres (janela fixa, `PT429`); fila offline pelo TanStack Query com mutações persistidas, só status e itens de compras, `requestId` no stepper e `processed_requests`; escopo e critérios de F8-1, F8-6 e F8-7 (o que dá sem conta paga e o que é do humano); opções de hospedagem sem custo; backlog; faixas de versão das migrations.
+  - Achado: as Fases 6 e 7 usam os mesmos prefixos de migration (`20261103170000` a `20261103180300`). Decisão na seção 14: renomear as da Fase 7 antes do merge.
+  - `packages/contracts/src/privacy.ts` (novo, com teste): seções e envelope da exportação, pedido, prévia, resultado e erros da exclusão. `common.ts`: `rateLimitedErrorCode`. `shopping.ts`: `requestId` opcional no stepper, com teste.
+  - `packages/config/src/limits.ts` (novo, com teste): `rateLimitRules` (espelho `rate_limit_rules`), `offlineDefaults`, `privacyDefaults`.
+  - `docs/arquitetura.md`: seção de privacidade, limites e fila offline. `docs/implantacao.md`: valores de Auth de produção, nunca `supabase config push`, SMTP próprio.
+  - Handoffs `20261103-0456-arquiteto-para-*` para `banco-de-dados`, `backend-funcoes`, `auth-grupos`, `tarefas-calendario`, `compras`, `design-system`, `notificacoes-whatsapp` e `qa-testes`.
+- **Arquivos/módulos principais:** `docs/adr/0012-*.md`, `packages/contracts/src/{privacy,common,shopping}*.ts`, `packages/config/src/limits*.ts`, `docs/arquitetura.md`, `docs/implantacao.md`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** ADR-0012.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (lint, boundaries, typecheck de todos os pacotes, testes; contracts 134, config 22; `functions:imports` 8 de 8). Testes de `data`, `feature-shopping` e `core` forçados sem cache: 11, 16 e 630.
+- **Não verificado:** que o CLI recusa as versões repetidas das Fases 6 e 7 (dedução pela regra de versão do CLI; ninguém rodou a base integrada); `amr` com `timestamp` no GoTrue local; `PT429` virando 429 no PostgREST local; os limites e as regras do servidor de e-mail embutido e os preços de Expo, Google, Apple, Netlify e Cloudflare, que são de memória e o ADR manda conferir; `auth.audit_log_entries`. Sem mutação.
+- **Pendências / próximos passos:** `banco-de-dados` renomeia as migrations da Fase 7 na integração e depois as faixas da seção 14; `gamificationRules.closeJob.batchSize` para 64 na config depois da integração (arquiteto); `pnpm db:check-permissions` acusa `rate_limit_rules` até a migration; perguntas da seção 17 ao humano.
+
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 05:07 (BRT)
 
 - **Branch:** fix/shopping-migration-prefixes (de `feat/phase-7-shopping`, `d02fc82`)
@@ -2028,3 +2410,782 @@
 - **Verificado:** nesta branch, `db reset`, `db:test` (7 arquivos, 1556 testes, PASS) e `db:check-permissions` em sincronia. Num merge de teste descartável (`tmp/phase-6-7-trial`, não entregue) com `feat/phase-6-gamification`: `db reset` aplica as migrations das duas fases sem colisão; `db:test` dá 9 arquivos, 1698 testes, PASS; `db:check-permissions` em sincronia, com as regras de compras e de gamificação; o `database.types.ts` mesclado sozinho é igual ao gerado; `pnpm check` verde. Pilha B parada no fim. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
 - **Não verificado:** E2E, `functions:test` e `build:web` no merge de teste; projeto hospedado.
 - **Pendências / próximos passos:** a integração de verdade das Fases 6 e 7 (orquestrador), com 12 arquivos em conflito, todos de manter os dois lados; depois, F7-5.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 05:36 (BRT)
+
+- **Branch:** feat/rate-limits-db, criada a partir de feat/phase-8-polish (d738264)
+- **Agente(s):** banco-de-dados
+- **Resumo:** F8-4 (limites de uso no Postgres) e F8-5 (stepper idempotente por `requestId`) do ADR-0012, seções 4 e 5. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Espelho `rate_limit_rules`; `rate_limit_counters` (RLS ligada, sem `grant`); `consume_rate_limit(p_user, p_action)`, só `service_role`, janela fixa pela época, `PT429` com o `hint` em segundos, `p_user` nulo não conta, ação desconhecida `rate_limit_action_unknown` (22023).
+  - Usos: trigger `before insert` em `tasks` (`task_create`) e em `group_invites` (`invite_create`), pela função `consume_rate_limit_on_insert(action)`; `set_occurrence_status` (`occurrence_status`) e `create_shopping_list` (`shopping_list_create`) redefinidas com uma linha a mais; `get_invite_preview` (`invite_lookup`) vira plpgsql `volatile`. `data_export` só tem a regra; a exportação é F8-3.
+  - `processed_requests`; `adjust_shopping_item_quantity` e `add_catalog_item_to_list` com `p_request_id uuid default null` (assinaturas antigas removidas, `grant`s refeitos). Repetição devolve a linha atual sem somar.
+  - Limpeza no job diário `delete_expired_notifications`: contadores e ids com mais de 48 h.
+  - `scripts/check-permission-mirror.mjs` compara `rate_limit_rules` com `rateLimitRules` (pedido do handoff do arquiteto, como nas fases anteriores).
+  - `rls_shopping_security.test.sql`: o teste do teto de 50 listas abertas sobe `shopping_list_create` dentro da própria transação, porque passa de 30 criações numa hora.
+- **Arquivos/módulos principais:** `supabase/migrations/20261104100000..100800`, `supabase/migrations/20261104110000..110200`, `supabase/tests/rls_rate_limits.test.sql` (novo, 78), `supabase/tests/rls_shopping_security.test.sql`, `scripts/check-permission-mirror.mjs`, `packages/data/src/database.types.ts` (gerado), handoff `20261103-0534-banco-de-dados-para-backend-funcoes-compras-tarefas-calendario-limites`
+- **Migrations:** `20261104100000_rate_limit_rules`, `100100_rate_limit_counters`, `100200_consume_rate_limit`, `100300_task_create_rate_limit`, `100400_occurrence_status_rate_limit`, `100500_shopping_list_create_rate_limit`, `100600_invite_create_rate_limit`, `100700_invite_lookup_rate_limit`, `100800_rate_limit_retention`, `20261104110000_processed_requests`, `110100_stepper_request_id`, `110200_processed_requests_retention`
+- **Decisões/ADRs:** nenhuma nova; implementa as seções 4 e 5 do ADR-0012. Sem bypass de teste no código: teste que precise passar de um limite sobe o valor na própria transação.
+- **Como testar:** `bash docs/agentes/ferramentas/pilha-b.sh db`, `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`.
+- **Verificado:** na pilha B, `db reset` limpo; `pnpm db:test` 10 arquivos, 1776 testes, PASS; `db:check-permissions` em sincronia no `supabase_db_azkaban-b`, com `rate_limit_rules`; `pnpm db:types`; `pnpm check` passou (17 de 17 e 11 de 11; `functions:imports` 8 de 8). Mutações, aplicadas por `psql` e desfeitas: sem o trigger de tarefas, 6 falhas; `set_occurrence_status` sem o limite, 7; `create_shopping_list` sem o limite, 5; sem o trigger de convites, 5; prévia sem o limite, 3; `grant` de `consume_rate_limit` a `authenticated`, 2; stepper ignorando o id, 9. Concorrência em duas sessões `psql` com dados confirmados (depois apagados pelo `db reset`): a segunda chamada com o mesmo `requestId` esperou 16 s pela primeira e devolveu 2, não 3; a quarta exportação simultânea levou `PT429` e o contador ficou em 3.
+- **Não verificado:** o HTTP 429 do PostgREST (a pilha B não tem PostgREST); E2E e `functions:test`; o projeto hospedado. Na concorrência, a segunda sessão esperou pelo `for update` da lista antes de chegar à chave de `processed_requests`, então a serialização só pela chave primária não foi isolada.
+- **Pendências / próximos passos:** `compras` manda `p_request_id`; `backend-funcoes` chama `consume_rate_limit(user, 'data_export')` na exportação; os módulos mapeiam `PT429`; F8-3 na faixa `20261104120000`+.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:01 (BRT)
+
+- **Branch:** feat/offline-queue, criada a partir de feat/phase-8-polish (8dc831c)
+- **Agente(s):** tarefas-calendario
+- **Resumo:** F8-5 do ADR-0012, seção 5: o mecanismo da fila offline e o status de ocorrência por ela, com `rate_limited` nas tarefas. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/data/src/offline` (novo): `defineOfflineAction` registra uma ação (contrato conferido antes de rodar, `scope` único para andar em ordem, `networkMode: 'online'`, rede/5xx/401 tentam de novo, código de negócio descarta, mais de `offlineDefaults.maxAgeHours` pela hora do toque descarta com `expired`); `useOfflineQueue(client, userId)` restaura a fila salva com `hydrate`, grava as mutações pausadas com `dehydrate` no `storage` de `@azkaban/platform`, chave por usuário e `buster` de formato, e envia; ao trocar de usuário tira a fila da memória e a deixa no disco. `useOfflinePendingCount`, `useOfflineDiscards`/`dismissOfflineDiscard`, `offlineQueueFull` e `discardOfflineQueue`.
+  - Sem dependências novas: o ADR aceitava `@tanstack/react-query-persist-client` e `@tanstack/query-async-storage-persister`, mas o restore deles apaga sem aviso o que passou de `maxAge`, o provider não troca de persister com o usuário e o throttle pode gravar depois de um descarte. Handoff ao arquiteto.
+  - `occurrenceStatusAction` em `packages/data/src/tasks`: `expectedStatus` do toque; em `status_conflict` relê o status e, se já está no destino, conta como feito. `taskErrorCode` devolve `rate_limited` para `PT429` (tipo `TaskFailureCode`; o enum do contrato não muda).
+  - `useStatusChange` passa pela ação; o retrato das listas saiu do `onMutate` (iria para o disco com a ação pausada) e a recusa é desfeita pelo recarregamento no fim. Sem conexão, tarefa com foto e fila cheia dão `errors.offline`.
+  - `OfflineQueueNotice` em Hoje, Área e no detalhe: "Sem conexão: N alterações serão enviadas" e os descartes com o motivo, até fechar. Textos em `tasks.offline.*` e `tasks.errors.{rate_limited,offline,expired,invalid}`.
+  - `e2e/offline-queue.spec.ts`: offline, marcar, fechar a aba, voltar online numa aba nova, ver o status e uma linha no histórico.
+- **Arquivos/módulos principais:** `packages/data/src/offline/`, `packages/data/src/tasks/{index,status.test}.ts`, `packages/features/tasks/src/{hooks,format,OfflineQueueNotice,TodayScreen,AreaScreen,TaskDetailScreen,index}.ts*`, `packages/i18n/src/pt-BR/tasks.json`, `e2e/offline-queue.spec.ts`, handoffs `20261103-0600-tarefas-calendario-para-*`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** implementa a seção 5 do ADR-0012, sem as duas dependências (handoff ao arquiteto); repetição de rede e 5xx sem teto de tentativas, com comentário `ponytail`.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/data test`; com a pilha A livre e o layout ligado, `pnpm exec playwright test e2e/offline-queue.spec.ts --project=app`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 11 de 11; data 23, dos quais 7 da fila e 5 do status; core 717; `functions:imports`); `pnpm build:web` exportou. Sem mutação.
+- **Não verificado:** a E2E nova não rodou (a pilha A estava ocupada, `supabase_realtime_azkaban` no ar) e depende de `useOfflineQueue` no layout raiz, que é do orquestrador; o 429 real do PostgREST; o nativo (sem NetInfo até F8-7).
+- **Pendências / próximos passos:** orquestrador liga `useOfflineQueue` em `apps/app/app/_layout.tsx` (e decide `networkMode: 'always'` e o aviso na barra de abas); `compras` liga as ações dele; `auth-grupos` faz a confirmação ao sair e o descarte ao excluir a conta; `design-system` troca o aviso pelo componente dele.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:02 (BRT)
+
+- **Branch:** feat/account-privacy-db, criada a partir de feat/phase-8-polish (8dc831c)
+- **Agente(s):** banco-de-dados
+- **Resumo:** F8-3a do banco (ADR-0012, seções 2, 3 e 6): exportação, exclusão de conta em quatro passos, `account_deletions`, revogação do aceite da prova com recheque no claim, e a correção de `revoke_invites_on_removal` que a cascata revelou. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Primeiro o pgTAP da cascata: um usuário com linhas em todas as tabelas que apontam para `profiles` (o teste confere isso pelo catálogo), com status pela RPC (histórico, XP, dia, conquista, sino), prova atual, superada em ocorrência alheia e revisada, outbox, push, telefone, WhatsApp, compras pessoais e de grupo concluída sob os guardas, contadores e pedidos aplicados. O que revelou: **nenhum gatilho falha** (a suspeita da Fase 6 não se confirmou: a cascata só apaga ou anula chaves, e o gatilho de gamificação filtra por mudança de status); **`revoke_invites_on_removal` cancelava os convites de todos os grupos do membro excluído** (confirmado antes da correção); o dono de qualquer grupo não sai pela cascata pura (`groups.owner_id`, esperado, e é por isso que `finish` apaga os grupos só dele).
+  - `revoke_invites_on_removal` pula quando o perfil de `old.user_id` já não existe. Remoção por outra pessoa continua revogando (`rls_groups`).
+  - `proof_consents`: chave `id`, `revoked_at`, `unique (user_id, version) where revoked_at is null`. `revoke_proof_consent()` (`authenticated`). `record_proof_consent` não mudou: o `on conflict do nothing` usa o índice parcial e grava linha nova depois de uma revogação. `claim_proof_challenge` confere o aceite antes de marcar o nonce.
+  - `account_deletions` (RLS ligada, sem `grant`), `account_deletion_preview`, `begin_account_deletion`, `finish_account_deletion`, `complete_account_deletion`, todas só `service_role`. `complete` também apaga as linhas do titular em `auth.audit_log_entries`, que guardam e-mail (`actor_username`, `traits.user_email`) e IP (`ip_address`); `service_role` não tem `grant` nessa tabela, mas a função (dona `postgres`) apaga no local.
+  - `export_user_data(p_user)`: as 25 seções, sem o que o ADR tira, e `photoPaths` à parte para a função assinar.
+  - `rls_proof.test.sql`: `revoke_proof_consent` na lista de funções abertas a `authenticated`.
+  - Handoff `20261103-0600-banco-de-dados-para-backend-funcoes-conta-e-privacidade` com as assinaturas e a ordem dos passos.
+- **Arquivos/módulos principais:** `supabase/migrations/20261104120000..120500`, `supabase/tests/rls_account_privacy.test.sql` (novo, 94), `supabase/tests/rls_proof.test.sql`, `packages/data/src/database.types.ts` (gerado), o handoff acima
+- **Migrations:** `20261104120000_revoke_invites_on_account_deletion`, `120100_proof_consent_revocation`, `120200_claim_proof_challenge_consent`, `120300_account_deletions`, `120400_account_deletion`, `120500_export_user_data`
+- **Decisões/ADRs:** nenhuma nova. Nomes livres do ADR: `complete_account_deletion` é o passo 5 (marca, poda e limpa o log do GoTrue). `owns_groups` leva a prévia no `detail` do erro. `export_user_data` devolve `{ sections, photoPaths }`, e as linhas de `proofs` já vêm com `photo_url` nulo.
+- **Como testar:** `bash docs/agentes/ferramentas/pilha-b.sh db`, `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`.
+- **Verificado:** `db reset` limpo; `pnpm db:test` 11 arquivos, 1870 testes, PASS (numa primeira rodada, 1 falha em `rls_notifications` teste 209, "the partial one", que passou sozinho e na rodada seguinte: `pg_temp.last` ordena por `ctid`, que não é monotônico; preexistente, fora destas tabelas); `db:check-permissions` em sincronia no `supabase_db_azkaban-b`; `pnpm db:types`; `pnpm check` passou (17 de 17 e 11 de 11). Mutações aplicadas por `psql` e desfeitas: `grant` de `export_user_data` a `authenticated`, 2 falhas; `begin`/`finish` sem o bloqueio de dono, 7; o gatilho de convites sem a checagem do perfil, 2; o claim sem o recheque do aceite, 3.
+- **Não verificado:** o formato real de `auth.audit_log_entries` gravado pelo GoTrue (o teste usa o do código do GoTrue) e se o `postgres` do projeto hospedado apaga em `auth` (a função devolve `null` se não puder); concorrência real entre `finish` e um `accept_invite` (só pela semântica de `for update` contra `for key share`); E2E e `functions:test`; o projeto hospedado.
+- **Pendências / próximos passos:** `backend-funcoes` escreve `account-export` e `account-delete`; `auth-grupos` usa `revoke_proof_consent`; `consentVersion` 3 (ADR, seção 6) ainda não está na config, e o espelho `proof_rules` muda junto quando entrar; o `ctid` de `rls_notifications`; backlog na faixa `20261104130000`+.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:03 (BRT)
+
+- **Branch:** `fix/bell-realtime-catch-up`, a partir de `feat/phase-8-polish` (`8dc831c`)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** o sino e o aviso ao vivo perdiam o que era gravado entre o `SUBSCRIBED` e o `system` `postgres_changes` `ok` do Realtime (handoff `20261103-0554`). A correção do `gamificacao` (`ef115d8`) virou um ajudante comum, usado pelos três assinantes do Realtime.
+- **Alterações:**
+  - `packages/data/src/realtime.ts` (novo): `subscribeCaughtUp`, um canal que, a cada `ok`, chama um `catchUp` que relê das tabelas; item com chave é entregue uma vez só, venha por onde vier; nada depois do `unsubscribe`. Teste com cliente falso em `realtime.test.ts`.
+  - `notificationsRepository.subscribe`: marca (o `created_at` mais novo do usuário, hora do servidor) na montagem; a releitura entrega como `insert` os avisos nascidos depois dela. Um `update` no intervalo continua perdido.
+  - `gamificationRepository.subscribe`: a mesma lógica de `ef115d8`, agora sobre o ajudante. Ao juntar com `feat/phase-6-gamification`/`fix/achievement-celebration-flake`, fica a versão desta branch.
+  - `shoppingRepository.watchList`: a cada `ok`, um `{ deletedId: null }`, que faz o `useShoppingList` reler (respeitando os passos do stepper em voo).
+  - `NotificationToaster`: `pointerEvents="box-none"` como prop (o react-native-web 0.21 descarta do estilo), do handoff `20261103-0515`.
+  - `e2e/notifications-bell.spec.ts`: novo teste, um aviso gravado logo depois da montagem do sino toca uma vez, com o aviso ao vivo, e não volta depois de fechado.
+- **Arquivos/módulos principais:** `packages/data/src/realtime.ts`, `packages/data/src/{notifications,gamification,shopping}/index.ts`, `packages/features/notifications/src/NotificationToaster.tsx`, `e2e/notifications-bell.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma
+- **Como testar:** `pnpm check`; com a pilha logo depois de um `db reset`, `pnpm exec playwright test e2e/notifications-bell.spec.ts e2e/gamification.spec.ts e2e/shopping.spec.ts --project=app --repeat-each=8 --workers=4`.
+- **Verificado:** `pnpm check` passou (`@azkaban/data` 3 arquivos, 12 testes); `pnpm build:web` passou.
+- **Não verificado:** nenhuma E2E rodou (a pilha A estava ocupada); a causa da falha "a reminder that is due rings the bell once…" não foi confirmada. Hora derivada de UTC menos 3 (o PowerShell foi barrado no worktree).
+- **Pendências / próximos passos:** rodar as E2E acima com o Realtime frio.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 05:15 (BRT)
+
+- **Branch:** fix/celebration-pointer-events, criada a partir de feat/phase-6-gamification (c999726)
+- **Agente(s):** gamificacao
+- **Resumo:** QA6C-1 e QA6C-3 do handoff `20261103-0453-qa-testes-para-gamificacao-cartao-bloqueia-a-tela`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - QA6C-1: o invólucro do cartão usa a prop `pointerEvents="box-none"`. O react-native-web 0.21 descarta `pointerEvents` de estilos inline (só a prop e o `StyleSheet.create` geram a classe), então o invólucro, da tela toda, ficava com `pointer-events: auto`. Com a correção, `elementFromPoint(20, 60)` devolve o cabeçalho.
+  - E2E de QA6C-1 sem `test.fail()`, e o toque agora vai ao botão "Nova tarefa": a tarefa que o teste tocava fica embaixo do próprio cartão no Pixel 7 (cartão de y 294 a 545, check em y 459), o que é esperado.
+  - QA6C-3: `mergeCelebrations` em core junta ao cartão aberto uma rajada que chega até `joinMs` (3 s, `gamificationUi`) depois de ele abrir, sem repetir e na ordem de `celebrationsFor`; depois disso, a próxima tarefa ganha cartão próprio. `burstMs` ficou em 600 ms.
+  - QA6C-2: sem mudança, por decisão do orquestrador (a conquista no teto é comemorada); a E2E do teto já espera isso.
+  - Handoff `20261103-0515-gamificacao-para-design-system-pointer-events-na-web`: `Fab` e `NotificationToaster` têm o mesmo `pointerEvents` no estilo, sem efeito na web.
+- **Arquivos/módulos principais:** `packages/features/gamification/src/{CelebrationHost.tsx,config.ts}`, `packages/core/src/gamification/celebrations{,.test}.ts`, `packages/core/src/index.ts` (uma exportação), `e2e/gamification.spec.ts`, o handoff acima
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma
+- **Como testar:** `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm exec playwright test e2e/gamification.spec.ts --project=app`, `pnpm exec playwright test e2e/notifications-jobs.spec.ts --project=jobs --no-deps`.
+- **Verificado:** `gamification.spec.ts` 5 de 5 (na primeira rodada, antes de ajustar o teste de QA6C-1, o do teto falhou uma vez, com o cartão de "Primeira tarefa" e "Tarefa concluída!" vindo das linhas semeadas antes do `reload`; não se repetiu); `notifications-jobs.spec.ts` 4 de 4; `pnpm e2e` completo uma vez, com chave VAPID gerada em memória: 75 ok, 0 falhas, 1 pulado (o "sem chave VAPID"); `pnpm check` passou (17 de 17 e 10 de 10; core 694). Pilha A parada com `supabase stop`.
+- **Não verificado:** a junção de QA6C-3 com rajadas reais separadas (só o teste de unidade de `mergeCelebrations`; o atraso não se reproduz); nativo (a prop é a forma do RN também); Safari, iPhone; projeto hospedado. Sem mutação.
+- **Pendências / próximos passos:** o handoff acima ao `design-system`; o `arquiteto` alinhar o texto do ADR-0010 sobre o teto (QA6C-2).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 05:55 (BRT)
+
+- **Branch:** fix/achievement-celebration-flake, criada a partir de feat/phase-6-gamification (0166cae)
+- **Agente(s):** gamificacao
+- **Resumo:** causa da intermitência de `e2e/gamification.spec.ts:53` (a conquista que não aparecia), corrigida no produto. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Causa, com registro temporário no console (já removido): o canal fica `SUBSCRIBED` logo, mas o servidor só ouve as tabelas depois da mensagem `system` `postgres_changes`/`ok` ("Subscribed to PostgreSQL"), que com o Realtime frio veio até 2,4 s depois. Num lote de 4 workers logo após o `db reset`, 3 rodadas concluíram a tarefa antes dela e não receberam nenhuma linha, nem o evento de XP. O "+10 XP" e o anel vêm da consulta, não do Realtime. Não era a assinatura depois do render, nem o cartão fechando, nem o `joinMs`.
+  - `gamificationRepository.subscribe`: guarda uma marca na chamada (o `created_at` do evento mais novo e as conquistas já concedidas) e, a cada `system` `ok` (a primeira e depois de uma reconexão), relê os eventos posteriores e as conquistas novas e os entrega pelo mesmo `onRow`. Cada linha é entregue uma vez só, por id do evento ou chave da conquista. Nada é entregue depois do `unsubscribe`. O `CelebrationHost` não mudou.
+  - Handoff `20261103-0554-gamificacao-para-notificacoes-whatsapp-realtime-antes-de-ouvir`: o `subscribe` de notificações tem o mesmo intervalo.
+- **Arquivos/módulos principais:** `packages/data/src/gamification/index.ts`, o handoff acima
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma
+- **Como testar:** `pnpm db:start`, `pnpm exec supabase db reset` e, logo depois, `pnpm exec playwright test e2e/gamification.spec.ts --project=app --repeat-each=8 --workers=4`.
+- **Verificado:** antes da correção, logo após o `db reset`, 38 ok e 2 falhas, depois 37 ok e 3 falhas; todas no `:53`, todas com a conclusão antes do `system` `ok`. Depois da correção, duas vezes logo após o `db reset`: 40 de 40, e 40 de 40. `pnpm e2e` completo uma vez, com chave VAPID gerada em memória: 75 ok, 0 falhas, 1 pulado. `pnpm check` passou (17 de 17 e 10 de 10; core 694, data 7). Pilha A parada com `supabase stop`.
+- **Não verificado:** a reconexão real (o código relê a cada `ok`, mas não derrubei a rede); o Realtime hospedado; nativo. Não há teste de unidade do `subscribe`, que precisaria simular o cliente do Supabase; a prova é a E2E repetida. Sem mutação.
+- **Pendências / próximos passos:** o handoff acima ao `notificacoes-whatsapp`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:12 (BRT)
+
+- **Branch:** feat/phase-6-gamification
+- **Agente(s):** orquestrador
+- **Resumo:** Fase 6 (gamificação) fechada. Rodou em paralelo com a 7, a partir da Fase 5. A verificação final pegou e mandou corrigir dois defeitos de produto que só apareciam de forma intermitente.
+- **Alterações:**
+  - Integradas: ADR-0010, contratos e config (`arquiteto`, com o teto por ocorrência e as decisões de segurança da seção 14); motor puro (`gamificacao`); componentes de comemoração (`design-system`); onze migrations e as correções de segurança (`banco-de-dados`); anel de meta (`tarefas-calendario`); casca, repositório real e rotas (`gamificacao`); ofensiva no resumo (`notificacoes-whatsapp`); testes de prova com o bônus (`backend-funcoes`); QA em três rodadas e revisão de segurança em duas passadas.
+  - Defeitos achados na reta final: QA6C-1 (o invólucro do cartão de comemoração bloqueava todo toque, porque o react-native-web 0.21 descarta `pointerEvents` no estilo; virou prop) e a conquista que às vezes não era comemorada (o Realtime só começa a ouvir até 2,4 s depois de `SUBSCRIBED`; o repositório relê o que nasceu desde a montagem a cada `ok`, provado com `--repeat-each=8` duas vezes, 40 de 40).
+  - `docs/agentes/QUADRO.md`: Fase 6 refeita com a divisão real (F6-1 a F6-7) e marcada como feita.
+- **Decisões/ADRs:** aceitos pelo orquestrador: teto em janela móvel de 24 h com saldo por (ocorrência, grupo); piso de histórico; ranking só das duas últimas semanas e desde o ligamento; comemorar a conquista concedida no teto (QA6C-2); SEG6-6, SEG6-7 e SEG6-8 como riscos aceitos ou backlog.
+- **Como testar:** copiar `supabase/functions/.env.example` para `supabase/functions/.env`; `bash docs/agentes/ferramentas/verificar-fase.sh <checkout> <log>` com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória.
+- **Verificado:** em `1c19c3b`, `verificar-fase.sh`: install, `db:start`, `db reset`, `db:test` 1520 de 1520 antes e depois da E2E, `db:check-permissions`, `turbo typecheck test --force` (core 694, contracts 104, platform 49, ui 31, config 15, gamification 15, notifications 17, app 8, data 7, proof 6), lint, `boundaries`, `build:web`, `functions:test` 178 de 178; E2E: a segunda rodada 75 ok, 0 falhas, 1 pulado; a primeira teve 1 falha fora da fase, `proof-capture.spec.ts:119`, com 503 do Edge Runtime local em `proof-validate` sob carga (outra pilha e vários agentes na máquina), a mesma instabilidade de ambiente conhecida das fases anteriores; a spec passou em todas as verificações das Fases 3 a 7 e na segunda rodada. Varredura de segredos no diff `feat/phase-5-whatsapp..`: nada.
+- **Não verificado:** som e vibração em aparelho, leitor de tela real, Safari e iPhone, projeto hospedado, CI do PR.
+- **Pendências / próximos passos:** PR para `feat/phase-5-whatsapp`; a Fase 8 já está em `feat/phase-8-polish` (Fases 6 e 7 integradas com as migrations da 7 renumeradas); investigar na Fase 8 se o cliente deve tentar de novo num 503 de função fria; F7-5 sobre a base integrada.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:19 (BRT)
+
+- **Branch:** feat/offline-queue-wiring, criada a partir de feat/phase-8-polish (83b7a42)
+- **Agente(s):** tarefas-calendario, por delegação do orquestrador para o layout raiz
+- **Resumo:** a fila offline ligada no layout raiz, a E2E dela verde e `pnpm e2e` completo uma vez. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `apps/app/app/_layout.tsx`: `useOfflineQueue(queryClient, session?.user.id ?? null)`.
+  - `e2e/tasks.spec.ts`, "a stale screen gets a clear message…": a segunda tela pede "Tentei" (com motivo) em vez de "Feito". Com a fila, um toque desatualizado para o mesmo destino conta como feito, sem mensagem (ADR-0012, seção 5); o conflito de verdade, para outro destino, continua com "Outra pessoa mudou esta tarefa antes de você".
+  - Não aplicado, fica como sugestão: `networkMode: 'always'` como padrão das mutações, para o que está fora da fila falhar na hora sem conexão. O aviso continua em Hoje, Área e no detalhe.
+- **Arquivos/módulos principais:** `apps/app/app/_layout.tsx`, `e2e/tasks.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova.
+- **Como testar:** `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm exec playwright test e2e/offline-queue.spec.ts --project=app`; `pnpm e2e` com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória.
+- **Verificado:** na pilha A, depois de `db reset`: `e2e/offline-queue.spec.ts` passou na primeira (1 de 1). `pnpm e2e` completo uma vez, com a chave VAPID: 74 ok, 1 falha, 1 pulado e 4 não rodados (o projeto `jobs`, que depende de `app`). A falha era a spec do conflito acima, ajustada; depois ela passou sozinha (1 de 1) e `--project=jobs --no-deps` deu 4 de 4. `pnpm check` passou. Pilha A parada com `supabase stop`; pilha B não tocada.
+- **Não verificado:** um segundo `pnpm e2e` completo depois do ajuste; o atraso do rollback e o status em série não derrubaram nenhuma outra spec. Sem mutação.
+- **Pendências / próximos passos:** decidir `networkMode: 'always'` (orquestrador/arquiteto); os handoffs `20261103-0600-tarefas-calendario-para-*` seguem valendo, menos o item 1 do orquestrador, feito aqui.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:25 (BRT)
+
+- **Branch:** feat/privacy-screens, criada a partir de feat/phase-8-polish (ed828f3)
+- **Agente(s):** auth-grupos
+- **Resumo:** F8-3c e F8-3d do ADR-0012 (seções 2, 3, 6 e 7): tela Privacidade em Perfil e tela de transparência, mais o slot `top` do Perfil (QA6-4) e sair com pendências da fila offline. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/platform`: `saveTextFile(fileName, text)` e `canSaveTextFile`; web por `Blob` e `<a download>`, nativo `false` (a tela diz para usar a web, sem gastar uma das 3 exportações do dia).
+  - `packages/data/src/privacy` (novo): `privacyRepository` (`exportData` chama `account-export` e devolve o texto e `azkaban-dados-AAAA-MM-DD.json` pelo dia do aparelho; `deletionPreview` e `deleteAccount` chamam `account-delete` com `dryRun`; `proofConsent` lê `profiles`; `revokeProofConsent` chama `revoke_proof_consent`). `PrivacyError` com `code`, `retryAfterSeconds` e `preview` pelo `privacyErrorSchema`, mais `unauthorized`, `network` e `internal`; `retryWait` arredonda a espera para cima, em horas ou minutos. A exportação não passa por `accountExportSchema` (comentário `ponytail`): uma seção nova da função chega à pessoa mesmo com o cliente atrasado. `authRepository.signOut(scope)`.
+  - `PrivacyScreen` (`packages/features/auth`), rota `/settings/privacy`: exportar com `rate_limited` e o tempo; aceite da prova com data e revogar em dois toques; atalho para as preferências de notificações e WhatsApp (composto pela rota) e a frase da localização; link para a transparência; aviso de que a política completa espera o humano (sem contato inventado); excluir com prévia, grupos que bloqueiam com "Abrir <grupo>" (passar a posse ou excluir lá), prévia relida ao voltar à tela (`useFocusEffect`) e no botão "Conferir de novo", grupos só da pessoa pelo nome, o que sai e o que fica, a palavra EXCLUIR, `owns_groups` com a prévia nova, `reauth_required` pedindo a senha ali mesmo (ou um link por e-mail que volta para `/settings/privacy`) e repetindo a exclusão, e no sucesso `discardOfflineQueue`, `signOut('local')` e `queryClient.clear()` (o layout leva às boas-vindas; `stopPushWhenSignedOut` cuida da chave do push).
+  - `TransparencyScreen` (`packages/features/groups`), rota `/transparency` fora do `(app)`, com o `BackHeader` pela própria rota: os nove itens da seção 7, prazos de `proofRules`; com `groupId`, o tipo e o ranking daquele grupo (`rankingEnabled` do core); com `groupType`, o padrão do tipo. Aberta de Privacidade, do detalhe de cada grupo e do convite de grupo `company` antes de aceitar.
+  - `ProfileScreen`: prop `top` logo depois do título; a rota passa `top={<ProgressPanel />}` e ganha o botão Privacidade. Sair com `useOfflinePendingCount() > 0` pede confirmação ("N alterações ainda não foram enviadas"), com "Sair e descartar" e Cancelar; sair chama `discardOfflineQueue` antes do `signOut`.
+  - i18n em `auth.privacy.*`, `auth.profile.*` e `groups.transparency.*`.
+  - `e2e/privacy.spec.ts`: exportar (download, nome, envelope), bloqueio de dono, passar a posse, prévia relida, excluir com a palavra, revogar o aceite e os nove itens da transparência.
+- **Arquivos/módulos principais:** `packages/platform/src/saveTextFile{,.web,.web.test}.ts`, `packages/data/src/privacy/`, `packages/data/src/{auth,index}.ts`, `packages/features/auth/src/{PrivacyScreen,ProfileScreen,index}.tsx`, `packages/features/groups/src/{TransparencyScreen,GroupDetailScreen,JoinGroupScreen,index}.tsx`, `packages/i18n/src/pt-BR/{auth,groups}.json`, `apps/app/app/(app)/(tabs)/profile.tsx`, `apps/app/app/(app)/settings/privacy.tsx`, `apps/app/app/transparency.tsx`, `e2e/privacy.spec.ts`, handoffs `20261103-0619-auth-grupos-para-*`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** implementa as seções 2, 3, 6 e 7 do ADR-0012 do lado do cliente. Novo login dentro da tela (senha ou link), em vez de sair e entrar: não perde a fila offline nem a navegação.
+- **Como testar:** `pnpm check`; com a pilha e as funções `account-export` e `account-delete`, `pnpm exec playwright test e2e/privacy.spec.ts --project=app`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 11 de 11; `@azkaban/data` 6 arquivos, 30 testes, dos quais 6 de `privacy/transport`; `@azkaban/platform` 10 arquivos, 54 testes, com o de `saveTextFile`; core 717); `pnpm build:web` exportou.
+- **Não verificado:** a E2E nova não rodou (sem pilha; as funções eram do `backend-funcoes`, em andamento); nenhuma tela foi vista no navegador (375 px, desktop, claro e escuro, axe ficam com `qa-testes`); `reauth_required` e `rate_limited` reais; o download pelo `<a download>` depois de uma espera de rede no Safari do iPhone; o nativo.
+- **Pendências / próximos passos:** `prova-foto` troca `consent.deletion` e sobe `consentVersion` para 3 (handoff); `qa-testes` roda a E2E e cobre reautenticação, limite e sair com pendências (handoff). Do handoff `20261103-0456` ficam para outra tarefa: o 429 do GoTrue nas telas de entrar, `rate_limited` nos convites e o `PushSetupCard` depois do primeiro login.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:17 (BRT)
+
+- **Branch:** feat/account-functions, criada a partir de feat/phase-8-polish (ed828f3)
+- **Agente(s):** backend-funcoes
+- **Resumo:** F8-3b do ADR-0012, seções 2 e 3: as Edge Functions `account-export` e `account-delete`, sobre as funções SQL do `banco-de-dados` (handoff `20261103-0600`). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `_shared/account.ts` (novo): `handleExport` e `handleDelete`, com o cliente de serviço como argumento (as duas funções são uma linha cada). Exportação: usuário pelo Auth (`signedInUser`), `consume_rate_limit(user, 'data_export')` (`PT429` vira 429 `rate_limited` com `retryAfterSeconds` do `hint`), `export_user_data`, `createSignedUrls` em lotes de 1000 com `exportPhotoUrlTtlSeconds` gravadas em `photo_url` pela chave de `photoPaths` (objeto que sumiu no meio fica `null`), `accountExportSchema`, `Content-Disposition: attachment` (`azkaban-dados-AAAA-MM-DD.json`, data de São Paulo) e `Cache-Control: no-store`. Exclusão: corpo de até 1 KiB por `readLimited` e `accountDeleteRequestSchema`; login recente pelo maior `timestamp` de `amr` (sem ele, `reauth_required`; a prévia também pede); `dryRun` responde `account_deletion_preview`; senão `begin_account_deletion`, `remove` em lotes somando o que o Storage disse, `finish_account_deletion`, `auth.admin.deleteUser` (404 é corrida, segue) e `complete_account_deletion`; `owns_groups` de `begin` ou de `finish` vira 409 com a prévia do `details`; falha no meio, 500 `delete_failed`. Log só com evento, etapa, código e contagens.
+  - `account-export/` e `account-delete/` (novos): `index.ts` e `deno.json`. `verify_jwt = true` das duas em `supabase/config.toml`; deploy e `verify_jwt` em `docs/implantacao.md`; as duas em `wait-for-functions.mjs`.
+  - `proof-kit.ts`: `mint(sub, claims)` exportado e `refreshToken` na pessoa que entrou de verdade.
+  - Testes: `_shared/account.test.ts` (Node, sem pilha, 15), `account-export/export.integration.test.ts` e `account-delete/delete.integration.test.ts`, os três no `functions:test`.
+  - Handoff `20261103-0617-backend-funcoes-para-auth-grupos-exportar-e-excluir-conta`.
+- **Arquivos/módulos principais:** `supabase/functions/_shared/{account,account.test,proof-kit,wait-for-functions}.*`, `supabase/functions/account-{export,delete}/`, `supabase/config.toml`, `docs/implantacao.md`, `package.json` (`functions:test`)
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** sem `amr` com `timestamp`, recusa (`reauth_required`) em vez do recuo a `auth.sessions.created_at` do ADR: `auth` não está na API e o recuo pediria uma RPC nova; custa só um login. A prévia também pede login recente, para a tela mandar entrar antes da confirmação. Falha de `complete_account_deletion` depois de `deleteUser` vai para o log e a resposta continua `{ deleted: true }`: a conta já saiu, e repetir só daria 401 (a linha de auditoria fica aberta).
+- **Como testar:** `pnpm check`; `node --test supabase/functions/_shared/account.test.ts`; com a pilha, `pnpm functions:test`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 11 de 11; `functions:imports` 10 de 10, com as duas funções novas); `account.test.ts` 15 de 15. Mutações nos handlers, por script, 11 de 11 mortas: `signedInUser` aceitando `getUser` com erro, exportação sem a checagem do usuário nulo, `amr` sempre recente, segundos lidos como ms, `<` no lugar de `<=`, primeiro `timestamp` no lugar do maior, prévia sem a checagem, ação `task_create` no lugar de `data_export`, `PT429` tratado como falha, erro do limite ignorado, `hint` ignorado.
+- **Não verificado:** os dois testes de integração não rodaram (sem pilha, por decisão do orquestrador): que o GoTrue local traz `timestamp` em `amr` e o mantém no refresh (o teste confere), o formato real de `auth.audit_log_entries` depois de `deleteUser`, as URLs assinadas servindo a foto, o 429 real e a conta apagada de fato; o boot das funções no Edge Runtime (só o `import-maps`); o projeto hospedado.
+- **Pendências / próximos passos:** rodar `pnpm functions:test` com a pilha; `auth-grupos` faz as telas (handoff acima).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:27 (BRT)
+
+- **Branch:** feat/shopping-xp-db, criada a partir de feat/phase-8-polish (d2c8d4e)
+- **Agente(s):** banco-de-dados
+- **Resumo:** F7-5b do ADR-0011, seção 9: o XP de compra ao finalizar a lista, `shopping_completed`, com os limites contra farm. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `xp_events.shopping_list_id` (`on delete set null`), `check` de que só `shopping_completed` aponta para lista e de que ele não tem ocorrência, e `unique` parcial `(shopping_list_id) where reason = 'shopping_completed'`.
+  - Trigger `after update of status` em `shopping_lists`, `open` → `completed`: `shopping_list_award_xp`, para `completed_by`, no grupo da lista (nulo na pessoal), com `shoppingRules.xp.amount`. Sem XP com menos de `minCheckedItems` itens marcados, nem além de `maxRewardedPerDay` listas premiadas no dia local do perfil; o valor cabe no teto da janela de 24 h, com o mesmo saldo e a mesma trava por usuário de `occurrence_award_xp`.
+  - pgTAP `rls_shopping_xp.test.sql`, 16 testes. Tipos regerados.
+- **Arquivos/módulos principais:** `supabase/migrations/20261104140000_shopping_xp.sql`, `supabase/tests/rls_shopping_xp.test.sql`, `packages/data/src/database.types.ts`
+- **Migrations:** 20261104140000_shopping_xp. Aplicada só na pilha B local.
+- **Decisões/ADRs:** o XP de compra entra no teto (ADR-0010, seção 2; `cappedXpEventReasons` e o saldo de `occurrence_award_xp` já o listavam). O evento sem ocorrência é um par sozinho no saldo; como é sempre positivo e nunca compensado, o piso zero não tira nada, e não há caminho de farm por ali. Lista do grupo conta para o ranking, a pessoal não (grupo nulo). Uma lista que bate no teto não grava evento e não conta entre as duas do dia. Residual aceito: trocar o fuso move o dia local e pode premiar mais listas, ainda limitadas pelo teto de 300 em 24 h. O espelho de `shopping_rules` já tinha `xp`. O trigger só escreve em `xp_events` (e `user_stats`), nunca nas tabelas de compras, então o desvio de SEG7-4 não fica no caminho.
+- **Como testar:** `pnpm db:reset`, `pnpm db:test`, `pnpm db:check-permissions`, `pnpm check`.
+- **Verificado:** `pnpm db:test` 12 arquivos, 1886 testes, PASS; `pnpm db:check-permissions` em sincronia (`supabase_db_azkaban-b`); `pnpm check` passou (17 de 17). Mutações, cada uma numa transação desfeita, 5 de 5 mortas: mínimo 2 em vez de 3, contar itens não marcados, sem limite por dia, contar dias anteriores, sem o `unique`. Controle sem mutação, 16 de 16.
+- **Não verificado:** o projeto hospedado; a corrida de duas finalizações simultâneas da mesma pessoa (só a trava, sem teste concorrente); a tela e a comemoração do evento novo.
+- **Pendências / próximos passos:** `xpEventSchema` e o comentário de `xpEventReasonSchema` em `packages/contracts/src/tasks.ts` ainda chamam `shopping_completed` de reservado e não têm `shoppingListId` (o Zod descarta a coluna a mais, nada quebra).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:32 (BRT)
+
+- **Branch:** fix/account-export-test, criada a partir de feat/phase-8-polish (314e034)
+- **Agente(s):** backend-funcoes
+- **Resumo:** os 5 testes de `account-export/export.integration.test.ts` eram cancelados porque o `before` gravava uma inscrição de push fora do formato que o banco exige (`push_subscriptions_auth_check`). O defeito era só do fixture; a função não mudou. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `export.integration.test.ts`: `p256dh` com 87 e `auth` com 22 caracteres base64url, como os `check` de `20261102130500_push_subscriptions`, e um `endpoint` único por execução (a coluna é `unique`). Os valores continuam marcados (`secretP256dh...`, `secretAuth...`, `secret-endpoint-<uuid>`) e o teste confere que nenhum deles sai no arquivo.
+- **Arquivos/módulos principais:** `supabase/functions/account-export/export.integration.test.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma
+- **Como testar:** pilha A, `pnpm exec supabase db reset`, `pnpm functions:test`.
+- **Verificado:** pilha A depois de `db reset`: `account-export/export.integration.test.ts` 5 de 5; `pnpm functions:test` inteiro, 207 testes, 44 suítes, 207 passaram, 0 falhas, 0 cancelados. Pilha A parada com `supabase stop` (sem `--all`).
+- **Não verificado:** `pnpm check` não rodou de novo (só o arquivo de teste mudou; o lint-staged do commit passou); o projeto hospedado.
+- **Pendências / próximos passos:** nenhuma desta correção.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:33 (BRT)
+
+- **Branch:** feat/proof-consent-v3, criada a partir de feat/phase-8-polish (439f363)
+- **Agente(s):** prova-foto
+- **Resumo:** o texto da versão 3 do aviso da prova (ADR-0012, seção 6; handoff `20261103-0619-auth-grupos-para-prova-foto-frase-de-exclusao-do-aviso`). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `proof.consent.deletion` passa a ter uma frase por versão, como `whatsapp.consent.v1`: `v2` guarda a antiga e `v3` diz que o aceite se revoga em Perfil > Privacidade e que as fotos já enviadas seguem o prazo de `retentionDays` e só saem antes com a exclusão da conta. A tela escolhe a frase por `proofRules.consentVersion`, então mostra a v2 até o `banco-de-dados` subir o número, e a v3 depois, sem outro commit.
+  - E2E sem o número fixo: `e2e/proof-fixtures.ts` e `e2e/privacy.spec.ts` gravam o aceite com `proofRules.consentVersion`; `expectNotice` de `e2e/proof-capture.spec.ts` espera a frase da versão em vigor.
+- **Arquivos/módulos principais:** `packages/i18n/src/pt-BR/proof.json`, `packages/features/proof/src/ProofCaptureScreen.tsx`, `e2e/proof-capture.spec.ts`, `e2e/proof-fixtures.ts`, `e2e/privacy.spec.ts`
+- **Migrations:** nenhuma (o número e o espelho `proof_rules` estão com o `banco-de-dados`)
+- **Decisões/ADRs:** quem aceitou a 2 vê o aviso de novo pela regra que já existia (`proof_consent_version < proofRules.consentVersion`, em `packages/data/src/proof`, coberta pela E2E "Whoever accepted an older version"). Sem lógica nova, sem teste de unidade novo.
+- **Como testar:** `pnpm check`; com a pilha e o número em 3, `pnpm exec playwright test e2e/proof-capture.spec.ts e2e/privacy.spec.ts --project=app`.
+- **Verificado:** `pnpm check` passou (ver o commit).
+- **Não verificado:** as E2E não rodaram (sem pilha); a tela não foi vista no navegador; a frase v3 na tela só aparece depois que o `banco-de-dados` subir o número.
+- **Pendências / próximos passos:** `banco-de-dados` sobe `proofRules.consentVersion` e o espelho para 3. A base legal segue com o humano (ADR-0012, seção 17, item 2).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:35 (BRT)
+
+- **Branch:** `feat/ui-polish`, a partir de `feat/phase-8-polish` (`d2c8d4e`)
+- **Agente(s):** design-system
+- **Resumo:** o `Fab` bloqueava os toques numa faixa da largura toda no rodapé (handoff `20261103-0515`); reduzir movimento e animações de F8-6 em todos os componentes animados de `packages/ui`; arte do Broto para ícone, ícone adaptativo, splash e notificação (F8-7, parte visual). Hora do relógio da máquina convertida para America/Sao_Paulo pelo Node (o PowerShell foi barrado no worktree).
+- **Alterações:**
+  - `Fab` e `Confetti`: `pointerEvents` como prop, não no estilo (o react-native-web 0.21 descarta do estilo inline). Não restou nenhum `pointerEvents` em estilo em `packages/ui`.
+  - Reduzir movimento: o `Sheet` deixa de esmaecer (`animationType` `none`, como o `PerfectDayScreen`); o `Button` com `loading` mostra o anel parado em vez de girando (componente `Busy`, para só o botão ocupado ouvir a preferência). Mascote, confete, `TaskCheck` e `ProgressRing` já respeitavam.
+  - Animações: `nativeDriver` (`Platform.OS !== 'web'`) em `useReducedMotion.ts`, usado por `Mascot`, `Confetti` e `TaskCheck`, que só animam `transform` e `opacity`: no nativo rodam na thread de UI. O `ProgressRing` é a exceção anotada: anima o traço de um SVG (pintura, não layout).
+  - `mascotArt.ts` (novo, sem import em tempo de execução): a geometria do Broto, usada pelo `<Mascot>` e pelas construções de SVG dos ícones (`brotoMarkup`, `brotoSilhouette`, `brandSvg`, `brandAssets`). `tokens.ts`: `mascotColors.eye` (o branco do olho, antes literal) e `brandPalette`.
+  - `scripts/render-brand.mjs` e `pnpm --filter @azkaban/ui brand`: desenha os PNGs com o Chromium do Playwright em `packages/ui/assets/brand/` (ícone 1024 sem alfa, frente e monocromático do adaptativo dentro do círculo de 66/108 dp, splash 1024, notificação 96 branca, favicon 48, ícones web 192, 512 e 180 e o maskable 512).
+  - Handoffs `20261103-0633-design-system-para-arquiteto-teto-do-pacote-web` (o script do teto e a medida de partida) e `20261103-0633-design-system-para-notificacoes-whatsapp-icones-e-splash` (copiar os PNGs e o `app.config.ts`).
+- **Arquivos/módulos principais:** `packages/ui/src/{Fab,Confetti,Sheet,Button,Mascot,TaskCheck,ProgressRing}.tsx`, `packages/ui/src/{useReducedMotion,tokens,mascotArt,mascotArt.test}.ts`, `packages/ui/scripts/render-brand.mjs`, `packages/ui/assets/brand/*.png`, `packages/ui/package.json`, os dois handoffs
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** `useNativeDriver` no nativo em vez do Reanimated da seção 10 do ADR-0012: o mesmo efeito (fora da thread de JS) sem dependência nova em `packages/ui`. O `ActivityIndicator` parado com reduzir movimento, em vez de sumir, para o estado ocupado continuar com ícone.
+- **Medidas (F8-6, meta 1, partida):** `pnpm build:web` nesta branch, Windows 11 Home, Node 24: maior JS `__common-<hash>.js`, 1 645 230 bytes brutos, 388 765 com o gzip padrão do `zlib` (387 156 no nível 9); teto de 110%, 427 641. 36 arquivos JS, 2 864 238 bytes.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/ui brand` e abrir os PNGs; `/design-system` com `prefers-reduced-motion: reduce`.
+- **Verificado:** `pnpm check` passou; `pnpm build:web` passou. No navegador, `/design-system` servido por `expo start --web` com `.env.local` falso (já apagado), Chromium do Playwright, a 375 e 1280 px, claro e escuro, com e sem reduzir movimento (8 combinações): o ponto à esquerda da faixa do `Fab` devolve o conteúdo de trás, não o invólucro (`pointer-events: none` nos dois `View`), e o centro do botão devolve o botão; o invólucro do confete com `pointer-events: none`; 28 peças de confete sem reduzir e 0 com; com reduzir, a animação de esmaecer da folha some e a do anel do botão fica `paused`; sem rolagem lateral; nenhum erro de página. Os quatro humores do mascote conferidos no olho depois de mover a geometria.
+- **Não verificado:** nativo (o `useNativeDriver` e o anel parado só no aparelho); as metas 2 a 5 de F8-6 (E2E e Lighthouse, do `qa-testes`); quadros do confete com CPU 4× mais lenta; os ícones no `prebuild` ou num aparelho; Safari. Sem mutação.
+- **Pendências / próximos passos:** o teste de contraste de todos os pares de texto e fundo (ADR-0012, seção 9, item 2) e os componentes de pendências e descarte da fila (seção 5), do handoff `20261103-0456`, ficaram fora desta tarefa; os dois handoffs acima.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:36 (BRT)
+
+- **Branch:** feat/shopping-offline-and-task-link, criada a partir de feat/phase-8-polish (d2c8d4e)
+- **Agente(s):** compras
+- **Resumo:** F8-5 em compras (ADR-0012, seção 5), F7-5a (vínculo com tarefa, ADR-0011, seções 8 e 16, SEG7-1) e o aviso de XP ao finalizar (seção 9). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/data/src/shopping`: `shoppingErrorCode` lê `PT429` (ou a mensagem `rate_limited`) como `rate_limited` (tipo `ShoppingFailureCode`); o stepper manda `p_request_id` nos dois ramos quando há `requestId`; três ações da fila com `defineOfflineAction`: `shopping-adjust`, `shopping-add-item` (um `23505` com a linha daquele id já gravada conta como feito) e `shopping-check`. `listsForTask` e `linkedTask` (título e a ocorrência a abrir: a pendente mais antiga, senão a última; `null` quando a RLS esconde a tarefa).
+  - `packages/platform`: `randomId` (o `randomUUID` do `expo-crypto`, que já era dependência), para o `requestId` e o id do item avulso.
+  - `packages/features/shopping`: o stepper (`usePendingDeltas`) vai pela fila com um `requestId` novo a cada envio; item avulso com id do cliente e linha otimista; marcar pela fila; com a fila cheia e sem rede, a mensagem de sem conexão. O Realtime espera as ações `shopping-adjust` em vez da antiga chave `steps`. Finalizar fica desligado sem conexão, com explicação. Aviso da fila na tela da lista (pendências e descartes com motivo). Texto de XP por `completionXp`, com os valores de `shoppingRules.xp`: "+10 XP (até 2 listas por dia)" com 3 ou mais marcados, "finaliza sem XP" abaixo disso.
+  - Vínculo: `LinkedTaskButton` na lista, aberta ou finalizada, só se a tarefa for legível (sem botão e sem "não encontrado" para quem não lê). `TaskShoppingLink` na página da tarefa: abre a lista vinculada (abertas primeiro) ou cria uma com o nome da tarefa, no grupo se a tarefa é `visibility = 'group'`, senão pessoal, e grava `linked_task_id`. A rota `apps/app/app/(app)/tasks/[id]/index.tsx` compõe o componente acima da tela, como o `ProofLink`; nenhum slot na tela da tarefa.
+  - i18n: `errors.{rate_limited,offline,expired,invalid}`, `list.{xp,xpNeedsItems,completeOffline}`, `task.*`, `offline.*`.
+  - `e2e/shopping.spec.ts`: dois testes novos, offline (um toque online, três offline e uma marcação, fechar a aba, voltar online numa aba nova: 4 pacotes e marcado) e vínculo (criar da tarefa, ir e voltar, o membro sem `task.view_group` não vê o vínculo nem "não encontrado", aviso de "sem XP").
+- **Arquivos/módulos principais:** `packages/data/src/{index.ts,shopping/index.ts,shopping/shopping.test.ts}`, `packages/platform/src/index.ts`, `packages/features/shopping/src/{hooks.ts,BuildMode.tsx,MarketMode.tsx,ShoppingListScreen.tsx,TaskLink.tsx,shopping.ts,shopping.test.ts,index.ts}`, `packages/i18n/src/pt-BR/shopping.json`, `apps/app/app/(app)/tasks/[id]/index.tsx`, `e2e/shopping.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** criar a lista da tarefa são duas chamadas (`create_shopping_list` e o `update` do vínculo), com comentário `ponytail`: um vínculo recusado deixa a lista sem vínculo e mostra o erro. O caminho contrário na lista é só abrir a tarefa; ligar uma lista existente a uma tarefa escolhida não entrou (pediria um seletor de tarefas). O texto de XP não sabe quantas listas já valeram no dia, então diz o teto.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/data --filter @azkaban/feature-shopping test`; com a pilha e `useOfflineQueue` no layout raiz, `pnpm exec playwright test e2e/shopping.spec.ts --project=app`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 11 de 11; data 29, feature-shopping 21, core 719, contracts 146, platform 53; `functions:imports` 10 de 10); `pnpm build:web` exportou. Sem mutação.
+- **Não verificado:** nenhuma E2E rodou (sem pilha, por decisão do orquestrador); o teste offline depende de `useOfflineQueue` em `apps/app/app/_layout.tsx`, que ainda não está ligado nesta base; o `p_request_id` e o `23505` contra o banco real; o XP de verdade (trigger do `banco-de-dados` em andamento); nativo.
+- **Pendências / próximos passos:** orquestrador liga `useOfflineQueue` no layout; rodar `e2e/shopping.spec.ts` com a pilha; `design-system` pode dar `disabled` ao `ConfirmButton` (hoje, sem rede, a tela troca por um `Button` desligado).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:43 (BRT)
+
+- **Branch:** feat/phase-8-backlog-db, criada a partir de feat/phase-8-polish (439f363)
+- **Agente(s):** banco-de-dados
+- **Resumo:** backlog do banco do ADR-0012 (seção 13, itens 3 e 4) e a versão 3 do aviso da prova (seção 6). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `issue_proof_challenge`: o limite diário conta os usados nas últimas 24 horas mais os emitidos ainda vivos e não usados, numa contagem só (cada nonce conta uma vez, vivo e depois usado; a trava por usuário segura a soma). 29 usados mais 30 emitidos juntos já não chegam a 59.
+  - Espelho `gamification_rules.closeJob.batchSize` = 64 (SEG6-7) e a linha em `packages/config/src/gamification.ts`, por delegação do orquestrador.
+  - Espelho `proof_rules.consentVersion` = 3 e a linha em `packages/config/src/proof.ts`, por delegação do orquestrador. `record_proof_consent` só aceita a 3; `issue_proof_challenge` e `claim_proof_challenge` comparam `<` com o espelho, então quem aceitou a 2 é levado a aceitar de novo. Nenhuma função mudou para isso.
+  - pgTAP: `rls_proof` ganha 8 testes (nonce vivo conta, nonce vencido não, usado dentro da vida conta uma vez; aceite da 2 recusado na emissão e no claim, a 3 libera o mesmo nonce, uma linha por versão) e os fixtures passam para a versão 3; `rls_account_privacy` e `rls_notifications` só nos fixtures; `rls_gamification_security` ganha o teste do `batchSize`.
+- **Arquivos/módulos principais:** `supabase/migrations/2026110413{0000,0100,0200}_*.sql`, `supabase/tests/rls_{proof,account_privacy,notifications,gamification_security}.test.sql`, `packages/config/src/{gamification,proof}.ts`
+- **Migrations:** 20261104130000_proof_daily_limit_live_nonces, 20261104130100_close_job_batch_size, 20261104130200_proof_consent_version_3. Aplicadas só na pilha B local.
+- **Decisões/ADRs:** nenhuma nova. O nonce emitido e vencido sem uso deixa de contar no dia (não custou corpo lido).
+- **Como testar:** pilha B `db`; `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`, `pnpm check`.
+- **Verificado:** `pnpm db:test` 12 arquivos, 1895 testes, PASS; `pnpm db:check-permissions` em sincronia (`supabase_db_azkaban-b`, prova e gamificação); `pnpm db:types` sem diferença; `pnpm check` passou (17 de 17 e 11 de 11). Mutação no limite diário, aplicando a função mutante no banco e rodando `rls_proof` (587): controle 587 de 587; mortas 4 de 5 (sem o termo dos vivos, sem `expires_at`, só os vivos, `>` no lugar de `>=`); sobreviveu a sem `used_at is null` no termo dos vivos, equivalente (uma linha usada só existe dentro das 24 horas, e o `or` conta a linha uma vez).
+- **Não verificado:** E2E (fora desta tarefa); o projeto hospedado; a corrida de duas emissões simultâneas (só a trava já existente). `rls_notifications` falhou uma vez no teste 209 na primeira rodada logo depois do `db reset` e passou nas três seguintes, sem mudança; não investigado.
+- **Pendências / próximos passos:** `prova-foto` troca `proof.consent.deletion` e acompanha `CONSENT_VERSION` em `e2e/proof-fixtures.ts` e o `p_version: 2` de `e2e/privacy.spec.ts` (handoff `20261103-0619`); até lá a E2E da prova e a de privacidade quebram com `invalid_consent_version`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:44 (BRT)
+
+- **Branch:** `chore/security-phase-8` (de `feat/phase-8-polish`, `9c54f16`)
+- **Agente(s):** revisor-seguranca
+- **Resumo:** revisão de segurança da Fase 8 (ADR-0012: exportação, exclusão, revogação do aceite, limites, fila offline, Realtime) e do XP de compra (F7-5b). Nenhum achado crítico ou alto. Hora derivada de UTC menos 3 (o PowerShell foi bloqueado no worktree).
+- **Alterações:**
+  - Handoff para banco-de-dados: SEG8-1 (média), XP de compra além de 2 listas por dia trocando o fuso, com PoC (2 eventos sem trocar, 4 depois de trocar); SEG8-2 (baixa), `accept_invite` como oráculo de código sem limite, com PoC (35 tentativas, contador vazio); SEG8-3 (baixa), fotos apagadas antes do recheque de `owns_groups`; SEG8-4 (informativo), `processed_requests` sem limite; e o que conferir no hospedado (`auth.audit_log_entries`, `whatsapp_console_messages`).
+  - Handoff para tarefas-calendario: SEG8-5 (baixa), a fila offline de uma sessão expirada fica no `storage` sem prazo.
+- **PoCs que passaram (sem achado):** A exporta 4 vezes, o resultado é 200, 200, 200, 429 (`retryAfterSeconds` sem mais nada) e o arquivo não traz nada de B nem `code_hash`, `storage_path`, `p256dh`, `endpoint` ou `code`. A exclusão de B: prévia 200, exclusão 200, repetição 401; depois dela, 0 linhas de B em `auth.audit_log_entries` e `account_deletions` concluída. O `amr` se mantém no refresh (a renovação não reabre a janela de reautenticação). `profiles.proof_consent_version` não é editável pelo cliente. O `catchUp` lê pela RLS. Nenhum segredo no diff.
+- **Arquivos/módulos principais:** `docs/agentes/handoffs/20261103-0643-revisor-seguranca-para-banco-de-dados-seguranca-fase-8.md`, `docs/agentes/handoffs/20261103-0643-revisor-seguranca-para-tarefas-calendario-fila-offline-no-disco.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma; `phone_verifications` com `user_id` nulo por 48 h é decisão do ADR-0012 e não foi apontado.
+- **Como testar:** os PoCs estão descritos nos handoffs (pilha local, `curl` e `psql`).
+- **Pendências / próximos passos:** a CSP Report-Only não está no diff (`_headers` não mudou), então não foi revisada. Corrida de SEG8-3 sem PoC. Os privilégios em `auth` no hospedado não foram verificados. Pilha A parada às 06:43.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:49 (BRT)
+
+- **Branch:** feat/native-and-csp, criada a partir de feat/phase-8-polish (439f363), com `feat/ui-polish` (2bceb8d) integrada para os ícones
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** F8-7 sem conta paga (config nativa, EAS, ícones e splash do Broto, push nativo atrás de flag), a CSP completa como Report-Only gerada no build e o passo de push depois do primeiro login (ADR-0012, seções 11 e 13, itens 1 e 2). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `apps/app/app.config.ts`: `ios.bundleIdentifier` e `android.package` de `APP_IOS_BUNDLE_ID` e `APP_ANDROID_PACKAGE`, com o padrão provisório `com.azkaban.app` (a confirmar pelo humano); `extra.eas.projectId` de `EAS_PROJECT_ID`, só quando existe; ícone adaptativo com fundo de cor, `expo-splash-screen` claro e escuro e `expo-notifications` com o ícone de notificação, como no handoff `20261103-0633` do `design-system`. As cores repetem os tokens (o carregador do Expo não lê o TypeScript de `packages/ui`) e `public.test.ts` compara.
+  - PNGs de `packages/ui/assets/brand` copiados para `apps/app/assets` e `apps/app/public`; `android-icon-background.png` saiu; o manifesto aponta o `maskable` para `icon-maskable-512.png`.
+  - `apps/app/eas.json`: perfis `development` (APK de debug e simulador do iOS), `preview` (APK interno e simulador) e `production`, sem credenciais. Sem `expo-dev-client`, que seria mais uma dependência.
+  - Dependências novas, gratuitas e sem conta para compilar: `expo-notifications ~58.1.7` (em `packages/platform` e `apps/app`, pelo plugin e pela autolinkagem) e `expo-splash-screen ~58.0.12` (em `apps/app`, pelo plugin). As versões são as de `bundledNativeModules.json` do SDK 58.
+  - `packages/config`: `features.nativePush = false`.
+  - `packages/platform`: `push.native.ts` com `nativePushToken(androidChannelName)` e `onPushOpened(listener)`; os dois também em `push.ts` e `push.web.ts`, sem efeito. As funções de Web Push continuam "não suportado" no nativo.
+  - `packages/features/notifications`: `shouldOfferPushSetup` (puro, com teste), `usePushSetupOffer`, `PushSetupStep` (o `PushSetupCard` com "Agora não" ou "Continuar"; ver o passo já conta como oferecido) e `useOpenPushedPaths` (o toque numa notificação nativa abre o caminho, por `safeInternalPath`). `notificationsConfig.pushOfferedKey`. i18n `setup.notNow` e `setup.continue`.
+  - Rotas: `/(app)/push-setup`; Hoje leva até ela uma vez por aparelho; o layout `(app)` liga `useOpenPushedPaths`.
+  - CSP: `apps/app/scripts/headers.ts`, rodado por `build:web` depois de `expo export`, acrescenta `Content-Security-Policy-Report-Only` ao bloco `/*` de `dist/_headers`, com a origem exata de `EXPO_PUBLIC_SUPABASE_URL` em `img-src` e `connect-src` (e `wss:`/`ws:` para o Realtime), sem curinga. Lê os `.env` na mesma ordem do Expo. Sem a variável, avisa e deixa só a CSP mínima. `public/_headers` não muda.
+  - E2E escrita, sem rodar: `e2e/push-setup.spec.ts`; `playwright.config.ts` semeia `notifications.pushOffered` em todo contexto, para o passo não ficar na frente de Hoje nas outras specs.
+  - Handoffs `20261103-0650-notificacoes-whatsapp-para-{auth-grupos-deep-link-de-sessao,backend-funcoes-e-banco-de-dados-push-nativo,qa-testes-passo-de-push-e-csp}`.
+- **Arquivos/módulos principais:** `apps/app/{app.config.ts,eas.json,package.json,public.test.ts,scripts/headers.ts,assets/,public/}`, `apps/app/app/(app)/{_layout,push-setup,(tabs)/index}.tsx`, `packages/platform/src/{push,push.web,push.native,index}.ts`, `packages/features/notifications/src/{PushSetupStep.tsx,pushOffer.ts,pushOffer.test.ts,config.ts,index.ts}`, `packages/config/src/features.ts`, `packages/i18n/src/pt-BR/notifications.json`, `playwright.config.ts`, `e2e/push-setup.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** o passo é uma tela (`/push-setup`) aberta por Hoje, uma vez por aparelho, e não por conta: é o que o ADR pede ("uma chave no aparelho"), e as preferências continuam com o cartão. Fica fora o iOS anterior a 16.4 e o navegador sem push, onde não há o que oferecer. A CSP sem a URL do Supabase não derruba o build: Report-Only não protege nada, e a CSP mínima valendo continua. O deep link de sessão do link mágico mexe em `packages/data/src/auth` e ficou para `auth-grupos` (handoff).
+- **Como testar:** `pnpm check`; `EXPO_PUBLIC_SUPABASE_URL=https://<ref>.supabase.co pnpm build:web` e abrir `apps/app/dist/_headers`; em `apps/app`, `npx expo config --type public` e `npx expo prebuild --platform android --no-install` (apagar `android/` depois); com a pilha e uma chave VAPID, `pnpm exec playwright test e2e/push-setup.spec.ts --project=app`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 11 de 11; app 12, notifications 19, platform 54, config 22, core 719, contracts 146, ui 38); `pnpm build:web` exportou e `dist/_headers` saiu com a linha Report-Only do host passado e o resto igual; `expo config --type public` mostra identificadores, ícones, splash e plugins; `expo prebuild --platform android --no-install` terminou, com `applicationId 'com.azkaban.app'`, o esquema `azkaban` e o ícone e a cor de notificação no manifesto (pasta apagada depois).
+- **Não verificado:** nenhuma E2E rodou (a spec nova e a semente no `playwright.config.ts`); se o Chromium sem interface diz `denied` para notificações, o que esconde o passo na spec; nenhuma tela vista no navegador; build nativo, aparelho, token Expo, toque em notificação nativa; `expo-doctor`; a CSP no navegador (a rodada Report-Only é no ambiente hospedado, F8-8). Sem mutação.
+- **Pendências / próximos passos:** do handoff `20261103-0456` ficam `expo-haptics`, `@react-native-community/netinfo`, `expo-doctor` e `expo config` no CI, o deep link de sessão (com `auth-grupos`) e "conta excluída" no sino; contas e identificadores com o humano (ADR-0012, seção 17, item 12); a CSP valendo depois da rodada limpa.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:52 (BRT)
+
+- **Branch:** chore/phase-8-architect-close, criada a partir de feat/phase-8-polish (9c801db)
+- **Agente(s):** arquiteto
+- **Resumo:** teto do pacote web (F8-6) no CI, regra de lint contra `pointerEvents` em estilo, e os ADRs 0010, 0011 e 0012 alinhados com o que foi entregue. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `scripts/check-bundle-size.mjs` (novo) e `pnpm bundle:size`: comprime com `zlib` (nível padrão) cada `.js` de `apps/app/dist` e falha se o maior passa de 427 641 bytes (110% de 388 765, a partida medida pelo `design-system`, handoff `20261103-0633`). Passo novo no job `check` do `ci.yml`, logo depois do `pnpm build:web`; fora do `pnpm check`, que não constrói. Documentado no `CLAUDE.md`.
+  - `eslint.config.mjs`: `no-restricted-syntax` contra a chave `pointerEvents` em qualquer objeto (o react-native-web 0.21 descarta do estilo; foram três bugs: cartão de comemoração, `Fab`, `NotificationToaster`). O código atual já usa a prop em todos.
+  - ADR-0012: seção 5 com `dehydrate`/`hydrate` do `@tanstack/react-query`, sem as duas dependências (e por quê), descarte por idade pela hora do toque, repetição de rede e 5xx sem teto de tentativas (só os 24 h limitam), e o toque desatualizado para o mesmo destino contando como feito também online; seção 10 com o script e o CI; Consequências sem "duas dependências".
+  - ADR-0010, seção 8: o dia perfeito vem primeiro e ganha a tela (QA6-2); a conquista concedida no teto é comemorada (QA6C-2); `burstMs` e `joinMs` (3 s, QA6C-3).
+  - ADR-0011: F7-5 entregue no status; seção 9 com a janela móvel de 24 h no lugar do dia local (SEG8-1) e a decisão de não pôr `shoppingListId` em `xpEventSchema`. Comentários de `shoppingRules.xp` (`packages/config`) e de `xpEventReasonSchema` (`packages/contracts`) sem "reservado" nem "dia local".
+- **Arquivos/módulos principais:** `scripts/check-bundle-size.mjs`, `package.json`, `.github/workflows/ci.yml`, `CLAUDE.md`, `eslint.config.mjs`, `docs/adr/0010-*.md`, `docs/adr/0011-*.md`, `docs/adr/0012-*.md`, `packages/config/src/shopping.ts`, `packages/contracts/src/tasks.ts`.
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** teto no CI, não no `check`; `shoppingListId` fica fora do contrato até uma tela ler; sem teto de tentativas na fila.
+- **Como testar:** `pnpm check` (verde, 1081 testes de unidade e 10 de `functions:imports`). `pnpm build:web` e `pnpm bundle:size`: 399 448 bytes (`__common`), teto 427 641, passa. Mutação: um `.js` falso de 430 000 bytes aleatórios em `apps/app/dist` levou o script a 430 153 e à falha; apagado, volta a passar. Regra de lint: um `StyleSheet.create({ a: { pointerEvents: 'none' } })` temporário deu erro.
+- **Pendências / próximos passos:** o maior JS já está 2,7% acima da partida (399 448 contra 388 765), com folga de 28 193 bytes até o teto. O CI com o passo novo não rodou (sem push).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:56 (BRT)
+
+- **Branch:** fix/offline-queue-hardening, criada a partir de feat/phase-8-polish (9c801db)
+- **Agente(s):** tarefas-calendario
+- **Resumo:** SEG8-5 (handoff `20261103-0643`) e o `networkMode` das mutações fora da fila (ADR-0012, seção 5, "Fica fora"), por decisão do orquestrador. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/data/src/offline`: a fila salva grava `savedAt`. Cada `startOfflineQueue`, de qualquer conta, lista as chaves do `storage` (`getAllKeys` do AsyncStorage, também na web) e apaga as `azkaban.offline-queue.*` de outras contas com `savedAt` mais velho que `offlineDefaults.maxAgeHours`, ou sem `savedAt` legível. A fila da própria conta segue pela restauração, que descarta as ações velhas com aviso.
+  - `offlineMutationDefaults` (`networkMode: 'always'`) no `QueryClient` de `apps/app/app/_layout.tsx`: criar, editar e excluir tarefa, finalizar lista, prova e o resto das mutações fora da fila falham na hora sem rede, em vez de pausar sem aviso. As ações da fila já declaram `networkMode: 'online'` e continuam esperando.
+  - `taskErrorCode` devolve `offline` para uma falha de rede sem conexão (o repositório embrulha o erro na hora da falha, então vale a conexão daquele momento); as telas de tarefa já mostram `errors.offline` ("Sem conexão. Esta mudança precisa de internet...") sem mudar.
+  - `e2e/offline-queue.spec.ts`: offline, criar uma tarefa mostra a mensagem de sem conexão, não vai para a fila e não aparece depois.
+- **Arquivos/módulos principais:** `packages/data/src/{index.ts,offline/index.ts,offline/offline.test.ts,tasks/index.ts,tasks/status.test.ts}`, `apps/app/app/_layout.tsx`, `e2e/offline-queue.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** padrão global com as ações da fila declarando o próprio `networkMode`, em vez de uma mutação de cada vez: cobre a lista inteira do "Fica fora" do ADR sem tocar as features de compras e prova. A materialização de repetições também deixa de pausar: sem rede, falha depois das duas tentativas e o `MaterializeStatus` oferece tentar de novo. Uma fila salva por uma versão sem `savedAt` é apagada no primeiro início de outra conta (só há dados de desenvolvimento).
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/data exec vitest run src/offline src/tasks`; com a pilha, `pnpm exec playwright test e2e/offline-queue.spec.ts --project=app`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 11 de 11; data 38, core 719, contracts 146, platform 54, app 8); `pnpm build:web` exportou (a primeira tentativa falhou com `react-native-css-interop/jsx-runtime` não resolvido, de uma instalação incompleta; passou depois de `pnpm install --frozen-lockfile`). Mutação na regra de idade, 6 de 6 mortas, controle passando: `< 0`, `>=` no lugar de `<=`, sem a negação (fila sem `savedAt` fica), sempre apagar, `savedAt: 0` gravado, o dobro da idade.
+- **Não verificado:** nenhuma E2E rodou (sem pilha); o `getAllKeys` no nativo; o efeito do `networkMode: 'always'` nas telas fora do meu escopo (grupos, perfil, notificações, compras), que mostram o próprio erro genérico; uma conta aberta em outra aba há mais de 24 h sem eventos tem a chave apagada (as ações dela já teriam passado da idade).
+- **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:59 (BRT)
+
+- **Branch:** `fix/phase-8-db-security`, criada a partir de `feat/phase-8-polish` (`9c801db`)
+- **Agente(s):** banco-de-dados
+- **Resumo:** os quatro achados de banco da revisão de segurança da Fase 8 (SEG8-1 a SEG8-4). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - SEG8-1: o teto `maxRewardedPerDay` do XP de compra conta as listas premiadas das últimas 24 horas, não do dia local do perfil. Trocar o fuso deixou de zerar a contagem.
+  - SEG8-2: `accept_invite` gasta `invite_lookup` em toda chamada e responde `null` a um código que não serve, sem `raise`, para o contador ficar. O contrato muda (era o erro `invite_invalid`): handoff ao `auth-grupos`.
+  - SEG8-3: com uma linha aberta em `account_deletions` para o dono do grupo, `accept_invite` responde `null`. Um `for share` no perfil do dono se choca com o `for no key update` de `begin_account_deletion`, então um aceite em voo faz o `begin` esperar e contar o novo membro (`owns_groups` antes de qualquer foto), e um `begin` em voo faz o aceite esperar e ver a linha.
+  - SEG8-4: ação `shopping_item_adjust` (600 por hora) no espelho e em `packages/config/src/limits.ts`, por delegação do orquestrador. Cada chamada que soma, tira ou cria item conta uma vez, pelas duas entradas do stepper; um `requestId` repetido não conta; o 429 desfaz a linha de `processed_requests`. O comentário de `invite_lookup` em `limits.ts` passou a citar `accept_invite`.
+  - pgTAP: `rls_shopping_xp` 17 (a janela de 24 horas no lugar do "ontem" e a troca para o `Etc/GMT` onde agora é entre 00:00 e 01:00); `rls_rate_limits` 89 (espelho; `accept_invite` errado conta, 30 passa, 31 dá 429, a janela seguinte entra; o stepper conta 7 chamadas aplicadas, a 601 dá 429 sem gravar o id); `rls_groups` 57 (os três `invite_invalid` viram `null`, e o esgotado não entra); `rls_account_privacy` 97 (convite do Solo recusado com a exclusão aberta, o de outro dono responde, Solo só com D).
+- **Arquivos/módulos principais:** `supabase/migrations/202611041{50000,50100,50200,50300}_*.sql`, `supabase/tests/rls_{shopping_xp,rate_limits,groups,account_privacy}.test.sql`, `packages/config/src/limits.ts`, `docs/agentes/handoffs/20261103-0659-banco-de-dados-para-auth-grupos-accept-invite-null.md`
+- **Migrations:** 20261104150000_shopping_xp_rolling_day, 20261104150100_accept_invite_lookup_limit, 20261104150200_accept_invite_account_deletion, 20261104150300_shopping_item_adjust_rate_limit. Aplicadas só na pilha B local.
+- **Decisões/ADRs:** nenhuma nova. `accept_invite` conta também o código válido (como a prévia), então entrar pelo app gasta 2 das 30 consultas por hora.
+- **Como testar:** pilha B `db`; `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`, `pnpm check`.
+- **Verificado:** `pnpm db:test` 12 arquivos, 1911 testes, PASS; `pnpm db:check-permissions` em sincronia (`supabase_db_azkaban-b`, limites incluídos); `pnpm db:types` sem diferença; `pnpm check` passou (11 pacotes de testes, 1081 testes; `functions:imports` 10 de 10). Mutação, aplicando a função mutante na B e rodando o arquivo de teste: mortas 5 de 5 (contagem pelo dia local, `raise` no código inválido, sem o `consume` no aceite, sem a checagem da exclusão aberta, sem o `consume` em `add_catalog_item_to_list`); as funções voltaram e os quatro arquivos passaram de novo.
+- **Não verificado:** a corrida real entre `begin_account_deletion` e `accept_invite` (só pela semântica de `for share` contra `for no key update`); o cliente com `accept_invite` devolvendo `null`; E2E e `functions:test` (fora desta tarefa); o projeto hospedado.
+- **Pendências / próximos passos:** `auth-grupos` faz `acceptInvite` lançar com `data` nulo (handoff `20261103-0659`); até lá, um código ruim leva a `/groups/null`. O comentário de `shoppingRules.xp` em `packages/config/src/shopping.ts` e o ADR-0011 (seção 9) ainda dizem "dia local"; e o ADR-0012 diz que `accept_invite` não tem limite: cabe ao orquestrador. Uma exclusão que falhe em `finish` com a linha aberta trava os convites dos grupos desse dono até repetir a exclusão.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 07:03 (BRT)
+
+- **Branch:** `fix/accept-invite-null` (de `feat/phase-8-polish`, com merge de `fix/phase-8-db-security`)
+- **Agente(s):** auth-grupos
+- **Resumo:** o cliente acompanha o contrato novo de `accept_invite` (handoff `20261103-0659-banco-de-dados-para-auth-grupos-accept-invite-null`): `null` vira `invite_invalid` e `PT429` vira `rate_limited`, com texto próprio na tela do convite.
+- **Alterações:**
+  - `groupsRepository.acceptInvite` lança `Error('invite_invalid')` com `data` nulo (antes navegava para `/groups/null`) e `Error('rate_limited', { cause })` com `PT429`; o retorno passa a ser `Promise<string>`.
+  - `JoinGroupScreen` mostra `join.rateLimited` para `rate_limited` e `join.invalid` para o resto.
+  - Chave nova `groups.join.rateLimited`.
+  - Teste de unidade dos três casos (entrou, nulo, 429) em `packages/data/src/groups/groups.test.ts`.
+- **Arquivos/módulos principais:** `packages/data/src/groups/index.ts`, `packages/data/src/groups/groups.test.ts`, `packages/features/groups/src/JoinGroupScreen.tsx`, `packages/i18n/src/pt-BR/groups.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. O texto do 429 não traz a espera (o `hint`), como no resto dos módulos.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/data exec vitest run src/groups`.
+- **Pendências / próximos passos:** nenhum E2E esperava o erro antigo (`e2e/accounts.spec.ts` checa o código revogado pela prévia, que já devolvia vazio); E2E não rodados. `previewInvite` também gasta o limite e, num 429, a tela fica sem a prévia e sem mensagem; não mudou aqui.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 07:25 (BRT)
+
+- **Branch:** `fix/invite-preview-rate-limit` (de `feat/phase-8-polish`, `42f421d`)
+- **Agente(s):** auth-grupos
+- **Resumo:** a prévia do convite também gasta o limite `invite_lookup` (SEG8-2); com `PT429`, a tela de entrar no grupo agora diz `join.rateLimited` em vez de abrir sem prévia e sem mensagem.
+- **Alterações:**
+  - `groupsRepository.previewInvite` lança `Error('rate_limited', { cause })` com `PT429`, como o `acceptInvite`.
+  - `JoinGroupScreen` mostra o estado vazio com `join.rateLimited` quando a prévia esbarra no limite, e a consulta da prévia não tenta de novo depois de um `rate_limited` (cada tentativa gastaria mais do limite).
+  - Testes de `previewInvite` (prévia lida, código que não serve, 429) em `packages/data/src/groups/groups.test.ts`.
+- **Arquivos/módulos principais:** `packages/data/src/groups/index.ts`, `packages/data/src/groups/groups.test.ts`, `packages/features/groups/src/JoinGroupScreen.tsx`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm check`.
+- **Pendências / próximos passos:** E2E não rodados. Outros erros da prévia (rede, 5xx) seguem sem mensagem na tela, como antes.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:04 (BRT)
+
+- **Branch:** chore/qa-phase-8, criada a partir de feat/phase-8-polish (9c801db), com `feat/phase-8-polish` integrada até 42f421d
+- **Agente(s):** qa-testes
+- **Resumo:** QA da Fase 8 na base integrada: as specs novas com o Realtime frio, F8-1 (percurso de acessibilidade de 31 telas sem dependência nova) e as metas medidas de F8-6. Nove achados, QA8-1 a QA8-9. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree. A sessão foi interrompida por um reinício da máquina e retomada.
+- **Alterações:**
+  - `e2e/privacy.spec.ts`: o teste do dono volta a Hoje antes de abrir Privacidade (a página do grupo não tem barra de abas). Dois testes novos: a quarta exportação do dia diz quanto esperar; e login com mais de 15 minutos (token com `amr` de 20 minutos atrás, numa sessão nova), marcado `test.fail` por QA8-2.
+  - `e2e/offline-queue.spec.ts`: sair com uma alteração pendente sem conexão pede confirmação e descarta a fila. Passa com o `networkMode` já integrado.
+  - `e2e/a11y.spec.ts` (novo): 31 telas (6 sem sessão e 25 com), a 320, 375 e 1280 px, claro e escuro, com reduzir movimento. Confere nome acessível, contraste AA contra o fundo pintado (emoji fora), alvos de 44 px, rolagem lateral, texto cortado, imagem sem nome, um `h1`, `lang`, título, animação rodando ou `transform` mudando, zoom de 200% (188 px CSS) e Tab com anel de foco. Os problemas conhecidos estão numa lista `known`, cada um com o número do achado; um problema novo faz a spec falhar.
+  - `e2e/performance.spec.ts` (novo): chamadas REST ao abrir Hoje com 50 ocorrências (só o N+1 barra, no máximo 3 por rota), Hoje e "no mercado" com 200 linhas com CPU 4×, e quadros do confete com CPU 4×.
+  - `e2e/push-setup.spec.ts`: `grantPermissions(['notifications'])` antes do cadastro, como pedia o handoff `20261103-0650`. Não bastou (QA8-8).
+  - Handoffs: `20261103-0745-qa-testes-para-notificacoes-whatsapp-canal-realtime-repetido` (QA8-1 e QA8-8), `20261103-0745-qa-testes-para-auth-grupos-reautenticacao-na-previa` (QA8-2 e QA8-7), `20261103-0755-qa-testes-para-arquiteto-requisicoes-de-hoje` (QA8-3), `20261103-0755-qa-testes-para-design-system-contraste-e-zoom` (QA8-4 e QA8-6), `20261103-0755-qa-testes-para-tarefas-calendario-acessibilidade-da-fase-8` (QA8-5, QA8-6 e QA8-7), `20261103-0805-qa-testes-para-backend-funcoes-aceite-v3-nos-testes` (QA8-9).
+- **Achados:** QA8-1 (alta): abrir de novo a mesma lista pela tarefa troca a tela pelo erro `cannot add postgres_changes callbacks`, porque `channel(name)` devolve o canal já assinado; 4 de 4. QA8-2 (alta): com login de mais de 15 minutos, a prévia da exclusão responde `reauth_required`, a tela mostra "Algo deu errado" e o formulário de senha nunca aparece. QA8-3 (média): 17 chamadas REST em Hoje, para uma meta de 8. QA8-4 (média): contraste de 3,31:1 nas contagens do calendário (claro) e de 2,34:1 no "–" de Equipe (escuro). QA8-5 (baixa): dia do mês com 38 px de largura a 320 px. QA8-6 (média): a 200%, a barra de seis abas rola 76 px para o lado e os dias da semana saem cortados. QA8-7 (baixa): Hoje tem dois `h1`; `/contexts`, `/groups/<id>` e o convite inválido não têm nenhum. QA8-8 (média): o passo de push não aparece na E2E com chave VAPID. QA8-9 (alta): `functions:test` vermelho, porque `proof-kit.ts` grava o aceite da versão 2.
+- **Medidas (F8-6), Windows 11 Home, Chromium do Playwright, servidor de dev, pilha A, rodando junto com a E2E completa:**
+  - Meta 2: 17 chamadas REST, sem N+1.
+  - Meta 3, Hoje com 200: 5 053 ms e 4 526 ms da última resposta REST até o primeiro quadro com linha. A meta é menos de 1 s: não cumprida.
+  - Meta 3, "no mercado" com 200: 1 091, 1 190 e 567 ms, perto da meta.
+  - Meta 3, mês do calendário: não medido.
+  - Meta 4, confete: 0 quadros acima de 50 ms em 350 (pior 41 ms) com a spec sozinha; 12 em 298 (pior 102) e 8 em 299 (pior 79) com a E2E completa em paralelo. A meta é no máximo 2.
+  - Meta 5 (Lighthouse) e meta 1 (pacote) não medidas.
+  - Os tempos vêm do servidor de dev, não do build.
+- **Acessibilidade (F8-1):** nenhum controle sem nome; nenhum alvo abaixo de 44 px fora do mês a 320 px; nenhuma rolagem lateral a 320, 375 e 1280 px; anel de foco em todo controle alcançado por Tab; nenhuma animação nem `transform` mudando com reduzir movimento; `lang` `pt-BR` e título em todas as telas. Sem axe, porque o `@axe-core/playwright` seria dependência nova.
+- **Como testar:** pilha A, `pnpm exec supabase db reset`, `pnpm exec playwright test e2e/a11y.spec.ts e2e/performance.spec.ts e2e/privacy.spec.ts e2e/offline-queue.spec.ts --project=app`.
+- **Verificado:**
+  - Logo depois do `db reset`, Realtime frio, `gamification`, `notifications-bell` e `shopping` com `--repeat-each=4`: 40 ok e 4 falhas, todas QA8-1.
+  - `pnpm e2e` completo uma vez, com a chave VAPID gerada em memória: 86 ok, 3 falhas, 1 pulado e 4 não rodados (o projeto `jobs`). As falhas: QA8-1; QA8-8; e `performance.spec.ts`, por um erro da própria spec na medida do calendário, já tirada.
+  - Uma segunda `pnpm e2e` saiu por engano (o lançador ignorou o filtro) e foi interrompida pela metade, em 51 de 94. Nela, `push-setup` falhou de novo e `tasks-materialize.spec.ts:129` falhou uma vez; não investiguei essa falha.
+  - `pnpm functions:test` duas vezes, a segunda para diagnóstico: 207 testes, 144 ok, 41 falhas e 22 cancelados (QA8-9).
+  - `pnpm check` passou (17 de 17 e 11 de 11; `functions:imports` 10 de 10).
+  - Pilha A parada com `supabase stop`, sem `--all`; pilha B não tocada.
+- **Não verificado:**
+  - Leitor de tela real (NVDA ou VoiceOver: entrar, concluir uma tarefa, abrir a lista de compras); fica com o humano (ADR-0012, seção 9, item 7). Também ficam com ele o anúncio das regiões vivas pelo leitor, a ordem de leitura e se o foco fica preso nas folhas e é devolvido (`useRestoreFocus`).
+  - Contraste de placeholder, de texto sobre imagem e de estados de hover e foco.
+  - Reduzir movimento na comemoração de tela cheia e no mascote em uso: a `gamification.spec` cobre o cartão sem confete.
+  - Telas que não entraram no percurso: `/proofs/<id>` e `/tasks/<id>/proof` (pedem prova e câmera), `/design-system`, a seção de excluir aberta, folhas e diálogos.
+  - Lighthouse, `pnpm build:web` e `bundle:size`; Safari e iPhone; nativo; projeto hospedado; CSP (depende de F8-8).
+  - A `performance.spec.ts` depois de tirar a medida do calendário: a parte de Hoje e a do mercado rodaram na segunda E2E, a do confete passou, mas a spec inteira não rodou de novo sozinha. Sem mutação.
+- **Pendências / próximos passos:** os seis handoffs acima. Tirar o `test.fail` de QA8-2 e as linhas de `known` em `a11y.spec.ts` conforme os donos corrigirem. Lighthouse e o tempo do mês quando houver build servido.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:13 (BRT)
+
+- **Branch:** `fix/privacy-reauth-preview` (de `feat/phase-8-polish`, `c2d46b5`)
+- **Agente(s):** auth-grupos
+- **Resumo:** QA8-2 e a parte de grupos de QA8-7. A prévia da exclusão que responde `reauth_required` agora mostra "Confirme que é você" (senha ou link por e-mail) e, depois de entrar de novo, lê a prévia outra vez; a exclusão continua pedindo EXCLUIR. O detalhe do grupo e o convite (sem sessão ou inválido) ganharam um `h1`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `deleteStep` e `afterReauth` (novo, `packages/features/auth/src/deleteStep.ts`): a decisão do que a seção de excluir mostra. Um `reauth_required` da prévia ou da exclusão leva ao formulário; depois de entrar, a exclusão que pediu roda de novo, e a prévia que pediu é relida, nunca uma exclusão que a pessoa não viu.
+  - `PrivacyScreen`: a seção de excluir segue `deleteStep`; o botão do formulário diz "Confirmar" quando relê a prévia e "Confirmar e excluir" quando exclui. Chave nova `privacy.delete.reauthContinue`.
+  - Teste de unidade `deleteStep.test.ts` (4 testes); `@azkaban/feature-auth` passou a ter `vitest` e o script `test`.
+  - `GroupDetailScreen`: `Title` com o nome do grupo para todos; o `Subtitle` com o nome, só de quem não edita, saiu. `JoinGroupScreen`: `Title` "Convite" nos dois estados vazios.
+  - `e2e/privacy.spec.ts`: sem `test.fail`; depois da senha, "Confirmar", EXCLUIR e "Excluir minha conta para sempre". `e2e/a11y.spec.ts`: a linha de QA8-7 em `known` ficou só com `/` e `/contexts` (de `tarefas-calendario`).
+- **Arquivos/módulos principais:** `packages/features/auth/src/PrivacyScreen.tsx`, `packages/features/auth/src/deleteStep.ts`, `packages/features/auth/src/deleteStep.test.ts`, `packages/features/auth/package.json`, `pnpm-lock.yaml`, `packages/i18n/src/pt-BR/auth.json`, `packages/features/groups/src/GroupDetailScreen.tsx`, `packages/features/groups/src/JoinGroupScreen.tsx`, `e2e/privacy.spec.ts`, `e2e/a11y.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm check`; pilha A, `pnpm exec playwright test e2e/privacy.spec.ts e2e/a11y.spec.ts --project=app`.
+- **Verificado:** `pnpm check` passou (lint, boundaries, typecheck 17 de 17, test 12 de 12, com os 4 novos; `functions:imports` 10 de 10). `pnpm build:web` passou.
+- **Não verificado:** E2E não rodados (sem pilha), nem o de privacidade nem o de acessibilidade. O link por e-mail a partir da prévia não foi testado: ele volta a `/settings/privacy` com a seção fechada, e a pessoa abre de novo.
+- **Pendências / próximos passos:** QA rodar as duas specs na pilha A.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:13 (BRT)
+
+- **Branch:** fix/calendar-a11y, criada a partir de feat/phase-8-polish (c2d46b5)
+- **Agente(s):** tarefas-calendario
+- **Resumo:** a parte de tarefas-calendario de QA8-5, QA8-6 e QA8-7 (handoff 20261103-0755). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/features/calendar/src/MonthView.tsx`: a grade do mês sangra sobre o respiro lateral da Screen (`marginHorizontal: -spacing[4]`) e cada dia ocupa a coluna inteira, com os 4 px entre as caixas como preenchimento dentro do alvo. A 320 px o alvo passa de 38 para cerca de 45 px de largura, sem rolagem lateral (QA8-5). Em telas largas a grade fica 16 px mais larga de cada lado que o resto do conteúdo.
+  - `packages/features/calendar/src/format.ts`: `weekdayShort` vira `weekdayNarrow` ("D S T Q Q S S"), que cabe a 200% (QA8-6). A linha é `aria-hidden`; o rótulo de cada dia segue com a data por extenso.
+  - `packages/features/tasks/src/Sections.tsx`: o título de contexto em Hoje tinha `role="heading"` sem nível, que o react-native-web desenha como `h1`; agora é nível 3, sob o nível 2 da seção (QA8-7).
+  - `packages/features/contexts/src/AreasScreen.tsx`: `/contexts` ganha o `Title` (nível 1) com o mesmo texto do título da aba (QA8-7).
+  - `e2e/a11y.spec.ts`: tiradas de `known` a linha de QA8-5, a dos dias da semana cortados (QA8-6) e `/` e `/contexts` da linha de QA8-7. Ficam a barra de abas a 200%, o contraste e os `h1` de `/groups/<id>` e do convite.
+- **Verificado:** `pnpm check` passou (17 de 17 e 11 de 11; 1 095 testes de unidade; `functions:imports` 10 de 10). `pnpm build:web` passou.
+- **Não verificado:** a E2E (`a11y.spec.ts` e as demais), sem pilha; a medida real dos alvos e do corte no navegador; nativo. Sem teste de unidade novo: não há lógica nova, só layout e o formato do Intl.
+- **Pendências / próximos passos:** rodar `pnpm exec playwright test e2e/a11y.spec.ts --project=app` na pilha A para confirmar.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:14 (BRT)
+
+- **Branch:** `fix/proof-kit-consent-v3` (base `feat/phase-8-polish`, `c2d46b5`)
+- **Agente(s):** backend-funcoes
+- **Resumo:** corrige QA8-9. Os fixtures dos testes de função gravavam o aceite da prova com versão fixa `2`, e o banco só aceita a 3. Agora leem `proofRules.consentVersion`; o opt-in do WhatsApp dos fixtures passa a ler `whatsappRules.consentVersion` (hoje 1, mesmo valor).
+- **Arquivos:** `supabase/functions/_shared/proof-kit.ts`, `supabase/functions/proof-validate/validate.integration.test.ts`, `supabase/functions/dispatch-notifications/dispatch.integration.test.ts`, `supabase/functions/whatsapp-webhook/webhook.integration.test.ts`. Imports relativos de `packages/config/src/*.ts`, sem `import.meta`, porque a E2E importa o `proof-kit.ts`.
+- **Como testar:** pilha A, `pnpm exec supabase db reset`, `pnpm functions:test`.
+- **Verificado:**
+  - `pnpm functions:test` na pilha A depois de `db reset`: 207 testes, 207 ok, 0 falhas, 0 cancelados.
+  - `pnpm exec playwright test --list`: 94 testes em 26 arquivos, sem erro de compilação.
+  - `pnpm check` passou.
+  - Pilha A parada com `supabase stop`, sem `--all`; pilha B não tocada.
+- **Não verificado:** a E2E não rodou (só a listagem). O Prettier reformatou duas linhas depois do `functions:test`; mudança só de formatação, sem nova rodada.
+- **Hora:** o PowerShell foi bloqueado no ambiente; a hora é UTC menos 3.
+- **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:14 (BRT)
+
+- **Branch:** `docs/phase-8-perf-decisions`, criada a partir de `feat/phase-8-polish` (`c2d46b5`)
+- **Agente(s):** arquiteto
+- **Resumo:** decisões de F8-6 depois do QA da Fase 8: a meta de requisições de Hoje passa de 8 a 14, com cada chamada explicada e dois cortes entregues aos donos; as metas 2 a 4 só valem no build de produção, sem carga paralela; o ADR-0012 registra o limite de `accept_invite` (SEG8-2) e o do stepper (SEG8-4). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - ADR-0012, seção 10: tabela das 17 chamadas (QA8-3), quem lê cada uma e se é necessária. Cortes: `profiles` e `groups` repetidos (refetch das `OccurrenceRow` com `staleTime` 0) e `user_stats` repetido (`CelebrationHost` fora do cache). Ficam o marco e o `catchUp` do Realtime (7 chamadas, paralelas e fora do caminho do desenho) e as duas consultas de ocorrências. Depois dos cortes, a spec barra também o total em 14.
+  - ADR-0012, seção 10: as metas 2 a 4 valem no build (`pnpm build:web` servido por `expo serve`, já no `@expo/cli`), só a pilha A, `--workers=1`, `--repeat-each=3`, mediana e pior no LOG. Os números de 08:04 ficam como indicação. Lighthouse só na URL hospedada, depois de F8-8.
+  - ADR-0012, seção 4: `invite_lookup` em `get_invite_preview` e `accept_invite`, que responde `null` ao código que não serve; linha nova de `shopping_item_adjust`; o texto antigo ("sem limite próprio", "o stepper não entra") saiu.
+  - `packages/config/src/defaults.ts`: `currentUserStaleMs` (60 000), para o corte do `auth-grupos`.
+  - Handoffs: `20261103-0815-arquiteto-para-auth-grupos-stale-time-do-usuario`, `20261103-0815-arquiteto-para-gamificacao-estatisticas-pelo-cache`, `20261103-0815-arquiteto-para-qa-testes-metas-no-build`.
+- **Arquivos/módulos principais:** `docs/adr/0012-polimento-lgpd-limites-offline.md`, `packages/config/src/defaults.ts`, `docs/agentes/handoffs/20261103-0815-*.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0012, seções 4, 10 e 15. Sem `staleTime` global no `QueryClient`; sem RPC para juntar os pares do Realtime.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (`functions:imports` 10 de 10; rodado duas vezes, a segunda só para ler o código de saída, 0). A origem de cada uma das 17 chamadas foi lida no código (`useCurrentUser`, `useOccurrenceLists`, `AppTabBar`, `StreakChip`, `CelebrationHost`, `NotificationBell`, `NotificationToaster`) e soma 17, como a medida.
+- **Não verificado:** nenhuma E2E nem pilha; `expo serve` servindo o `dist` com as rotas de `output: 'single'`; que o refetch das linhas é a causa da segunda leitura de `profiles` e `groups` (só pela leitura do código); o projeto hospedado.
+- **Pendências / próximos passos:** os três handoffs. A variável da `webServer` em `playwright.config.ts` fica com o `qa-testes`, com revisão do arquiteto no PR.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:16 (BRT)
+
+- **Branch:** `fix/contrast-and-zoom` (de `feat/phase-8-polish`, `c2d46b5`)
+- **Agente(s):** design-system
+- **Resumo:** QA8-4 (contraste do calendário e de Equipe) e a parte da barra de abas de QA8-6 (zoom de 200%). Os tokens já passavam; o problema estava em como eram usados.
+- **Alterações:**
+  - QA8-4, calendário: o 3,31:1 não vinha da contagem, e sim do número dos dias de outro mês, desenhado em `text` com `opacity-50` sobre `surface` (3,30:1 no cálculo). A célula de outro mês agora tem borda tracejada e o número em `muted`/`muted-dark`, sem opacidade: 6,85:1 no claro e 7,75:1 no escuro. A borda tracejada é a pista de forma, além da cor.
+  - QA8-4, Equipe: o "–" de sem dado usava `text-muted` sem a variante escura (2,34:1 em `surface-dark`). Ganhou `dark:text-muted-dark`: 7,75:1.
+  - `tokens.test.ts`: todo par de texto e fundo em uso (ADR-0012, seção 9, item 2): `text`, `muted`, `primary` e `danger` sobre `background` e `surface`, as variantes escuras sobre os fundos escuros, cada `on*` sobre o seu preenchimento e o branco sobre as seis cores de contexto. O pacote foi de 44 para 69 testes, todos passando.
+  - QA8-6, barra: `TabBar` passa a rolar para o lado dentro de si quando a largura não basta. A 188 px CSS (375 px a 200%) a página não rola mais (antes 76 px); a barra rola 123 px por dentro, cada aba tem pelo menos 44 px e o rótulo aparece inteiro. A 320, 375 e 1280 px nada muda: mesmas larguras das abas e nenhuma rolagem. Focar a última aba a traz para a vista.
+  - `e2e/a11y.spec.ts`: tiradas da lista `known` as duas linhas de QA8-4 e a de QA8-6 da barra. Fica a dos dias da semana cortados, de `tarefas-calendario`.
+- **Arquivos/módulos principais:** `packages/ui/src/TabBar.tsx`, `packages/ui/src/tokens.test.ts`, `packages/features/calendar/src/MonthView.tsx`, `packages/features/tasks/src/TeamScreen.tsx`, `e2e/a11y.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. Só ícone não resolvia a barra: seis alvos de 44 px somam 264 px, mais que 188.
+- **Como testar:** `pnpm check`; `/design-system` com `pnpm dev` a 188 e 160 px; pilha A, `pnpm exec playwright test e2e/a11y.spec.ts --project=app`.
+- **Verificado:** `pnpm check` (17 de 17 e 11 de 11); `pnpm build:web` com um `.env.local` provisório apontando para a pilha local (apagado depois); `/design-system` no servidor de dev com o Chromium do Playwright, claro e escuro, a 1280, 375, 320, 188 e 160 px, e com zoom real de 200% (`deviceScaleFactor` 2) a 375 e 320 px: rolagem da página 0 em todos.
+- **Não verificado:** `e2e/a11y.spec.ts` (sem pilha); o calendário e Equipe no navegador (pedem sessão), então as razões novas vêm do cálculo dos tokens, não da tela; nativo (iOS e Android); leitor de tela na barra que rola. A hora é UTC menos 3: o PowerShell foi bloqueado nesta sessão.
+- **Pendências / próximos passos:** `MonthView.tsx` e `TeamScreen.tsx` são de `tarefas-calendario`, que também mexe em `MonthView.tsx` (QA8-5 e os dias da semana): pode haver conflito pequeno na integração. A 320 px e no zoom, os rótulos de abas vizinhas ficam encostados ("TrabalhoDoméstico"); já era assim a 320 px, e um respiro entre abas faria a barra rolar a 320.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:21 (BRT)
+
+- **Branch:** `perf/celebration-stats-cache` (base `feat/phase-8-polish`)
+- **Agente(s):** gamificacao
+- **Resumo:** QA8-3, handoff `20261103-0815-arquiteto-para-gamificacao-estatisticas-pelo-cache`. O ponto de partida (`before`) do `CelebrationHost` lê `user_stats` com `queryClient.fetchQuery(statsQuery)`, na mesma chave do `StreakChip`, e pega carona na requisição em voo. A leitura depois de cada rajada (`flush`) continua indo ao servidor; marco e `catchUp` intocados.
+- **Arquivos/módulos principais:** `packages/features/gamification/src/hooks.ts` (`statsQuery`, usado por `useProgress` e pelo host, para a chave não divergir), `packages/features/gamification/src/CelebrationHost.tsx`.
+- **Migrations:** nenhuma
+- **Como testar:** `pnpm check`. Na pilha A, `pnpm exec playwright test e2e/performance.spec.ts e2e/gamification.spec.ts --project=app`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 12 de 12; `functions:imports` 10 de 10).
+- **Não verificado:** E2E e pilha (sem pilha nesta tarefa); que `user_stats` sai uma vez ao abrir Hoje. Sem teste de unidade: o pacote não tem ambiente de componente, e a chave única vem do objeto compartilhado.
+- **Hora:** o PowerShell foi barrado no worktree; a hora é UTC menos 3.
+- **Pendências / próximos passos:** a E2E acima na pilha A.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:21 (BRT)
+
+- **Branch:** `fix/calendar-contrast-merge` (de `feat/phase-8-polish`, `07ad55a`), com `fix/contrast-and-zoom` integrada por `git merge --no-ff`
+- **Agente(s):** tarefas-calendario
+- **Resumo:** resolução dos conflitos entre `fix/calendar-a11y` (já em `feat/phase-8-polish`) e `fix/contrast-and-zoom`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/features/calendar/src/MonthView.tsx`: ficou a estrutura do alvo de 44 px (`Pressable` com `p-0.5` e a caixa num `View` interno). A mudança de contraste do `design-system` foi aplicada nela: a caixa de outro mês usa `border-dashed` no lugar de `opacity-50`, e o número usa `text-muted dark:text-muted-dark`.
+  - `e2e/a11y.spec.ts`: a lista `known` ficou vazia (`const known: RegExp[] = []`), porque QA8-4 a QA8-7 estão corrigidos. O mecanismo continua.
+  - `LOG_DE_ALTERACOES.md`: conflito resolvido com `log-merge.cjs`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 12 de 12; 1 130 testes de unidade; `functions:imports` 10 de 10). `pnpm build:web` passou.
+- **Não verificado:** `e2e/a11y.spec.ts` (sem pilha); o calendário no navegador; nativo.
+- **Pendências / próximos passos:** rodar `pnpm exec playwright test e2e/a11y.spec.ts --project=app` na pilha A. Com `known` vazia, qualquer resto de QA8-4 a QA8-7 faz a spec falhar.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:22 (BRT)
+
+- **Branch:** `perf/current-user-stale-time`, criada a partir de `feat/phase-8-polish` (`07ad55a`)
+- **Agente(s):** auth-grupos
+- **Resumo:** corte de `profiles` e `groups` repetidos ao abrir Hoje (QA8-3, handoff 20261103-0815). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/data/src/session/index.ts`: `staleTime: defaults.currentUserStaleMs` (60 s) nas consultas `['profile']` e `['groups']` de `useCurrentUser`. Sem `staleTime` global no `QueryClient`.
+  - Conferidas, sem mudança, as mutações que mexem no que essas chaves leem: perfil e fuso (`ProfileScreen`, invalida `['profile']`); criar (`GroupFormScreen`), renomear, papel, remover membro, transferir posse (`refresh`), sair e excluir (`leaveGroups`) em `GroupDetailScreen`; aceitar convite (`JoinGroupScreen`). Todas invalidam `['groups']`. Telefone, WhatsApp, resumo diário, horário silencioso e aceite da prova gravam colunas de `profiles` que `getMine` não lê, então não tocam a chave. Sair da conta e excluir a conta já fazem `queryClient.clear()`.
+- **Arquivos/módulos principais:** `packages/data/src/session/index.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0012, seção 10.
+- **Como testar:** `pnpm check`; pilha A, `pnpm exec playwright test e2e/performance.spec.ts --project=app`, com `profiles` e `groups` uma vez cada.
+- **Verificado:** `pnpm check` passou (17 de 17 e 12 de 12; `functions:imports` 10 de 10).
+- **Não verificado:** a E2E de desempenho (sem pilha). Sem teste de unidade: `packages/data` não tem ambiente de React nem `@testing-library`, e a mudança é uma opção de consulta.
+- **Riscos:** a sessão que termina sem passar pelo botão de sair (refresh token revogado por um "sair de todos" em outro aparelho) não limpa o cache; se outra pessoa entrar na mesma aba em menos de 60 s da última leitura, vê o perfil e os grupos anteriores até a chave vencer. A RLS barra os dados; a interface erra nomes e botões. Antes o refetch na montagem cobria isso. Corte possível: limpar o cache no layout raiz quando o `user.id` da sessão muda.
+- **Pendências / próximos passos:** QA rodar `e2e/performance.spec.ts` na pilha A.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:27 (BRT)
+
+- **Branch:** `fix/clear-cache-on-user-change`, criada a partir de `feat/phase-8-polish` (`df7993e`)
+- **Agente(s):** auth-grupos
+- **Resumo:** fecha o risco da entrada de 08:22. Com `useCurrentUser` fresco por 60 s, a sessão que termina sem o botão de sair (refresh token revogado) deixava o perfil e os grupos da conta anterior para a próxima. Agora o cache de consultas se esvazia sempre que o `user.id` da sessão muda, inclusive para `null`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/data/src/session/userChange.ts`: `cacheBelongsToAnother(previous, next)` decide (havia usuário e ele mudou) e `useClearCacheOnUserChange(client, userId)` chama `client.resetQueries()`. Reset, e não `clear`, porque uma tela ainda montada recebe o aviso e busca de novo como o novo usuário. As mutações ficam: a fila offline já tira as suas da memória ao parar (`startOfflineQueue`).
+  - `packages/data/src/session/index.ts` e `packages/data/src/index.ts`: exportam o hook.
+  - `apps/app/app/_layout.tsx`: só monta o hook, ao lado de `useOfflineQueue`, com o mesmo `session?.user.id`.
+  - `packages/data/src/session/userChange.test.ts`: 3 testes (antes do primeiro login, mesmo usuário na renovação do token, saída e troca).
+- **Arquivos/módulos principais:** `packages/data/src/session/userChange.ts`, `packages/data/src/session/userChange.test.ts`, `packages/data/src/session/index.ts`, `packages/data/src/index.ts`, `apps/app/app/_layout.tsx`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 12 de 12; `functions:imports` 10 de 10); os 3 testes novos passam.
+- **Não verificado:** o hook em si num React de verdade (não há `@testing-library` em `packages/data`; só a decisão é testada); a revogação real do refresh token; a troca direta de A para B sem passar por `null` (link mágico de outra conta com sessão aberta), em que as telas de A desenham uma vez com o cache antigo antes do reset; nativo; E2E.
+- **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:31 (BRT)
+
+- **Branch:** `review/phase-8-second-pass`, criada a partir de `feat/phase-8-polish` (`42b955d`)
+- **Agente(s):** revisor-seguranca
+- **Resumo:** segunda passada de segurança da Fase 8, sobre o diff `a465851..42b955d`, só leitura e sem pilha. Nenhum achado alto ou médio. As correções de SEG8-1 a SEG8-5 fecham o que a primeira passada apontou; ficam três achados baixos ou informativos, sem handoff. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Conferido: SEG8-1 (`20261104150000`, janela rolante de 24 h, com teste de troca de fuso em `rls_shopping_xp`); SEG8-2 (`20261104150100`, `accept_invite` gasta `invite_lookup` e responde `null` sem `raise`; o repositório traduz para `invite_invalid` e PT429 para `rate_limited`; a tela não repete ao bater no limite); SEG8-3 (`20261104150200`, `accept_invite` recusa grupos de dono com exclusão aberta, com o bloqueio `for share` no perfil do dono); SEG8-4 (`20261104150300`, `shopping_item_adjust` 600 por hora, contado depois da checagem de repetição, espelhado em `rateLimitRules`); SEG8-5 (`savedAt` na fila e limpeza das filas de outras contas com mais de `maxAgeHours`, via `AsyncStorage.getAllKeys`).
+  - Conferido também: `20261104130000` (limite diário de provas conta usadas e vivas), `130100` e `130200` (só `app_settings`); nenhuma tabela nova, nenhuma policy alterada, nenhum `grant` novo; service role só em Edge Functions e testes; nenhuma feature importa outra; nenhum componente chama o Supabase; `PushSetupStep`/`useOpenPushedPaths` passam a URL da notificação por `safeInternalPath`; a reautenticação na prévia (QA8-2) nunca exclui sem a prévia vista; `scripts/headers.ts` sem curinga de host.
+  - Segredos: nenhuma chave, JWT, service role, VAPID privada ou token novos no diff nem na árvore. Os JWTs `supabase-demo` e o segredo JWT local padrão já existiam e são os públicos do Supabase local. Nas E2E, só `EXPO_PUBLIC_VAPID_PUBLIC_KEY` por ambiente; nenhuma spec grava arquivo. Arquivos `.env` versionados: só os `.env.example`, vazios.
+  - SEG8-2P-1 (baixa): ordem de bloqueio de `accept_invite` (convite `for update`, depois perfil do dono `for share`) é a inversa de `finish_account_deletion` (perfil `for no key update`, depois `delete from groups`, que apaga o convite em cascata). Um aceite num grupo solo durante o `finish` dá deadlock; o Postgres aborta um dos dois (40P01) em cerca de 1 s. Sem perda de dado: se cai o `finish`, as fotos já se foram e a repetição da exclusão termina; se cai o aceite, a pessoa vê o erro genérico. Correção possível: ler o `group_id` do convite sem bloqueio, bloquear o perfil do dono e só então o convite. Dono: banco-de-dados.
+  - SEG8-2P-2 (baixa, já registrada por auth-grupos às 08:27): `useClearCacheOnUserChange` reseta num `useEffect` do layout raiz, que roda depois dos efeitos dos filhos. Na troca direta de A para B (outra aba entra como B), as telas desenham uma vez com o `['profile']` e o `['groups']` de A, e efeitos filhos como o `fetchQuery(statsQuery)` do `CelebrationHost` podem pegar a leitura de A em voo e gravar o nível celebrado de A para B no aparelho. A RLS barra tudo no servidor. Correção possível: remontar a árvore com `key={userId}` ou resetar no render quando o id muda. Dono: auth-grupos.
+  - SEG8-2P-3 (informativo): uma linha aberta em `account_deletions` deixada por uma exclusão interrompida não tem prazo, e enquanto existir todo convite para os grupos daquele dono responde `invite_invalid`. Só afeta a própria conta que pediu a exclusão. Também informativo: com `staleTime` de 60 s, `can()` pode mostrar por até um minuto um botão que uma mudança de papel feita por outra pessoa já tirou; o servidor recusa.
+- **Arquivos/módulos principais:** `LOG_DE_ALTERACOES.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `git diff a465851 42b955d`; `git grep -nIE "eyJhbGci|sb_secret_|BEGIN .*PRIVATE KEY" 42b955d`.
+- **Verificado:** leitura do diff inteiro relevante para segurança; varredura de segredos no diff e na árvore de `42b955d`; grep de fronteiras e de chamadas ao Supabase em features, ui, core e rotas.
+- **Não verificado:** nada rodou contra banco (sem pilha): os pgTAP de SEG8-1 a SEG8-4 e o deadlock de SEG8-2P-1 são leitura, sem PoC; `pnpm check` não rodou (só o LOG mudou); os PNGs novos de marca não foram inspecionados por metadados; o hospedado.
+- **Pendências / próximos passos:** nenhum handoff (nada alto ou médio). SEG8-2P-1 e SEG8-2P-2 podem entrar no backlog de polimento se o humano quiser.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:32 (BRT)
+
+- **Branch:** `fix/realtime-channel-reuse` (de `feat/phase-8-polish`, `c2d46b5`)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** QA8-1 e QA8-8 do handoff `20261103-0745`. Cada assinatura de `subscribeCaughtUp` ganha um tópico próprio, e o passo de push depois do primeiro login aparece na E2E e não volta depois de "Agora não". Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `subscribeCaughtUp` assina `name:<n>`, com um contador por módulo: o `RealtimeClient.channel` devolvia o canal vivo de mesmo tópico, e o `.on('postgres_changes')` depois do `subscribe()` dava `throw` (QA8-1). Vale para o sino, a gamificação e as compras. O cliente falso de `realtime.test.ts` agora se comporta como o `realtime-js` 2.118 (mesmo tópico devolve o mesmo canal; `on` depois de `subscribe` lança), com um caso de duas assinaturas vivas com o mesmo nome e de remontar antes do `removeChannel`. Sem a correção, o caso falha com o erro do QA.
+  - QA8-8, três causas em sequência. (1) No headless shell do Playwright, `Notification.permission` fica `denied` mesmo depois de `grantPermissions` (só `permissions.query` vira `granted`); a spec emula o `default` de um navegador que nunca perguntou. (2) O passo tinha dois títulos iguais (`h1` da tela e `h2` do cartão); o `PushSetupCard` ganhou `titled`, falso no passo. (3) "Agora não" voltava ao passo: Hoje guardava o `true` da oferta com `staleTime: Infinity` e empurrava `/push-setup` de novo ao remontar; o passo agora grava `false` nessa consulta quando marca a oferta. A spec também confere que a URL saiu de `/push-setup`.
+  - `e2e/shopping.spec.ts`: com o QA8-1 corrigido, a pilha guarda a lista duas vezes (lista > tarefa > lista) e o `getByText` do dono achava as duas; as duas conferências usam `text`/`contains` (só o visível), como o resto das specs.
+- **Arquivos/módulos principais:** `packages/data/src/realtime.ts`, `packages/data/src/realtime.test.ts`, `packages/features/notifications/src/PushSetupStep.tsx`, `packages/features/notifications/src/PushSetupCard.tsx`, `e2e/push-setup.spec.ts`, `e2e/shopping.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm check`; pilha A, `pnpm exec supabase db reset`, `pnpm exec playwright test e2e/shopping.spec.ts e2e/notifications-bell.spec.ts e2e/gamification.spec.ts --project=app --repeat-each=4 --workers=4`; e `e2e/push-setup.spec.ts` com uma `EXPO_PUBLIC_VAPID_PUBLIC_KEY` no ambiente.
+- **Verificado:**
+  - `pnpm check` passou (17 de 17 e 11 de 11; `functions:imports` 10 de 10).
+  - Logo depois do `db reset`, as três specs de Realtime com `--repeat-each=4 --workers=4`: antes do ajuste da spec de compras, 40 ok e 4 falhas, todas no `getByText` duplicado e nenhuma com `cannot add`; depois, 44 de 44.
+  - `push-setup.spec.ts` com uma chave VAPID gerada em memória, só no ambiente do comando: 4 de 4 com `--repeat-each=4`.
+  - `notifications-preferences.spec.ts` com a chave: 3 ok e 1 pulado (o caso sem chave).
+  - `a11y.spec.ts` com a chave: falhou só em `contrast: /calendar 320px dark: 3.31:1`, que é o QA8-4 aparecendo também no escuro (a lista `known` só tem o claro). Nada em `/push-setup`.
+  - Pilha A parada com `supabase stop`, sem `--all`; pilha B não tocada.
+- **Não verificado:** a `pnpm e2e` completa; Chromium completo (o novo headless não abriu aqui, `spawn UNKNOWN`), então o `denied` do headless shell foi visto só no shell; navegador real e nativo; mutação além do caso novo de `realtime.test.ts`.
+- **Pendências / próximos passos:** `design-system`: a linha de QA8-4 em `known` de `a11y.spec.ts` precisa cobrir o escuro também, ou o contraste ser corrigido.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:35 (BRT)
+
+- **Branch:** `fix/remount-on-user-change`, criada a partir de `feat/phase-8-polish` (`c522f50`)
+- **Agente(s):** auth-grupos
+- **Resumo:** corrige SEG8-2P-2. O reset do cache em `useEffect` no layout raiz rodava depois dos efeitos dos filhos: numa troca direta de A para B as telas desenhavam uma vez com os dados de A, e o `fetchQuery` do `CelebrationHost` podia gravar no aparelho o nível celebrado de A para B. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/data/src/session/userChange.ts`: `useClearCacheOnUserChange` passa a esvaziar o cache de consultas (`getQueryCache().clear()`) no próprio render, pelo padrão do React de guardar o valor do render anterior em estado, antes de qualquer filho, e devolve um número que sobe a cada troca. Sem `useEffect`. As mutações ficam de fora, como antes.
+  - `apps/app/app/_layout.tsx`: só monta. O `Stack` recebe `key` com esse número, e a árvore inteira monta de novo sobre o cache vazio. `useOfflineQueue` continua no `RootLayout`, fora da árvore remontada.
+  - O número não sobe no primeiro login (`null` para A) nem na renovação do token (A para A): entrar não remonta nada.
+- **Arquivos/módulos principais:** `packages/data/src/session/userChange.ts`, `apps/app/app/_layout.tsx`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 12 de 12; `functions:imports` 10 de 10). Os 3 testes de `cacheBelongsToAnother` seguem valendo; a regra de quando limpar não mudou.
+- **Não verificado:** o hook e a remontagem num React de verdade (não há `@testing-library` em `packages/data`); como o Expo Router refaz o `Stack` raiz com `key` nova (a navegação deve sair do estado do contêiner ou da URL); a troca direta de A para B e a revogação real do token; nativo; E2E.
+- **Pendências / próximos passos:** QA, numa próxima passada na pilha A: sair pelo botão e entrar com outra conta, conferindo que a navegação volta a `/welcome` e depois a Hoje sem tela em branco.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 08:37 (BRT)
+
+- **Branch:** `fix/accept-invite-lock-order`, criada a partir de `feat/phase-8-polish` (`c522f50`)
+- **Agente(s):** banco-de-dados
+- **Resumo:** corrige SEG8-2P-1 (baixa). `accept_invite` passa a bloquear o perfil do dono antes do convite, na mesma ordem de `finish_account_deletion`, e o deadlock (40P01) entre um aceite num grupo solo e o `finish` deixa de existir. Hora derivada de UTC menos 3.
+- **Alterações:**
+  - `20261104160000_accept_invite_lock_order.sql`: `create or replace` de `accept_invite(text)`. Lê `group_id` e dono sem bloqueio, bloqueia o perfil do dono (`for share`) e só então o convite (`for update`), revalidando revogação, validade, usos e `group_id` sob o bloqueio. Um aceite que esperou o `finish` não acha mais o convite e responde `null`. Se a posse do grupo mudou entre a leitura e o bloqueio, responde `null` (o perfil bloqueado seria o errado); fica como `ponytail:` no arquivo.
+  - Mantidos: `invite_lookup` gasto em toda chamada, `null` sem `raise` para código inválido (SEG8-2), `null` com exclusão aberta do dono (SEG8-3). Assinatura e grants iguais (`create or replace` preserva; conferido `anon` sem e `authenticated` com execução).
+- **Arquivos/módulos principais:** `supabase/migrations/20261104160000_accept_invite_lock_order.sql`
+- **Migrations:** `20261104160000_accept_invite_lock_order.sql`
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm db:reset` e `pnpm db:test`.
+- **Verificado:** na pilha B só com o banco, `supabase db reset` e `pnpm db:test` (12 arquivos, 1911 testes, PASS, com os casos de SEG8-2 em `rls_rate_limits`/`rls_groups` e de SEG8-3 em `rls_account_privacy`); `pnpm db:check-permissions` em sincronia; `pnpm check` passou. Pilha B parada no fim.
+- **Não verificado:** o deadlock em si (sem teste concorrente, só leitura da ordem dos bloqueios); a corrida com `transfer_group_ownership`; tipos não regenerados, porque a assinatura não mudou; o hospedado.
+- **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 09:01 (BRT)
+
+- **Branch:** fix/rate-limits-test-isolation
+- **Agente(s):** banco-de-dados
+- **Resumo:** `pnpm db:test` depois de uma E2E, sem reset, falhava em `rls_rate_limits` (teste 76, "only calls with an id are recorded": have 14, want 2), porque contava `processed_requests` inteira como postgres. Só testes mudaram; o comportamento do banco está certo. Hora derivada de UTC menos 3.
+- **Alterações:**
+  - `rls_rate_limits.test.sql`: a contagem de `processed_requests` fica restrita ao usuário do próprio teste (`u('6')`).
+  - `rls_tasks.test.sql`: as duas contagens de `net.http_request_queue` ("starts empty" e "queued one request") ficam restritas à URL do teste (`http://example.invalid/%`), já que os crons e a E2E enfileiram pedidos próprios.
+  - `rls_whatsapp.test.sql`: o filtro dos usuários do job de resumo diário passa de `like '%0000000001%'` (casava qualquer uuid com essa sequência) para o prefixo exato dos ids `101` a `10a` do teste.
+  - Revisadas as demais agregações como postgres em `supabase/tests/*.sql`: as que restaram ou já filtram por ids do teste ou são invariantes globais de propósito (catálogo semeado em todo escopo, `total_xp` igual à soma, tabelas fixas como `occurrence_transitions` e `shopping_catalog_seed`). Contagens como usuário autenticado usam usuários criados na própria transação, então a RLS já isola.
+- **Arquivos/módulos principais:** `supabase/tests/rls_rate_limits.test.sql`, `supabase/tests/rls_tasks.test.sql`, `supabase/tests/rls_whatsapp.test.sql`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm db:reset`, insira linhas de outro usuário em `processed_requests` e `rate_limit_counters`, e rode `pnpm db:test`.
+- **Verificado:** na pilha B só com o banco: reset e `pnpm db:test` PASS (12 arquivos, 1911 testes); com 12 linhas sujas de outro usuário em `processed_requests` e uma em `rate_limit_counters`, o arquivo antigo reproduz "have 14, want 2" e o novo conjunto passa inteiro; reset de novo e PASS. `pnpm check` passou. Pilha B parada no fim.
+- **Não verificado:** uma E2E real seguida de `db:test` (pilha A ocupada); linhas sujas em `net.http_request_queue` (o worker do pg_net as consome). `enqueue_daily_summaries()` em `rls_whatsapp` ainda devolve um total global: um usuário da E2E com WhatsApp verificado e resumo devido mudaria o número; hoje a E2E não verifica telefone.
+- **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 09:20 (BRT)
+
+- **Branch:** `test/phase-8-build-metrics`, criada a partir de `feat/phase-8-polish` (`efbbb50`)
+- **Agente(s):** qa-testes
+- **Resumo:** mede as metas 1 a 4 de F8-6 no build de produção (handoff `20261103-0815-arquiteto-para-qa-testes-metas-no-build`, ADR-0012, seção 10) e investiga a falha intermitente de `e2e/a11y.spec.ts` ("running animations with reduce" em `signed out /sign-up 320px dark`). Metas 1, 3 e 4 fecham; a meta 2 dá 15 para 14 (`user_stats` duas vezes, handoff ao `gamificacao`). A falha de a11y não reproduziu.
+- **Alterações:**
+  - `playwright.config.ts`: `E2E_BUILD=1` troca a `webServer` por `pnpm build:web && node e2e/serve-build.mjs 8091` (timeout 300 s). O build lê `.env.local`, que nesta máquina aponta para o hospedado; com a variável, a config passa à `webServer` os valores de `apps/app/.env.development.local` (pilha local), e o ambiente do shell ainda ganha. Conferido no pacote: `EXPO_PUBLIC_SUPABASE_URL:"http://127.0.0.1:54421"`. O padrão continua `pnpm dev`. **Para o arquiteto revisar no PR**, como pede o handoff.
+  - `e2e/serve-build.mjs` (novo, só stdlib): serve `apps/app/dist` com volta ao `index.html`. O `expo serve` que o ADR previa responde `Not Found` a `/sign-up` num build `output: 'single'` (primeira tentativa: os 9 testes caíram no cadastro).
+  - `e2e/performance.spec.ts`: a contagem REST passa a ler as entradas de recurso do documento novo, e não `page.on('request')`, que contou um `notifications` da página anterior ao `reload` (4 numa rodada, e o teste de N+1 caiu por isso). Novo teste do mês do calendário com 200 tarefas hoje: o marcador é a célula de hoje (`aria-current="date"`) quando o rótulo falado conta 200; não precisou de `testID`. O total de 14 ainda não é barreira (comentário atualizado: meta 14, não 8).
+  - `e2e/a11y.spec.ts`: a nota "running animations with reduce" passa a dizer o que roda (transição e propriedade, ou animação CSS e nome, e o elemento). A regra não mudou: qualquer animação rodando com reduce, 250 ms depois da primeira auditoria, continua falhando.
+- **Medidas (meta 1 a 4):** máquina AMD Ryzen AI 7 350, 16 threads, 15 GB, Windows 11; commit `efbbb50` mais esta branch; só a pilha A, sem pilha B, sem E2E nem `functions:test`; Playwright 1.64.1, Pixel 7, CPU 4x pelo CDP. Comando: `E2E_BUILD=1 pnpm exec playwright test e2e/performance.spec.ts --project=app --workers=1 --repeat-each=3` (com `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória).
+  - Meta 1, pacote: `pnpm bundle:size` no mesmo build, maior JS gzip 400 876 bytes (`__common`), teto 427 641. Cumpre (103% do ponto de partida).
+  - Meta 2, Hoje com 50: 15, 15, 15 (mediana 15, pior 15). Meta 14: **não cumpre, por 1**. `profiles` 1, `groups` 1, `areas` 1, `contexts` 1, `task_occurrences` 2, `notifications` 3, `xp_events` 2, `user_achievements` 2, **`user_stats` 2**. N+1 barrado e passando (máximo 3 por rota). Rodada anterior com a contagem antiga: 16, 15, 15.
+  - Meta 3 (menos de 1 s depois do último REST): Hoje 200: 442, 451, 465 ms (mediana 451, pior 465). Mês: 246, 251, 311 ms (mediana 251, pior 311). No mercado 200: 194, 200, 224 ms (mediana 200, pior 224). Cumpre nos três.
+  - Meta 4, confete: 0, 0, 0 quadros acima de 50 ms (pior quadro 20, 20, 21 ms; 360 a 361 quadros). Cumpre. A parte "só `transform` e `opacity`" não foi medida aqui.
+- **Falha intermitente de a11y:** o trace de `orq-fase-8` já não existia. Reprodução focada (sign-in e sign-up, a mesma sequência de esquemas e larguras, `getAnimations()` 250 ms depois de cada troca, com descrição de cada animação): 15 rodadas sem carga (180 amostras) e 6 rodadas com CPU 6x (72 amostras), **zero** animações rodando. A spec inteira, com a nota nova, passou 6 vezes (`--workers=2 --repeat-each=2` e `--workers=4 --repeat-each=4`, servidor de dev): 0 problemas. Por leitura, a tela de cadastro não tem fonte de animação CSS fora de reduce: o `Mascot` usa `Animated` em JS e só com `animate`, que o cadastro não passa; o único `ActivityIndicator` (`Busy`) fica parado com reduce e só aparece com o cadastro em andamento; nada mais em `packages/ui`, `packages/features/auth` ou `apps/app/app` declara transição ou animação. Causa não confirmada; a hipótese mais provável é algo do servidor de dev sob a carga da E2E completa (fora do produto), e não dá para separar sem o nome da animação. Por isso a nota agora traz o nome: a próxima ocorrência diz de quem é. Sem handoff de produto: não há componente culpado identificado.
+- **Arquivos/módulos principais:** `playwright.config.ts`, `e2e/serve-build.mjs`, `e2e/performance.spec.ts`, `e2e/a11y.spec.ts`, `docs/agentes/handoffs/20261103-0930-qa-testes-para-gamificacao-user-stats-duas-vezes.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** o ADR-0012, seção 10, cita `expo serve`; na prática não serve um build `single` com rotas profundas. Fica para o arquiteto ajustar o texto.
+- **Como testar:** pilha A sozinha, `E2E_BUILD=1 pnpm exec playwright test e2e/performance.spec.ts --project=app --workers=1 --repeat-each=3`.
+- **Verificado:** as 12 execuções da spec de desempenho no build passaram; `pnpm bundle:size`; `e2e/a11y.spec.ts` 6 de 6; `pnpm check` passou.
+- **Não verificado:** a falha de a11y na E2E completa (`pnpm e2e` não rodou; a spec de a11y rodou sozinha); o mês com dados de mais de um dia; Lighthouse (meta 5, fica para F8-8); nativo; o hospedado.
+- **Pendências / próximos passos:** `gamificacao`: `user_stats` uma vez só (handoff `20261103-0930`). Depois disso, `qa-testes` barra `calls.length <= 14`. Arquiteto: revisar a `webServer` com `E2E_BUILD` e o texto do ADR sobre `expo serve`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 09:27 (BRT)
+
+- **Branch:** `docs/phase-8-build-server`, criada a partir de `feat/phase-8-polish` (`3d8fbaa`)
+- **Agente(s):** arquiteto
+- **Resumo:** revisão do `E2E_BUILD=1` do `qa-testes` (`6641293`). A injeção de env deixava o build cair no `.env.local` (hospedado) quando faltava o `.env.development.local`, o que acontece em todo worktree; agora para com erro. O servidor estático caía com `%` malformado; agora não. ADR-0012, seção 10, descreve o método real.
+- **Alterações:**
+  - `playwright.config.ts`: com `E2E_BUILD=1` (só o valor `1`), o build recebe `EXPO_NO_DOTENV=1`, para o Expo não ler `.env.local`, e só as `EXPO_PUBLIC_*` do shell ou, na falta, do `.env.development.local`. Se a `EXPO_PUBLIC_SUPABASE_URL` não for `127.0.0.1`/`localhost`, ou faltar, a config lança erro antes do build. Antes: sem o arquivo, `buildEnv` ficava vazio e o `expo export` lia o `.env.local`, com a URL e a chave VAPID do hospedado. Conferido no `@expo/env`: o que já está no ambiente não é sobrescrito, e `EXPO_NO_DOTENV` desliga a leitura. O padrão (`pnpm dev`) não muda.
+  - `e2e/serve-build.mjs`: `decodeURIComponent` com `%` malformado lançava dentro do handler e derrubava o servidor; agora cai no `index.html`. O teste de contenção passa a `startsWith(root + sep)`. Fallback SPA e tipos MIME estavam certos.
+  - `docs/adr/0012-polimento-lgpd-limites-offline.md`, seção 10: troca `expo serve` por `e2e/serve-build.mjs` (com o porquê), documenta `E2E_BUILD=1` e a regra de só a pilha local no build.
+- **Arquivos/módulos principais:** os três acima.
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** ADR-0012, seção 10, ajustado (método, não decisão nova).
+- **Como testar:** `E2E_BUILD=1 pnpm exec playwright test --list` num worktree sem `.env.development.local` deve falhar com a mensagem; com `EXPO_PUBLIC_SUPABASE_URL=https://x.supabase.co` também; com `http://127.0.0.1:54421` lista os testes.
+- **Verificado:** os três casos acima, e o padrão sem `E2E_BUILD` (95 testes listados). Servidor com um `dist` falso: `/`, `/sign-up` e `%E0%A4%A` dão `index.html`; `/sub/a.js` com `text/javascript`; `/../secret.txt`, `/%2e%2e/secret.txt`, `/..%2f..%2f...` e `/..%5c..%5c...` não saem de `dist`; o servidor segue de pé depois do `%` malformado. `pnpm check` passou.
+- **Não verificado:** o build real com `E2E_BUILD=1` e a spec de desempenho (sem pilha, por pedido); se o cache do Metro reaproveita uma transformação com valores do hospedado de um `build:web` anterior (o pacote do `qa-testes` saiu com `127.0.0.1:54421`, mas sem `EXPO_NO_DOTENV`). O servidor escuta em todas as interfaces, como o `expo start`; não muda para `localhost` sem testar a resolução IPv4/IPv6 do Playwright.
+- **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 09:31 (BRT)
+
+- **Branch:** perf/user-stats-once (a partir de `feat/phase-8-polish`, `3d8fbaa`)
+- **Agente(s):** gamificacao
+- **Resumo:** abrir Hoje lê `user_stats` uma vez só (handoff `20261103-0930-qa-testes-para-gamificacao-user-stats-duas-vezes`). A meta 2 de F8-6 cai de 15 para 14 chamadas REST no build e vira barreira.
+- **Alterações:**
+  - `packages/config/src/gamification.ts`: `gamificationDefaults.statsStaleMs` (30 s), valor de cliente, sem espelho no banco.
+  - `packages/features/gamification/src/hooks.ts`: `statsQuery` ganha `staleTime: statsStaleMs`. O `StreakChip` monta depois da leitura de base do `CelebrationHost` e usa o dado dela. Continua indo ao servidor: a leitura de cada rajada (`flush` chama `source.getStats()` direto), a invalidação de `gamificationKey` depois de cada rajada e a de `['gamification','stats']` depois de cada mutação bem-sucedida (`invalidateQueries` refaz a consulta seja qual for o `staleTime`). A troca de usuário limpa o cache (`userChange.ts`), então a base nunca é de outra conta.
+  - `packages/features/gamification/src/CelebrationHost.tsx`: só o comentário da base.
+  - `packages/features/gamification/src/hooks.test.ts` (novo): duas `fetchQuery` seguidas fazem uma leitura; depois de invalidar, lê de novo. Falha sem o `staleTime`.
+  - `e2e/performance.spec.ts`: por exceção autorizada pelo orquestrador, `expect(calls.length).toBeLessThanOrEqual(14)` na meta 2. Nada mais em `e2e/`.
+- **Arquivos/módulos principais:** os acima.
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova; cumpre ADR-0012, seção 10, meta 2.
+- **Como testar:** pilha A sozinha, `E2E_BUILD=1 pnpm exec playwright test e2e/performance.spec.ts --project=app --workers=1 --repeat-each=3`; `pnpm exec playwright test e2e/gamification.spec.ts --project=app`.
+- **Verificado:** meta 2 no build: 14, 14, 14, `user_stats` uma vez; 12 de 12 na spec de desempenho com a barreira ligada; `e2e/gamification.spec.ts` 5 de 5 (servidor de dev); `pnpm check` passou.
+- **Não verificado:** `pnpm e2e` completa; nativo; hospedado; a spec de gamificação no build de produção.
+- **Pendências / próximos passos:** nenhuma deste handoff.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 09:50 (BRT)
+
+- **Branch:** docs/phase-8-close (a partir de `feat/phase-8-polish`, `aed3526`)
+- **Agente(s):** orquestrador
+- **Resumo:** fecha a Fase 8 (polimento). Tudo integrado em `feat/phase-8-polish`, verificação final verde em banco limpo; QUADRO com F8-1, F8-2 e F8-11 feitos, F8-8 segue bloqueado pela decisão de hospedagem.
+- **Alterações:**
+  - `docs/agentes/QUADRO.md`: F8-1 e F8-2 passam a feito; nova linha F8-11 (QA8-1 a QA8-9, segunda passada de segurança, metas no build).
+  - Integrados desde as 08:20: estatísticas da comemoração pelo cache, `useCurrentUser` fresco por 60 s, limpeza do cache com remontagem na troca de usuário (SEG8-2P-2), contraste do calendário com a lista `known` da a11y vazia, canal Realtime com tópico próprio (QA8-1), passo de push (QA8-8), ordem dos bloqueios de `accept_invite` (SEG8-2P-1, migration `20261104160000`), testes de RLS isolados das linhas da E2E, modo `E2E_BUILD=1` com servidor estático e env só local, `user_stats` uma vez em Hoje.
+- **Arquivos/módulos principais:** `docs/agentes/QUADRO.md`, `LOG_DE_ALTERACOES.md`.
+- **Migrations:** nenhuma neste bloco (a da Fase 8 é `20261104160000_accept_invite_lock_order.sql`, do banco-de-dados).
+- **Decisões/ADRs:** ADR-0012 §10 corrigido pelo arquiteto (`serve-build.mjs` no lugar de `expo serve`).
+- **Como testar:** `docs/agentes/ferramentas/verificar-fase.sh` com uma chave VAPID pública gerada em memória em `EXPO_PUBLIC_VAPID_PUBLIC_KEY`; `pnpm bundle:size`; `E2E_BUILD=1 pnpm exec playwright test e2e/performance.spec.ts --project=app --workers=1 --repeat-each=3` com a pilha A sozinha.
+- **Verificado:** em `aed3526`, banco limpo: install, db:start, db:reset, db:test 1911/1911, db:check-permissions, typecheck e unidade, lint, fronteiras, build:web, functions:test, E2E 94 passaram e 1 pulado nas duas rodadas, db:test depois da E2E 1911/1911. Maior JS 400 915 B (teto 427 641). Metas no build: 14 chamadas REST em Hoje, Hoje com 200 em 451 ms, mês em 251 ms, "No mercado" em 200 ms, confete sem quadro acima de 50 ms. Segunda passada de segurança sem achado alto ou médio. Varredura de segredos limpa.
+- **Não verificado:** nativo, navegador real fora do Playwright, hospedado, Lighthouse (meta 5), leitor de tela real. A falha intermitente de a11y em `/sign-up` (uma vez, primeira verificação) não se repetiu; a nota da spec agora nomeia o elemento.
+- **Pendências / próximos passos:** PR da Fase 8 para `feat/phase-6-gamification`; respostas do humano do ADR-0012 §17 (hospedagem, SMTP, base legal, contas de loja e push); backlog.

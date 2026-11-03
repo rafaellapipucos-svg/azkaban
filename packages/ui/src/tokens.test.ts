@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { colors } from './tokens';
+import { colors, contextColors } from './tokens';
 
 // WCAG 2.x relative luminance and contrast ratio.
 function luminance(hex: string) {
@@ -13,6 +13,33 @@ function contrast(a: string, b: string) {
   const [hi = 0, lo = 0] = [luminance(a), luminance(b)].sort((x, y) => y - x);
   return (hi + 0.05) / (lo + 0.05);
 }
+
+// Every text color on every fill it is drawn on (ADR-0012, section 9, item 2): 4.5:1, AA for
+// normal text. The labels are small, so no pair leans on the 3:1 allowed for large text.
+const onPage = (texts: (keyof typeof colors)[], fills: (keyof typeof colors)[]) =>
+  texts.flatMap((text) => fills.map((fill) => [text, fill] as const));
+const textPairs = [
+  ...onPage(['text', 'muted', 'primary', 'danger'], ['background', 'surface']),
+  ...onPage(
+    ['text-dark', 'muted-dark', 'primary-light', 'danger-light'],
+    ['background-dark', 'surface-dark'],
+  ),
+  ['onPrimary', 'primary'],
+  ['onPrimary', 'danger'],
+  ['onDone', 'done'],
+  ['onDone', 'cancelled'],
+  ['onPartial', 'partial'],
+  ['onMissed', 'missed'],
+  ['onCancelled', 'cancelled'],
+  ['onPending', 'pending'],
+  ['onPending-dark', 'pending-dark'],
+] as const;
+it.each(textPairs)('%s on %s passes AA', (text, fill) => {
+  expect(contrast(colors[text], colors[fill])).toBeGreaterThanOrEqual(4.5);
+});
+it.each(Object.entries(contextColors))('white on the context color %s passes AA', (_, fill) => {
+  expect(contrast(colors.onPrimary, fill)).toBeGreaterThanOrEqual(4.5);
+});
 
 // "Em análise" (ADR-0007): text needs 4.5:1 (AA), the boundary of the control 3:1 (WCAG 1.4.11).
 describe.each([
@@ -54,4 +81,12 @@ describe.each([
   it('fill against the card is at least 3:1', () => {
     expect(contrast(fill, card)).toBeGreaterThanOrEqual(3);
   });
+});
+
+// XpBar: the fill stands out from its track (3:1, WCAG 1.4.11).
+it.each([
+  ['light', colors.primary, colors.border],
+  ['dark', colors['primary-light'], colors['border-dark']],
+])('xp bar fill against the track, %s', (_theme, fill, track) => {
+  expect(contrast(fill, track)).toBeGreaterThanOrEqual(3);
 });

@@ -417,6 +417,14 @@ verify_jwt = true
 [functions.whatsapp-webhook]
 verify_jwt = false
 
+# LGPD (ADR-0012). The user's own, asking Auth for the user like proof-url; delete also wants a
+# recent sign-in from the token's amr.
+[functions.account-export]
+verify_jwt = true
+
+[functions.account-delete]
+verify_jwt = true
+
 # Off: it costs about 600 MB, and its vector container restarted in a loop. Function logs do not depend
 # on it: `docker logs supabase_edge_runtime_<project_id>`.
 [analytics]

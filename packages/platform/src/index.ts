@@ -32,8 +32,13 @@ export { useOnline } from './network';
 export { useDocumentTitle } from './documentTitle';
 export { readSessionValue, writeSessionValue } from './sessionValue';
 export { shareText, type ShareResult } from './shareText';
+export { canSaveTextFile, saveTextFile } from './saveTextFile';
+export { canVibrate, vibrate } from './haptics';
+export { canPlayTone, playTone, type Tone } from './celebrationSound';
 export {
   currentPushSubscription,
+  nativePushToken,
+  onPushOpened,
   pushPermission,
   pushSupport,
   subscribePush,
@@ -52,3 +57,6 @@ export const copyToClipboard = (text: string) => setStringAsync(text);
 export const createAppLink = (path: string) => createURL(path);
 
 export const deviceTimezone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+/** A v4 UUID made on the device, for ids the offline queue sends before the server sees them. */
+export { randomUUID as randomId } from 'expo-crypto';

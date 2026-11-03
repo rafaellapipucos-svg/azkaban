@@ -19,3 +19,10 @@ const isTimezone = (value: string) => {
 };
 
 export const timezoneSchema = z.string().refine(isTimezone);
+
+/**
+ * Message of the error raised by any RPC, trigger or function behind `consume_rate_limit`
+ * (ADR-0012, section 4): SQLSTATE `PT429`, which PostgREST answers with HTTP 429, and the seconds
+ * until the window ends in `hint`. Every module maps it to its own `errors.rate_limited` text.
+ */
+export const rateLimitedErrorCode = 'rate_limited';

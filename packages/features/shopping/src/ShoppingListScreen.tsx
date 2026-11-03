@@ -1,8 +1,18 @@
 import { shoppingNameSchema } from '@azkaban/contracts';
 import { shoppingShareText } from '@azkaban/core';
-import { shoppingRepository, useCurrentUser } from '@azkaban/data';
+import { offlineDefaults } from '@azkaban/config';
+import {
+  dismissOfflineDiscard,
+  shoppingAddItemAction,
+  shoppingAdjustAction,
+  shoppingCheckAction,
+  shoppingRepository,
+  useCurrentUser,
+  useOfflineDiscards,
+  useOfflinePendingCount,
+} from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
-import { shareText } from '@azkaban/platform';
+import { shareText, useOnline } from '@azkaban/platform';
 import {
   Button,
   ConfirmButton,
@@ -15,16 +25,20 @@ import {
   Sheet,
   Subtitle,
   Title,
+  tokens,
 } from '@azkaban/ui';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+import { View } from 'react-native';
 import { BuildMode } from './BuildMode';
 import { MarketMode } from './MarketMode';
+import { LinkedTaskButton } from './TaskLink';
 import { shoppingKeys, useDateText, useQuantityText, useShoppingList } from './hooks';
 import {
   canManageList,
   canShop,
+  completionXp,
   readMode,
   shoppingErrorKey,
   shoppingPaths,
@@ -41,6 +55,7 @@ export function ShoppingListScreen({ listId, mode }: { listId: string; mode?: st
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user } = useCurrentUser();
+  const online = useOnline();
   const { list, items, catalog, members, groupId } = useShoppingList(listId);
   const quantityText = useQuantityText();
   const date = useDateText();
@@ -50,6 +65,7 @@ export function ShoppingListScreen({ listId, mode }: { listId: string; mode?: st
   const current = readMode(mode);
   const rows = items.data ?? [];
   const left = rows.filter(({ checkedAt }) => checkedAt === null).length;
+  const xp = completionXp(rows.length - left);
   const refresh = () => queryClient.invalidateQueries({ queryKey: shoppingKeys.all });
 
   // Personal lists are only ever the owner's, so "who added" is said only in a group.
@@ -119,7 +135,9 @@ export function ShoppingListScreen({ listId, mode }: { listId: string; mode?: st
     );
   }
 
-  const { name, status, completedAt } = list.data;
+  const { name, status, completedAt, linkedTaskId } = list.data;
+  // Only a task the reader can see; anything else is no link (ADR-0011, section 16, SEG7-1).
+  const taskButton = linkedTaskId ? <LinkedTaskButton taskId={linkedTaskId} /> : null;
   const errorText = error ? <ErrorText>{t(shoppingErrorKey(error))}</ErrorText> : null;
   const manage = canManageList(user, list.data);
   // Any state: deleting a completed list takes it out of the history too (ADR-0011, section 6).
@@ -137,6 +155,7 @@ export function ShoppingListScreen({ listId, mode }: { listId: string; mode?: st
       <Screen title={name}>
         <Title>{name}</Title>
         {completedAt ? <Muted>{t('list.completed', { date: date(completedAt) })}</Muted> : null}
+        {taskButton}
         {canShop(user, 'shopping.create_list', groupId) ? (
           <Button
             label={t('list.copy')}
@@ -154,6 +173,8 @@ export function ShoppingListScreen({ listId, mode }: { listId: string; mode?: st
   return (
     <Screen title={name}>
       <Title>{name}</Title>
+      <OfflineNotice />
+      {taskButton}
       <SegmentedControl<ShoppingMode>
         label={t('list.mode')}
         options={[
@@ -176,6 +197,7 @@ export function ShoppingListScreen({ listId, mode }: { listId: string; mode?: st
         <BuildMode
           listId={listId}
           groupId={groupId}
+          userId={user.id}
           items={rows}
           catalog={catalog.data ?? []}
           canSaveToCatalog={canShop(user, 'shopping.manage_catalog', groupId)}
@@ -205,12 +227,26 @@ export function ShoppingListScreen({ listId, mode }: { listId: string; mode?: st
       {canShop(user, 'shopping.complete_list', groupId) ? (
         <>
           <Muted>{t('list.completeHint')}</Muted>
-          <ConfirmButton
-            label={t('list.complete')}
-            confirmLabel={t('list.completeConfirm')}
-            loading={complete.isPending}
-            onConfirm={() => complete.mutate()}
-          />
+          <Muted>{t(xp.key, xp)}</Muted>
+          {online ? (
+            <ConfirmButton
+              label={t('list.complete')}
+              confirmLabel={t('list.completeConfirm')}
+              loading={complete.isPending}
+              onConfirm={() => complete.mutate()}
+            />
+          ) : (
+            // Never queued: it gives XP and cannot be undone (ADR-0012, section 5).
+            <>
+              <Button
+                variant="secondary"
+                label={t('list.complete')}
+                disabled
+                onPress={() => undefined}
+              />
+              <Muted role="status">{t('list.completeOffline')}</Muted>
+            </>
+          )}
         </>
       ) : null}
       {manage ? (
@@ -236,6 +272,46 @@ export function ShoppingListScreen({ listId, mode }: { listId: string; mode?: st
         />
       ) : null}
     </Screen>
+  );
+}
+
+/**
+ * The quiet line of the offline queue (ADR-0012, section 5): how many changes wait for the
+ * connection, and each item change the queue dropped, with the reason, until closed.
+ */
+// ponytail: built from the base texts, like the tasks notice; swap for the design-system one.
+function OfflineNotice() {
+  const { t } = useTranslation('shopping');
+  const online = useOnline();
+  const pending = useOfflinePendingCount();
+  const discards = [
+    ...useOfflineDiscards(shoppingAdjustAction.mutationKey[0]),
+    ...useOfflineDiscards(shoppingAddItemAction.mutationKey[0]),
+    ...useOfflineDiscards(shoppingCheckAction.mutationKey[0]),
+  ];
+  if (online && discards.length === 0) return null;
+  return (
+    <>
+      {online ? null : (
+        <Muted role="status">
+          {pending > 0 ? t('offline.pending', { count: pending }) : t('offline.none')}
+        </Muted>
+      )}
+      {discards.map(({ id, reason }) => (
+        <View key={id} style={{ gap: tokens.spacing[1] }}>
+          <ErrorText>
+            {t('offline.discarded', {
+              reason: t(shoppingErrorKey(reason), { hours: offlineDefaults.maxAgeHours }),
+            })}
+          </ErrorText>
+          <Button
+            variant="secondary"
+            label={t('offline.dismiss')}
+            onPress={() => dismissOfflineDiscard(id)}
+          />
+        </View>
+      ))}
+    </>
   );
 }
 

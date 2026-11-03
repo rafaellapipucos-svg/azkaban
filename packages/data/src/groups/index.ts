@@ -6,6 +6,7 @@ import type {
   GroupRole,
   InvitePreview,
 } from '@azkaban/contracts';
+import { rateLimitedErrorCode } from '@azkaban/contracts';
 import { currentUserId, db } from '../client';
 
 const inviteColumns = 'id, code, role, expires_at, max_uses, use_count';
@@ -136,14 +137,23 @@ export const groupsRepository = {
 
   async previewInvite(code: string): Promise<InvitePreview | null> {
     const { data, error } = await db().rpc('get_invite_preview', { invite_code: code });
+    // Spends the same limit as accept_invite (SEG8-2).
+    if (error?.code === 'PT429') throw new Error(rateLimitedErrorCode, { cause: error });
     if (error) throw error;
     const row = data[0];
     return row ? { groupName: row.group_name, groupType: row.group_type, role: row.role } : null;
   },
 
-  async acceptInvite(code: string) {
+  /**
+   * The group joined. A code that does not serve comes back as null, so the rate limit counter
+   * stays (SEG8-2): it throws `invite_invalid`. Over the limit (PT429) it throws `rate_limited`.
+   */
+  async acceptInvite(code: string): Promise<string> {
     const { data, error } = await db().rpc('accept_invite', { invite_code: code });
+    if (error?.code === 'PT429') throw new Error(rateLimitedErrorCode, { cause: error });
     if (error) throw error;
+    // The generated type says string: Postgres does not mark a nullable return.
+    if (data === null) throw new Error('invite_invalid');
     return data;
   },
 };

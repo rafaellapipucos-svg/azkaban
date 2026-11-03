@@ -71,10 +71,10 @@ select vault.create_secret('<valor>', '<nome>');
 Pelo CLI, com o Docker ligado, sem `--use-api`. O pacote de `materialize-occurrences` tem 15 MB, e o limite é de 20 MB pelo CLI, contra 5 MB no empacotamento pelo servidor (Dashboard, Management API e `--use-api`).
 
 ```bash
-pnpm exec supabase functions deploy materialize-occurrences proof-validate proof-url proof-retention dispatch-notifications phone-verification whatsapp-webhook --project-ref <ref>
+pnpm exec supabase functions deploy materialize-occurrences proof-validate proof-url proof-retention dispatch-notifications phone-verification whatsapp-webhook account-export account-delete --project-ref <ref>
 ```
 
-`verify_jwt` vem de `supabase/config.toml`: ligado em `proof-validate`, `proof-url` e `phone-verification`, desligado nas três de cron, que usam `x-cron-secret`, e em `whatsapp-webhook`, que confere a assinatura `X-Hub-Signature-256` com `WHATSAPP_APP_SECRET`.
+`verify_jwt` vem de `supabase/config.toml`: ligado em `proof-validate`, `proof-url`, `phone-verification`, `account-export` e `account-delete`, desligado nas três de cron, que usam `x-cron-secret`, e em `whatsapp-webhook`, que confere a assinatura `X-Hub-Signature-256` com `WHATSAPP_APP_SECRET`.
 
 URL do webhook, para o App Dashboard da Meta: `https://<ref>.supabase.co/functions/v1/whatsapp-webhook`, com o mesmo `WHATSAPP_VERIFY_TOKEN` e o campo `messages` assinado. Só quando o humano ligar a Meta (abaixo).
 
@@ -85,6 +85,9 @@ URL do webhook, para o App Dashboard da Meta: `https://<ref>.supabase.co/functio
 - **Auth:** confirmação de email ligada. O `config.toml` local a mantém desligada, e isso não vale para produção.
 - **Auth:** senha mínima 8.
 - **Auth:** URLs de redirecionamento sem curinga. As do `config.toml` usam `/**` só para desenvolvimento.
+- **Auth, nunca `supabase config push`:** o `config.toml` é da pilha local, permissivo de propósito para a E2E (`max_frequency = "1s"`, confirmação desligada, curingas). Os valores de produção são postos no painel (ADR-0012, seção 4).
+- **Auth, Rate Limits:** intervalo entre e-mails ao mesmo endereço de 60 s; entradas e cadastros, 30 a cada 5 minutos por IP; verificações de OTP, 30 a cada 5 minutos por IP; renovações, 150 a cada 5 minutos por IP. Com SMTP próprio, 30 e-mails por hora.
+- **Auth, SMTP próprio:** o servidor de e-mail embutido só entrega para a equipe do projeto e por volta de 2 por hora. Sem SMTP próprio, ninguém de fora recebe o link mágico. Decisão do humano (ADR-0012, seção 17, item 6).
 - **API, Exposed schemas:** só `public` e `graphql_public`. `net`, `cron` e `vault` nunca entram (ADR-0005, seção 12).
 - **`pg_graphql`:** o app não usa GraphQL. Confira que `/graphql/v1` não mostra nada além do que a RLS já mostra pelo REST, e desligue a extensão se não houver motivo para mantê-la.
 

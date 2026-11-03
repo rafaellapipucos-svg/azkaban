@@ -1,0 +1,90 @@
+{
+  "loadError": "Não foi possível carregar o seu progresso. Tente de novo.",
+  "retry": "Tentar de novo",
+  "level": {
+    "title": "Nível {{level}}",
+    "progress": "{{into}} de {{next}} XP",
+    "total": "{{xp}} XP no total"
+  },
+  "streak": {
+    "title": "Ofensiva",
+    "days_zero": "{{count}} dias de ofensiva",
+    "days_one": "{{count}} dia de ofensiva",
+    "days_other": "{{count}} dias de ofensiva",
+    "best_zero": "Recorde: {{count}} dias",
+    "best_one": "Recorde: {{count}} dia",
+    "best_other": "Recorde: {{count}} dias",
+    "freezes_one": "{{count}} proteção",
+    "freezes_other": "{{count}} proteções",
+    "freezesHint": "Você ganha uma proteção a cada {{every}} dias seguidos, até {{max}}. Ela salva a ofensiva num dia em que a meta não foi cumprida. Um dia sem tarefas não conta nem quebra."
+  },
+  "goal": {
+    "capReached": "Você atingiu o limite de {{cap}} XP nas últimas 24 horas. As tarefas continuam contando para a meta e a ofensiva."
+  },
+  "days": {
+    "title": "Últimos dias",
+    "perfect": "Dia perfeito",
+    "met": "Meta cumprida",
+    "freeze": "Proteção usada",
+    "missed": "Meta não cumprida",
+    "empty": "Sem tarefas",
+    "row": "{{date}}: {{state}}"
+  },
+  "achievements": {
+    "title": "Conquistas",
+    "granted": "Concedida em {{date}}",
+    "locked": "Bloqueada",
+    "first_task": {
+      "title": "Primeira tarefa",
+      "description": "Conclua a sua primeira tarefa."
+    },
+    "streak_7": {
+      "title": "Uma semana de ofensiva",
+      "description": "Cumpra a meta do dia 7 dias seguidos."
+    },
+    "streak_30": {
+      "title": "Um mês de ofensiva",
+      "description": "Cumpra a meta do dia 30 dias seguidos."
+    },
+    "proofs_100": {
+      "title": "Cem provas",
+      "description": "Conclua 100 tarefas com foto de prova."
+    },
+    "perfect_week": {
+      "title": "Semana perfeita",
+      "description": "Faça tudo o que planejou em 7 dias seguidos. Dias sem tarefas não contam nem quebram."
+    }
+  },
+  "ranking": {
+    "title": "Ranking da semana",
+    "toggle": "Ranking no grupo",
+    "toggleHint": "Os membros veem o nome e o XP da semana de cada um, só de tarefas deste grupo. Nível, ofensiva e conquistas continuam privados.",
+    "disabled": "O ranking está desligado neste grupo.",
+    "empty": "Ninguém ganhou XP com tarefas deste grupo esta semana. O ranking conta a partir de quando foi ligado e de quando você entrou no grupo.",
+    "rank": "{{rank}}º",
+    "xp": "{{xp}} XP",
+    "forbidden": "Só membros do grupo veem o ranking.",
+    "loadError": "Não foi possível carregar o ranking.",
+    "saveError": "Não foi possível mudar o ranking. Tente de novo."
+  },
+  "celebration": {
+    "close": "Continuar",
+    "occurrence_done": "Tarefa concluída!",
+    "occurrence_partial": "Parte feita, e com honestidade.",
+    "streak_milestone_one": "{{count}} dia de ofensiva!",
+    "streak_milestone_other": "{{count}} dias de ofensiva!",
+    "perfect_day": "Dia perfeito!",
+    "perfectDayDetail": "Você fez tudo o que planejou para hoje.",
+    "level_up": "Nível {{level}}!",
+    "achievement": "Conquista: {{title}}"
+  },
+  "settings": {
+    "title": "Comemorações",
+    "sound": "Som",
+    "soundHint": "Um toque curto ao comemorar.",
+    "soundUnsupported": "Este aparelho ainda não toca o som das comemorações.",
+    "haptics": "Vibração",
+    "hapticsHint": "Uma vibração curta ao comemorar.",
+    "hapticsUnsupported": "Este aparelho não vibra pelo navegador."
+  }
+}

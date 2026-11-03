@@ -48,6 +48,7 @@ import {
   useTransitions,
   type OccurrenceDetail,
 } from './hooks';
+import { OfflineQueueNotice } from './OfflineQueueNotice';
 import { StatusActions } from './StatusActions';
 
 const SCOPES: TaskEditScope[] = ['this', 'this_and_following', 'all'];
@@ -334,6 +335,7 @@ export function TaskDetailScreen({
         {task.notes ? <Body>{task.notes}</Body> : null}
       </Card>
 
+      <OfflineQueueNotice />
       {failed ? (
         <ErrorText>
           {t(errorKey(failed))}

@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react';
 import { Animated, Pressable, Text, View } from 'react-native';
 import { reviewSymbol, statusSymbol } from './statusSymbol';
 import { motion, sizes } from './tokens';
-import { useReducedMotion } from './useReducedMotion';
+import { nativeDriver, useReducedMotion } from './useReducedMotion';
 
 // Same symbols as StatusBadge (statusSymbol, reviewSymbol). Never color alone: symbol here, spoken label on the control.
 const looks: Record<OccurrenceStatus, { box: string; symbolStyle: string }> = {
@@ -62,8 +62,12 @@ export function TaskCheck({
     previous.current = status;
     if (!changed || reduced || status === 'pending') return;
     const run = Animated.sequence([
-      Animated.timing(scale, { toValue: 1.2, duration: motion.fast, useNativeDriver: false }),
-      Animated.spring(scale, { toValue: 1, friction: 4, useNativeDriver: false }),
+      Animated.timing(scale, {
+        toValue: 1.2,
+        duration: motion.fast,
+        useNativeDriver: nativeDriver,
+      }),
+      Animated.spring(scale, { toValue: 1, friction: 4, useNativeDriver: nativeDriver }),
     ]);
     run.start();
     return () => run.stop();

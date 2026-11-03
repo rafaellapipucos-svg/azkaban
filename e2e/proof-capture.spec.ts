@@ -67,7 +67,10 @@ async function expectNotice(page: Page) {
     'A foto leva carimbados o seu nome, o título da tarefa e o horário.',
     'Evite mostrar outras pessoas na foto. Se alguém aparecer, quem revisa também vê.',
     `A foto é apagada depois de ${proofRules.retentionDays} dias. O registro sem a imagem, com horários e marcas de local, é apagado depois de ${proofRules.recordRetentionDays} dias.`,
-    'Para pedir a exclusão antes do prazo, fale com o dono do grupo.',
+    {
+      2: 'Para pedir a exclusão antes do prazo, fale com o dono do grupo.',
+      3: `Você pode revogar este aceite em Perfil > Privacidade. Revogar não apaga as fotos já enviadas: elas são apagadas depois de ${proofRules.retentionDays} dias, ou antes, se você excluir a sua conta, também por lá.`,
+    }[proofRules.consentVersion],
   ]) {
     await expect(page.getByText(sentence, { exact: true })).toBeVisible();
   }

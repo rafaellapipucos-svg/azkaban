@@ -133,6 +133,23 @@ describe('shoppingQuantityAdjustSchema', () => {
     ).toBe(false);
     expect(shoppingQuantityAdjustSchema.safeParse({ itemId: id, delta: 0 }).success).toBe(false);
   });
+
+  it('takes a request id on both targets, and refuses one that is not an id', () => {
+    expect(
+      shoppingQuantityAdjustSchema.safeParse({ itemId: id, delta: 1, requestId: id }).success,
+    ).toBe(true);
+    expect(
+      shoppingQuantityAdjustSchema.safeParse({
+        listId: id,
+        catalogItemId: id,
+        delta: 1,
+        requestId: id,
+      }).success,
+    ).toBe(true);
+    expect(
+      shoppingQuantityAdjustSchema.safeParse({ itemId: id, delta: 1, requestId: 'tap-1' }).success,
+    ).toBe(false);
+  });
 });
 
 describe('scopes', () => {

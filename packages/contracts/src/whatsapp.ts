@@ -107,7 +107,11 @@ export const dailySummarySourceSchema = z.object({
   deadlines: z.array(dailySummaryTaskSchema).max(50),
   deadlineDays: z.int().min(0).max(30),
   totals: z.object({ today: count, overdue: count, deadlines: count }),
-  /** Null until Phase 6 creates `user_stats`. */
+  /**
+   * Filled since Phase 6 (ADR-0010, section 9); nullable so a source without it parses. `current` is
+   * `user_stats.current_streak`; `goalToday` is how many occurrences meet today's goal, null when
+   * nothing is planned today.
+   */
   streak: z.object({ current: count, goalToday: count.nullable() }).nullable(),
 });
 export type DailySummarySource = z.infer<typeof dailySummarySourceSchema>;
@@ -135,7 +139,7 @@ export const dailySummaryRenderSchema = z.object({
   today: whatsappTextParamSchema,
   overdue: whatsappTextParamSchema,
   deadlines: whatsappTextParamSchema,
-  /** The streak line, or a neutral closing until Phase 6. */
+  /** The streak line, or a neutral closing when `streak` is null. */
   footer: whatsappTextParamSchema,
 });
 export type DailySummaryRender = z.infer<typeof dailySummaryRenderSchema>;

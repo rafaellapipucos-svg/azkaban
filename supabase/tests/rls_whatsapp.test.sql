@@ -576,10 +576,10 @@ $$;
 select is(pg_temp.titles('today'), 'Today,Today later', 'today: pending of the day, by start; not done, archived or someone else''s');
 select is(pg_temp.titles('overdue'), 'Late pending,Red in window', 'overdue: pending past due, and red still inside the late window');
 select is(pg_temp.titles('deadlines'), 'Deadline soon', 'deadlines: within deadline_days');
-select is(pg_temp.src() - 'today' - 'overdue' - 'deadlines',
+select is(pg_temp.src() - 'today' - 'overdue' - 'deadlines' - 'streak',
   jsonb_build_object('localDate', pg_temp.gt('ld'), 'timezone', 'America/Sao_Paulo', 'deadlineDays', 7,
-    'totals', jsonb_build_object('today', 2, 'overdue', 2, 'deadlines', 1), 'streak', null),
-  'with the date, the zone, the window and the totals');
+    'totals', jsonb_build_object('today', 2, 'overdue', 2, 'deadlines', 1)),
+  'with the date, the zone, the window and the totals (the streak is in rls_gamification)');
 select is(pg_temp.src() -> 'deadlines' -> 0,
   (select jsonb_build_object('occurrenceId', o.id, 'title', 'Deadline soon', 'areaI18nKey', 'areas.home', 'contextName', 'Casa A',
     'scheduleType', 'deadline', 'startAt', o.scheduled_start, 'dueAt', o.scheduled_due)
@@ -606,7 +606,10 @@ select pg_temp.q('w1', pg_temp.u('d'), 'daily_summary', jsonb_build_object('loca
 select pg_temp.q('w2', pg_temp.u('d'), 'daily_summary', jsonb_build_object('localDate', pg_temp.gt('ld')), 'w2', now() - interval '121 minutes');
 select pg_temp.ready(pg_temp.u('e'), '+5511999990005');
 select pg_temp.q('w3', pg_temp.u('e'), 'daily_summary', jsonb_build_object('localDate', pg_temp.gt('ld')), 'w3b');
+-- A zone from before profiles_check_timezone (SEG6-1), which the claim still survives.
+alter table public.profiles disable trigger profiles_check_timezone;
 update public.profiles set daily_summary_skip_empty = false, timezone = 'Not/AZone' where id = pg_temp.u('e');
+alter table public.profiles enable trigger profiles_check_timezone;
 select pg_temp.ready(pg_temp.u('f'), '+5511988887777');
 select pg_temp.q('w4', pg_temp.u('f'), 'daily_summary', jsonb_build_object('localDate', pg_temp.gt('ld')), 'w4');
 select pg_temp.q('w5', pg_temp.u('f'), 'daily_summary', jsonb_build_object('localDate', pg_temp.gt('ld')), 'w5');
@@ -710,13 +713,14 @@ update public.profiles set phone_e164 = null, phone_verified_at = null, whatsapp
 where id = pg_temp.u('108');
 
 select is(public.enqueue_daily_summaries(), 4, 'the job writes the summaries due');
+-- Only this test's job users (101 to 10a): other users, of the E2E run too, may share the database.
 select is((select string_agg(right(user_id::text, 3) || '=' || (data ->> 'localDate'), ',' order by user_id)
-  from public.notifications where type = 'daily_summary' and user_id::text like '%0000000001%'),
+  from public.notifications where type = 'daily_summary' and user_id::text like '00000000-0000-0000-0000-0000000001__'),
   '101=' || (now() at time zone pg_temp.zone(1))::date || ',102=' || (now() at time zone pg_temp.zone(2))::date
   || ',105=' || (now() at time zone pg_temp.zone(1))::date || ',109=' || (now() at time zone pg_temp.zone(1))::date,
   'each at its own local date: inside the window, in two zones, and an empty day with skip_empty off');
 select is((select string_agg(right(id::text, 3) || '=' || coalesce(daily_summary_last_date::text, '-'), ',' order by id)
-  from public.profiles where id::text like '%0000000001%' and id <> pg_temp.u('10a')),
+  from public.profiles where id::text like '00000000-0000-0000-0000-0000000001__' and id <> pg_temp.u('10a')),
   '101=' || (now() at time zone pg_temp.zone(1))::date || ',102=' || (now() at time zone pg_temp.zone(2))::date
   || ',103=-,104=-,105=' || (now() at time zone pg_temp.zone(1))::date || ',106=-,107=-,108=-,109=' || (now() at time zone pg_temp.zone(1))::date,
   'past catchUpMinutes, before the time, opted out, off and without WhatsApp are left alone');
@@ -731,7 +735,7 @@ select is((select daily_summary_last_date from public.profiles where id = pg_tem
   'but the day is marked, so it is not looked at again');
 update public.profiles set daily_summary_last_date = null where id = pg_temp.u('101');
 select is(public.enqueue_daily_summaries(), 0, 'running again writes nothing: the key holds even when the date is lost');
-select is((select count(*) from public.notifications where type = 'daily_summary' and user_id::text like '%0000000001%'), 4::bigint,
+select is((select count(*) from public.notifications where type = 'daily_summary' and user_id::text like '00000000-0000-0000-0000-0000000001__'), 4::bigint,
   'and nothing is duplicated');
 
 -- ===== Retention =====

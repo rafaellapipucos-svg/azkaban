@@ -263,23 +263,51 @@ export const teamOverviewRowSchema = z.object({
 });
 export type TeamOverviewRow = z.infer<typeof teamOverviewRowSchema>;
 
+/**
+ * Why an XP event exists (ADR-0005 section 6, ADR-0010 section 1). The database is the only writer.
+ * `occurrence_reverted` compensates every event of one occurrence, `proof_bonus` included;
+ * `perfect_day_reverted` compensates `perfect_day` of one local day. `shopping_completed` is a
+ * completed shopping list (ADR-0011, section 9): once per list, never compensated, since a list does
+ * not reopen. Its `xp_events.shopping_list_id` stays out of `xpEventSchema` until a screen reads it.
+ */
 export const xpEventReasonSchema = z.enum([
   'occurrence_done',
   'occurrence_done_late',
   'occurrence_partial',
   'occurrence_reverted',
+  'proof_bonus',
+  'perfect_day',
+  'perfect_day_reverted',
+  'shopping_completed',
 ]);
 export type XpEventReason = z.infer<typeof xpEventReasonSchema>;
 
-export const xpEventSchema = z.object({
-  id: idSchema,
-  userId: idSchema,
-  groupId: idSchema.nullable(),
-  occurrenceId: idSchema.nullable(),
-  amount: z.int(),
-  reason: xpEventReasonSchema,
-  createdAt: instantSchema,
-});
+/** Reasons that count toward `gamificationRules.xp.dailyCap`: everything but the perfect day. */
+export const cappedXpEventReasons = [
+  'occurrence_done',
+  'occurrence_done_late',
+  'occurrence_partial',
+  'occurrence_reverted',
+  'proof_bonus',
+  'shopping_completed',
+] as const satisfies readonly XpEventReason[];
+
+export const xpEventSchema = z
+  .object({
+    id: idSchema,
+    userId: idSchema,
+    groupId: idSchema.nullable(),
+    occurrenceId: idSchema.nullable(),
+    /** The local day of the profile a `perfect_day` event is about; null for every other reason. */
+    localDate: localDateSchema.nullable(),
+    amount: z.int().refine((amount) => amount !== 0),
+    reason: xpEventReasonSchema,
+    createdAt: instantSchema,
+  })
+  .refine(
+    ({ reason, localDate }) =>
+      (reason === 'perfect_day' || reason === 'perfect_day_reverted') === (localDate !== null),
+  );
 export type XpEvent = z.infer<typeof xpEventSchema>;
 
 /**

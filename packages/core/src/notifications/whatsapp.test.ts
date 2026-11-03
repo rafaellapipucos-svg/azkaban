@@ -37,6 +37,11 @@ const messages: Record<string, string> = {
   'whatsapp.summary.empty.deadlines': 'nenhum',
   'whatsapp.summary.overdueOff': 'não incluídas',
   'whatsapp.summary.footer': 'Os detalhes estão no app.',
+  'whatsapp.summary.streak.days_one': 'Ofensiva de {{count}} dia.',
+  'whatsapp.summary.streak.days_other': 'Ofensiva de {{count}} dias.',
+  'whatsapp.summary.streak.start': 'Comece uma ofensiva hoje.',
+  'whatsapp.summary.streak.goal_one': 'Meta de hoje: {{count}} tarefa.',
+  'whatsapp.summary.streak.goal_other': 'Meta de hoje: {{count}} tarefas.',
 };
 const plural = new Intl.PluralRules('pt-BR');
 const t: Translate = (key, values) => {
@@ -209,6 +214,30 @@ describe('buildDailySummary', () => {
     expect(isDailySummaryEmpty(source({ deadlines: [task({ scheduleType: 'deadline' })] }))).toBe(
       false,
     );
+  });
+
+  it.each([
+    [null, 'Os detalhes estão no app.'],
+    [{ current: 5, goalToday: 3 }, 'Ofensiva de 5 dias. Meta de hoje: 3 tarefas.'],
+    [{ current: 1, goalToday: 1 }, 'Ofensiva de 1 dia. Meta de hoje: 1 tarefa.'],
+    [{ current: 12, goalToday: null }, 'Ofensiva de 12 dias.'],
+    [{ current: 0, goalToday: 2 }, 'Comece uma ofensiva hoje. Meta de hoje: 2 tarefas.'],
+    [{ current: 0, goalToday: null }, 'Comece uma ofensiva hoje.'],
+    [{ current: 3, goalToday: 0 }, 'Ofensiva de 3 dias.'],
+  ])('closes with the streak %j as %j', (streak, footer) => {
+    const render = buildDailySummary(source({ streak }), options, t);
+    expect(render.footer).toBe(footer);
+    expect(whatsappTextParamSchema.safeParse(render.footer).success).toBe(true);
+  });
+
+  it('keeps the streak footer within its budget', () => {
+    const streak = { current: 99999, goalToday: 99999 };
+    const render = buildDailySummary(
+      source({ streak }),
+      { ...options, budgets: { ...budgets, footer: 20 } },
+      t,
+    );
+    expect(render.footer.length).toBeLessThanOrEqual(20);
   });
 
   it('uses the generic line for a blank title', () => {

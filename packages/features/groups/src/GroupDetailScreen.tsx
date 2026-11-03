@@ -12,6 +12,7 @@ import {
   Muted,
   Screen,
   Subtitle,
+  Title,
 } from '@azkaban/ui';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -129,6 +130,7 @@ export function GroupDetailScreen({
 
   return (
     <Screen title={group.name}>
+      <Title>{group.name}</Title>
       {can(user, 'group.update', scope) ? (
         <>
           <FormTextField
@@ -144,9 +146,7 @@ export function GroupDetailScreen({
             onPress={handleSubmit((values) => rename.mutate(values))}
           />
         </>
-      ) : (
-        <Subtitle>{group.name}</Subtitle>
-      )}
+      ) : null}
 
       <Subtitle>{t('detail.members')}</Subtitle>
       {members.data?.map((member) => (
@@ -161,6 +161,12 @@ export function GroupDetailScreen({
       ))}
 
       {children}
+
+      <Button
+        variant="secondary"
+        label={t('transparency.open')}
+        onPress={() => router.push({ pathname: '/transparency', params: { groupId } })}
+      />
 
       {can(user, 'member.invite', scope) ? (
         <InvitesSection

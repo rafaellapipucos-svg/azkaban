@@ -1,12 +1,12 @@
 import type { ShoppingListItem } from '@azkaban/contracts';
 import { marketSections } from '@azkaban/core';
-import { shoppingRepository } from '@azkaban/data';
+import { shoppingCheckAction } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import { activateOnSpace } from '@azkaban/platform';
 import { Body, Muted, Subtitle, tokens } from '@azkaban/ui';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Pressable, Text, View } from 'react-native';
-import { shoppingKeys, useQuantityText, useSetItem } from './hooks';
+import { queueRefuses, useQuantityText, useSetItem } from './hooks';
 
 type Props = {
   listId: string;
@@ -24,14 +24,14 @@ export function MarketMode({ listId, items, readOnly, who, onError }: Props) {
   const quantityText = useQuantityText();
   const setItem = useSetItem(listId);
 
+  // Through the offline queue. Shown at once; the value (not a toggle) makes a replay harmless, and
+  // the reload when it settles takes in what others did.
+  const check = useMutation({ ...shoppingCheckAction, onError });
   const toggle = (item: ShoppingListItem) => {
+    if (queueRefuses(queryClient)) return onError(new Error('offline'));
     const checked = item.checkedAt === null;
-    // Shown at once; the value (not a toggle) makes a repeat harmless, and the reload settles it.
     setItem(item.id, { ...item, checkedAt: checked ? new Date().toISOString() : null });
-    shoppingRepository
-      .setChecked({ itemId: item.id, checked })
-      .catch(onError)
-      .finally(() => void queryClient.invalidateQueries({ queryKey: shoppingKeys.items(listId) }));
+    check.mutate({ itemId: item.id, checked });
   };
 
   const sections = marketSections(items).map(({ category, items: section }) => (

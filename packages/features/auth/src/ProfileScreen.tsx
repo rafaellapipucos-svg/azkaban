@@ -1,11 +1,16 @@
 import { profileUpdateSchema, type ProfileUpdateInput } from '@azkaban/contracts';
-import { authRepository, profilesRepository } from '@azkaban/data';
+import {
+  authRepository,
+  discardOfflineQueue,
+  profilesRepository,
+  useOfflinePendingCount,
+} from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import { deviceTimezone } from '@azkaban/platform';
 import { Body, Button, ErrorText, FormTextField, Mascot, Screen, Title } from '@azkaban/ui';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { View } from 'react-native';
 
@@ -13,14 +18,18 @@ import { View } from 'react-native';
 const beforeSignOutTimeoutMs = 5000;
 
 /**
- * `children` are extra entries the app puts above the sign-out button, such as the groups link.
+ * `top` sits right under the title, above the form, such as the progress panel (QA6-4). `children`
+ * are extra entries the app puts above the sign-out button, such as the groups link.
  * `onBeforeSignOut` runs while the session is still alive (RLS), such as forgetting this device for
- * push. Its failure or delay never blocks signing out.
+ * push. Its failure or delay never blocks signing out. With changes waiting in the offline queue,
+ * signing out asks first and, confirmed, drops them (ADR-0012, section 5).
  */
 export function ProfileScreen({
+  top,
   children,
   onBeforeSignOut,
 }: {
+  top?: ReactNode;
   children?: ReactNode;
   onBeforeSignOut?: () => Promise<void>;
 }) {
@@ -38,8 +47,11 @@ export function ProfileScreen({
     mutationFn: profilesRepository.updateMine,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['profile'] }),
   });
+  const pending = useOfflinePendingCount();
+  const [confirming, setConfirming] = useState(false);
   const signOut = useMutation({
     mutationFn: async () => {
+      discardOfflineQueue(queryClient);
       if (onBeforeSignOut) {
         let timer: ReturnType<typeof setTimeout> | undefined;
         await Promise.race([
@@ -58,6 +70,7 @@ export function ProfileScreen({
         <Mascot mood="happy" />
       </View>
       <Title>{t('profile.title')}</Title>
+      {top}
       <FormTextField
         control={control}
         name="displayName"
@@ -84,12 +97,29 @@ export function ProfileScreen({
         onPress={handleSubmit((values) => save.mutate(values))}
       />
       {children}
-      <Button
-        variant="secondary"
-        label={t('profile.signOut')}
-        loading={signOut.isPending}
-        onPress={() => signOut.mutate()}
-      />
+      {confirming && pending > 0 ? (
+        <>
+          <Body role="alert">{t('profile.signOutPending', { count: pending })}</Body>
+          <Button
+            variant="danger"
+            label={t('profile.signOutDiscard')}
+            loading={signOut.isPending}
+            onPress={() => signOut.mutate()}
+          />
+          <Button
+            variant="secondary"
+            label={t('actions.cancel')}
+            onPress={() => setConfirming(false)}
+          />
+        </>
+      ) : (
+        <Button
+          variant="secondary"
+          label={t('profile.signOut')}
+          loading={signOut.isPending}
+          onPress={() => (pending > 0 ? setConfirming(true) : signOut.mutate())}
+        />
+      )}
     </Screen>
   );
 }

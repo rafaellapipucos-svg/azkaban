@@ -82,7 +82,8 @@ const contextMaxLength = 40;
 /**
  * The parameters of `daily_summary_v1` (ADR-0009, section 5), each one line within its budget. Today
  * is grouped by area and context in the order of the source; what does not fit becomes "+N", and the
- * button opens the app. An empty list is a short text, and the footer is neutral until Phase 6.
+ * button opens the app. An empty list is a short text. The footer is the streak and today's goal
+ * (ADR-0010, section 9), or a neutral closing when the source has no streak.
  */
 export function buildDailySummary(
   source: DailySummarySource,
@@ -170,12 +171,25 @@ export function buildDailySummary(
     today: list(todayPieces, source.totals.today, budgets.today, 'whatsapp.summary.empty.today'),
     overdue,
     deadlines,
-    // ponytail: neutral until Phase 6 fills `streak` and decides its line; the template stays.
-    footer: clip(t('whatsapp.summary.footer'), budgets.footer),
+    footer: clip(footer(source.streak, t), budgets.footer),
   };
   return dailySummaryRenderSchema.parse(
     Object.fromEntries(Object.entries(render).map(([key, text]) => [key, cleanParam(text)])),
   );
+}
+
+/** The streak days, or an invitation to start one, and today's goal when something is planned. */
+function footer(streak: DailySummarySource['streak'], t: Translate) {
+  if (!streak) return t('whatsapp.summary.footer');
+  return [
+    streak.current > 0
+      ? t('whatsapp.summary.streak.days', { count: streak.current })
+      : t('whatsapp.summary.streak.start'),
+    // ponytail: a goal of 0 only comes from a 0% goal; it reads as no goal, like null.
+    streak.goalToday ? t('whatsapp.summary.streak.goal', { count: streak.goalToday }) : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 }
 
 /**

@@ -149,7 +149,11 @@ function MemberCard({
                 style={{ width: tokens.spacing[6], height: tokens.spacing[6] }}
                 className={`items-center justify-center rounded-full ${total > 0 ? look.box : ''}`}
               >
-                <Text className={`font-heavy text-md ${total > 0 ? look.text : 'text-muted'}`}>
+                <Text
+                  className={`font-heavy text-md ${
+                    total > 0 ? look.text : 'text-muted dark:text-muted-dark'
+                  }`}
+                >
                   {total > 0 ? look.symbol : '–'}
                 </Text>
               </View>

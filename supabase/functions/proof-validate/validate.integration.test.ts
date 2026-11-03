@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { after, before, describe, test } from 'node:test';
 import { proofDefaults, proofRules } from '../../../packages/config/src/proof.ts';
 import {
+  PAID_WITH_PROOF,
   PLACE,
   admin,
   anon,
@@ -25,6 +26,7 @@ import {
   upload,
   rawUpload,
   usedAt,
+  xpOf,
   type Group,
   type Person,
   newGroup,
@@ -154,13 +156,10 @@ describe('proof-validate', () => {
       );
     });
 
-    test('without approval the XP is granted at once', async () => {
+    test('without approval the XP is granted at once, with the proof bonus', async () => {
       const { author, occurrenceId, nonce } = await ready();
       assert.equal((await upload(author, nonce, photo())).status, 200);
-      assert.deepEqual(
-        sql(`select count(*) from public.xp_events where occurrence_id = '${occurrenceId}'`),
-        ['1'],
-      );
+      assert.equal(xpOf(occurrenceId), PAID_WITH_PROOF);
     });
 
     test('the edge sizes are accepted', async () => {
@@ -293,7 +292,10 @@ describe('proof-validate', () => {
       await assertUntouched(occurrenceId);
 
       // After the acceptance the same user gets one and finishes.
-      assert.ifError((await author.client.rpc('record_proof_consent', { p_version: 2 })).error);
+      assert.ifError(
+        (await author.client.rpc('record_proof_consent', { p_version: proofRules.consentVersion }))
+          .error,
+      );
       const nonce = await challenge(author, occurrenceId);
       assert.equal((await upload(author, nonce, photo())).status, 200);
     });

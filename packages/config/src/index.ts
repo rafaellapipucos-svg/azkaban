@@ -8,3 +8,5 @@ export { whatsappDefaults, whatsappRules } from './whatsapp';
 export { parseWhatsAppEnv, type WhatsAppEnv } from './whatsapp-env';
 export { shoppingDefaults, shoppingRules } from './shopping';
 export { shoppingCatalogSeed } from './shopping-catalog-seed';
+export { gamificationDefaults, gamificationRules } from './gamification';
+export { offlineDefaults, privacyDefaults, rateLimitRules } from './limits';

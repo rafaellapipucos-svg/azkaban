@@ -17,6 +17,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { after, before, describe, test } from 'node:test';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { whatsappRules } from '../../../packages/config/src/whatsapp.ts';
 import { apiUrl as API } from '../_shared/local-stack.mjs';
 import { runDispatch, type Batch, type OutboundMessage, type Report } from './dispatch.ts';
 import { browser, decrypt, vapidPair, type Browser } from './test-kit.ts';
@@ -273,7 +274,7 @@ describe('dispatch-notifications', () => {
           phone_e164: phone,
           phone_verified_at: now,
           whatsapp_opt_in_at: now,
-          whatsapp_opt_in_version: 1,
+          whatsapp_opt_in_version: whatsappRules.consentVersion,
           // Off for the job, so the cron adds no summary of its own if the suite runs near 8h.
           daily_summary_enabled: false,
         })

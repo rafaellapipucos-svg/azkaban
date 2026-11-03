@@ -23,6 +23,7 @@ import { tasksConfig } from './config';
 import { dayLabel, errorKey } from './format';
 import { useLastContext, useNotice, useOccurrenceLists, useStatusChange } from './hooks';
 import { OccurrenceRow, type ProofEntry } from './OccurrenceRow';
+import { OfflineQueueNotice } from './OfflineQueueNotice';
 import { QuickCreate } from './QuickCreate';
 import { Section } from './Sections';
 
@@ -142,6 +143,7 @@ export function AreaScreen({ areaKey, onProof }: { areaKey: string; onProof?: Pr
         ) : null}
 
         {created ? <Body role="status">{t('today.created')}</Body> : null}
+        <OfflineQueueNotice />
         {status.error ? <ErrorText>{t(errorKey(status.error))}</ErrorText> : null}
         {failed ? (
           <View style={{ gap: tokens.spacing[2] }}>

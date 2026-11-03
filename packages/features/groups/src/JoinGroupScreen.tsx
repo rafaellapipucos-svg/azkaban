@@ -1,9 +1,13 @@
+import { rateLimitedErrorCode } from '@azkaban/contracts';
 import { groupsRepository } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import { Body, Button, EmptyState, ErrorText, Mascot, Screen, Title } from '@azkaban/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { View } from 'react-native';
+
+// ADR-0012, section 7: an employee reads what the admin sees before accepting a work group's invite.
+const workGroupType = 'company';
 
 export function JoinGroupScreen({ code, signedIn }: { code: string; signedIn: boolean }) {
   const { t } = useTranslation('groups');
@@ -13,6 +17,8 @@ export function JoinGroupScreen({ code, signedIn }: { code: string; signedIn: bo
     queryKey: ['invite', code],
     queryFn: () => groupsRepository.previewInvite(code),
     enabled: signedIn,
+    // Each try spends the invite limit: over it, trying again only digs deeper.
+    retry: (failures, error) => error.message !== rateLimitedErrorCode && failures < 3,
   });
   const accept = useMutation({
     mutationFn: () => groupsRepository.acceptInvite(code),
@@ -26,6 +32,7 @@ export function JoinGroupScreen({ code, signedIn }: { code: string; signedIn: bo
   if (!signedIn) {
     return (
       <Screen title={t('join.title')}>
+        <Title>{t('join.title')}</Title>
         <EmptyState mood="happy" text={t('join.signInFirst')}>
           <Button
             label={t('join.signIn')}
@@ -38,10 +45,12 @@ export function JoinGroupScreen({ code, signedIn }: { code: string; signedIn: bo
     );
   }
 
-  if (preview.data === null) {
+  const previewLimited = preview.error?.message === rateLimitedErrorCode;
+  if (preview.data === null || previewLimited) {
     return (
       <Screen title={t('join.title')}>
-        <EmptyState mood="worried" text={t('join.invalid')}>
+        <Title>{t('join.title')}</Title>
+        <EmptyState mood="worried" text={t(previewLimited ? 'join.rateLimited' : 'join.invalid')}>
           <Button
             variant="secondary"
             label={t('actions.back')}
@@ -66,7 +75,20 @@ export function JoinGroupScreen({ code, signedIn }: { code: string; signedIn: bo
           })}
         </Body>
       ) : null}
-      {accept.isError ? <ErrorText>{t('join.invalid')}</ErrorText> : null}
+      {preview.data?.groupType === workGroupType ? (
+        <Button
+          variant="secondary"
+          label={t('transparency.open')}
+          onPress={() =>
+            router.push({ pathname: '/transparency', params: { groupType: workGroupType } })
+          }
+        />
+      ) : null}
+      {accept.isError ? (
+        <ErrorText>
+          {t(accept.error.message === rateLimitedErrorCode ? 'join.rateLimited' : 'join.invalid')}
+        </ErrorText>
+      ) : null}
       <Button
         label={t('join.accept')}
         loading={accept.isPending}

@@ -1,6 +1,7 @@
 // Fails when the database differs from its mirrors in code: the permission matrix in packages/core,
 // occurrenceTransitions and the shopping vocabulary in packages/contracts, and taskRules, proofRules, notificationRules,
-// whatsappRules, shoppingRules and the starter shopping catalog in packages/config. Needs `pnpm db:start`.
+// whatsappRules, shoppingRules, the starter shopping catalog, gamificationRules and rateLimitRules in packages/config. Needs
+// `pnpm db:start`.
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
@@ -173,6 +174,37 @@ for (const [name, sql, code] of shoppingChecks) {
   } else {
     console.log(`${name} in sync.`);
   }
+}
+
+// Gamification rules (ADR-0010): bonuses, daily cap, goal, streak, ranking defaults, close job.
+const { gamificationRules } = await load('packages/config/src/gamification.ts');
+const [gamificationRow] = query(
+  "select value::text from public.app_settings where key = 'gamification_rules'",
+);
+if (!gamificationRow || canonical(JSON.parse(gamificationRow)) !== canonical(gamificationRules)) {
+  console.error('Gamification rules out of sync.', {
+    database: gamificationRow,
+    code: canonical(gamificationRules),
+  });
+  failed = true;
+} else {
+  console.log('Gamification rules in sync.');
+}
+
+// Rate limits (ADR-0012, section 4): the limit and window per action, and the retention of the
+// counters and of the stepper's request ids.
+const { rateLimitRules } = await load('packages/config/src/limits.ts');
+const [rateLimitRow] = query(
+  "select value::text from public.app_settings where key = 'rate_limit_rules'",
+);
+if (!rateLimitRow || canonical(JSON.parse(rateLimitRow)) !== canonical(rateLimitRules)) {
+  console.error('Rate limit rules out of sync.', {
+    database: rateLimitRow,
+    code: canonical(rateLimitRules),
+  });
+  failed = true;
+} else {
+  console.log('Rate limit rules in sync.');
 }
 
 // Time zones: the database takes a name only if Intl reads it too, or taskSchema.parse would fail on a

@@ -1,5 +1,7 @@
 import {
   materializeResponseSchema,
+  occurrenceTransitionInputSchema,
+  rateLimitedErrorCode,
   taskBatchInputSchema,
   taskErrorCodeSchema,
   taskInputSchema,
@@ -19,13 +21,21 @@ import {
   type TaskRuleChange,
   type TeamOverviewRow,
 } from '@azkaban/contracts';
+import { onlineManager } from '@tanstack/react-query';
 import type { Json } from '../database.types';
 import { db } from '../client';
+import { defineOfflineAction, isTransientFailure } from '../offline';
+
+/**
+ * A code the UI has a text for. `rate_limited` comes from `consume_rate_limit` (ADR-0012, section 4)
+ * and stays out of the contract enum, as the ADR decided; `offline` is a failure without a connection.
+ */
+export type TaskFailureCode = TaskErrorCode | typeof rateLimitedErrorCode | 'offline';
 
 /** `code` is null for anything the correct app cannot cause: the UI shows its generic text. */
 export class TaskError extends Error {
   constructor(
-    readonly code: TaskErrorCode | null,
+    readonly code: TaskFailureCode | null,
     options?: { cause?: unknown },
   ) {
     super(code ?? 'task_error', options);
@@ -34,10 +44,18 @@ export class TaskError extends Error {
 }
 
 /** The RPCs raise their code as the message (ADR-0005), so a code outside the schema is a defect. */
-export function taskErrorCode(error: unknown): TaskErrorCode | null {
+export function taskErrorCode(error: unknown): TaskFailureCode | null {
   if (error instanceof TaskError) return error.code;
-  const message =
-    typeof error === 'object' && error !== null && 'message' in error ? error.message : null;
+  // A change outside the queue fails at once without a connection (`offlineMutationDefaults`). The
+  // repositories wrap the failure when it happens, so the code is the connection of that moment.
+  if (!onlineManager.isOnline() && isTransientFailure(error)) return 'offline';
+  const field = (name: string) =>
+    typeof error === 'object' && error !== null && name in error
+      ? (error as Record<string, unknown>)[name]
+      : null;
+  const message = field('message');
+  // PostgREST answers PT429 with HTTP 429 and the message `rate_limited`.
+  if (field('code') === 'PT429' || message === rateLimitedErrorCode) return rateLimitedErrorCode;
   const parsed = taskErrorCodeSchema.safeParse(message);
   return parsed.success ? parsed.data : null;
 }
@@ -492,3 +510,37 @@ export const tasksRepository = {
     if (error) throw toTaskError(error);
   },
 };
+
+/**
+ * Marking a status, through the offline queue (ADR-0012, section 5). `expectedStatus` is the status
+ * seen at the tap. On `status_conflict` it reads the occurrence again: already at the target means
+ * an earlier try went through and only its answer was lost, so it counts as done.
+ */
+export const occurrenceStatusAction = defineOfflineAction({
+  key: 'occurrence-status',
+  schema: occurrenceTransitionInputSchema,
+  run: async (input: OccurrenceTransitionInput) => {
+    try {
+      return await tasksRepository.setStatus(input);
+    } catch (error) {
+      if (taskErrorCode(error) !== 'status_conflict') throw error;
+      const { data, error: readError } = await db()
+        .from('task_occurrences')
+        .select('status')
+        .eq('id', input.occurrenceId)
+        .maybeSingle();
+      if (readError) throw toTaskError(readError);
+      if (data?.status !== input.toStatus) throw error;
+      return null;
+    }
+  },
+  reasonOf: (error) => taskErrorCode(error) ?? 'generic',
+  // The cache keys every list and the detail read. `proof-current` is the photo module's: reopening
+  // a task drops its photo.
+  invalidates: ({ occurrenceId }) => [
+    ['occurrences'],
+    ['occurrence', occurrenceId],
+    ['history', occurrenceId],
+    ['proof-current', occurrenceId],
+  ],
+});

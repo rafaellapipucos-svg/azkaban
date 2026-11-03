@@ -27,13 +27,13 @@ export default function RootLayout() {
   const { session, loading } = useSession();
   // Restores, saves and sends the signed-in user's offline queue (ADR-0012, section 5).
   useOfflineQueue(queryClient, session?.user.id ?? null);
-  // Another account, or none, never sees the last one's cached data.
-  useClearCacheOnUserChange(queryClient, session?.user.id ?? null);
+  // Another account, or none, never sees the last one's cached data: the tree mounts again.
+  const cacheGeneration = useClearCacheOnUserChange(queryClient, session?.user.id ?? null);
   const [fontsLoaded] = useFonts({ Nunito_600SemiBold, Nunito_800ExtraBold });
   if (!fontsLoaded || loading) return null;
   return (
     <QueryClientProvider client={queryClient}>
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack key={cacheGeneration} screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(app)" />
         <Stack.Protected guard={!session}>
           <Stack.Screen name="welcome" />

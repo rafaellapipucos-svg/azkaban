@@ -1,3 +1,4 @@
+export { PrivacyScreen } from './PrivacyScreen';
 export { ProfileScreen } from './ProfileScreen';
 export { SignInScreen } from './SignInScreen';
 export { SignUpScreen } from './SignUpScreen';

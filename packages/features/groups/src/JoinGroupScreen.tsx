@@ -5,6 +5,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { View } from 'react-native';
 
+// ADR-0012, section 7: an employee reads what the admin sees before accepting a work group's invite.
+const workGroupType = 'company';
+
 export function JoinGroupScreen({ code, signedIn }: { code: string; signedIn: boolean }) {
   const { t } = useTranslation('groups');
   const router = useRouter();
@@ -65,6 +68,15 @@ export function JoinGroupScreen({ code, signedIn }: { code: string; signedIn: bo
             role: t(`roles.${preview.data.role}`),
           })}
         </Body>
+      ) : null}
+      {preview.data?.groupType === workGroupType ? (
+        <Button
+          variant="secondary"
+          label={t('transparency.open')}
+          onPress={() =>
+            router.push({ pathname: '/transparency', params: { groupType: workGroupType } })
+          }
+        />
       ) : null}
       {accept.isError ? <ErrorText>{t('join.invalid')}</ErrorText> : null}
       <Button

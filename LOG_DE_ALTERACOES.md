@@ -3578,3 +3578,20 @@
 - **Verificado:** `pnpm install --frozen-lockfile` sem mudança; `pnpm expo:doctor` 20/20; `pnpm check` (abaixo).
 - **Não verificado:** CI no Linux com o binário novo; nada da autenticação em aparelho ou navegador (só documentação).
 - **Pendências / próximos passos:** o humano escolher A, A' ou B no ADR-0004; depois, handoff para auth-grupos aplicar no web (e, se B, também no nativo, no lugar do marcador).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 11:11 (BRT)
+
+- **Branch:** fix/netinfo-no-reachability, criada a partir de feat/backlog-after-phase-8 (a251638)
+- **Agente(s):** notificacoes-whatsapp (achado BL23-4 atribuído a ele, em `packages/platform/src/network.ts`)
+- **Resumo:** Achado BL23-4 (baixa, LGPD) da revisão de segurança de 11:04. O NetInfo nativo deixa de testar a conexão contra `https://clients3.google.com/generate_204`; o app só lê `isConnected`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/platform/src/network.ts`: `NetInfo.configure({ reachabilityShouldRun: () => false })` uma vez, na carga do módulo, antes de qualquer leitura. Opção conferida no NetInfo 12.0.1 instalado (`types.ts`; em `internetReachability.ts` o teste só roda se `reachabilityShouldRun()` for verdadeiro). `isInternetReachable` passa a ficar `null` no iOS; nada no app o lê.
+  - `packages/platform/src/network.test.ts`: o NetInfo falso registra as chamadas de `configure`; teste novo confere uma chamada só e `reachabilityShouldRun()` falso. Array simples em vez de `vi.fn()`, porque o Vitest 5 limpa as chamadas antes de cada teste (`clearMocks: true` por padrão) e o `configure` roda no import.
+  - Web (`network.web.ts`) sem mudança.
+- **Arquivos/módulos principais:** `packages/platform/src/network.ts`, `packages/platform/src/network.test.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou. O teste novo, com `vi.fn()`, viu 0 chamadas; com o array vê a chamada do import, então falha se o `configure` sair.
+- **Não verificado:** aparelho iOS (ausência da requisição ao Google; o `configure` atravessando a ponte nativa com a função na configuração, que o nativo só guarda em `self.config`); sem pilha.
+- **Pendências / próximos passos:** nenhuma.

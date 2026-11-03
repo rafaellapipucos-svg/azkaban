@@ -1,5 +1,10 @@
 import NetInfo, { useNetInfo } from '@react-native-community/netinfo';
 
+// The app only reads `isConnected`. Without this, NetInfo on iOS pings
+// `clients3.google.com/generate_204` every 60 s to fill `isInternetReachable`: a call to a third
+// party the privacy policy does not cover. Runs once, on import, before any read.
+NetInfo.configure({ reachabilityShouldRun: () => false });
+
 /**
  * Whether the device says it has a connection, from NetInfo. Web reads the browser, in
  * `network.web.ts`, which Metro picks there. `null` (not known yet) counts as online, so the offline

@@ -3206,3 +3206,24 @@
 - **Verificado:** cada item de "fazer agora" conferido por `grep` no código de `c74cce6` (ex.: sem `setSessionFromLink`, sem `expo-haptics` nem NetInfo nos `package.json`, `InvitesSection` com erro genérico, `enqueue_daily_summaries()` = 4 em `rls_whatsapp`, nenhuma Edge Function devolve 503). `pnpm check` passou.
 - **Não verificado:** a corrida de `accept_invite` com `transfer_group_ownership` (é o BL-13); tamanhos são estimativa. O QUADRO é do orquestrador; editado por pedido dele.
 - **Pendências / próximos passos:** onda 0 (BL-1 a BL-4, arquiteto); respostas do humano para BL-24 a BL-37.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:09 (BRT)
+
+- **Branch:** `feat/backlog-contracts`, criada a partir de `feat/backlog-after-phase-8` (`3e48b9e`)
+- **Agente(s):** arquiteto
+- **Resumo:** onda 0 do backlog pós-Fase 8 (BL-1 a BL-4): contrato do push nativo, prazo da exclusão aberta, regra de repetição em 503 das Edge Functions e o número do WhatsApp no ramo `console` do env. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - BL-1: `packages/contracts/src/notifications.ts` ganha `pushSubscriptionKindSchema` (`web`/`expo`), `expoPushTokenSchema`, `nativePushSubscriptionInputSchema` (argumento da RPC irmã `register_native_push_subscription`), `nativePushAndroidChannelId` (`default`), `nativePushDataSchema` (`v`, `notificationId`, `type` e `url` recortados de `pushPayloadSchema`) e `nativePushMessageSchema` (mensagem à API da Expo, `ttl` de `pushTtlSeconds`). O push nativo vai pelo mesmo canal `web_push`, sem enum novo. ADR-0012 §11.
+  - BL-2: `privacyRules.openDeletionHoldMinutes` (30) em `packages/config/src/limits.ts`, a espelhar em `app_settings.privacy_rules`. Regra no ADR-0012 §3: a linha aberta só recusa convites por 30 minutos depois de `requested_at`, e `begin_account_deletion` renova `requested_at` a cada tentativa; 30 minutos passam dos 400 s máximos de uma Edge Function, e `begin`/`finish` conferem os grupos de novo.
+  - BL-3: `defaults.functionRetryDelaysMs` (`[500, 1500]`) e a nova seção 18 do ADR-0012: nenhuma função devolve 503, então 503 de `/functions/v1/` é função que não rodou; o cliente repete só esse caso, num `fetch` só em `packages/data/src/client.ts`, no máximo 2 vezes.
+  - BL-4: o ramo `console` de `whatsappEnvSchema` aceita `WHATSAPP_PHONE_NUMBER_ID` opcional, com a mesma regex do `meta`; vazio é ausente.
+  - A pedido do orquestrador (BL-8): o ADR-0012 §3 diz "ex-membro" no sino e em compras, no lugar de "conta excluída", porque o cliente não distingue quem saiu do grupo de quem excluiu a conta.
+  - `docs/arquitetura.md`: push nativo, prazo da exclusão aberta e a repetição em 503.
+  - Testes: contrato (tokens aceitos e recusados, `url` só interno, canal fixo, a maior mensagem dentro de `pushPayloadMaxBytes`); config (`console` guarda e confere o número; o prazo passa de 400 s; as esperas são curtas).
+- **Arquivos/módulos principais:** `packages/contracts/src/notifications{,.test}.ts`, `packages/config/src/{limits,limits.test,defaults,whatsapp-env,env.test,index}.ts`, `docs/adr/0012-polimento-lgpd-limites-offline.md`, `docs/arquitetura.md`, cinco handoffs `docs/agentes/handoffs/20261103-1010-arquiteto-para-*`
+- **Migrations:** nenhuma (o espelho de `privacy_rules` é do BL-12).
+- **Decisões/ADRs:** ADR-0012 §3 (prazo da linha aberta; "ex-membro"), §11 (contrato do push nativo, mesmo canal, RPC irmã), §15 (lista), §18 (repetição em 503).
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (lint, `boundaries` sem violação, typecheck 17 de 17, testes 12 de 12 pacotes, contracts 159 e config 25 testes, `functions:imports`).
+- **Não verificado:** nada contra a pilha. `pnpm db:check-permissions` só vai conferir `privacy_rules` quando o BL-12 puser a comparação no script. O formato real do token e da resposta da Expo não foi conferido contra a API (sem conta e sem gasto). "Nenhuma função devolve 503" foi conferido por busca no código, não por teste (o teste é do BL-14). Depois do BL-4, um `WHATSAPP_PHONE_NUMBER_ID` malformado no `console` deixa o WhatsApp "não configurado" quando o BL-14 passar a ler pelo `parseWhatsAppEnv`.
+- **Pendências / próximos passos:** handoffs para `banco-de-dados` (BL-5 e BL-12), `prova-foto` (BL-10), `backend-funcoes` (BL-14, inclusive o teste que barra 503 e a leitura do número pelo env) e `notificacoes-whatsapp` (BL-19).

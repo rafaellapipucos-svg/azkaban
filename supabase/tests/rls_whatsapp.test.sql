@@ -4,7 +4,7 @@
 -- every window inside one day, so the result does not depend on when the suite runs.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(147);
+select plan(151);
 
 create function pg_temp.u(p text) returns uuid language sql as $$
   select ('00000000-0000-0000-0000-' || lpad(p, 12, '0'))::uuid;
@@ -503,6 +503,24 @@ select is(public.whatsapp_stop_by_wa_id('441188887777'), 0, 'outside Brazil ther
 select is(public.whatsapp_stop_by_wa_id('4411988887777'), 1, 'only the same digits');
 select pg_temp.pg();
 delete from auth.users where id in (select pg_temp.u(k) from unnest(array['201', '202', '203', '204', '205', '206']) k);
+
+-- SEG5-9: a 9 before a landline digit (2 to 5) is not the ninth digit. Bia has the landline 11 3333-4444;
+-- Caio has the mobile 11 9 2222-3333, whose tail looks like a landline.
+insert into auth.users (id, email, raw_user_meta_data)
+select pg_temp.u(k), k || '@test.local', jsonb_build_object('display_name', 'User ' || k)
+from unnest(array['207', '208']) k;
+select pg_temp.ready(pg_temp.u('207'), '+551133334444');
+select pg_temp.ready(pg_temp.u('208'), '+5511922223333');
+select pg_temp.service();
+select is(public.whatsapp_stop_by_wa_id('5511933334444'), 0, 'a mobile with the landline digits after the 9 stops nobody');
+select is(public.whatsapp_stop_by_wa_id('551122223333'), 0, 'nor a landline with the digits of a mobile after its 9');
+select pg_temp.pg();
+select is(pg_temp.is_ready(pg_temp.u('207')) and pg_temp.is_ready(pg_temp.u('208')), true, 'the landline and the mobile stay on');
+select pg_temp.service();
+select is(public.whatsapp_stop_by_wa_id('551133334444') + public.whatsapp_stop_by_wa_id('5511922223333'), 2,
+  'each stops with its own digits');
+select pg_temp.pg();
+delete from auth.users where id in (select pg_temp.u(k) from unnest(array['207', '208']) k);
 
 -- ===== enqueue_notification =====
 select pg_temp.ready(pg_temp.u('d'), '+5511999990001');

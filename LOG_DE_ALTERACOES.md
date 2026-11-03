@@ -1689,3 +1689,19 @@
   - Mutações, desfeitas: a validação do lote inteiro de volta em `readWebhook` derruba o teste de SEG5-3 (1 falha); `NFD` no lugar de `NFKD` derruba o de SEG5-2 (1 falha).
 - **Não verificado:** a prova na pilha B, que o orquestrador trocou pela A (a B estava com o `banco-de-dados`); o lado B só está no teste de unidade, com o config de exemplo. `phone_country_not_allowed` contra a migration real. A suíte completa não rodou de novo depois do teste de SEG5-3.
 - **Pendências / próximos passos:** a verificação final com a migration do `banco-de-dados` (teste "a number of another country is 400 phone_country_not_allowed"). Para o `arquiteto`, se quiser: a variante `console` de `whatsappEnvSchema` poderia aceitar `WHATSAPP_PHONE_NUMBER_ID` opcional, e a função deixaria de ler o ambiente direto.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:32 (BRT)
+
+- **Branch:** fix/whatsapp-ninth-digit, criada a partir de feat/phase-5-whatsapp (7b5cceb)
+- **Agente(s):** banco-de-dados
+- **Resumo:** SEG5-9 do handoff `20261103-0226-revisor-seguranca-para-banco-de-dados-nono-digito`. A dobra do nono dígito de `whatsapp_stop_by_wa_id` juntava um celular e um fixo com os mesmos oito dígitos finais. Hora derivada de UTC menos 3 (PowerShell barrado no worktree).
+- **Alterações:**
+  - `whatsapp_stop_by_wa_id` só tira o `9` depois do DDD quando o dígito seguinte é de 6 a 9, nos dois lados (`'^(55[0-9]{2})9([6-9][0-9]{7})$'`). Fixos começam com 2 a 5 e o `wa_id` sem o nono dígito só existe para celulares antigos, que começavam com 6 a 9. Grants preservados pelo `create or replace`.
+  - `rls_whatsapp.test.sql` (147 para 151): Bia com o fixo `+551133334444` não é parada por `5511933334444`; Caio com o celular `+5511922223333` não é parado por `551122223333`; os dois continuam prontos; cada um para com os próprios dígitos.
+- **Arquivos/módulos principais:** `supabase/migrations/20261103160000_whatsapp_stop_ninth_digit_mobile_only.sql`, `supabase/tests/rls_whatsapp.test.sql`
+- **Migrations:** `20261103160000_whatsapp_stop_ninth_digit_mobile_only.sql`
+- **Decisões/ADRs:** nenhuma nova. A seção 18 do ADR-0009 cita o padrão antigo; o `arquiteto` ajusta o texto (já dito no handoff do revisor).
+- **Como testar:** `pnpm exec supabase db reset` e `pnpm db:test`.
+- **Verificado:** na pilha B (só Postgres, `supabase_db_azkaban-b`): `db reset`, `pnpm db:test` com 5 arquivos e 1378 testes, todos passando; os de SEG5-1 seguem iguais. `pnpm db:check-permissions` em sincronia. `pnpm check` passou (17 de 17 e 9 de 9). Mutação, desfeita: a regex antiga aplicada no banco derruba os 4 testes novos (102 a 105); restaurada, 151 de 151.
+- **Não verificado:** o webhook servido contra a função nova (sem E2E nem `functions:test`, por pedido do orquestrador).
+- **Pendências / próximos passos:** o texto do ADR-0009, seção 18, com o `arquiteto`.

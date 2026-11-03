@@ -1689,3 +1689,24 @@
   - Mutações, desfeitas: a validação do lote inteiro de volta em `readWebhook` derruba o teste de SEG5-3 (1 falha); `NFD` no lugar de `NFKD` derruba o de SEG5-2 (1 falha).
 - **Não verificado:** a prova na pilha B, que o orquestrador trocou pela A (a B estava com o `banco-de-dados`); o lado B só está no teste de unidade, com o config de exemplo. `phone_country_not_allowed` contra a migration real. A suíte completa não rodou de novo depois do teste de SEG5-3.
 - **Pendências / próximos passos:** a verificação final com a migration do `banco-de-dados` (teste "a number of another country is 400 phone_country_not_allowed"). Para o `arquiteto`, se quiser: a variante `console` de `whatsappEnvSchema` poderia aceitar `WHATSAPP_PHONE_NUMBER_ID` opcional, e a função deixaria de ler o ambiente direto.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 02:28 (BRT)
+
+- **Branch:** chore/security-phase-5, com feat/phase-5-whatsapp (b2f3e50) integrada
+- **Agente(s):** revisor-seguranca
+- **Resumo:** Segunda passada da revisão de segurança da Fase 5, na pilha B. SEG5-1, SEG5-4 e SEG5-5 fecharam no banco. Dois achados novos, ambos baixos: SEG5-9 (a dobra do nono dígito junta um celular e um fixo vizinhos) e SEG5-10 (o país recusado vira 500 em `phone-verification`). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Handoffs `20261103-0226-revisor-seguranca-para-banco-de-dados-nono-digito` (SEG5-9) e `20261103-0226-revisor-seguranca-para-backend-funcoes-pais-e-webhook` (SEG5-10 e o estado intermediário do SEG5-3).
+- **Arquivos/módulos principais:** `docs/agentes/handoffs/`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `bash docs/agentes/ferramentas/pilha-b.sh funcoes`, `pnpm exec supabase db reset`, e os PoCs descritos nos handoffs.
+- **Verificado (pilha B, banco limpo):**
+  - SEG5-1: o `wa_id` de uma linha `phone_code` de outro número muda 0; o `wa_id` sem o nono dígito do número atual muda 1.
+  - SEG5-4: a linha sobrevive à exclusão da conta com `user_id` nulo; cinco contas criadas e apagadas mandando para o mesmo número, e a sexta recebe `phone_rate_limited` (86400 s).
+  - SEG5-5: `+1` dá `phone_country_not_allowed` no banco; com 200 linhas no dia, a próxima recebe `phone_rate_limited`.
+  - Confirmação: por `GET` falha na transação somente leitura antes de comparar (tentativas continuam 0); com `Prefer: tx=rollback`, a preferência é ignorada e a tentativa conta; 10 tentativas em paralelo contam exatamente 5 (4 `invalid` e 6 `expired`), e o código certo depois disso dá `expired`.
+  - Acesso: `anon` e `authenticated` recebem 42501 nas três tabelas; `profiles` de outro membro sai nulo no embed por `group_members`; `group_member_profiles` só com nome, papel e data; `PATCH` em telefone, opt-in, opt-out e `daily_summary_last_date`, 42501; seis RPCs internas, 42501; só `notifications` na publicação do Realtime.
+  - `phone-verification`, `whatsapp-webhook` e o despacho: os resultados estão no handoff do `backend-funcoes`. O log do Edge Runtime não tem telefone, código, `wa_id` nem texto.
+- **Não verificado:** E2E (proibida na pilha B), `db:test` e `functions:test` completos, navegador, Meta real e projeto hospedado. SEG5-2, SEG5-3 e SEG5-6 não foram reabertos (em andamento), mas o estado integrado do webhook responde 500 a elemento inválido, registrado no handoff.
+- **Pendências / próximos passos:** SEG5-9 com o `banco-de-dados`, SEG5-10 com o `backend-funcoes`. Pilha B parada, `config.toml` restaurado.

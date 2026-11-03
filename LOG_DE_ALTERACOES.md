@@ -3332,3 +3332,23 @@
 - **Verificado:** `pnpm check` passou com o `typecheck:e2e`. `pnpm exec playwright test --list`: 95 testes em 26 arquivos, o mesmo número que com o `proof-kit.ts` de `9bbaf00`. O `proof-kit.ts` editado carrega no Node (remoção de tipos), 29 exports.
 - **Não verificado:** E2E e `pnpm functions:test` (sem pilha); o `proof-kit` é usado pelos dois, mas a mudança é só de tipo. `supabase/functions/` continua sem typecheck próprio: só o `proof-kit` e o que ele importa entram, por tabela.
 - **Pendências / próximos passos:** marcar o BL-11 no quadro. Se o repositório quiser `@types/node` declarado, ele entra como dependência direta da raiz (já está no lockfile, 26.6.6).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:22 (BRT)
+
+- **Branch:** `ci/expo-config-doctor`, criada a partir de `feat/backlog-after-phase-8` (`ed554a7`)
+- **Agente(s):** arquiteto
+- **Resumo:** BL-21. O job `check` do CI passa a rodar `npx expo config --type public` e o `expo-doctor` em `apps/app`, sem conta Expo, sem EAS e sem segredo. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `.github/workflows/ci.yml`: depois do `pnpm check`, `npx expo config --type public > /dev/null` em `apps/app` (sai com 1 se o `app.config.ts` não resolver; conferido com um `throw` temporário) e `pnpm expo:doctor`. Sem env do projeto hospedado: o `app.config.ts` usa os padrões.
+  - `scripts/check-expo-doctor.mjs` (`pnpm expo:doctor`): roda `npx -y expo-doctor@1.21.5` (versão fixa, fora do lockfile) com `cwd` em `apps/app` (com o caminho como argumento, a checagem do Metro procura o `tailwind.config` na raiz e quebra). Falha em qualquer checagem reprovada, menos "Check that no duplicate dependencies are installed" quando os duplicados são só os conhecidos, por nome: `@react-native-async-storage/async-storage` e `react-native-safe-area-context`. Duplicado novo, outra checagem reprovada ou erro sem checagem reprovada falham. Quando um conhecido some, o script avisa para tirá-lo da lista.
+  - `package.json`: script `expo:doctor`.
+- **Saída do `expo-doctor` hoje:** 19 de 20 checagens passam. Reprova só a de duplicados nativos:
+  - `@react-native-async-storage/async-storage` 2.2.0 (`apps/app`, a versão do SDK 58) e 3.1.1 (`packages/platform`, `^3.1.1`).
+  - `react-native-safe-area-context` 5.10.1 (`apps/app`, `~5.10.1`, e dentro do `expo-router`) e 5.11.0 na raiz (`packages/ui` e `packages/features/notifications`, `^5.11.0`).
+- **Arquivos/módulos principais:** `.github/workflows/ci.yml`, `scripts/check-expo-doctor.mjs`, `package.json`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova. A lista de duplicados ignorados mora no script, com o nome de cada pacote; sai dela no commit que deduplicar.
+- **Como testar:** `pnpm check`; `cd apps/app && npx expo config --type public`; `pnpm expo:doctor`.
+- **Verificado:** `pnpm check` passou. `npx expo config --type public` sai com 0 (e com 1 com o config quebrado). `pnpm expo:doctor` sai com 0 com os dois duplicados conhecidos. `pnpm-lock.yaml` intocado (`pnpm install --frozen-lockfile`).
+- **Não verificado:** o CI de verdade (só roda no push). O `expo-doctor` consulta a rede (React Native Directory e versões do SDK), sem conta; se essa API cair, a etapa falha. Build nativo e EAS, de propósito.
+- **Pendências / próximos passos:** para o BL-17 (dono do lockfile nesta onda) ou o BL-20: alinhar as versões com o SDK 58 (`async-storage` 2.2.0 e `safe-area-context` ~5.10.1 em `packages/platform`, `packages/ui` e `packages/features/notifications`, ou `npx expo install --fix`) e tirar os nomes da lista em `scripts/check-expo-doctor.mjs`. Marcar o BL-21 no quadro.

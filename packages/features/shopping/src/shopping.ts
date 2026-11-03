@@ -48,3 +48,11 @@ export function shoppingErrorKey(failure: unknown): string {
   const code = shoppingErrorCodeSchema.safeParse(raw);
   return `errors.${code.success ? code.data : 'generic'}`;
 }
+
+/**
+ * i18n key when shopping text was refused for a line break or control character (ADR-0011, section
+ * 16, SEG7-3): the contract's refine is the only `custom` issue. Empty or too long has no message,
+ * the button is just off. The app never reaches the database's `check` with such text.
+ */
+export const shoppingTextErrorKey = (parsed: { error?: { issues: { code: string }[] } }) =>
+  parsed.error?.issues.some(({ code }) => code === 'custom') ? 'form.invalidText' : null;

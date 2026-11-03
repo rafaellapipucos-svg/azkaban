@@ -1,4 +1,4 @@
-import { nameSchema } from '@azkaban/contracts';
+import { shoppingNameSchema } from '@azkaban/contracts';
 import { shoppingRepository, useCurrentUser } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import {
@@ -19,7 +19,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { shoppingKeys } from './hooks';
-import { canShop, shoppingErrorKey, shoppingPaths } from './shopping';
+import { canShop, shoppingErrorKey, shoppingPaths, shoppingTextErrorKey } from './shopping';
 
 /** `/shopping`: the open lists of one scope, personal or a group, and a new list. */
 export function ShoppingListsScreen() {
@@ -33,15 +33,17 @@ export function ShoppingListsScreen() {
     queryKey: shoppingKeys.lists(groupId, 'open'),
     queryFn: () => shoppingRepository.lists(groupId, 'open'),
   });
+  const parsed = shoppingNameSchema.safeParse(name);
+  const invalid = shoppingTextErrorKey(parsed);
   const create = useMutation({
-    mutationFn: () => shoppingRepository.createList({ groupId, name: nameSchema.parse(name) }),
+    mutationFn: () =>
+      shoppingRepository.createList({ groupId, name: shoppingNameSchema.parse(name) }),
     onSuccess: async (id) => {
       setName('');
       await queryClient.invalidateQueries({ queryKey: shoppingKeys.all });
       router.push(shoppingPaths.list(id, 'build'));
     },
   });
-  const valid = nameSchema.safeParse(name).success;
 
   return (
     <Screen title={t('lists.title')}>
@@ -71,15 +73,16 @@ export function ShoppingListsScreen() {
             placeholder={t('lists.newPlaceholder')}
             value={name}
             onChangeText={setName}
-            onSubmitEditing={() => (valid ? create.mutate() : undefined)}
+            onSubmitEditing={() => (parsed.success ? create.mutate() : undefined)}
             returnKeyType="done"
           />
           <Button
             label={t('lists.create')}
-            disabled={!valid}
+            disabled={!parsed.success}
             loading={create.isPending}
             onPress={() => create.mutate()}
           />
+          {invalid ? <ErrorText>{t(invalid)}</ErrorText> : null}
           {create.isError ? <ErrorText>{t(shoppingErrorKey(create.error))}</ErrorText> : null}
         </>
       ) : null}

@@ -1,6 +1,6 @@
 import {
-  nameSchema,
   shoppingCategories,
+  shoppingNameSchema,
   shoppingUnits,
   type ShoppingCatalogItem,
 } from '@azkaban/contracts';
@@ -25,7 +25,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { shoppingKeys } from './hooks';
-import { canShop, shoppingErrorKey } from './shopping';
+import { canShop, shoppingErrorKey, shoppingTextErrorKey } from './shopping';
 
 /**
  * `/shopping/catalog?group=`: the scope's catalog, to rename, recategorize, archive and restore
@@ -131,12 +131,14 @@ function EditSheet({
   const [name, setName] = useState(entry.name);
   const [category, setCategory] = useState(entry.category);
   const [defaultUnit, setDefaultUnit] = useState(entry.defaultUnit);
-  const parsed = nameSchema.safeParse(name);
+  const parsed = shoppingNameSchema.safeParse(name);
+  const invalid = shoppingTextErrorKey(parsed);
   const title = t('catalog.edit', { name: entry.name });
   return (
     <Sheet visible label={title} onClose={onClose}>
       <Subtitle>{title}</Subtitle>
       <Input aria-label={t('catalog.name')} value={name} onChangeText={setName} />
+      {invalid ? <ErrorText>{t(invalid)}</ErrorText> : null}
       <ChipRow label={t('list.custom.category')}>
         {shoppingCategories.map((key) => (
           <Chip

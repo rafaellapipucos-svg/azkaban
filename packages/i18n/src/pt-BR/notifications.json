@@ -58,6 +58,10 @@
     "retry": "Tentar de novo"
   },
   "lateUntil": "Ainda dá para concluir até {{when}}.",
+  "actor": {
+    "by": "Quem marcou: {{name}}",
+    "formerMember": "ex-membro"
+  },
   "toast": {
     "dismiss": "Fechar aviso"
   },
@@ -111,6 +115,7 @@
     "unsupported": "Este navegador não recebe notificações. O sino continua funcionando.",
     "failed": "Não deu para ativar agora. Tente de novo.",
     "notNow": "Agora não",
+    "androidChannel": "Lembretes e avisos",
     "continue": "Continuar",
     "ios": {
       "title": "No iPhone e no iPad",

@@ -4,7 +4,7 @@
 -- in it; E only leaves a superseded proof on A's occurrence and is deleted by the bare cascade.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(97);
+select plan(104);
 
 create function pg_temp.u(p text) returns uuid language sql as $$
   select ('00000000-0000-0000-0000-' || lpad(p, 12, '0'))::uuid;
@@ -359,7 +359,41 @@ select is(public.accept_invite('DELINV0002'), '40000000-0000-0000-0000-000000000
 select pg_temp.pg();
 select is((select count(*)::int from public.group_members where group_id = '40000000-0000-0000-0000-000000000002'), 1,
   'Solo keeps only D');
-insert into public.group_members (group_id, user_id, role) values ('40000000-0000-0000-0000-000000000002', pg_temp.u('c'), 'member');
+-- SEG8-2P-3 (BL-12): the open row refuses only within privacyRules.openDeletionHoldMinutes, and every
+-- begin starts it again. hold(s) is requested_at s seconds past the hold (negative: inside it).
+create function pg_temp.hold(p_secs int) returns void language sql as $$
+  update public.account_deletions
+  set requested_at = now() - make_interval(mins => (public.privacy_rules() ->> 'openDeletionHoldMinutes')::int, secs => p_secs)
+  where user_id = pg_temp.u('d') and completed_at is null;
+$$;
+select pg_temp.hold(-60);
+select pg_temp.login(pg_temp.u('c'));
+select is(public.accept_invite('DELINV0003'), null, 'a minute before the hold ends, the invite is still refused');
+select pg_temp.pg();
+select pg_temp.hold(1);
+select pg_temp.service();
+select public.begin_account_deletion(pg_temp.u('d'));
+select pg_temp.pg();
+select is((select requested_at from public.account_deletions where user_id = pg_temp.u('d') and completed_at is null), now(),
+  'a repeated begin renews requested_at');
+select is((select count(*)::int from public.account_deletions where user_id = pg_temp.u('d')), 1, 'on the same row');
+select pg_temp.login(pg_temp.u('c'));
+select is(public.accept_invite('DELINV0003'), null, 'so the hold starts again');
+select pg_temp.pg();
+select pg_temp.hold(1);
+select pg_temp.login(pg_temp.u('c'));
+select is(public.accept_invite('DELINV0003'), '40000000-0000-0000-0000-000000000002'::uuid,
+  'past the hold, an open row left by a run that died no longer refuses');
+select pg_temp.pg();
+select is((select count(*)::int from public.group_members where group_id = '40000000-0000-0000-0000-000000000002'), 2,
+  'and C is in Solo');
+select pg_temp.service();
+select throws_ok($$select public.begin_account_deletion('00000000-0000-0000-0000-00000000000d')$$, 'P0001', 'owns_groups',
+  'so the next begin meets owns_groups');
+select pg_temp.pg();
+-- C is already in Solo, as the member who joins between begin and finish.
+insert into public.group_members (group_id, user_id, role) values ('40000000-0000-0000-0000-000000000002', pg_temp.u('c'), 'member')
+on conflict do nothing;
 select pg_temp.service();
 select throws_ok($$select public.finish_account_deletion('00000000-0000-0000-0000-00000000000d', 0)$$, 'P0001', 'owns_groups',
   'finish checks the block again');

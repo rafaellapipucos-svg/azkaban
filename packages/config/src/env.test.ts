@@ -58,6 +58,18 @@ describe('parseWhatsAppEnv', () => {
     });
   });
 
+  // The webhook filters by the number with any provider, so it reads the number from here too.
+  it('keeps the number id on the console, and checks it', () => {
+    const number = meta.WHATSAPP_PHONE_NUMBER_ID;
+    expect(parseWhatsAppEnv({ WHATSAPP_PHONE_NUMBER_ID: number }).WHATSAPP_PHONE_NUMBER_ID).toBe(
+      number,
+    );
+    expect(parseWhatsAppEnv({ WHATSAPP_PHONE_NUMBER_ID: '' }).WHATSAPP_PHONE_NUMBER_ID).toBe(
+      undefined,
+    );
+    expect(() => parseWhatsAppEnv({ WHATSAPP_PHONE_NUMBER_ID: '+55 11' })).toThrow();
+  });
+
   it('takes a complete meta environment', () => {
     expect(parseWhatsAppEnv(meta)).toEqual(meta);
   });

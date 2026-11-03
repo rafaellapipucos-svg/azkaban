@@ -1,6 +1,6 @@
 import { defaults } from '@azkaban/config';
 import type { GroupInvite, GroupRole } from '@azkaban/contracts';
-import { groupsRepository } from '@azkaban/data';
+import { callFailure, groupsRepository } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import { copyToClipboard, createAppLink } from '@azkaban/platform';
 import { Body, Button, Card, ConfirmButton, ErrorText, Muted, Subtitle } from '@azkaban/ui';
@@ -74,7 +74,13 @@ export function InvitesSection({
       {invites.data?.map((invite) => (
         <InviteCard key={invite.id} invite={invite} onRevoke={() => revoke.mutate(invite.id)} />
       ))}
-      {create.isError || revoke.isError ? <ErrorText>{t('errors.generic')}</ErrorText> : null}
+      {create.isError || revoke.isError ? (
+        <ErrorText>
+          {t(
+            callFailure(create.error) === 'rate_limited' ? 'invites.rateLimited' : 'errors.generic',
+          )}
+        </ErrorText>
+      ) : null}
       <Button
         label={t('invites.createMember')}
         loading={create.isPending}

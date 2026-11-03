@@ -1,5 +1,7 @@
 export { initData } from './client';
-export { authRepository, type Session } from './auth';
+export { followDeviceConnection } from './connection';
+export { authRepository, linkNotRequested, type Session } from './auth';
+export { callFailure, type CallFailure } from './failure';
 export { profilesRepository } from './profiles';
 export { PrivacyError, privacyRepository, retryWait, type PrivacyFailureCode } from './privacy';
 export { groupsRepository } from './groups';

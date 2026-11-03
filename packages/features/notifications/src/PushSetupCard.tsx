@@ -30,7 +30,7 @@ export function PushSetupCard({
     enabled: Boolean(user.id),
   });
   const enable = useMutation({
-    mutationFn: () => enableThisDevice(user.id, vapidPublicKey ?? ''),
+    mutationFn: () => enableThisDevice(user.id, vapidPublicKey ?? '', t('setup.androidChannel')),
     onSettled: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: thisDeviceQueryKey(user.id) }),

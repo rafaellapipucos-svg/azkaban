@@ -20,6 +20,13 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
+      # BL-21: the native config resolves and expo-doctor passes, with no Expo account, EAS or secret.
+      # Defaults and example values only; the doctor ignores just the duplicates named in its script.
+      - run: npx expo config --type public > /dev/null
+        working-directory: apps/app
+        env:
+          EXPO_NO_TELEMETRY: 1
+      - run: pnpm expo:doctor
       - run: pnpm build:web
         env:
           EXPO_PUBLIC_APP_NAME: CI
@@ -54,3 +61,15 @@ jobs:
       # `chrome`: the fake camera of the proof specs needs a real Chrome, not the headless shell.
       - run: pnpm exec playwright install --with-deps chromium chrome
       - run: pnpm e2e
+      # The traces of a failed run (`trace: 'retain-on-failure'`). They hold only the local stack's test
+      # users and the demo keys above; hidden files (`.env*`) stay out, `include-hidden-files` being off by
+      # default. No HTML reporter is configured, so `playwright-report/` exists only if one is added.
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-test-results
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7

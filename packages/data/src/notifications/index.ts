@@ -1,5 +1,6 @@
 import {
   dailySummaryPreferencesSchema,
+  nativePushSubscriptionInputSchema,
   notificationErrorCodeSchema,
   notificationItemSchema,
   phoneVerificationConfirmResultSchema,
@@ -11,6 +12,7 @@ import {
   whatsappStatusSchema,
   type DailySummaryPreferences,
   type DeliveryChannel,
+  type NativePushSubscriptionInput,
   type NotificationErrorCode,
   type NotificationItem,
   type NotificationPreference,
@@ -35,6 +37,8 @@ type BellChange = { type: 'insert' | 'update'; id: string };
  */
 export type BellItem = NotificationItem & {
   requiresPhoto: boolean;
+  /** The task's group, whose members name who acted. Null for a personal task or one no longer seen. */
+  groupId: string | null;
   overdueAt: string | null;
   occurrenceStatus: OccurrenceStatus | null;
 };
@@ -49,7 +53,7 @@ export function notificationErrorCode(error: unknown): NotificationErrorCode | n
 
 // The title comes through RLS: an occurrence or task the user no longer sees embeds as null.
 const bellColumns =
-  'id, type, occurrence_id, data, created_at, read_at, task_occurrences(overdue_at, status, tasks(title, requires_photo_proof))';
+  'id, type, occurrence_id, data, created_at, read_at, task_occurrences(overdue_at, status, tasks(title, requires_photo_proof, group_id))';
 // `push_subscriptions` has grants by column: `select *` fails, and the endpoint never leaves.
 const deviceColumns = 'id, user_agent, created_at, last_success_at';
 
@@ -63,7 +67,7 @@ type BellRow = {
   task_occurrences: {
     overdue_at: string;
     status: OccurrenceStatus;
-    tasks: { title: string; requires_photo_proof: boolean } | null;
+    tasks: { title: string; requires_photo_proof: boolean; group_id: string | null } | null;
   } | null;
 };
 
@@ -84,6 +88,7 @@ function toBellItem(row: BellRow): BellItem | null {
     ? {
         ...parsed.data,
         requiresPhoto: task?.requires_photo_proof ?? false,
+        groupId: task?.group_id ?? null,
         overdueAt: occurrence?.overdue_at ?? null,
         occurrenceStatus: occurrence?.status ?? null,
       }
@@ -346,6 +351,20 @@ export const notificationsRepository = {
       p_p256dh: keys.p256dh,
       p_auth: keys.auth,
       // The function turns a blank label into null.
+      p_user_agent: userAgent ?? '',
+    });
+    if (error) throw error;
+    return data;
+  },
+
+  /**
+   * The native sibling (ADR-0012, section 11): idempotent by Expo token. A token outside the contract
+   * throws before the network; the RPC's `invalid_push_subscription` is the generic failure.
+   */
+  async registerNativeDevice(input: NativePushSubscriptionInput): Promise<string> {
+    const { token, userAgent } = nativePushSubscriptionInputSchema.parse(input);
+    const { data, error } = await db().rpc('register_native_push_subscription', {
+      p_token: token,
       p_user_agent: userAgent ?? '',
     });
     if (error) throw error;

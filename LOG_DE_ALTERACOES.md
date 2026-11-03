@@ -3189,3 +3189,624 @@
 - **Verificado:** em `aed3526`, banco limpo: install, db:start, db:reset, db:test 1911/1911, db:check-permissions, typecheck e unidade, lint, fronteiras, build:web, functions:test, E2E 94 passaram e 1 pulado nas duas rodadas, db:test depois da E2E 1911/1911. Maior JS 400 915 B (teto 427 641). Metas no build: 14 chamadas REST em Hoje, Hoje com 200 em 451 ms, mês em 251 ms, "No mercado" em 200 ms, confete sem quadro acima de 50 ms. Segunda passada de segurança sem achado alto ou médio. Varredura de segredos limpa.
 - **Não verificado:** nativo, navegador real fora do Playwright, hospedado, Lighthouse (meta 5), leitor de tela real. A falha intermitente de a11y em `/sign-up` (uma vez, primeira verificação) não se repetiu; a nota da spec agora nomeia o elemento.
 - **Pendências / próximos passos:** PR da Fase 8 para `feat/phase-6-gamification`; respostas do humano do ADR-0012 §17 (hospedagem, SMTP, base legal, contas de loja e push); backlog.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 09:58 (BRT)
+
+- **Branch:** docs/backlog-after-phase-8, criada a partir de feat/phase-8-polish (c74cce6)
+- **Agente(s):** arquiteto
+- **Resumo:** backlog real pós-Fase 8 no QUADRO: 23 itens para fazer agora (BL-1 a BL-23), em cinco ondas sem arquivo em comum, e 14 bloqueados pelo humano (BL-24 a BL-37), cada um com a pergunta. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `docs/agentes/QUADRO.md`: seção "Backlog pós-Fase 8", com dono, origem (entrada do LOG ou handoff), onda, tamanho e pilha de cada item; nota de conflitos evitados (`_layout.tsx`, `client.ts`, `pnpm-lock.yaml`, banco em série); faixas de migration de `20261105100000` a `20261105150000`; perguntas ao humano.
+  - Fontes: "Pendências" e "Não verificado" do LOG desde a Fase 3; handoffs da Fase 8 conferidos contra o código (`0650` push nativo e deep link, `0456` para auth-grupos, notificacoes-whatsapp e design-system); SEG6-6, SEG6-8 e SEG8-2P-3; ADR-0012 §17.
+  - Descartados por já entregues: SEG6-7 (`batchSize` 64), SEG8-2P-1 (`20261104160000`), SEG8-2P-2, `PushSetupCard`, contraste por tokens, `azkaban://**` no `config.toml` local, `networkMode: 'always'`, `shopping_completed` no contrato.
+- **Arquivos/módulos principais:** `docs/agentes/QUADRO.md`, `LOG_DE_ALTERACOES.md`
+- **Migrations:** nenhuma (só as faixas reservadas).
+- **Decisões/ADRs:** nenhuma nova. BL-2 e BL-3 (prazo da exclusão aberta, repetição em 503) viram texto do ADR-0012 na onda 0.
+- **Como testar:** ler a seção no QUADRO; `pnpm check`.
+- **Verificado:** cada item de "fazer agora" conferido por `grep` no código de `c74cce6` (ex.: sem `setSessionFromLink`, sem `expo-haptics` nem NetInfo nos `package.json`, `InvitesSection` com erro genérico, `enqueue_daily_summaries()` = 4 em `rls_whatsapp`, nenhuma Edge Function devolve 503). `pnpm check` passou.
+- **Não verificado:** a corrida de `accept_invite` com `transfer_group_ownership` (é o BL-13); tamanhos são estimativa. O QUADRO é do orquestrador; editado por pedido dele.
+- **Pendências / próximos passos:** onda 0 (BL-1 a BL-4, arquiteto); respostas do humano para BL-24 a BL-37.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:05 (BRT)
+
+- **Branch:** feat/native-session-deep-link, criada a partir de feat/backlog-after-phase-8 (3e48b9e)
+- **Agente(s):** auth-grupos
+- **Resumo:** BL-7 (handoff 0650 do deep link de sessão): no nativo, o link mágico agora inicia a sessão e leva ao caminho do link. No web nada muda. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/data/src/auth/link.ts`: `parseSessionLink(url, appRoot)`, puro. Só aceita URL que começa com `createAppLink('/')` do app (`azkaban:///` no build, `exp://.../--/` no Expo Go); outro esquema ou host dá `null`. Lê `access_token` e `refresh_token` do fragmento (link do app sem os dois dá `null`, o roteador cuida) e `error_description` do fragmento ou da query. O caminho passa por `internalPathSchema`; fora dele vira `/`. Parâmetros lidos à mão, sem `URLSearchParams` (o do React Native é incompleto).
+  - `packages/data/src/auth/index.ts`: `authRepository.setSessionFromLink(url)` chama `auth.setSession` e devolve o caminho, ou `null` se não for link de sessão; link vencido ou usado lança com a descrição do GoTrue.
+  - `packages/features/auth/src/useSessionFromLink.ts` (exportado no `index.ts`): só fora do web (`isWeb` de `packages/platform`), `Linking.getInitialURL` mais o evento `url` do React Native (o mesmo que `useURL` do `expo-linking` faz, sem dependência nova nem mudança no `pnpm-lock.yaml`); navega com `router.replace(safeInternalPath(path) ?? '/')` só quando o layout já renderiza o navegador (`ready`), porque navegar antes lança no expo-router.
+  - `apps/app/app/_layout.tsx`: uma linha, `useSessionFromLink(fontsLoaded && !loading)`. `useClearCacheOnUserChange` e o `key` do `Stack` intactos.
+- **Arquivos/módulos principais:** `packages/data/src/auth`, `packages/features/auth/src/useSessionFromLink.ts`, `apps/app/app/_layout.tsx`.
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova; segue ADR-0004 e ADR-0012 §11. Contratos: nenhum alterado (usa `internalPathSchema`).
+- **Como testar:** `pnpm check` (inclui `packages/data/src/auth/link.test.ts`: link válido, sem token ou com um só, esquema e host estranhos, caminho externo `//evil.com` e `/\evil.com`, link vencido, raiz do Expo Go). No aparelho: APK de teste, pedir o link mágico e abrir pelo e-mail.
+- **Verificado:** `pnpm check` verde (lint, fronteiras, typecheck, unidade; `@azkaban/data` 53 testes, 6 novos).
+- **Não verificado:** nativo real (sem build; precisa de conta Expo), E2E (é o BL-22), `azkaban://**` em `additional_redirect_urls` do projeto hospedado (humano).
+- **Pendências / próximos passos:** mensagem de "link vencido" na tela de entrar no nativo (hoje o erro é engolido e o usuário fica deslogado onde o link abriu); testar no APK.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:05 (BRT)
+
+- **Branch:** fix/bell-deleted-account, criada a partir de feat/backlog-after-phase-8 (3e48b9e)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** BL-8. A lista do sino passa a dizer quem marcou um "não feito" ou uma conclusão em tarefa de grupo, e mostra "Conta excluída" quando o id de quem agiu não tem mais nome (ADR-0012, seção 3). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/core/src/notifications/pushPayload.ts`: `actorLabel(source, names, t)`, pura: nulo para o job, para tipo sem ator e com os nomes ainda carregando; o nome; ou `actor.deletedAccount` quando o id falta nos nomes (ou o nome está em branco). Exportada em `packages/core/src/index.ts`.
+  - `packages/data/src/notifications/index.ts`: `BellItem.groupId`, do `tasks.group_id` já embutido pela RLS (nulo em tarefa pessoal ou que a pessoa não vê mais).
+  - `packages/features/notifications/src/hooks.ts`: `useActorText`, uma consulta `groupsRepository.listMembers` por grupo com ator, na mesma chave `['group-members', id]` das telas de tarefa.
+  - `NotificationsScreen.tsx`: linha "Quem marcou: {{name}}" no cartão. O aviso (toaster) não mudou.
+  - `packages/i18n/src/pt-BR/notifications.json`: `actor.by` e `actor.deletedAccount`.
+- **Arquivos/módulos principais:** `packages/core/src/notifications`, `packages/data/src/notifications`, `packages/features/notifications`, `packages/i18n/src/pt-BR/notifications.json`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova. `group_member_profiles` só traz membros atuais: quem saiu do grupo sem excluir a conta também aparece como "Conta excluída" (o banco não distingue os dois casos para o cliente).
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/core exec vitest run src/notifications/pushPayload.test.ts -t actorLabel`.
+- **Verificado:** `pnpm check` passou; os 3 testes de `actorLabel` passaram.
+- **Não verificado:** sem pilha e sem E2E (é o BL-22); a tela não foi aberta no navegador; a consulta com `group_id` no embed não rodou contra o banco.
+- **Pendências / próximos passos:** se "ex-membro" e "conta excluída" precisarem ser distintos, uma RPC do `banco-de-dados` que diga se o perfil existe.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:06 (BRT)
+
+- **Branch:** fix/bell-deleted-account
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** correção da entrada anterior (BL-8), a pedido do orquestrador. O sino não afirma mais "Conta excluída": o cliente não distingue quem saiu do grupo de quem excluiu a conta, então o rótulo passa a ser "ex-membro", o mesmo texto da lista de compras. Sem RPC nova. Hora derivada de UTC menos 3.
+- **Alterações:**
+  - `packages/i18n/src/pt-BR/notifications.json`: `actor.deletedAccount` ("Conta excluída") vira `actor.formerMember` ("ex-membro").
+  - `packages/core/src/notifications/pushPayload.ts`: `actorLabel` usa a nova chave; comentário explica o porquê.
+  - `packages/core/src/notifications/pushPayload.test.ts`: teste ajustado.
+- **Arquivos/módulos principais:** `packages/core/src/notifications`, `packages/i18n/src/pt-BR/notifications.json`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** o ADR-0012 §3 diz "conta excluída" para o sino; o texto mostrado é "ex-membro", que vale para os dois casos. O ADR não foi editado (é do arquiteto).
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou.
+- **Não verificado:** o mesmo da entrada anterior (sem pilha, sem E2E, sem navegador).
+- **Pendências / próximos passos:** o arquiteto pode alinhar a linha do sino na tabela do ADR-0012 §3 a "ex-membro".
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:09 (BRT)
+
+- **Branch:** feat/ui-confirm-disabled-tabs, criada a partir de feat/backlog-after-phase-8 (3e48b9e)
+- **Agente(s):** design-system
+- **Resumo:** BL-9. `ConfirmButton` ganha `disabled` e a barra de abas ganha respiro entre rótulos a 320 px e no zoom. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `ConfirmButton`: `disabled` repassado ao `Button` (que já põe `disabled` e `aria-disabled` no `Pressable`, de onde sai o `accessibilityState.disabled`). Nenhum dos dois passos dispara; uma confirmação armada é desfeita quando o botão desliga (ajuste de estado durante o render, sem efeito), e ao religar começa do primeiro passo.
+  - `Button` desligado (todas as variantes) deixa de usar `opacity-60`, que deixava branco sobre `primary` perto de 3:1: agora `muted` sobre `surface` (e `muted-dark` sobre `surface-dark`), pares que `tokens.test.ts` já mede (6,85:1 e 7,75:1), com borda tracejada como pista além da cor. O carregando continua com a variante e a opacidade sob o indicador.
+  - A escolha do visual saiu para `buttonLook.tsx` (função pura, testável sem React Native; `.tsx` porque o Tailwind só varre `.tsx`).
+  - `TabBar`: rótulos no peso `body` em vez de `heavy` e `paddingHorizontal: spacing[1] / 2` em cada aba, então vizinhas nunca encostam. Medido no Chromium, as seis abas ocupam 318 de 320 px (com o peso `heavy` seriam 326 e a barra rolaria).
+  - `/design-system`: um `ConfirmButton` desligado ao lado do normal.
+- **Arquivos/módulos principais:** `packages/ui/src/{Button.tsx,buttonLook.tsx,buttonLook.test.ts,TabBar.tsx,DesignSystemScreen.tsx,tokens.test.ts}`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. O visual desligado mudou para todo `Button`, não só para o `ConfirmButton`: é o mesmo componente, e o problema de contraste era o mesmo.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/ui test`; `/design-system` com `pnpm dev` a 320 px e a 640 px com zoom de 200%.
+- **Verificado:** `pnpm check` passou (17 de 17 e 12 de 12; ui 76 testes, eram 69; `functions:imports` 10 de 10); `pnpm build:web` exportou, com um `.env.local` provisório copiado do checkout principal (apagado depois). `/design-system` no servidor de dev com o Chromium do Playwright: a 320 px (e 320 CSS com `deviceScaleFactor` 2) rolagem da página 0, da barra 0, menor espaço entre rótulos 5 px (antes 2), nenhum rótulo cortado, abas de 44 a 64 px de largura e 64 de altura; a 1280 e 375 px nada rola; a 188 e 160 CSS px a página não rola, a barra rola por dentro como antes e o espaço entre rótulos é 4 px (antes 0). O `ConfirmButton` desligado: `aria-disabled="true"`, texto `#5F5673` sobre branco, borda tracejada, opacidade 1; dois cliques não mudam o rótulo; o normal arma no primeiro clique.
+- **Não verificado:** `e2e/a11y.spec.ts` e a E2E em geral (sem pilha; fica para o BL-22); tema escuro na tela (só pelos tokens); nativo (iOS e Android, onde a largura das fontes pode variar e os 2 px de folga a 320 px podem virar rolagem curta da barra); leitor de tela. Sem teste de componente para o desarme do `ConfirmButton`: o pacote não tem ambiente de React.
+- **Pendências / próximos passos:** BL-18 (compras troca o `Button` desligado pelo `ConfirmButton` com `disabled`).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:09 (BRT)
+
+- **Branch:** `feat/backlog-contracts`, criada a partir de `feat/backlog-after-phase-8` (`3e48b9e`)
+- **Agente(s):** arquiteto
+- **Resumo:** onda 0 do backlog pós-Fase 8 (BL-1 a BL-4): contrato do push nativo, prazo da exclusão aberta, regra de repetição em 503 das Edge Functions e o número do WhatsApp no ramo `console` do env. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - BL-1: `packages/contracts/src/notifications.ts` ganha `pushSubscriptionKindSchema` (`web`/`expo`), `expoPushTokenSchema`, `nativePushSubscriptionInputSchema` (argumento da RPC irmã `register_native_push_subscription`), `nativePushAndroidChannelId` (`default`), `nativePushDataSchema` (`v`, `notificationId`, `type` e `url` recortados de `pushPayloadSchema`) e `nativePushMessageSchema` (mensagem à API da Expo, `ttl` de `pushTtlSeconds`). O push nativo vai pelo mesmo canal `web_push`, sem enum novo. ADR-0012 §11.
+  - BL-2: `privacyRules.openDeletionHoldMinutes` (30) em `packages/config/src/limits.ts`, a espelhar em `app_settings.privacy_rules`. Regra no ADR-0012 §3: a linha aberta só recusa convites por 30 minutos depois de `requested_at`, e `begin_account_deletion` renova `requested_at` a cada tentativa; 30 minutos passam dos 400 s máximos de uma Edge Function, e `begin`/`finish` conferem os grupos de novo.
+  - BL-3: `defaults.functionRetryDelaysMs` (`[500, 1500]`) e a nova seção 18 do ADR-0012: nenhuma função devolve 503, então 503 de `/functions/v1/` é função que não rodou; o cliente repete só esse caso, num `fetch` só em `packages/data/src/client.ts`, no máximo 2 vezes.
+  - BL-4: o ramo `console` de `whatsappEnvSchema` aceita `WHATSAPP_PHONE_NUMBER_ID` opcional, com a mesma regex do `meta`; vazio é ausente.
+  - A pedido do orquestrador (BL-8): o ADR-0012 §3 diz "ex-membro" no sino e em compras, no lugar de "conta excluída", porque o cliente não distingue quem saiu do grupo de quem excluiu a conta.
+  - `docs/arquitetura.md`: push nativo, prazo da exclusão aberta e a repetição em 503.
+  - Testes: contrato (tokens aceitos e recusados, `url` só interno, canal fixo, a maior mensagem dentro de `pushPayloadMaxBytes`); config (`console` guarda e confere o número; o prazo passa de 400 s; as esperas são curtas).
+- **Arquivos/módulos principais:** `packages/contracts/src/notifications{,.test}.ts`, `packages/config/src/{limits,limits.test,defaults,whatsapp-env,env.test,index}.ts`, `docs/adr/0012-polimento-lgpd-limites-offline.md`, `docs/arquitetura.md`, cinco handoffs `docs/agentes/handoffs/20261103-1010-arquiteto-para-*`
+- **Migrations:** nenhuma (o espelho de `privacy_rules` é do BL-12).
+- **Decisões/ADRs:** ADR-0012 §3 (prazo da linha aberta; "ex-membro"), §11 (contrato do push nativo, mesmo canal, RPC irmã), §15 (lista), §18 (repetição em 503).
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou (lint, `boundaries` sem violação, typecheck 17 de 17, testes 12 de 12 pacotes, contracts 159 e config 25 testes, `functions:imports`).
+- **Não verificado:** nada contra a pilha. `pnpm db:check-permissions` só vai conferir `privacy_rules` quando o BL-12 puser a comparação no script. O formato real do token e da resposta da Expo não foi conferido contra a API (sem conta e sem gasto). "Nenhuma função devolve 503" foi conferido por busca no código, não por teste (o teste é do BL-14). Depois do BL-4, um `WHATSAPP_PHONE_NUMBER_ID` malformado no `console` deixa o WhatsApp "não configurado" quando o BL-14 passar a ler pelo `parseWhatsAppEnv`.
+- **Pendências / próximos passos:** handoffs para `banco-de-dados` (BL-5 e BL-12), `prova-foto` (BL-10), `backend-funcoes` (BL-14, inclusive o teste que barra 503 e a leitura do número pelo env) e `notificacoes-whatsapp` (BL-19).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:15 (BRT)
+
+- **Branch:** fix/shopping-offline-confirm, criada a partir de feat/backlog-after-phase-8 (a8b1886)
+- **Agente(s):** shopping
+- **Resumo:** BL-18. Finalizar lista sem rede volta a ser o `ConfirmButton`, agora com `disabled`, em vez de um `Button` desligado no lugar. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `ShoppingListScreen`: um único `ConfirmButton` com `disabled={!online}`; o aviso `list.completeOffline` continua abaixo dele só quando está sem rede. Finalizar continua fora da fila offline (ADR-0012, seção 5).
+- **Arquivos/módulos principais:** `packages/features/shopping/src/ShoppingListScreen.tsx`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. Era o único ponto de compras com a troca; excluir lista já usava o `ConfirmButton` e não depende de rede.
+- **Como testar:** `pnpm check`; abrir uma lista aberta, desligar a rede no navegador e ver Finalizar desligado com o aviso; religar e confirmar em dois passos.
+- **Verificado:** `pnpm check` passou (17 de 17 e 12 de 12; shopping 21 testes).
+- **Não verificado:** a tela no navegador e a E2E (sem pilha; fica para o BL-22); nativo; leitor de tela. Não há teste de unidade da regra de desligar: é só `!online` no componente, e o pacote não tem ambiente de React.
+- **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:16 (BRT)
+
+- **Branch:** `chore/e2e-typecheck`, criada a partir de `feat/backlog-after-phase-8` (`9bbaf00`)
+- **Agente(s):** arquiteto (correção dos tipos por exceção do orquestrador, no lugar de `qa-testes`)
+- **Resumo:** BL-11. O `pnpm check` passa a checar os tipos de `e2e/` e de `playwright.config.ts`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `e2e/tsconfig.json`: estende `tsconfig.base.json` (strict, `noUncheckedIndexedAccess`), com `dom` (os callbacks de `page.evaluate` rodam no navegador), `types: ["node"]`, `allowImportingTsExtensions` (o `proof-kit` importa `packages/config/src/*.ts`) e `allowJs` sem `checkJs` (o `proof-kit` importa `local-stack.mjs`, que fica sem checagem). Inclui `../playwright.config.ts`.
+  - `package.json`: script `typecheck:e2e` (`tsc -p e2e`), chamado pelo `check` logo depois do `typecheck`. Fora do turbo: `e2e/` não é pacote do workspace.
+  - Erros de tipo: nenhum nos arquivos de `e2e/` nem no `playwright.config.ts`. Apareceram 3, todos em `supabase/functions/_shared/proof-kit.ts`, que as specs importam: o `.mjs` sem declaração (resolvido pelo `allowJs`), `body: bytes` no `fetch` (o `BodyInit` do TS 6 só aceita view de `ArrayBuffer`; virou `bytes as Uint8Array<ArrayBuffer>`) e `reply.then(resolve)` num `Promise<void>` (virou `new Promise<void>` com `reply.then(() => resolve())`). As duas edições só mexem em tipo; o comportamento não muda.
+- **Arquivos/módulos principais:** `e2e/tsconfig.json`, `package.json`, `supabase/functions/_shared/proof-kit.ts`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova. `@types/node` vem do `nodeLinker: hoisted` (dependência de outros pacotes), como já acontece com `@supabase/supabase-js` no `proof-kit`; não entrou como dependência direta da raiz.
+- **Como testar:** `pnpm check`; `pnpm typecheck:e2e`; `pnpm exec playwright test --list`.
+- **Verificado:** `pnpm check` passou com o `typecheck:e2e`. `pnpm exec playwright test --list`: 95 testes em 26 arquivos, o mesmo número que com o `proof-kit.ts` de `9bbaf00`. O `proof-kit.ts` editado carrega no Node (remoção de tipos), 29 exports.
+- **Não verificado:** E2E e `pnpm functions:test` (sem pilha); o `proof-kit` é usado pelos dois, mas a mudança é só de tipo. `supabase/functions/` continua sem typecheck próprio: só o `proof-kit` e o que ele importa entram, por tabela.
+- **Pendências / próximos passos:** marcar o BL-11 no quadro. Se o repositório quiser `@types/node` declarado, ele entra como dependência direta da raiz (já está no lockfile, 26.6.6).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:17 (BRT)
+
+- **Branch:** `feat/functions-503-retry`, criada a partir de `feat/backlog-after-phase-8` (`9bbaf00`)
+- **Agente(s):** prova-foto
+- **Resumo:** BL-10. O cliente Supabase passa a usar um `fetch` próprio que repete só o 503 de `/functions/v1/`, com as esperas de `defaults.functionRetryDelaysMs` (ADR-0012 §18). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/data/src/client.ts`: `functionRetryFetch(url, base?, delays?)` vai em `global.fetch` do `createClient`. O prefixo é montado como o supabase-js monta o `functionsUrl` (`new URL('functions/v1/', url + '/')`), então caixa e barra final do env não importam. Repete só se a entrada é string com esse prefixo, o status é 503 e o corpo não é stream (duck-typed por `getReader`, porque os tipos do React Native não têm `ReadableStream`); entrada `Request` nunca repete (o supabase-js sempre manda string). Espera cada valor (no máximo 2 repetições) e devolve o último 503. Um `AbortSignal` abortado antes ou durante a espera rejeita com o `reason` do sinal, sem mandar de novo. 500, 502, 504, 546, 429 e erro de rede voltam como vieram. `detectSessionInUrl` e os repositórios não mudaram.
+  - `packages/data/src/client.test.ts`: 18 testes com `fetch` falso e relógio falso: 503, 503, 200 dá 200 em três chamadas; as esperas são 500 e 1500 ms; três 503 dão 503; 500, 502, 504, 546 e 429 não repetem; erro de rede volta igual; 503 de REST, Auth, Storage e de outro host com `/functions/v1/` não repetem; URL do env em caixa alta e com barra final casa; mesmo método, cabeçalhos e o mesmo `ArrayBuffer` na segunda chamada; corpo `ReadableStream` não repete; sinal abortado na espera e já abortado não mandam de novo.
+- **Arquivos/módulos principais:** `packages/data/src/{client,client.test}.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova (ADR-0012 §18). A falha por aborto rejeita com o `reason` do sinal, como o `fetch` faz quando abortado.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/data exec vitest run src/client.test.ts`.
+- **Verificado:** `pnpm check` passou (lint, `boundaries` sem violação, typecheck 17 de 17, testes 12 de 12 pacotes, data 71 testes, `functions:imports`). Mutação: sem a checagem do prefixo `/functions/v1/` caem 4 testes (REST, Auth, Storage, outro host); sem a checagem do stream cai 1. Conferido no `dist` do supabase-js instalado que `global.fetch` é o usado pelo `functionsFetch` e que `functionsUrl` é `new URL("functions/v1", baseUrl)`.
+- **Não verificado:** nada contra a pilha nem E2E (fica para o BL-22, inclusive `e2e/proof-capture.spec.ts` com 503 real do Edge Runtime). Nativo (iOS e Android) não rodado; a detecção de stream é por `getReader`, sem teste num corpo de stream do React Native.
+- **Pendências / próximos passos:** BL-14 (teste das funções que barra o literal 503, que sustenta a segurança desta repetição).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:19 (BRT)
+
+- **Branch:** feat/native-haptics-netinfo, criada a partir de feat/backlog-after-phase-8 (a8b1886)
+- **Agente(s):** notificacoes-whatsapp (plataforma)
+- **Resumo:** BL-17. Vibração nativa com `expo-haptics` e conexão nativa com `@react-native-community/netinfo`, ligada ao `onlineManager` do React Query só no nativo. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Dependências, nas versões da tabela do SDK 58 (`expo/bundledNativeModules.json`): `expo-haptics ~58.0.7` e `@react-native-community/netinfo 12.0.1`, em `packages/platform` e em `apps/app` (autolinking). O `pnpm-lock.yaml` só ganhou essas duas entradas; nenhuma outra versão mudou. `pnpm install --frozen-lockfile` passa.
+  - `packages/platform/src/haptics.ts` (nativo): `canVibrate()` passa a `true`; `vibrate(pattern)` dá um `impactAsync(Medium)` no início de cada passo "ligado" do padrão (o `expo-haptics` não tem duração); a rejeição de um aparelho sem motor é engolida. `haptics.web.ts` não mudou. Quem decide vibrar continua sendo a preferência `haptics` da gamificação.
+  - `packages/platform/src/network.ts` (nativo): `useOnline()` lê `useNetInfo()`; `onConnectionChange(setOnline)` assina o NetInfo e devolve o cancelamento, no formato do `onlineManager.setEventListener`. `isConnected === null` (ainda não sabido) conta como online, para a fila não pausar ao abrir. `network.web.ts` ganhou o mesmo `onConnectionChange` com os eventos do navegador, que o `useOnline` web passou a reusar.
+  - `packages/data/src/connection.ts` (novo): `followDeviceConnection()`, que faz `onlineManager.setEventListener(onConnectionChange)` só quando `!isWeb`. Chamado uma vez em `apps/app/app/_layout.tsx`, logo depois do `initData`. Arquivo próprio, e não `client.ts`, porque o BL-10 (`feat/functions-503-retry`) muda `client.ts` e cria `client.test.ts` nesta mesma janela; também fica fora de `data/src/offline`, que é do `tarefas-calendario`.
+- **Arquivos/módulos principais:** `packages/platform/{package.json,src/haptics.ts,src/haptics.test.ts,src/network.ts,src/network.web.ts,src/network.test.ts,src/index.ts}`, `packages/data/src/{connection.ts,connection.test.ts,index.ts}`, `apps/app/{package.json,app/_layout.tsx}`, `pnpm-lock.yaml`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. O padrão vira toques, não vibração contínua (comentário `ponytail:` no `haptics.ts`; a API `Vibration` do Android se um padrão longo importar).
+- **Como testar:** `pnpm check`; `pnpm build:web` e `pnpm bundle:size`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 12 de 12; 1155 testes de unidade, platform 56 e data 55; `functions:imports` 10 de 10). Testes novos: `haptics.test.ts` (com `expo-haptics` falso e relógio falso, `[30, 60, 30]` dá toques em 0 e 90 ms, um número dá um toque, a rejeição não escapa), `network.test.ts` (NetInfo falso: `null`, `false`, `true` viram `true`, `false`, `true` e o cancelamento solta o ouvinte) e `connection.test.ts` (com `isWeb` falso o `onlineManager` segue o NetInfo falso para offline e de volta; com `isWeb` verdadeiro nada é ligado). `pnpm build:web` exportou; `pnpm bundle:size` 401 307 bytes (`__common`), teto 427 641, passa; nenhum JS do `dist` contém `netinfo`, `ExpoHaptics` nem `impactAsync`.
+- **Não verificado:** nativo real (iOS e Android): a vibração, o NetInfo e a fila pausando sem rede não rodaram em aparelho nem emulador, e não houve build nativa (`expo prebuild`/EAS). E2E (sem pilha; fica para o BL-22). `expo-doctor` não rodou (BL-21).
+- **Pendências / próximos passos:** BL-19 e BL-21 já podem andar (dependem deste). Ao integrar com o BL-10, nenhum arquivo em comum.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:22 (BRT)
+
+- **Branch:** `ci/expo-config-doctor`, criada a partir de `feat/backlog-after-phase-8` (`ed554a7`)
+- **Agente(s):** arquiteto
+- **Resumo:** BL-21. O job `check` do CI passa a rodar `npx expo config --type public` e o `expo-doctor` em `apps/app`, sem conta Expo, sem EAS e sem segredo. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `.github/workflows/ci.yml`: depois do `pnpm check`, `npx expo config --type public > /dev/null` em `apps/app` (sai com 1 se o `app.config.ts` não resolver; conferido com um `throw` temporário) e `pnpm expo:doctor`. Sem env do projeto hospedado: o `app.config.ts` usa os padrões.
+  - `scripts/check-expo-doctor.mjs` (`pnpm expo:doctor`): roda `npx -y expo-doctor@1.21.5` (versão fixa, fora do lockfile) com `cwd` em `apps/app` (com o caminho como argumento, a checagem do Metro procura o `tailwind.config` na raiz e quebra). Falha em qualquer checagem reprovada, menos "Check that no duplicate dependencies are installed" quando os duplicados são só os conhecidos, por nome: `@react-native-async-storage/async-storage` e `react-native-safe-area-context`. Duplicado novo, outra checagem reprovada ou erro sem checagem reprovada falham. Quando um conhecido some, o script avisa para tirá-lo da lista.
+  - `package.json`: script `expo:doctor`.
+- **Saída do `expo-doctor` hoje:** 19 de 20 checagens passam. Reprova só a de duplicados nativos:
+  - `@react-native-async-storage/async-storage` 2.2.0 (`apps/app`, a versão do SDK 58) e 3.1.1 (`packages/platform`, `^3.1.1`).
+  - `react-native-safe-area-context` 5.10.1 (`apps/app`, `~5.10.1`, e dentro do `expo-router`) e 5.11.0 na raiz (`packages/ui` e `packages/features/notifications`, `^5.11.0`).
+- **Arquivos/módulos principais:** `.github/workflows/ci.yml`, `scripts/check-expo-doctor.mjs`, `package.json`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova. A lista de duplicados ignorados mora no script, com o nome de cada pacote; sai dela no commit que deduplicar.
+- **Como testar:** `pnpm check`; `cd apps/app && npx expo config --type public`; `pnpm expo:doctor`.
+- **Verificado:** `pnpm check` passou. `npx expo config --type public` sai com 0 (e com 1 com o config quebrado). `pnpm expo:doctor` sai com 0 com os dois duplicados conhecidos. `pnpm-lock.yaml` intocado (`pnpm install --frozen-lockfile`).
+- **Não verificado:** o CI de verdade (só roda no push). O `expo-doctor` consulta a rede (React Native Directory e versões do SDK), sem conta; se essa API cair, a etapa falha. Build nativo e EAS, de propósito.
+- **Pendências / próximos passos:** para o BL-17 (dono do lockfile nesta onda) ou o BL-20: alinhar as versões com o SDK 58 (`async-storage` 2.2.0 e `safe-area-context` ~5.10.1 em `packages/platform`, `packages/ui` e `packages/features/notifications`, ou `npx expo install --fix`) e tirar os nomes da lista em `scripts/check-expo-doctor.mjs`. Marcar o BL-21 no quadro.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:23 (BRT)
+
+- **Branch:** feat/auth-error-messages, criada a partir de feat/backlog-after-phase-8 (9bbaf00, que já contém a8b1886)
+- **Agente(s):** auth-grupos
+- **Resumo:** BL-15 e BL-16. Entrar, cadastrar, link mágico, prévia e aceite do convite e criar convite passam a dizer quando é limite, falta de conexão ou servidor fora do ar; o link mágico vencido no nativo leva à tela de entrar com aviso; um `forbidden` do servidor relê os papéis. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/data/src/failure.ts`: `withCallFailure(error, status)` dá nome à falha pelo status HTTP (429 ou PT429 `rate_limited`, 0 `network`, 5xx `unavailable`), num `Error` com o original em `cause` (o `isTransientFailure` segue lendo); o resto volta igual. `callFailure(error)` lê o código; exportado no `index.ts` com o tipo `CallFailure`.
+  - `authRepository.signIn`, `signUp` e `sendMagicLink` usam o `status` do erro do GoTrue; `groupsRepository.previewInvite`, `acceptInvite` e `createInvite` usam o `status` da resposta do PostgREST (o gatilho `invite_create` dá PT429).
+  - `packages/features/auth/src/failureKey.ts`: chave i18n da falha, com a de cada tela para o resto (`signIn.invalid` continua para senha errada). Usada em `SignInScreen`, `SignUpScreen` e na reautenticação de `PrivacyScreen`.
+  - Link vencido ou usado no nativo: `useSessionFromLink` leva a `/sign-in?link=expired` quando não há sessão; a tela de entrar mostra `signIn.linkExpired` até o link novo sair, com o botão "Receber link por e-mail" logo abaixo. `_layout.tsx` sem mudança.
+  - `JoinGroupScreen`: sem prévia, mostra `join.network` (inclusive quando a leitura fica pausada sem conexão), `join.unavailable`, `join.rateLimited` ou o genérico, com "Tentar de novo" (menos no limite). O erro do aceite usa o mesmo mapa. `InvitesSection` diz `invites.rateLimited` ao criar convite acima do limite.
+  - BL-16: `packages/data/src/session/forbidden.ts`, `isForbidden` (`forbidden` como código ou mensagem em qualquer nível de `cause`, ou SQLSTATE 42501 da RLS) e `refreshRolesOnForbidden(client)`, que assina os eventos de erro do cache de consultas e de mudanças e invalida `['groups']` e `['group-members']`; falha dessas mesmas chaves não conta (sem laço). Montado num `useEffect` dentro de `useClearCacheOnUserChange`, que o layout já chama uma vez com o cliente do app.
+  - i18n: `auth.errors.{rate_limited,network,unavailable}`, `auth.signIn.linkExpired`, `groups.join.{network,unavailable,retry}`, `groups.invites.rateLimited`.
+- **Arquivos/módulos principais:** `packages/data/src/{failure.ts,failure.test.ts,index.ts}`, `packages/data/src/auth/index.ts`, `packages/data/src/groups/{index.ts,groups.test.ts}`, `packages/data/src/session/{forbidden.ts,forbidden.test.ts,userChange.ts}`, `packages/features/auth/src/{failureKey.ts,failureKey.test.ts,SignInScreen.tsx,SignUpScreen.tsx,PrivacyScreen.tsx,useSessionFromLink.ts}`, `packages/features/groups/src/{JoinGroupScreen.tsx,InvitesSection.tsx}`, `packages/i18n/src/pt-BR/{auth,groups}.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova; segue ADR-0012 §4. Contratos: nenhum alterado. Um ponto só para o BL-16: os erros são traduzidos em vários repositórios (`taskErrorCode`, `proofFailureCode`, `shoppingErrorCode`...), então o gatilho fica nos eventos do cache, que todos atravessam, sem tocar no `QueryClient` do layout.
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/data exec vitest run src/failure.test.ts src/session src/groups`; `pnpm --filter @azkaban/feature-auth exec vitest run src/failureKey.test.ts`.
+- **Verificado:** `pnpm check` verde (data 64 testes, eram 53; feature-auth com os 2 novos). Formato real dos erros conferido no código instalado: `postgrest-js` devolve `status: 0` numa falha de fetch; `auth-js` dá `AuthRetryableFetchError` com status 0 ou 5xx e `AuthApiError` com 429.
+- **Não verificado:** sem pilha e sem E2E (BL-22): nenhum 429 real do GoTrue nem do gatilho `invite_create`, nenhuma tela aberta no navegador. Nativo real (o link vencido precisa do APK). `feature-groups` não tem executor de testes; o mapa da tela do convite não tem teste próprio (o `callFailure` tem, e o `Record` obriga um texto por código). Um `setSession` que falha por rede no nativo também cai em "link venceu".
+- **Pendências / próximos passos:** o caminho do link vencido (`next`) não é levado para a tela de entrar; o link novo vai para `/`. Um `forbidden` de consulta só relê os papéis depois das 3 tentativas padrão do React Query (alguns segundos); as mudanças, na hora.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:28 (BRT)
+
+- **Branch:** chore/functions-deno-check, criada a partir de feat/backlog-after-phase-8 (7b1b5c3)
+- **Agente(s):** backend-funcoes
+- **Resumo:** BL-20. As Edge Functions entram no `pnpm check` com `deno check`, pelo pacote npm `deno` 2.1.4, a mesma versão do Deno do Edge Runtime local. Sete erros de tipo em quatro funções, corrigidos só nos tipos. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `package.json`: devDependency `deno` `2.1.4` (fixa). `docker run --rm public.ecr.aws/supabase/edge-runtime:v1.77.8 --version`, a imagem do Supabase CLI 2.122.0, imprime `deno 2.1.4`. Script `typecheck:functions`, chamado pelo `check` depois do `typecheck:e2e`. O `pnpm add deno` do pnpm 12 instala o Deno como runtime (`devEngines.runtime`, baixado do GitHub); foi desfeito em favor do pacote npm, que é o pedido do BL-20 e não depende do `devEngines`.
+  - `pnpm-workspace.yaml`: `allowBuilds: { deno: false }`. O pnpm 12 falha a instalação com script de build não aprovado; o `postinstall` do `deno` só copia o binário de `@deno/<plataforma>` para junto do `bin.cjs`, e o `bin.cjs` faz isso na primeira execução.
+  - `pnpm-lock.yaml`: só `deno@2.1.4` e os seis `@deno/<plataforma>@2.1.4` opcionais. `pnpm install --frozen-lockfile` passa.
+  - `supabase/functions/_shared/check-types.mjs` (novo): `deno check --quiet --no-lock --config <slug>/deno.json <slug>/index.ts` para cada função servida (pasta sem `_` e com `index.ts`, como o `import-maps.test.ts`). Só o grafo de runtime: os testes rodam no Node, e os que o E2E importa (`proof-kit.ts`) já passam pelo `typecheck:e2e`. `--no-lock` para não criar `deno.lock` em cada função.
+  - Erros encontrados e corrigidos (7, todos só de tipo):
+    - `dispatch-notifications` (2): `packages/core` importa os tipos `Occurrence` e `OccurrenceStatus` de `@azkaban/contracts`, que nesta função é `_shared/contracts.ts`, e ele não os reexportava. `_shared/contracts.ts` passa a reexportá-los com `type` (apagado em runtime).
+    - `materialize-occurrences` (2): o `check` recebia `{ data: T }` e o cliente tipa `data` como `X[] | null`; agora recebe `data: T | null` e devolve `result.data as T` (só chega ali sem erro).
+    - `proof-retention` (2): o `StorageError` não tem `code`, e `{ code?: string }` é tipo "fraco"; o `error` do `check` passa a `{ code?: string; message: string }`.
+    - `whatsapp-webhook` (1): `Uint8Array<ArrayBuffer>` não existe no TypeScript 5.6 do Deno 2.1.4; `_shared/whatsapp/webhook.ts` usa `raw as BufferSource`, que vale também nos libs novos.
+- **Arquivos/módulos principais:** `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `supabase/functions/_shared/{check-types.mjs,contracts.ts,whatsapp/webhook.ts}`, `supabase/functions/{materialize-occurrences,proof-retention}/index.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. Os npm transitivos que o `deno check` baixa não são travados (sem `deno.lock`, como no runtime); as versões diretas já são fixas em cada `deno.json`.
+- **Como testar:** `pnpm typecheck:functions`; `pnpm check`.
+- **Verificado:** `pnpm check` passou (inclui `deno check: 9 functions`, cerca de 2 s com o cache do Deno). Um erro de tipo posto de propósito em `proof-url/index.ts` fez o script sair com 1 e nomear a função. `node --test` dos testes de unidade das funções que não pedem pilha (`webhook`, `provider`, `checks`, `push`, `account`): 89 de 89. `pnpm install --frozen-lockfile` passa.
+- **Não verificado:** `pnpm functions:test` e E2E (sem pilha). O CI no Linux: o `@deno/linux-x64-glibc` vem do registro npm e o `deno check` baixa os pacotes `npm:` do registro público, sem segredo, mas não rodou lá. ESLint nas funções (a outra metade do BL-20, "se couber") não foi feito.
+- **Pendências / próximos passos:** o job `check` do CI já roda `pnpm check`, então nada a mudar em `.github/workflows/`. Ao subir o Supabase CLI, conferir a versão do Deno da imagem nova e acompanhar a do `deno`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:36 (BRT)
+
+- **Branch:** fix/native-module-duplicates, criada a partir de feat/backlog-after-phase-8 (376cefb)
+- **Agente(s):** arquiteto
+- **Resumo:** BL-21b. Os dois módulos nativos duplicados que o `expo-doctor` acusava ficam numa versão só, a da tabela do SDK 58, e o doctor volta a barrar qualquer duplicado, sem lista de conhecidos. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/platform/package.json`: `@react-native-async-storage/async-storage` de `^3.1.1` para `2.2.0`, como `apps/app` e `expo/bundledNativeModules.json`. O código só usa `getItem`, `setItem`, `removeItem` (inclusive o `auth.storage` do Supabase) e `getAllKeys` (fila offline); os quatro existem na 2.2.0 (`lib/typescript/types.d.ts`; `getAllKeys` devolve `readonly string[]`, lido só com `for...of`).
+  - `packages/ui/package.json` e `packages/features/notifications/package.json`: `react-native-safe-area-context` de `^5.11.0` para `~5.10.1`, como `apps/app` e a tabela.
+  - `pnpm-lock.yaml`: resolve as duas para uma cópia só (16 linhas a mais, 112 a menos). Instaladas: só `node_modules/@react-native-async-storage/async-storage` (2.2.0) e `node_modules/react-native-safe-area-context` (5.10.1); somem as cópias aninhadas de `apps/app`, `packages/platform`, `expo-router` e `react-native-css-interop`.
+  - `scripts/check-expo-doctor.mjs`: com a lista vazia, a tolerância a duplicados virou código morto e saiu; o script roda o doctor fixado (`expo-doctor@1.21.5`) e sai com o status dele.
+- **Arquivos/módulos principais:** `packages/{platform,ui,features/notifications}/package.json`, `pnpm-lock.yaml`, `scripts/check-expo-doctor.mjs`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. Regra seguida: módulo nativo declarado em mais de um pacote usa a versão de `bundledNativeModules.json`.
+- **Como testar:** `pnpm install --frozen-lockfile`; `pnpm expo:doctor`.
+- **Verificado:** `pnpm install --frozen-lockfile` passa. `pnpm expo:doctor`: "20/20 checks passed. No issues detected!", saída 0. `pnpm check` passou. `pnpm build:web` passou; `pnpm bundle:size`: 402622 bytes gzip no maior JS, teto 427641.
+- **Não verificado:** sem pilha e sem E2E. Nativo real (APK/iOS): a troca da async-storage 3.x pela 2.x no `packages/platform` só afeta o nativo; no web as duas usam `localStorage`, mas dados gravados por um build nativo com a 3.x não foram testados contra a 2.x (ainda não houve build nativo publicado). CI no Linux não rodou.
+- **Pendências / próximos passos:** ao subir o SDK do Expo, alinhar os mesmos pacotes à tabela nova; o doctor acusa se esquecer.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:38 (BRT)
+
+- **Branch:** `feat/backlog-db`, criada a partir de `feat/backlog-after-phase-8` (`9bbaf00`)
+- **Agente(s):** banco-de-dados
+- **Resumo:** trilha de banco do backlog pós-Fase 8, em série: BL-5 (push nativo), BL-6 (higiene do pgTAP), BL-12 (prazo da exclusão aberta) e BL-13 (PoC de concorrência, sem correção). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - BL-5: `push_subscriptions` ganha `kind` (`web`/`expo`) e `expo_token` (único, com a regex de `expoPushTokenSchema`); `endpoint`, `p256dh` e `auth` aceitam nulo, e um `check` amarra cada tipo às suas colunas. Sem `grant` de coluna novo ao `authenticated` (nem `expo_token`, nem `kind`). RPC irmã `register_native_push_subscription(p_token, p_user_agent)`: `forbidden` sem sessão, `invalid_push_subscription` fora da regex ou com rótulo acima de 256, upsert pelo token (outra conta passa a ser dona, com `created_at` novo e `last_success_at` nulo) e a poda de `maxPushSubscriptionsPerUser` contando os dois tipos (a RPC web já contava todas as linhas do usuário, e não mudou). `claim_notification_batch` devolve `kind` em cada inscrição, e `expoToken` (sem endpoint nem chaves) nas `expo`. `export_user_data` deixa `expo_token` de fora. A retenção já via as duas (sem filtro de tipo). `pnpm db:types`.
+  - BL-6: em `rls_notifications`, `pg_temp.last` (ordenava por `ctid`, que não é ordem de inserção) vira `pg_temp.one`, estrito (`into strict`, dois resultados quebram alto) e com filtro opcional de ocorrência; "the partial one" passa a comparar o conjunto das três notificações de CD, e o lembrete usa uma linha da própria ocorrência. Em `rls_whatsapp`, `pg_temp.summaries()` roda o job e conta só os usuários do teste (101 a 10a), e ainda exige que a resposta do job seja tudo o que ele escreveu (linhas com o `now()` desta transação). O significado dos três asserts não mudou.
+  - BL-12: `app_settings.privacy_rules` (`{"openDeletionHoldMinutes": 30}`) e o leitor `privacy_rules()`, sem `execute` a clientes. `accept_invite` só recusa pela linha aberta com `requested_at` dentro do prazo; a ordem de bloqueio de SEG8-2P-1 não mudou. `begin_account_deletion` faz `on conflict ... do update set requested_at = now()`. `scripts/check-permission-mirror.mjs` compara `privacyRules` com `privacy_rules` (no mesmo laço de `rateLimitRules`).
+  - BL-13: PoC em sessões reais por `dblink` (disponível na imagem local; criado e apagado pelo script), não versionada: depende de `pg_sleep`, grava e apaga dados de verdade e precisa de `supabase_admin` (o `postgres` do Supabase não é superusuário e o `dblink` exige senha), então não roda no `db:test` sem risco de flakiness. Resultados, repetidos duas vezes iguais: (T1) transferência segurando os bloqueios e aceite ao mesmo tempo: o aceite não espera e entra, sem deadlock; (T2) a ordem inversa, idem; (T3) com o perfil do dono antigo bloqueado por uma terceira sessão, a posse muda enquanto o aceite espera: o aceite responde `null` e a nova tentativa entra, o falso negativo já aceito no `ponytail` de `20261104160000`; (F1) `finish_account_deletion` segurando os bloqueios: o aceite espera e responde `null`, e o grupo sai; (F2) aceite segurando os bloqueios com linha aberta além do prazo: o `finish` espera e responde `owns_groups`, e o grupo fica com o membro novo; (F3) `begin` renovando o prazo com um aceite esperando: o aceite responde `null`. Nenhum deadlock e nenhuma resposta errada além da já aceita, então nenhuma migration na faixa `20261105130000`.
+- **Arquivos/módulos principais:** `supabase/migrations/2026110510{0000,0100,0200,0300}_*.sql`, `supabase/migrations/2026110512{0000,0100,0200}_*.sql`, `supabase/tests/{rls_native_push (novo),rls_notifications,rls_whatsapp,rls_account_privacy,rls_proof}.test.sql`, `packages/data/src/database.types.ts`, `scripts/check-permission-mirror.mjs`, handoff `docs/agentes/handoffs/20261103-1025-banco-de-dados-para-backend-funcoes-claim-push-nativo.md`
+- **Migrations:** `20261105100000_push_subscription_kind`, `20261105100100_register_native_push_subscription`, `20261105100200_claim_native_push`, `20261105100300_export_expo_token`, `20261105120000_privacy_rules`, `20261105120100_accept_invite_open_deletion_hold`, `20261105120200_begin_account_deletion_renews`.
+- **Decisões/ADRs:** nenhuma nova; segue o ADR-0012 §3 e §11. O formato das inscrições no claim (`{ id, kind, ... }` por tipo) foi escolha do banco, passada ao `backend-funcoes` por handoff.
+- **Como testar:** pilha B db: `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`, `pnpm db:types`; `pnpm check`.
+- **Verificado:** `db reset` limpo; `pnpm db:test` 13 arquivos, 1957 testes, PASS (rls_native_push 39, novo; rls_account_privacy 104, eram 97); `rls_notifications` e `rls_whatsapp` mais duas vezes, PASS; `db:check-permissions` em sincronia, com "Privacy rules in sync", e acusa `privacy_rules` com 31; `pnpm db:types`; `pnpm check` passou (17 de 17 e 12 de 12, `functions:imports` 10 de 10). Mutações aplicadas por `psql` e desfeitas: poda nativa contando só `expo`, 2 falhas (33-34); regex do token sem `$`, 2 (19-20); `grant select (expo_token)` ao `authenticated`, 2 (3 e 10); `accept_invite` com a comparação do prazo invertida, 3 falhas e o arquivo aborta; prazo de 100000 minutos (sem prazo, na prática), 3 (63-65); `begin` com `do nothing`, 2 (60 e 62). BL-6: uma cópia do `rls_whatsapp` com um perfil de fora devido no meio do teste quebra o assert antigo (5 contra 4) e passa com `pg_temp.summaries()`.
+- **Não verificado:** o despacho com uma linha `expo` (o `itemSchema` atual de `dispatch-notifications` exige `endpoint` e chaves em toda inscrição e marcaria o item inteiro como inválido; não acontece enquanto `features.nativePush` está `false`, e é o BL-14, por handoff); `pnpm functions:test` (sem pilha B de funções); E2E; a intermitência antiga do teste 209 não foi reproduzida antes da correção (a análise é a do LOG de 06:43); a PoC não cobre `accept_invite` contra `complete_account_deletion` nem contra `auth.admin.deleteUser`.
+- **Pendências / próximos passos:** BL-14 (`backend-funcoes`): união por `kind` no `itemSchema` e `DeviceNotRegistered` em `goneSubscriptionIds`; o falso negativo de T3 continua aceito (uma nova tentativa com o dono novo, se um dia importar); o `QUADRO.md` não foi atualizado (é do orquestrador).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:44 (BRT)
+
+- **Branch:** feat/native-push-token, criada a partir de feat/backlog-after-phase-8 (f0b9d35)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** BL-19. `enableThisDevice` pede primeiro o token Expo e, com ele, registra pela RPC `register_native_push_subscription`; sem token, segue pelo Web Push como antes. `features.nativePush` continua `false`: desligada, nada muda no nativo (sem pedir permissão, card em "não suportado"). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/platform/src/push.native.ts`: o canal Android vem de quem chama (`AndroidPushChannel`, `{ id, name }`), e a feature passa `nativePushAndroidChannelId` do contrato (handoff 1010, item 1; a plataforma não depende de `contracts`). `nativePushToken` devolve `{ token, userAgent }` (`NativePushTokenData`), com o sistema (`Android`, `iPhone`, `iPad`) como rótulo, que o `deviceLabel` do core já lê. Sem `extra.eas.projectId`, não tenta, não pede permissão e avisa em `console.warn`. `pushSupport` diz `supported` só com a flag e o `projectId`; `pushPermission` guarda a última resposta do sistema, lida uma vez ao abrir e a cada pedido. Sem a flag, as duas respondem `unsupported` e `denied`, como antes.
+  - `packages/platform/src/push.ts` e `push.web.ts`: mesma assinatura; no web, `nativePushToken` devolve null sem perguntar nada. `index.ts` exporta os dois tipos novos.
+  - `packages/data/src/notifications/index.ts`: `registerNativeDevice`, validando com `nativePushSubscriptionInputSchema` antes da rede (token inválido não chama a RPC); erro da RPC, inclusive `invalid_push_subscription`, sobe e vira a falha genérica (handoff 1010, item 2).
+  - `packages/features/notifications/src/device.ts`: `enableThisDevice(userId, vapidPublicKey, androidChannelName)`, nativo primeiro e web depois; o `PushSetupCard` passa `setup.androidChannel` ("Lembretes e avisos", novo em `pt-BR/notifications.json`).
+- **Arquivos/módulos principais:** `packages/platform/src/push*.ts`, `packages/data/src/notifications/`, `packages/features/notifications/src/{device,PushSetupCard}.ts*`, `packages/i18n/src/pt-BR/notifications.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova; segue o ADR-0012, seção 11.
+- **Como testar:** `pnpm --filter @azkaban/platform --filter @azkaban/data --filter @azkaban/feature-notifications test`; `pnpm check`.
+- **Verificado:** testes novos com `expo-notifications`, `expo-constants` e repositório falsos: `push.native.test.ts` (flag desligada não pede permissão; sem `projectId` não tenta e avisa; com tudo, cria o canal, pede e devolve o token; negado guarda `denied`), `notifications.test.ts` do data (RPC e argumentos; token fora do contrato não chama a RPC; erro da RPC sobe) e `device.test.ts` (nativo não toca o Web Push; sem token vai pelo web; sem nada, `dismissed`; recusa do repositório, `failed`). `pnpm check` passou.
+- **Não verificado:** nativo real (sem build, sem conta Expo/Firebase/Apple, sem `projectId`): o pedido de permissão, o token e o recebimento. Sem pilha e sem E2E (BL-22). A RPC só foi exercitada com cliente falso.
+- **Pendências / próximos passos:** ligar `features.nativePush` só com as contas do BL-29. No nativo, `syncThisDevice` não registra o token de novo ao abrir (o token Expo é estável; registrar ao abrir se a Expo passar a trocá-lo). Uma sessão que expira sem o botão Sair deixa a linha `expo` viva, porque o token não morre como o endpoint web: avaliar `unregisterForNotificationsAsync` em `stopPushWhenSignedOut` antes de ligar a flag.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:48 (BRT)
+
+- **Branch:** fix/native-push-signout, criada a partir de feat/backlog-after-phase-8 (fcdf1e2)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** fecha a pendência do BL-19. No nativo, o fim de sessão por qualquer caminho faz o aparelho parar de receber push da conta anterior. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/platform/src/push.native.ts`: `unsubscribePush` passou a chamar `Notifications.unregisterForNotificationsAsync()`, o equivalente nativo do `unsubscribe` do navegador, e só quando `pushSupport()` é `supported` (flag e `projectId`). Sem a flag continua sem fazer nada. Um `nativePushToken` posterior registra de novo, porque `getExpoPushTokenAsync` chama `getDevicePushTokenAsync`; pode vir um token novo, que a RPC registra por upsert.
+  - Os dois caminhos de fim de sessão já passam por `unsubscribePush`, então não houve código novo neles. No botão Sair, `forgetThisDevice` apaga a própria linha com a sessão viva pelo `removeDevice` (o mesmo `delete` com RLS `push_subscriptions_delete_own` do web, que vale para a linha `expo`) e só depois para o aparelho. Na sessão perdida, `stopPushWhenSignedOut` para o aparelho; a linha fica até a Expo responder `DeviceNotRegistered` e o despacho apagá-la, como o 410 no web. O comentário de `device.ts` diz isso.
+- **Arquivos/módulos principais:** `packages/platform/src/push.native.ts`, `push.native.test.ts`, `packages/features/notifications/src/device.ts`, `device.test.ts`
+- **Migrations:** nenhuma. Não faltou nada ao banco: o `delete` por id já existe.
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm --filter @azkaban/platform --filter @azkaban/feature-notifications test`; `pnpm check`.
+- **Verificado:** `push.native.test.ts`: sem a flag, `unsubscribePush` não chama `unregisterForNotificationsAsync`; com ela, chama uma vez. `device.test.ts`: `forgetThisDevice` apaga a linha e depois para o aparelho, mesmo se o `delete` falhar; o caso de sessão perdida que já existia confere que `unsubscribePush` é chamado. `pnpm check` passou.
+- **Não verificado:** aparelho real. Não foi conferido no aparelho se `unregisterForNotificationsAsync` corta a entrega no Android (FCM `deleteToken`) e no iOS, nem que a Expo responde `DeviceNotRegistered` depois. A documentação da Expo marca a função como `@docsMissing`. Sem pilha e sem E2E.
+- **Pendências / próximos passos:** conferir em aparelho, com as contas do BL-29, antes de ligar `features.nativePush`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:53 (BRT)
+
+- **Branch:** feat/native-push-channel, criada a partir de feat/backlog-after-phase-8 (f0b9d35)
+- **Agente(s):** backend-funcoes
+- **Resumo:** BL-14. O despacho manda às inscrições `expo` pela API de push da Expo, na mesma linha `web_push`, com provedor falso por padrão; um teste barra o 503 nas funções (ADR-0012, seção 18); o webhook lê o número do WhatsApp pelo `whatsappEnv()`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `dispatch-notifications/native-push.ts` (novo): `NativePushChannel.deliver`, um pedido por notificação com todos os tokens do usuário, `redirect: 'manual'`, timeout, resposta lida com limite e validada com Zod (`data` com um ticket por mensagem, na ordem). `DeviceNotRegistered` é `gone` (apaga a inscrição); `MessageRateExceeded`, 429 e 5xx repetem; `MessageTooBig`, credenciais, outros 4xx, redirect e resposta ruim ou curta falham (sem repetir: a mensagem pode ter saído). `fakeExpoFetch` loga só `{event:'native_push_fake', messages:n}`. `nativePushTransport` lê `NATIVE_PUSH_PROVIDER` (vazio = `fake`) e `EXPO_ACCESS_TOKEN` (obrigatório com `expo`); fora disso, `native_push_not_configured` e as inscrições `expo` repetem. Recibos (segunda chamada) não entram.
+  - `web-push.ts`: `WebPushChannel` separa as inscrições por `kind` e entrega as duas em paralelo; `combine` decide sobre todas, então a falha de uma nunca derruba a outra.
+  - `items.ts` (novo, saído do `index.ts`): `subscriptions` é união discriminada por `kind` (`web` com endpoint e chaves; `expo` com `expoPushTokenSchema`), como o claim do BL-5.
+  - `index.ts`: `payload()` serve aos dois; `renderNative` monta e valida com `nativePushMessageSchema` (título, corpo, `data` recortado, `channelId`, `ttl` pelo mesmo `ttlSeconds` do Web Push). O nativo só existe com o VAPID: divide a linha.
+  - `dispatch.ts`: tipos `WebSubscription`, `ExpoSubscription`.
+  - `whatsapp-webhook/index.ts`: `env.WHATSAPP_PHONE_NUMBER_ID` no lugar de `Deno.env.get(...)` (BL-4); o comentário do `console` saiu.
+  - `_shared/import-maps.test.ts`: por função, nenhum arquivo do grafo de runtime dentro de `supabase/functions` tem o literal 503 nem passa `x.status` a uma resposta; mais um teste do próprio guarda.
+  - `.env.example`: nomes `NATIVE_PUSH_PROVIDER` e `EXPO_ACCESS_TOKEN`, vazios.
+- **Arquivos/módulos principais:** `supabase/functions/dispatch-notifications/{native-push,items,index,web-push,dispatch}.ts`, testes `push.test.ts` e `dispatch.integration.test.ts`, `supabase/functions/_shared/import-maps.test.ts`, `supabase/functions/whatsapp-webhook/index.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. Provedor `fake` por padrão, como o `console` do WhatsApp; real só com `expo` e token.
+- **Como testar:** `pnpm check`; `pnpm db:start`, `pnpm db:reset`, `pnpm functions:test`.
+- **Verificado:** `pnpm check` passou (o `functions:imports` com 20 testes). `push.test.ts`: 28 testes, 7 novos do nativo. `pnpm functions:test` na pilha A, uma vez: 225 testes, 0 falhas, inclusive o novo de integração (navegador e aparelho da mesma pessoa, contra o claim e o report reais: os dois recebem, `DeviceNotRegistered` apaga só o aparelho, 410 apaga só o navegador). O guarda do 503 conferido por mutação (um `// 503` em `native-push.ts` derruba o teste). `parseItem` com inscrição mista, token ruim e inscrição sem `kind` conferido por um script avulso no Deno (o `.env` local não tem VAPID, então a função servida não reivindica linha de push).
+- **Não verificado:** a API real da Expo (nenhuma chamada, nenhuma conta); o formato da resposta foi escrito pela documentação. A função servida com VAPID e uma inscrição `expo`. E2E (fica com o BL-22). CI no Linux.
+- **Pendências / próximos passos:** handoff `20261103-1053-backend-funcoes-para-arquiteto-push-nativo-no-despacho` (segredos em `docs/implantacao.md`, QUADRO). Recibos da Expo, se um dia valer a pena. O teste de exportação com `expo_token` entre os segredos (item 3 do handoff 1025) não entrou.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:56 (BRT)
+
+- **Branch:** docs/native-push-secrets, criada a partir de feat/backlog-after-phase-8 (960c107)
+- **Agente(s):** arquiteto
+- **Resumo:** Handoff `20261103-1053-backend-funcoes-para-arquiteto-push-nativo-no-despacho`, menos o QUADRO (fica com o orquestrador). Segredos do push nativo documentados na implantação; `EXPO_PUSH_URL` fica constante na função, decisão no ADR-0012. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `docs/implantacao.md`, seção 2: bloco "Push nativo" com `NATIVE_PUSH_PROVIDER` e `EXPO_ACCESS_TOKEN` (quando, valor, padrão `fake`), que só ficam nos segredos da função (nunca `EXPO_PUBLIC_`, Netlify ou repositório), que dependem do VAPID por dividirem a linha `web_push`, o comportamento de `fake` e de configuração inválida, e que `expo` só liga depois das contas do BL-29, por decisão do humano, junto com `features.nativePush`. Sem valores reais.
+  - `docs/adr/0012-polimento-lgpd-limites-offline.md`, seção 11: parágrafo "URL da API da Expo e segredos". `EXPO_PUSH_URL` não vai para `packages/config`: não muda por ambiente nem por produto, um só consumidor; `graphApiBaseUrl` está lá porque o provedor da Meta recebe a base por opção e a Graph API é versionada. Vira config se a Expo versionar a URL ou houver proxy por ambiente.
+- **Arquivos/módulos principais:** `docs/implantacao.md`, `docs/adr/0012-polimento-lgpd-limites-offline.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0012, seção 11 (acima).
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou. O texto confere com `nativePushTransport` em `native-push.ts` (vazio é `fake`, token com 16+, outro valor é `native_push_not_configured`).
+- **Não verificado:** nada roda contra a Expo; sem pilha.
+- **Pendências / próximos passos:** QUADRO (BL-14 feito; BL-19 e BL-20 sem esperar o BL-14), com o orquestrador.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 11:04 (BRT)
+
+- **Branch:** review/backlog-security, criada a partir de feat/backlog-after-phase-8 (960c107)
+- **Agente(s):** revisor-seguranca
+- **Resumo:** BL-23, revisão de segurança do backlog pós-Fase 8 (`c74cce6..960c107`), só leitura e sem pilha. Dois achados médios, com handoff, e três baixos. Nenhum segredo no diff nem no working tree. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - Handoff `20261103-1104-revisor-seguranca-para-backend-funcoes-push-nativo-falso-por-padrao` (BL23-1).
+  - Handoff `20261103-1104-revisor-seguranca-para-auth-grupos-sessao-por-link-sem-pedido` (BL23-2).
+- **Achados:**
+  - **BL23-1 (média, backend-funcoes):** `dispatch-notifications/native-push.ts:150`. `NATIVE_PUSH_PROVIDER` vazio vira `fake`, que responde `ok`: em produção, sem a chave, a linha fecha como `sent`, `last_success_at` é renovado (o aparelho nunca sai pela poda de 90 dias) e o único sinal é `native_push_fake` no log. Proposta: vazio é "não configurado" (o ramo que já repete e falha), `fake` só escrito, no `.env.example`.
+  - **BL23-2 (média, auth-grupos; arquiteto decide o fluxo):** `packages/data/src/auth/index.ts:53` e `useSessionFromLink.ts:23`. Qualquer link `azkaban:///…#access_token=…&refresh_token=…` vira a sessão do aparelho, sem pedido deste aparelho e por cima de uma sessão ativa (login CSRF). A vítima passa a usar a conta do atacante e entrega tarefas, fotos com local, telefone e o aparelho de push. Na web, o mesmo pelo `detectSessionInUrl` (anterior). Raiz: `flowType: 'pkce'`; mínimo: não trocar sessão ativa e exigir um pedido recente deste aparelho.
+  - **BL23-3 (baixa, arquiteto/BL-29):** `register_native_push_subscription` (`20261105100100`, `on conflict (expo_token)`) entrega o aparelho a quem apresentar o token: a vítima deixa de receber em silêncio e passa a receber os títulos do atacante. Exige o token, que nunca sai do banco nem vai a log; sem a "segurança reforçada de push" da Expo, quem tem o token já manda push direto. Risco aceito no ADR-0012, seção 11. Recomendação para o BL-29: ligar o access token obrigatório no projeto Expo (o ramo `expo` já exige `EXPO_ACCESS_TOKEN`).
+  - **BL23-4 (baixa, notificacoes-whatsapp, LGPD):** `packages/platform/src/network.ts:9` e `:18`. O NetInfo 12, no iOS, não recebe `isInternetReachable` do nativo e faz o teste em JS contra `https://clients3.google.com/generate_204` (padrão de `defaultConfiguration.ts`), a cada 60 s conectado e 5 s sem rede. O app só lê `isConnected`. É um envio a terceiro (IP, horário) que a política de privacidade não cita. Proposta: `NetInfo.configure({ reachabilityShouldRun: () => false })` no módulo nativo.
+  - **BL23-5 (baixa, qa-testes):** `scripts/check-expo-doctor.mjs:6` roda `npx -y expo-doctor@1.21.5`: a versão de cima é fixa, as dependências dela não têm lockfile nem integridade. `check-types.mjs` usa `deno check --no-lock` (baixa tipos do npm sem integridade, sem executar código). O CI tem `contents: read` e nenhum segredo, então o impacto é um CI quebrado ou adulterado, não vazamento. Se quiser fechar, `expo-doctor` como devDependency no lockfile.
+- **Sem achado (conferido):** `kind`/`expo_token` sem grant de coluna para `authenticated`, sem insert nem update direto, `check` por tipo amarrando as colunas (pgTAP `rls_native_push`); a RPC nova é `security definer` com `search_path = ''`, só `authenticated`, valida o token pelo mesmo regex do contrato, e a poda conta os dois tipos só do próprio usuário; `claim_notification_batch` manda o token só ao despacho (service role); `export_user_data` tira `expo_token` e mantém `kind`; `privacy_rules()` sem `execute` para `public`, `anon` e `authenticated`, lida só pelo `accept_invite` (definer), e `app_settings` segue com RLS; o prazo de 30 min do `accept_invite` é maior que os 400 s de uma função, e o `begin`/`finish` conferem `owns_groups` de novo; `begin_account_deletion` mantém o `execute` só no `service_role` (o `create or replace` preserva o grant). No despacho: `redirect: 'manual'`, timeout, resposta com limite de bytes e Zod, um ticket por token na ordem, `EXPO_ACCESS_TOKEN` só do env e em campo privado, logs sem token nem título; `whatsappEnv()` no webhook (valor malformado deixa o WhatsApp não configurado, 500 sem segredo no log); o guarda do 503 cobre o grafo de runtime das funções. No cliente: `parseSessionLink` só aceita o próprio esquema e host, caminho por `internalPathSchema` e `safeInternalPath` (sem open redirect), a descrição do GoTrue não vai à tela; `onPushOpened` passa por `safeInternalPath`; a repetição em 503 é só de `/functions/v1/`, sem corpo em stream, e respeita o `AbortSignal`; `refreshRolesOnForbidden` só invalida a cache, sem laço; as mensagens de erro são chaves de i18n por código (`failureKey`, `inviteFailureKey`), nada do servidor vai à tela; `unsubscribePush` chama `unregisterForNotificationsAsync` no fim de sessão, e `forgetThisDevice` apaga a linha antes. Dependências: `expo-haptics`, `@react-native-community/netinfo` e `deno@2.1.4` no lockfile com integridade, `allowBuilds: { deno: false }`, async-storage e safe-area alinhadas. Segredos: varredura de padrões (JWT, chaves de nuvem, tokens Expo reais, Bearer) no diff e no working tree sem achado; os `.env.example` só têm nomes vazios ou valores `local-demo-*` já públicos; o arquivo de ignorados barra `.env` e `.env.*`. Fronteiras: nenhuma feature importa outra; `core` segue sem React e sem Supabase; o sino lê membros pelo `groupsRepository` de `data`.
+- **Arquivos/módulos principais:** `docs/agentes/handoffs/`, `LOG_DE_ALTERACOES.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. BL23-2 pede decisão do arquiteto sobre PKCE (ADR-0004).
+- **Como testar:** `pnpm check`.
+- **Verificado:** leitura do diff inteiro de `c74cce6..960c107`; NetInfo conferido no `node_modules` instalado (`defaultConfiguration.ts`, `internetReachability.ts`, sem `isInternetReachable` em `ios/`); `_setSession` do `auth-js` instalado confere o token no GoTrue (`_getUser`) e troca a sessão sem olhar a atual, e o `flowType` padrão é `implicit`. `pnpm check` passou (lint e Prettier, fronteiras, typecheck com e2e e `deno check` das funções, testes, `functions:imports`).
+- **Não verificado:** pgTAP, `pnpm functions:test` e E2E (sem pilha, como pedido); a API real da Expo e o comportamento em aparelho (`unregisterForNotificationsAsync`, deep link); CI no Linux.
+- **Pendências / próximos passos:** os dois handoffs; BL23-3 a BL23-5 ficam para os donos decidirem.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 11:09 (BRT)
+
+- **Branch:** docs/session-link-and-doctor-lock, criada a partir de feat/backlog-after-phase-8 (a251638)
+- **Agente(s):** arquiteto
+- **Resumo:** BL23-2 vira uma seção nova no ADR-0004, com o risco, a mitigação nativa, o aberto no web e as opções para o humano; BL23-5 fechado com `expo-doctor` no lockfile. Nenhum código de autenticação mudou. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `docs/adr/0004-fase-1-decisoes.md`: seção "Revisão de 2026-11-03: login CSRF pelo link de sessão (BL23-2)", em proposta. Opções: A (implícito no web com marcador do pedido e sem trocar sessão ativa; o marcador mora no navegador que pediu, então tem o mesmo custo do PKCE no navegador interno do e-mail), A' (só não trocar sessão ativa) e B (PKCE). Recomendação: B; A' no web é o mínimo se o humano priorizar o navegador interno.
+  - `package.json` e `pnpm-lock.yaml`: `expo-doctor` 1.21.5 exato na raiz, com integridade (o pacote não tem dependências de runtime).
+  - `scripts/check-expo-doctor.mjs`: roda o binário instalado com `node`, sem `npx` e sem shell; o caminho vem do `bin` do `package.json` (o `exports` não expõe o bin).
+- **Arquivos/módulos principais:** `docs/adr/0004-fase-1-decisoes.md`, `scripts/check-expo-doctor.mjs`, `package.json`, `pnpm-lock.yaml`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0004, seção BL23-2 (proposta, decisão do humano). Risco aceito: `deno check --no-lock` em `check-types.mjs`. Ele baixa tipos do npm sem lockfile, mas não executa código das dependências, o CI tem só `contents: read` e nenhum segredo, e as versões ficam fixas em cada `deno.json`. Um `deno.lock` por função seria um arquivo a mais por função, dentro de `supabase/functions`, para manter junto com o deploy do Edge Runtime: não compensa agora. Revisar se o CI ganhar segredo ou permissão de escrita.
+- **Como testar:** `pnpm install --frozen-lockfile`, `pnpm expo:doctor` (20/20), `pnpm check`.
+- **Verificado:** `pnpm install --frozen-lockfile` sem mudança; `pnpm expo:doctor` 20/20; `pnpm check` (abaixo).
+- **Não verificado:** CI no Linux com o binário novo; nada da autenticação em aparelho ou navegador (só documentação).
+- **Pendências / próximos passos:** o humano escolher A, A' ou B no ADR-0004; depois, handoff para auth-grupos aplicar no web (e, se B, também no nativo, no lugar do marcador).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 11:11 (BRT)
+
+- **Branch:** fix/netinfo-no-reachability, criada a partir de feat/backlog-after-phase-8 (a251638)
+- **Agente(s):** notificacoes-whatsapp (achado BL23-4 atribuído a ele, em `packages/platform/src/network.ts`)
+- **Resumo:** Achado BL23-4 (baixa, LGPD) da revisão de segurança de 11:04. O NetInfo nativo deixa de testar a conexão contra `https://clients3.google.com/generate_204`; o app só lê `isConnected`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/platform/src/network.ts`: `NetInfo.configure({ reachabilityShouldRun: () => false })` uma vez, na carga do módulo, antes de qualquer leitura. Opção conferida no NetInfo 12.0.1 instalado (`types.ts`; em `internetReachability.ts` o teste só roda se `reachabilityShouldRun()` for verdadeiro). `isInternetReachable` passa a ficar `null` no iOS; nada no app o lê.
+  - `packages/platform/src/network.test.ts`: o NetInfo falso registra as chamadas de `configure`; teste novo confere uma chamada só e `reachabilityShouldRun()` falso. Array simples em vez de `vi.fn()`, porque o Vitest 5 limpa as chamadas antes de cada teste (`clearMocks: true` por padrão) e o `configure` roda no import.
+  - Web (`network.web.ts`) sem mudança.
+- **Arquivos/módulos principais:** `packages/platform/src/network.ts`, `packages/platform/src/network.test.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou. O teste novo, com `vi.fn()`, viu 0 chamadas; com o array vê a chamada do import, então falha se o `configure` sair.
+- **Não verificado:** aparelho iOS (ausência da requisição ao Google; o `configure` atravessando a ponte nativa com a função na configuração, que o nativo só guarda em `self.config`); sem pilha.
+- **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 11:11 (BRT)
+
+- **Branch:** fix/native-push-fake-explicit, criada a partir de feat/backlog-after-phase-8 (a251638)
+- **Agente(s):** backend-funcoes
+- **Resumo:** BL23-1. `NATIVE_PUSH_PROVIDER` vazio ou ausente deixa de ser `fake` e passa a ser "não configurado": em produção, sem a chave, os aparelhos repetem e falham com `native_push_not_configured` em vez de fechar como entregues. `fake` só quando escrito exatamente. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `supabase/functions/dispatch-notifications/native-push.ts`: `nativePushTransport` valida os valores como vieram (sem `?? 'fake'` e sem o `blank`); o Zod só aceita `fake` ou `expo` com token, todo o resto cai no ramo que já existia.
+  - `supabase/functions/dispatch-notifications/push.test.ts`: vazio e ausente dão `null` e logam `native_push_not_configured`; `fake` dá o falso sem token; `expo` sem token ou com token curto, `other` e `Fake` dão `null`.
+  - `supabase/functions/.env.example`: `NATIVE_PUSH_PROVIDER=fake`, com o comentário novo. O CI copia esse arquivo, então a pilha local segue com o falso.
+  - `supabase/functions/dispatch-notifications/index.ts`: comentário do topo.
+  - `docs/implantacao.md`, bloco "Push nativo": tabela e regras com o padrão novo, e o aviso para quem tem um `.env` antigo com o valor vazio.
+  - Handoff `20261103-1111-backend-funcoes-para-arquiteto-adr-0012-push-nativo-vazio`: o ADR-0012 (linha 337) ainda diz "vazio é `fake`".
+- **Arquivos/módulos principais:** `supabase/functions/dispatch-notifications/`, `supabase/functions/.env.example`, `docs/implantacao.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova; a primeira opção do handoff do revisor.
+- **Como testar:** `pnpm check`; `node --test supabase/functions/dispatch-notifications/push.test.ts` (unidade, sem pilha); `pnpm functions:test` na pilha, com o `.env` vindo do `.env.example` novo.
+- **Verificado:** `pnpm check` passou (lint e Prettier, fronteiras, typecheck com e2e e `deno check` das funções, testes, `functions:imports`); `push.test.ts` direto no Node, 28 de 28. O teste de integração do despacho injeta o próprio `fetch` da Expo e nenhum E2E cria aparelho `expo`, então nenhum depende do padrão.
+- **Não verificado:** `pnpm functions:test` e E2E (sem pilha, como pedido); CI no Linux.
+- **Pendências / próximos passos:** quem tem `supabase/functions/.env` local antigo, com `NATIVE_PUSH_PROVIDER=` vazio, troca para `fake`; o handoff ao arquiteto sobre o ADR-0012.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 11:14 (BRT)
+
+- **Branch:** docs/adr-0012-native-push-empty, criada a partir de feat/backlog-after-phase-8 (8462cc6)
+- **Agente(s):** arquiteto
+- **Resumo:** Handoff `20261103-1111-backend-funcoes-para-arquiteto-adr-0012-push-nativo-vazio`. O ADR-0012, seção 11, deixa de dizer que `NATIVE_PUSH_PROVIDER` vazio é `fake`. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `docs/adr/0012-polimento-lgpd-limites-offline.md`, parágrafo "URL da API da Expo e segredos": desde o BL23-1, vazio ou ausente é "não configurado", e `fake` só quando escrito, na pilha local. Confere com `docs/implantacao.md`, seção 2.
+- **Arquivos/módulos principais:** `docs/adr/0012-polimento-lgpd-limites-offline.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0012, seção 11 (só texto, a decisão é do BL23-1).
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` (abaixo).
+- **Não verificado:** nada roda; é texto.
+- **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 11:14 (BRT)
+
+- **Branch:** fix/session-link-requires-request, criada a partir de feat/backlog-after-phase-8 (a251638)
+- **Agente(s):** auth-grupos
+- **Resumo:** BL23-2, mitigação no nativo do login CSRF pelo deep link: o link de sessão só vira a sessão do aparelho se este aparelho pediu um link há pouco, e nunca troca a conta de quem já está dentro. Fluxo implícito mantido (ADR-0004), sem tocar em `client.ts` nem em `flowType`. Web sem mudança. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `authRepository.sendMagicLink` e `signUp` gravam, no nativo e depois do sucesso, a hora do pedido em `storage` (`azkaban.session-link-requested-at`); a reautenticação da exclusão usa `sendMagicLink`, então fica coberta.
+  - `setSessionFromLink`: com sessão de outra conta (o `sub` do token do link, lido sem verificar, difere do usuário atual), ignora os tokens e devolve só o caminho; sem pedido dentro de `defaults.sessionLinkRequestMaxAgeMs` (1 h, igual ao `otp_expiry`), não chama `setSession` e devolve `linkNotRequested` (ou só o caminho, se há sessão); com pedido válido, apaga o marcador e troca a sessão.
+  - A mesma conta com pedido válido ainda troca a sessão: é o link de reautenticação antes de excluir a conta, que precisa do `amr` novo do token (`account.ts`, `reauthMaxAgeMinutes`). Desvio consciente do "com sessão, nunca troca": trocar pela mesma conta não é CSRF.
+  - `useSessionFromLink` leva `linkNotRequested` a `/sign-in?link=not-requested`, e a tela de entrar mostra `signIn.linkNotRequested` ("peça o link neste aparelho").
+  - Testes em `packages/data/src/auth/index.test.ts`: sessão de outra conta não troca (mesmo com pedido), sem marcador não troca, marcador vencido não troca, marcador válido troca uma vez e é consumido, mesma conta só troca com pedido.
+- **Arquivos/módulos principais:** `packages/data/src/auth/index.ts`, `packages/data/src/auth/link.ts`, `packages/features/auth/src/useSessionFromLink.ts`, `packages/features/auth/src/SignInScreen.tsx`, `packages/config/src/defaults.ts`, `packages/i18n/src/pt-BR/auth.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova. PKCE segue fora por ADR-0004; o caso web vai para a decisão do humano.
+- **Como testar:** `pnpm check`; manual num aparelho: link montado à mão com tokens de outra conta, com e sem sessão, e com e sem pedido de link no aparelho.
+- **Verificado:** `pnpm check` passou (lint e Prettier, fronteiras, typecheck com e2e e funções, testes, `functions:imports`).
+- **Não verificado:** aparelho real e Hermes (`atob` existe no Hermes do RN 0.88, não conferido em execução); E2E e pilha, como pedido.
+- **Pendências / próximos passos:** a web continua aceitando o fragmento pelo `detectSessionInUrl` (decisão do humano). Um link pedido em outro aparelho deixa de entrar no nativo, por desenho.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 11:25 (BRT)
+
+- **Branch:** `test/backlog-e2e`, criada a partir de `feat/backlog-after-phase-8` (`960c107`)
+- **Agente(s):** qa-testes
+- **Resumo:** BL-22. E2E completa uma vez no estado integrado do backlog (BL-1 a BL-21b): 89 passaram, 1 falhou (a11y, intermitência conhecida, sem relação com o backlog), 1 pulado (o "sem chave VAPID", esperado), 4 não rodaram (o projeto `jobs`, pulado pela falha do `app`: exatamente o que o BL-22 pede para mudar). Três specs novas para o que o backlog mudou (BL-8, BL-15, BL-18), o `jobs` passa a ser teardown do `app` e o `global-setup` religa os jobs do pg_cron também na saída do processo e em SIGTERM/SIGHUP/SIGBREAK.
+- **Alterações:**
+  - `playwright.config.ts`: `jobs` deixa de ser dependente (`dependencies: ['app']`) e vira `teardown: 'jobs'` do `app`. Continua rodando depois de todo o `app`, mas também quando ele falha. Efeito colateral: um teardown roda inteiro, então uma execução filtrada por arquivo também roda as 4 de `notifications-jobs`; `--no-deps` as deixa de fora, `--project=jobs` roda só elas (antes era `--project=jobs --no-deps`).
+  - `e2e/global-setup.ts`: `restore()` idempotente; chamado pelo teardown do Playwright (falha e Ctrl+C), por `process.once('exit')` (síncrono, só registra o erro) e por SIGTERM/SIGHUP/SIGBREAK (religa e sai com 1; o Windows não re-emite sinal). SIGINT fica com o Playwright, que já chama o teardown. Limite no comentário `ponytail:`: `taskkill /F` ou falta de energia ainda deixam os jobs desligados até o próximo teardown ou `db reset`.
+  - `e2e/accounts.spec.ts` (BL-15): a prévia do convite com `page.route` em `get_invite_preview`: 502 mostra "o serviço está fora do ar", `route.abort('internetdisconnected')` (status 0) mostra "Sem conexão para abrir o convite", e "Tentar de novo" sem rota mostra o convite. A rota responde antes do banco, então nenhuma tentativa gasta o limite de `invite_lookup`.
+  - `e2e/shopping.spec.ts` (BL-18): "Finalizar compra" armado ("Confirmar: finalizar") desarma e desliga com `context.setOffline(true)`, com o aviso; de volta online, habilitado e desarmado. O caso "desligado sem rede" já estava coberto em `stepper taps ... offline`; o novo cobre o que o `ConfirmButton` trouxe (desarmar).
+  - `e2e/notifications-bell.spec.ts` (BL-8): aviso `occurrence_missed` com `byUserId` de um membro mostra "Quem marcou: Duda"; depois de tirar o membro do grupo (service role, como a spec do sino já faz), o recarregamento mostra "Quem marcou: ex-membro".
+  - Handoff `20261103-1115-qa-testes-para-design-system-transicao-com-reduce`: a intermitência de a11y agora tem nome (transições `filter`, `opacity` e `transform` num elemento sem texto nem rótulo, em telas, larguras e esquemas variados).
+  - Handoff `20261103-1125-qa-testes-para-tarefas-calendario-nova-tarefa-antes-dos-contextos`: o `Fab` da criação rápida decide "sem contexto" com a consulta ainda carregando (`contexts.data ?? []`).
+- **Arquivos/módulos principais:** `playwright.config.ts`, `e2e/global-setup.ts`, `e2e/accounts.spec.ts`, `e2e/shopping.spec.ts`, `e2e/notifications-bell.spec.ts`, `docs/agentes/handoffs/`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `.env` copiados de `orq-fase-8`, `pnpm db:start`, `pnpm exec supabase db reset`, `pnpm e2e` com `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória (o `supabase/functions/.env` local não tem par VAPID). Só as novas: `pnpm e2e e2e/accounts.spec.ts e2e/shopping.spec.ts e2e/notifications-bell.spec.ts -g "server is down|disarms|ex-membro" --no-deps`.
+- **Verificado:**
+  - E2E completa, uma vez, banco recém-resetado, antes das mudanças desta branch: 89 passaram, 1 falhou, 1 pulado, 4 não rodaram (5,0 min). A falha: `a11y.spec.ts`, "running animations with reduce" em `signed out /transparency 375px dark`. Nenhuma falha de produto vinda do backlog.
+  - a11y sozinha, `--repeat-each=3 --no-deps`, junto da nova do BL-15: 1 passou, 1 repetiu a transição com reduce (`signed out /transparency 375px light` e `/profile 1280px dark`, as mesmas três propriedades), 1 parou 15 min no preparo ("Nova tarefa" abriu "Novo contexto" antes de os contextos chegarem; handoff ao `tarefas-calendario`). Intermitências, nenhuma vinda do backlog.
+  - Novas, `--repeat-each=3`: BL-18 3 de 3, BL-8 3 de 3, BL-15 3 de 3 (a primeira rodada caiu no cadastro por causa de um "ã" no nome que vira e-mail; corrigido para `Anfitria`).
+  - Teardown: com uma spec temporária que falha (`expect(1).toBe(2)`, apagada depois) junto das novas, o `jobs` rodou as 4 depois das falhas do `app`, e os jobs do `cron.job` voltaram todos `active`. O caminho `exit` sem teardown (`process.exit(3)` logo depois do setup, num script avulso) e o SIGBREAK (emitido no processo) religaram os 4 jobs: `off` 4 depois do setup, 0 depois.
+  - `pnpm db:test` depois da E2E, sem reset: 13 arquivos, 1957 testes, PASS. Antes dele, todos os jobs do `cron.job` estavam `active`.
+  - `pnpm check` passou.
+- **Não verificado:** SIGTERM/SIGHUP reais (no Windows só emitidos à mão; SIGHUP real é fechar o terminal); a E2E completa depois das mudanças desta branch (só as specs afetadas e o `jobs`); a origem da transição em a11y (handoff); nativo; CI no Linux. Hora derivada de UTC menos 3 (PowerShell barrado).
+- **Pendências / próximos passos:** `design-system`: handoff `20261103-1115` (transição com reduce). `tarefas-calendario`: handoff `20261103-1125` ("Nova tarefa" antes dos contextos). `qa-testes`: avaliar `actionTimeout` na config (um clique parado espera os 900 s da a11y). Quem rodar uma spec só deve usar `--no-deps` para não rodar o `jobs` junto.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 11:30 (BRT)
+
+- **Branch:** `test/playwright-action-timeout`, criada a partir de `feat/backlog-after-phase-8` (`765f4b4`)
+- **Agente(s):** qa-testes
+- **Resumo:** pendência do BL-22: a config do Playwright não tinha `actionTimeout`, e um clique preso esperou os 900 s da a11y. Agora ação e navegação têm limite próprio.
+- **Alterações:**
+  - `playwright.config.ts`: `use.actionTimeout: 30_000` e `use.navigationTimeout: 60_000`, com o motivo no comentário. A ação também limita `waitForResponse` e `waitForEvent`: 30 s é a maior espera que as specs dão a uma resposta do servidor (`proof-validate`, `answered` nas specs de prova), com folga sobre os 15 s do `expect`. A navegação espera o `load`, e no `pnpm dev` a primeira página de cada worker espera o Metro montar o pacote (não medido, mas abaixo dos 90 s do teste, que vinham bastando): 60 s. Nenhuma spec passa `timeout` maior numa ação; o único `timeout` de ação explícito é o de 2 s do `gamification` (menor, continua valendo).
+- **Arquivos/módulos principais:** `playwright.config.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. Spec que precisar de mais passa `timeout` naquela chamada; os globais não sobem.
+- **Como testar:** `pnpm exec playwright test --list`; `pnpm e2e` com a pilha A.
+- **Verificado:** `--list` dá 98 testes em 26 arquivos, igual à config de `765f4b4`. `pnpm check` passou (17 de 17 e 12 de 12).
+- **Não verificado:** a E2E não rodou (a pilha A está com o `design-system`, por pedido); o tempo real do primeiro pacote do Metro frio contra os 60 s. Hora derivada de UTC menos 3 (PowerShell barrado).
+- **Pendências / próximos passos:** na próxima E2E completa, conferir se alguma navegação ou espera de resposta bate nos limites; se bater, `timeout` naquela chamada.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 11:31 (BRT)
+
+- **Branch:** `fix/quick-create-loading-contexts`, criada a partir de `feat/backlog-after-phase-8` (`765f4b4`)
+- **Agente(s):** tarefas-calendario
+- **Resumo:** handoff `20261103-1125`. "Nova tarefa" deixa de abrir "Novo contexto" enquanto os contextos ainda carregam. O toque é guardado e decidido quando a consulta resolve; só uma lista vazia de verdade leva a "Novo contexto"; erro na consulta abre a folha com o erro e "Tentar de novo".
+- **Alterações:**
+  - `packages/features/tasks/src/quickCreateAction.ts`: função pura `quickCreateAction({ isPending, isError, count })` que devolve `wait`, `open` ou `newContext`. Com contextos (inclusive um refetch com erro que mantém a lista em cache) abre a folha; erro sem lista abre a folha; carregando espera; só vazio resolvido vai para "Novo contexto".
+  - `packages/features/tasks/src/QuickCreate.tsx`: o `Fab` só marca o toque (`waiting`); um `useEffect` age quando a decisão deixa de ser `wait`. Enquanto espera, o rótulo (visível e `aria-label`) vira "Carregando seus contextos…". Na folha, com a consulta em erro e sem lista, `ErrorText` e um botão secundário "Tentar de novo" (`contexts.refetch`).
+  - `packages/i18n/src/pt-BR/tasks.json`: `quick.loading` e `quick.contextsError`.
+  - `packages/features/tasks/package.json`: script `test` e `vitest` em `devDependencies` (o pacote não tinha testes); `pnpm-lock.yaml` atualizado.
+- **Arquivos/módulos principais:** `packages/features/tasks/src/QuickCreate.tsx`, `packages/features/tasks/src/quickCreateAction.ts`, `packages/i18n/src/pt-BR/tasks.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. O `Fab` de `packages/ui` não tem `loading`/`disabled`; em vez de mexer fora do escopo, o rótulo diz que está carregando (comentário `ponytail:` no ponto).
+- **Como testar:** `pnpm --filter @azkaban/feature-tasks test`. Na E2E (pilha A): atrasar `**/rest/v1/contexts*` com `page.route` em 3 s e tocar "Nova tarefa" logo depois do `goto('/')`; deve abrir a folha quando os contextos chegarem.
+- **Verificado:** `quickCreateAction.test.ts`, 4 testes (carregando, vazio, com contextos, erro), PASS. `pnpm check` passou.
+- **Não verificado:** sem pilha, sem E2E (pilha A com outro agente) e sem abrir no navegador; a repetição de `e2e/a11y.spec.ts` do handoff fica para `qa-testes`. Nativo. Hora derivada de UTC menos 3 (PowerShell barrado).
+- **Pendências / próximos passos:** `design-system`, se quiserem: `loading`/`disabled` acessível no `Fab`. Caso raro não tratado: erro, folha aberta, "Tentar de novo" volta com zero contextos; a folha fica sem contexto e "Criar" mostra erro.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 11:57 (BRT)
+
+- **Branch:** fix/global-transition-reduce (a partir de `feat/backlog-after-phase-8`, `765f4b4`)
+- **Agente(s):** design-system
+- **Resumo:** A intermitência "running animations with reduce" de `e2e/a11y.spec.ts` (handoff `20261103-1115`) era o aviso de Fast Refresh do servidor de dev do Expo, que anima `opacity`, `filter` e `transform` sem olhar o reduce. Agora ele respeita `prefers-reduced-motion`.
+- **Alterações:**
+  - Causa: `expo/src/environment/DevLoadingView.web.tsx` (só em dev, por `withDevTools`) desenha `.__expo_fast_refresh`, um raio em SVG sem texto nem rótulo, com `transition: all 150ms`, a cada `update-start` do HMR. No Windows o watcher do Metro conta como mudança a atualização do último acesso de um arquivo, até por uma leitura (a mesma do `supabase functions serve` em `playwright.config.ts`): com `DEBUG=Metro:DeltaCalculator`, os workers do Playwright lendo `node_modules` (`@nodelib/*`, `@supabase/*`, `supabase/package.json`) dispararam "Handling change" no meio da spec. Daí telas, larguras e esquemas ao acaso.
+  - `apps/app/public/index.html`: com `prefers-reduced-motion: reduce`, `html .__expo_fast_refresh { transition: none; }`. Fica no modelo só da web (o NativeWind não lê), e o `html` vence a regra do próprio Expo, que vem depois na página. A regra da spec não mudou.
+- **Arquivos/módulos principais:** `apps/app/public/index.html`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. Mudança mínima num arquivo do app, fora de `packages/ui`.
+- **Como testar:** `pnpm db:start` e `pnpm exec playwright test e2e/a11y.spec.ts --project=app --no-deps --repeat-each=6`, com `EXPO_PUBLIC_VAPID_PUBLIC_KEY` no ambiente. Para forçar o aviso, toque um arquivo do app a cada segundo durante a rodada (`touch apps/app/src/env.ts`).
+- **Verificado:**
+  - Antes, `--repeat-each=6`: 1 de 6 falhou com as três transições em `.__expo_fast_refresh` (achado trocando, por um momento, `short(target)` pelo `outerHTML` e a cadeia de pais; desfeito).
+  - Script avulso no servidor de dev, tocando um arquivo: sem reduce, `filter`, `opacity` e `transform` rodando no aviso; com reduce, `transition: none` e nenhuma animação.
+  - Controle, sem a correção e com o toque a cada segundo, `--repeat-each=2`: 2 de 2 falharam (16 e 20 problemas, todos "running animations with reduce").
+  - Com a correção: `--repeat-each=6` 6 de 6 com `0 problems`; com o toque a cada segundo, `--repeat-each=6` 6 de 6 com `0 problems`.
+  - Build (`E2E_BUILD=1`), `--repeat-each=2`: 2 de 2 com `0 problems`; no build o aviso nem existe (`withDevTools` só fora de `production`). A primeira tentativa travou no cadastro com `ZodError`: com `EXPO_NO_DOTENV` o build só lê `.env.development.local`, que não tem `EXPO_PUBLIC_APP_NAME` nem `EXPO_PUBLIC_APP_SCHEME`; passados no shell, rodou.
+  - `pnpm check` passou.
+- **Não verificado:** nativo (o aviso nativo é outro, do React Native); CI no Linux; Windows com `fsutil behavior set disablelastaccess 1`, que tiraria as mudanças falsas do Metro (configuração da máquina, não do repositório). Hora pela hora local do Git Bash (PowerShell barrado).
+- **Pendências / próximos passos:** o aviso falso de "Refreshing..." no Windows continua no dev (sem efeito no produto); se incomodar, o humano pode desligar a atualização do último acesso no NTFS.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 12:18 (BRT)
+
+- **Branch:** fix/e2e-build-public-env (a partir de `feat/backlog-after-phase-8`, `9ba9d1a`)
+- **Agente(s):** arquiteto
+- **Resumo:** Com `E2E_BUILD=1`, o build passa a receber `EXPO_PUBLIC_APP_NAME`, `EXPO_PUBLIC_APP_SCHEME` e `EXPO_PUBLIC_VAPID_PUBLIC_KEY` de `apps/app/.env.example` quando o shell e `.env.development.local` não os têm. Fecha a pendência da entrada de 11:57 (`ZodError` no cadastro).
+- **Alterações:**
+  - `playwright.config.ts`, só no modo build: camada mais baixa é `.env.example` sem as chaves `EXPO_PUBLIC_SUPABASE_*` (os placeholders dele apontariam para o projeto hospedado), depois `.env.development.local`, depois o shell. A checagem da URL local segue igual; nova checagem para a ausência de `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, com erro claro antes do build. O modo padrão (`pnpm dev`) não mudou.
+- **Arquivos/módulos principais:** `playwright.config.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma
+- **Como testar:** sem pilha, `E2E_BUILD=1 pnpm exec playwright test --list` (sem env: erro da URL; só com a URL local: erro da chave; com as duas: lista os 98 testes). Com a pilha, `E2E_BUILD=1 pnpm e2e`.
+- **Verificado:** os três casos de `--list` acima; o modo padrão lista os 98 testes; script avulso (não versionado) importou o `playwright.config.ts` com um `.env.development.local` temporário só com as duas chaves do Supabase e passou `webServer.env` por `parseClientEnv`: válido, `Azkaban`/`azkaban`, `EXPO_NO_DOTENV=1`. `pnpm check` passou.
+- **Não verificado:** o build e a suíte de fato (`pnpm build:web` + E2E), por não haver pilha livre. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 12:39 (BRT)
+
+- **Branch:** fix/vitest-cache-per-package (a partir de `feat/backlog-after-phase-8`, `3e97da4`)
+- **Agente(s):** arquiteto
+- **Resumo:** Cada pacote passa a usar o próprio cache de módulos do vitest. Corrige a falha intermitente `ENOTEMPTY: directory not empty, rmdir '<repo>\node_modules\.vitest-cache'` em `turbo run test --force`.
+- **Alterações:**
+  - Causa: o `fsModuleCache` do vitest 5 vem ligado por padrão e, sem `fsModuleCachePath`, grava em `join(searchForWorkspaceRoot(root), "node_modules", ".vitest-cache")`, ou seja, na raiz do workspace (não tem a ver com o `nodeLinker: hoisted`). Os 13 vitest que o turbo roda em paralelo dividiam esse diretório, e um o apagava enquanto outro escrevia.
+  - O script `test` dos 13 pacotes virou `vitest run --fsModuleCachePath node_modules/.vitest-cache`; o caminho é resolvido a partir da raiz do pacote. O `.gitignore` já cobre (`node_modules/` em qualquer nível).
+- **Arquivos/módulos principais:** `package.json` de `apps/app`, `packages/{config,contracts,core,data,platform,ui}` e `packages/features/{auth,gamification,notifications,proof,shopping,tasks}`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma
+- **Como testar:** `pnpm exec turbo run test --force` repetido; o cache fica em `<pacote>/node_modules/.vitest-cache`, e a raiz não ganha `node_modules/.vitest-cache`.
+- **Verificado:** com o `.vitest-cache` da raiz apagado, `pnpm exec turbo run test --force` três vezes seguidas, 13/13 em todas; os 13 caches criados por pacote, nenhum na raiz. `pnpm check` passou.
+- **Não verificado:** a falha original não foi reproduzida antes da correção (é intermitente); a correção vem da leitura do código do vitest (`FileSystemModuleCache`). Uso direto de `pnpm --filter <pacote> exec vitest run` (sem o script) continua usando o cache da raiz, o que só importa se rodar em paralelo. CI no Linux. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 12:42 (BRT)
+
+- **Branch:** feat/backlog-after-phase-8 (a partir de `feat/phase-8-polish`, `c74cce6`)
+- **Agente(s):** orquestrador
+- **Resumo:** fecha o backlog pós-Fase 8 dentro dos limites: BL-1 a BL-23 feitos e integrados, correções da revisão de segurança (BL23-1, 2 no nativo, 4 e 5) e três problemas antigos que a E2E expôs. BL-24 a BL-38 ficam bloqueados por decisão do humano.
+- **Alterações:**
+  - `docs/agentes/QUADRO.md`: BL-1 a BL-23 passam a feito; nova linha BL-38 (login CSRF no web, decisão PKCE ou A', ADR-0004).
+  - Integrados, além dos BL: modo `E2E_BUILD=1` com env público completo, cache de módulos do vitest por pacote (corrida `ENOTEMPTY` no turbo), aviso de Fast Refresh do Expo parado com movimento reduzido (a intermitência da a11y desde a Fase 8), "Nova tarefa" espera os contextos, timeouts de ação e navegação no Playwright.
+- **Arquivos/módulos principais:** `docs/agentes/QUADRO.md`, `LOG_DE_ALTERACOES.md`.
+- **Migrations:** nenhuma neste bloco (as do backlog são `20261105100000` a `20261105120200`, do banco-de-dados).
+- **Decisões/ADRs:** ADR-0004 ganhou a seção do login CSRF (proposta, à espera do humano); ADR-0012 §3, §11 e §18 atualizados pelo arquiteto.
+- **Como testar:** `docs/agentes/ferramentas/verificar-fase.sh` com `EXPO_PUBLIC_VAPID_PUBLIC_KEY` gerada em memória e `NATIVE_PUSH_PROVIDER=fake` no `supabase/functions/.env` local; `pnpm bundle:size`; `pnpm expo:doctor`.
+- **Verificado:** em `9ba9d1a`, banco limpo: db:test 1957/1957 antes e depois da E2E, db:check-permissions, lint, fronteiras, build:web, functions:test 225/225, E2E 97 passaram e 1 pulado nas duas rodadas, bundle 403 564 B (teto 427 641), expo-doctor 20/20. O passo typecheck+test caiu por `ENOTEMPTY` no cache compartilhado do vitest; repetido passou (30/30) e a causa foi corrigida em `eabd6f6`; depois disso `turbo run typecheck test --force` e `pnpm check` passaram em `6eea146`.
+- **Não verificado:** nativo (deep link, NetInfo, haptics, push nativo, token Expo), API real da Expo, CI no Linux, hospedado. A E2E completa não foi repetida depois de `9ba9d1a` (as mudanças seguintes são do modo build da E2E e do script de teste).
+- **Pendências / próximos passos:** PR do backlog para `feat/phase-8-polish`; respostas do humano em BL-24 a BL-38.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 13:18 (BRT)
+
+- **Branch:** fix/ci-shopping-offline-queue (a partir de `feat/backlog-after-phase-8`, `7599d7f`)
+- **Agente(s):** qa-testes
+- **Resumo:** a falha do CI em `e2e/shopping.spec.ts:219` (run 41666765649, `waitForResponse` de `adjust_shopping_item_quantity` estourando 30 s) vem do limite de ação, não do produto. A espera começa antes do `goto` da aba nova e cobre todo o arranque a frio dela; agora tem `timeout: 60_000`, o mesmo da navegação. A espera gêmea em `e2e/offline-queue.spec.ts` recebeu o mesmo limite.
+- **Alterações:**
+  - Evidência: o CI não guardou trace (o job não sobe `test-results/`; handoff para o arquiteto). Medido localmente, a RPC sai entre 0,5 e 0,9 s depois do `newPage`, também com 4 workers e as specs pesadas (performance, proof-capture, a11y) rodando em paralelo. Com a CPU da aba nova a 20x (`Emulation.setCPUThrottlingRate`), o `load` chega em ~18 s, o `goto` termina em ~21 s e a RPC sai entre 31 e 34 s: 4/4 caíram com o mesmo `TimeoutError` do CI. Com `timeout: 60_000`, a espera passou nas 4 (33 a 43 s). A 20x, o resto do teste ainda estoura os 15 s do `expect`, o que é esperado com essa lentidão.
+  - Sem regressão: entre `9ba9d1a` e `7599d7f` só mudaram a config do modo build e os scripts do vitest. O `actionTimeout` (`6dd6224`) já estava em `9ba9d1a`, então as duas rodadas locais de lá já passaram com o limite de 30 s, numa máquina rápida. BL-17 (`network.web.ts`) e BL-10 (`functionRetryFetch`, que só repete `/functions/v1/`) não tocam no envio da fila.
+- **Arquivos/módulos principais:** `e2e/shopping.spec.ts`, `e2e/offline-queue.spec.ts`, `docs/agentes/handoffs/20261103-1318-qa-testes-para-arquiteto-traces-da-e2e-no-ci.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma; o `actionTimeout` global continua em 30 s, como pede o comentário da config.
+- **Como testar:** `pnpm exec playwright test e2e/shopping.spec.ts:219 e2e/offline-queue.spec.ts --no-deps --repeat-each=5`.
+- **Verificado:** o comando acima, 15/15 passaram; as rodadas com sonda de tempo e CPU lenta descritas acima (sonda removida antes do commit). `pnpm check` passou.
+- **Não verificado:** a linha do tempo real do CI (sem trace), então não está provado que o atraso lá ficou entre 30 e 60 s em vez de uma parada; se voltar a falhar com 60 s, é parada, e o trace pedido no handoff vai mostrar onde. CI no Linux. Suíte E2E completa. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** handoff do upload de traces no CI para o arquiteto.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 13:21 (BRT)
+
+- **Branch:** ci/e2e-traces (a partir de `feat/backlog-after-phase-8`, `ed54cd2`)
+- **Agente(s):** arquiteto
+- **Resumo:** atende o handoff `20261103-1318-qa-testes-para-arquiteto-traces-da-e2e-no-ci.md`: o job `database-and-e2e` passa a subir os traces da E2E quando falha.
+- **Alterações:**
+  - `.github/workflows/ci.yml`: depois de `pnpm e2e`, `actions/upload-artifact@v4` com `if: failure()`, artefato `e2e-test-results` com `test-results/` e `playwright-report/`, `if-no-files-found: ignore`, `retention-days: 7`. Tag maior `@v4`, a mesma convenção das outras actions do workflow.
+  - Conteúdo: os traces têm só usuários de teste da pilha local e as chaves demo que o workflow já expõe; arquivos ocultos (`.env*`) ficam fora, porque `include-hidden-files` é falso por padrão. Sem segredo novo. Não há reporter HTML configurado, então `playwright-report/` só aparece se um for adicionado.
+- **Arquivos/módulos principais:** `.github/workflows/ci.yml`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma
+- **Como testar:** PR de rascunho com uma spec que falha de propósito; o run lista o artefato e `gh run download <id>` traz `trace.zip` e `error-context.md`.
+- **Verificado:** `pnpm check` passou.
+- **Não verificado:** o passo no CI (sem push, sem PR de rascunho). Fixar as actions por SHA fica para uma mudança do workflow inteiro. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** o PR de rascunho do "Como testar".

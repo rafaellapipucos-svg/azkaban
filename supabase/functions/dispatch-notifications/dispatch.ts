@@ -8,7 +8,16 @@ import type {
 } from '../../../packages/contracts/src/whatsapp.ts';
 import type { WhatsAppProvider } from '../_shared/whatsapp/provider.ts';
 
-export type Subscription = { id: string; endpoint: string; p256dh: string; auth: string };
+export type WebSubscription = {
+  id: string;
+  kind: 'web';
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+};
+/** A device of the app (ADR-0012, section 11): the token is a capability, never logged. */
+export type ExpoSubscription = { id: string; kind: 'expo'; expoToken: string };
+export type Subscription = WebSubscription | ExpoSubscription;
 
 /** One claimed outbox row, as `claim_notification_batch` returns it, after validation. */
 export type OutboundMessage = {
@@ -24,7 +33,7 @@ export type OutboundMessage = {
   /** Already counts this attempt. */
   attempts: number;
   scheduledFor: string;
-  /** Empty outside `web_push`. */
+  /** Empty outside `web_push`. Both kinds go by `web_push`, with one outbox row. */
   subscriptions: Subscription[];
   /** The profile's zone, and the occurrence as it is now (ADR-0009, section 9). */
   timezone: string;

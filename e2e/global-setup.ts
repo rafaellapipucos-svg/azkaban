@@ -9,7 +9,10 @@ import { readFileSync } from 'node:fs';
 // is reading. They stay off for the run;
 // `notifications-jobs.spec.ts` calls the first two directly, last (see the projects in
 // playwright.config.ts), and `whatsapp.spec.ts` calls the summary job for its own profile.
-// ponytail: a run killed before the teardown leaves them off until the next run or `supabase db reset`.
+// They come back on in the teardown, which Playwright runs after failures and after a Ctrl+C, and
+// again on the process's `exit` and on SIGTERM/SIGHUP/SIGBREAK (a closed terminal, a CI cancel).
+// ponytail: a kill no handler sees (`taskkill /F`, power loss) still leaves them off until the next
+// run's teardown or `supabase db reset`.
 const JOBS = [
   'enqueue-due-reminders',
   'auto-miss-occurrences',
@@ -37,8 +40,32 @@ function assertStackA() {
 
 export default function globalSetup() {
   assertStackA();
-  setJobs(false);
-  return () => {
+  let off = true;
+  const restore = () => {
+    if (!off) return;
+    off = false;
     setJobs(true);
   };
+  // `exit` listeners must be synchronous, as `execSync` is; there the error can only be logged.
+  process.once('exit', () => {
+    try {
+      restore();
+    } catch (error) {
+      console.error('global-setup: could not switch the cron jobs back on', error);
+    }
+  });
+  // These end the process without `exit` unless someone listens: switch back on, then end it as a
+  // failed run (Windows cannot re-raise them). SIGINT stays with Playwright, which stops the run and
+  // calls the teardown below.
+  for (const signal of ['SIGTERM', 'SIGHUP', 'SIGBREAK'] as const) {
+    process.once(signal, () => {
+      try {
+        restore();
+      } finally {
+        process.exit(1);
+      }
+    });
+  }
+  setJobs(false);
+  return restore;
 }

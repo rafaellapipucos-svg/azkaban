@@ -31,6 +31,15 @@
         height: 100%;
         flex: 1;
       }
+      /* Expo's dev-only Fast Refresh toast (DevLoadingView.web) fades, blurs and slides even with
+         reduce. On Windows a plain read of node_modules counts as a change to Metro, so it shows up
+         in the middle of the E2E (a11y.spec.ts, "running animations with reduce"). `html` outweighs
+         its own rule, which comes later in the page. */
+      @media (prefers-reduced-motion: reduce) {
+        html .__expo_fast_refresh {
+          transition: none;
+        }
+      }
     </style>
   </head>
 

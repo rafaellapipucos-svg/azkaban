@@ -93,6 +93,14 @@ O arquivo não é guardado em lugar nenhum. Log: só o resultado e o código de 
 
 Falha no meio: 500 `delete_failed`. Repetir é seguro, porque cada passo pula o que já sumiu. Se a função morrer depois do passo 2, as linhas apontam para objetos que não existem, e `proof-url` responde como foto apagada; se morrer antes do passo 4, a conta continua, e a pessoa tenta de novo. A limpeza de órfãos de `proof-retention` cobre o objeto que escapar, em 24 horas.
 
+**Prazo da linha aberta (SEG8-2P-3, decidido em 2026-11-03 no backlog pós-Fase 8).** A linha aberta de `account_deletions` (`completed_at` nulo) faz `accept_invite` recusar os convites dos grupos do dono (SEG8-3), para um membro não entrar entre o `begin` e o `finish`. Sem prazo, uma exclusão interrompida e nunca repetida travaria esses convites para sempre. Regra:
+
+- `accept_invite` só considera a linha aberta com `requested_at` dentro de `privacyRules.openDeletionHoldMinutes` (30), lido de `app_settings.privacy_rules` (espelho de `packages/config/src/limits.ts`). Mais velha, o convite segue o caminho normal.
+- `begin_account_deletion` grava `requested_at = now()` também quando reaproveita a linha aberta (`on conflict ... do update`), então cada tentativa renova o prazo. `requested_at` passa a ser o início da última tentativa; a auditoria não precisa da primeira, e a poda de 365 dias continua por ele.
+- **Por que 30 minutos bastam:** uma Edge Function para em no máximo 400 s de relógio, então nenhuma execução de `account-delete` vive mais que o prazo; passado ele, quem deixou a linha já morreu. E se um membro entrar depois do prazo, a próxima tentativa recebe 409 `owns_groups` no `begin` (ou no `finish`, que confere de novo), antes de apagar qualquer objeto do Storage desse grupo.
+- **Consequência:** só a própria conta que pediu a exclusão fica até 30 minutos sem receber membros novos nos grupos dela; antes, ficava sem prazo.
+- **Dono:** `banco-de-dados` (BL-12): migration na faixa `20261105120000`+ com a chave `privacy_rules`, as duas funções, a comparação de `privacyRules` em `scripts/check-permission-mirror.mjs` e o pgTAP (linha velha deixa entrar; linha nova recusa; o `begin` repetido renova).
+
 **O passo 3 existe por causa do SEG-7 do ADR-0007:** a prova superada de uma ocorrência que passou a outra pessoa tem `user_id` com `on delete set null` e sobreviveria à cascata.
 
 **O que a cascata apaga** (tudo por `user_id`, `assignee_id` ou `owner_user_id`): perfil, aceites, participações, contextos pessoais, tarefas e ocorrências atribuídas a ela (inclusive em grupos, com o histórico e as provas delas), XP e as três tabelas da Fase 6, sino, preferências, inscrições de push, outbox, mensagens do WhatsApp, listas e catálogo pessoais, contadores de limite e pedidos já aplicados.
@@ -104,11 +112,13 @@ Falha no meio: 500 `delete_failed`. Repetir é seguro, porque cada passo pula o 
 | Tarefas que ela criou para outras pessoas                   | `created_by` nulo                                            | São o trabalho de outra pessoa                                                                             |
 | Histórico de status e rastro de regras em tarefas de outros | `changed_by` nulo                                            | É o registro da tarefa de outra pessoa (ADR-0005)                                                          |
 | Decisão e nota das provas de outros que ela revisou         | `reviewed_by` nulo                                           | A prova é de outra pessoa; a decisão sustenta o verde ou o vermelho dela                                   |
-| Listas e itens de grupo                                     | `created_by`, `completed_by`, `added_by`, `checked_by` nulos | A lista é do grupo; a tela já mostra "conta excluída" (ADR-0011)                                           |
+| Listas e itens de grupo                                     | `created_by`, `completed_by`, `added_by`, `checked_by` nulos | A lista é do grupo; a tela já mostra "ex-membro" (ADR-0011)                                                |
 | Convites que ela criou, e quem convidou                     | `created_by`, `invited_by` nulos                             | O convite é do grupo; excluir a conta equivale a sair, e sair não cancela convites (ADR-0004)              |
 | `phone_verifications`                                       | `user_id` nulo, até 48 horas                                 | O limite por número precisa sobreviver (ADR-0009, SEG5-4)                                                  |
 | `account_deletions`                                         | `user_id` sem chave, 365 dias                                | Responder "minha conta foi excluída?" e auditar a operação. O UUID não liga a mais nada depois da exclusão |
-| Ids em `notifications.data` de outras pessoas               | Id solto, até 30 dias                                        | O sino de outra pessoa; o nome some, e a tela mostra "conta excluída"                                      |
+| Ids em `notifications.data` de outras pessoas               | Id solto, até 30 dias                                        | O sino de outra pessoa; o nome some, e a tela mostra "ex-membro" (abaixo)                                  |
+
+**"Ex-membro", não "conta excluída" (BL-8, 2026-11-03).** Quando quem agiu não tem mais nome, o sino mostra "ex-membro", o mesmo texto de compras. O cliente não distingue quem saiu do grupo de quem excluiu a conta: nos dois casos, a RLS deixa de mostrar o perfil e sobra só o id. Escrever "conta excluída" afirmaria algo que o app não sabe, e diria a outros membros que uma pessoa que só saiu do grupo apagou a conta.
 
 **Fora do alcance do app, e dito na política:** os logs da plataforma (API, Auth e funções, com IP, pelo prazo do plano), `auth.audit_log_entries` se a função não puder apagá-las (o `banco-de-dados` confere se guardam e-mail ou IP e se `service_role` as apaga), e cópias de backup até vencerem.
 
@@ -314,6 +324,18 @@ O texto cobre, no mínimo, o que os ADRs pediram:
 - **Push nativo:** adapter `push.native.ts` com `expo-notifications` e um `NativePushChannel` no despacho, pela API de push da Expo, atrás de uma flag em `features`, com provedor falso nos testes das funções. `push_subscriptions` ganha o tipo de inscrição numa migration quando o canal entrar.
 - `expo-haptics` e o som no nativo (ADR-0010, seção 8), `@react-native-community/netinfo` para a fila (seção 5).
 
+**Contrato do push nativo (BL-1, 2026-11-03).** Em `packages/contracts/src/notifications.ts`:
+
+- **Mesmo canal.** O push nativo não é um `deliveryChannel` novo: vai pelo `web_push`, com a mesma preferência e a mesma linha de outbox. O despacho manda cada notificação a todas as inscrições do usuário, dos dois tipos. Um canal novo pediria migration do enum, preferências e textos novos para a mesma escolha da pessoa ("push neste aparelho").
+- **Tipo da inscrição:** `pushSubscriptionKindSchema` (`web` ou `expo`), coluna `kind` de `push_subscriptions`. `web` tem `endpoint`, `p256dh` e `auth`; `expo` tem só o token. Um `check` no banco amarra cada tipo às suas colunas.
+- **Token:** `expoPushTokenSchema`, `ExponentPushToken[...]` ou `ExpoPushToken[...]`, só `[A-Za-z0-9_-]` entre colchetes, até 256 caracteres. O UUID solto antigo fica de fora: `getExpoPushTokenAsync` não o devolve. É capacidade como o endpoint: nunca vai a log nem volta ao cliente (`pushDeviceSchema` não muda).
+- **Registro:** RPC irmã `register_native_push_subscription(p_token, p_user_agent)`, argumento em `nativePushSubscriptionInputSchema`. A RPC web não muda de assinatura. Upsert pelo token (o aparelho que troca de conta passa à nova, como o navegador), e `maxPushSubscriptionsPerUser` conta os dois tipos juntos. Não há lista de hosts: o despacho só fala com a API de push da Expo. Token inválido: `invalid_push_subscription`, como na web.
+- **Mensagem:** `nativePushMessageSchema`, o que o despacho manda à API da Expo: `to`, `title` e `body` do Web Push, `data` em `nativePushDataSchema` (`v`, `notificationId`, `type` e `url`, recortados de `pushPayloadSchema`, então o `url` é o mesmo `internalPathSchema`), `channelId` igual a `nativePushAndroidChannelId` (`default`, o canal que `nativePushToken` cria) e `ttl` de `notificationRules.pushTtlSeconds`. A Expo não tem `tag`. A maior mensagem cabe em `pushPayloadMaxBytes`, abaixo dos 4096 bytes da Expo (teste no contrato).
+- **Resposta da Expo:** `DeviceNotRegistered` no ticket ou no recibo apaga a inscrição, como 404 e 410 na web; os outros erros seguem a classificação de repetição do despacho. O formato da resposta da Expo fica com o `backend-funcoes`, que o valida dentro da função.
+- **Donos:** `banco-de-dados` (BL-5, faixa `20261105100000`+), `backend-funcoes` (BL-14, `NativePushChannel` com provedor falso, sem chamar a Expo nos testes), `notificacoes-whatsapp` (BL-19, `nativePushToken` em `enableThisDevice` e `nativePushAndroidChannelId` no adapter). `features.nativePush` só liga com as contas do BL-29.
+
+**URL da API da Expo e segredos (BL-14, 2026-11-03).** `EXPO_PUSH_URL` fica como constante em `supabase/functions/dispatch-notifications/native-push.ts`, e não vai para `packages/config`. É o endereço de um serviço externo que não muda por ambiente, por grupo nem por decisão de produto, e só a função o usa; os testes já a importam de lá. Config para valor que nunca muda é indireção sem dono. `graphApiBaseUrl` está em `whatsappDefaults` por outro motivo: o provedor da Meta recebe a base por opção, e a versão da Graph API muda com o tempo. Se um dia a Expo versionar a URL ou houver um proxy por ambiente, a URL vira opção do `NativePushChannel` e então vai para `packages/config`. Os segredos `NATIVE_PUSH_PROVIDER` (desde o BL23-1, 2026-11-03, vazio ou ausente é "não configurado", e `fake` só quando escrito, na pilha local, porque marca como entregue o que não saiu) e `EXPO_ACCESS_TOKEN` ficam só nos segredos das Edge Functions, documentados em `docs/implantacao.md`, seção 2; `expo` só com as contas do BL-29.
+
 **Fica para o humano**, porque exige conta, aparelho ou dinheiro:
 
 | Item                                                | Exige                                                    | Custo                          |
@@ -375,6 +397,7 @@ As três primeiras podem rodar em ramos separados; só a de F8-3 depende de outr
 - `packages/contracts/src/shopping.ts`: `requestId` opcional nos dois ramos de `shoppingQuantityAdjustSchema`.
 - `packages/config/src/limits.ts` (novo): `rateLimitRules` (espelho em `app_settings.rate_limit_rules`; `pnpm db:check-permissions` acusa a chave até a migration), `offlineDefaults` (só do cliente) e `privacyDefaults` (só das funções).
 - `packages/config/src/defaults.ts`: `currentUserStaleMs` (seção 10, QA8-3).
+- Backlog pós-Fase 8 (2026-11-03): `pushSubscriptionKindSchema`, `expoPushTokenSchema`, `nativePushSubscriptionInputSchema`, `nativePushAndroidChannelId`, `nativePushDataSchema` e `nativePushMessageSchema` em `notifications.ts` (seção 11); `privacyRules.openDeletionHoldMinutes` em `limits.ts`, com espelho em `app_settings.privacy_rules` (seção 3); `defaults.functionRetryDelaysMs` (seção 18); `WHATSAPP_PHONE_NUMBER_ID` opcional no ramo `console` de `whatsappEnvSchema`, para as funções lerem o número pelo `parseWhatsAppEnv` e não por `Deno.env` (um valor malformado deixa o WhatsApp "não configurado", como no `meta`).
 
 ### 16. Divisão do trabalho
 
@@ -386,7 +409,7 @@ As três primeiras podem rodar em ramos separados; só a de F8-3 depende de outr
 | `tarefas-calendario`    | F8-5: persister, chaves de mutação, `setMutationDefaults`, retomada, descarte, aviso de pendências, sair com pendências; status na fila; `rate_limited` em tarefas                                                                                                                                                                                            | Desde já                                                        |
 | `compras`               | `requestId` no repositório, item avulso com id do cliente, stepper e marcar pela fila, finalizar desligado sem rede, `rate_limited` ao criar lista                                                                                                                                                                                                            | A parte de F8-5 de `tarefas-calendario`; a migration do stepper |
 | `design-system`         | F8-6, contraste dos tokens, reduzir movimento em todo componente animado, aviso de pendências e de descarte como componentes, arte de ícone e splash                                                                                                                                                                                                          | Desde já                                                        |
-| `notificacoes-whatsapp` | F8-7 (config nativa, deep link de sessão, push nativo atrás de flag, haptics, NetInfo), CSP Report-Only, "conta excluída" no sino                                                                                                                                                                                                                             | Desde já; a CSP valendo depende de F8-8                         |
+| `notificacoes-whatsapp` | F8-7 (config nativa, deep link de sessão, push nativo atrás de flag, haptics, NetInfo), CSP Report-Only, "ex-membro" no sino                                                                                                                                                                                                                                  | Desde já; a CSP valendo depende de F8-8                         |
 | `qa-testes`             | F8-1 (axe, reduzir movimento, teclado, zoom), F8-2 (E2E completo), as metas medidas de F8-6, E2E de exportar, excluir e fila offline (`context.setOffline`)                                                                                                                                                                                                   | Cada entrega                                                    |
 
 `revisor-seguranca` revê ao fim de F8-3 e F8-4: `service_role` só nas funções certas, a exclusão por outra pessoa (JWT de A, conta de B), a prévia sem vazar grupos alheios, a exportação sem dados de outros, e a recusa de `consume_rate_limit` ao cliente.
@@ -407,6 +430,22 @@ As três primeiras podem rodar em ramos separados; só a de F8-3 depende de outr
 12. **Contas de loja e de push** da tabela da seção 11, e o identificador do app.
 13. **CAPTCHA** desligado até haver abuso de cadastro.
 14. **Leitor de tela real** no percurso curto da seção 9, se ninguém da equipe tiver um.
+
+### 18. Repetição em 503 das Edge Functions (BL-3, 2026-11-03)
+
+O Edge Runtime local, sob carga, responde 503 quando o worker da função não sobe a tempo (LOG de 2026-11-01 21:51 e de 2026-11-03 06:12, em `proof-validate`); no hospedado, 503 é a função que não iniciou. Nas duas, o código da função não rodou.
+
+**A garantia:** nenhuma Edge Function do projeto responde 503. Todas respondem pelos próprios códigos (400, 401, 403, 409, 429, 500), e nenhuma repassa ao cliente o status de um serviço de fora (o 503 da Meta ou de um serviço de push vira classificação interna de repetição no despacho). Então, para o cliente, **503 de `/functions/v1/` quer dizer que nada aconteceu**, e mandar de novo é seguro para qualquer função, idempotente ou não. Quem precisar de "indisponível" numa função nova usa outro código; um teste das funções barra o literal (BL-14).
+
+**A regra do cliente:**
+
+- Um ponto só: o `fetch` passado ao `createClient` em `packages/data/src/client.ts` (`global.fetch`). Nenhum repositório repete por conta própria.
+- Só URLs que começam com `<EXPO_PUBLIC_SUPABASE_URL>/functions/v1/`. REST, Auth, Storage e Realtime ficam como estão; `detectSessionInUrl` não muda.
+- Só o status 503. 500, 502, 504, 546 (limite de recurso, a função pode ter rodado em parte), 429 e erro de rede voltam como vieram.
+- Espera cada valor de `defaults.functionRetryDelaysMs` (500 e 1500 ms) antes de mandar de novo: no máximo 2 repetições e 2 s a mais. Depois, devolve o último 503, e o repositório mostra a falha de sempre. Não lê `Retry-After`.
+- Manda o mesmo pedido: método, cabeçalhos e corpo. Corpo que não se lê duas vezes (`ReadableStream`) não repete. Os do projeto são JSON, texto ou `ArrayBuffer` (a foto de `proof-validate`).
+- Um `AbortSignal` abortado durante a espera encerra sem mandar de novo.
+- **Dono:** `prova-foto` (BL-10), com teste de unidade de um `fetch` falso: repete o 503 de função, não repete o 503 de REST nem o 500, para no limite, manda o mesmo corpo.
 
 ## Alternativas
 

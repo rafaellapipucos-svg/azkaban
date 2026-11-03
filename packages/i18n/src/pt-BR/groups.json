@@ -47,13 +47,17 @@
     "copied": "Link copiado.",
     "qrLabel": "QR code do convite",
     "revoke": "Cancelar convite",
-    "revokeConfirm": "Confirmar cancelamento"
+    "revokeConfirm": "Confirmar cancelamento",
+    "rateLimited": "Você criou muitos convites em pouco tempo. Espere um pouco e tente de novo."
   },
   "join": {
     "title": "Convite",
     "description": "Você foi convidado para {{group}} como {{role}}.",
     "invalid": "Este convite não vale mais. Peça um novo a quem convidou você.",
     "rateLimited": "Foram muitas tentativas em pouco tempo. Espere um pouco e tente de novo.",
+    "network": "Sem conexão para abrir o convite. Confira a internet e tente de novo.",
+    "unavailable": "Não deu para abrir o convite agora: o serviço está fora do ar. Tente de novo em instantes.",
+    "retry": "Tentar de novo",
     "accept": "Aceitar",
     "decline": "Agora não",
     "signInFirst": "Entre na sua conta para aceitar o convite.",

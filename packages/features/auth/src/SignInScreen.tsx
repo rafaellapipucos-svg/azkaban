@@ -9,11 +9,13 @@ import { useMutation } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useForm } from 'react-hook-form';
 import { View } from 'react-native';
+import { failureKey } from './failureKey';
+import { expiredLinkParam, notRequestedLinkParam } from './useSessionFromLink';
 
 export function SignInScreen() {
   const { t } = useTranslation('auth');
   const router = useRouter();
-  const { next } = useLocalSearchParams<{ next?: string }>();
+  const { next, link } = useLocalSearchParams<{ next?: string; link?: string }>();
   const target = safeInternalPath(next);
   const { control, handleSubmit, getValues, trigger } = useForm<SignInInput>({
     resolver: zodResolver(signInSchema),
@@ -54,7 +56,15 @@ export function SignInScreen() {
         autoComplete="current-password"
         secureTextEntry
       />
-      {signIn.isError ? <ErrorText>{t('signIn.invalid')}</ErrorText> : null}
+      {link === expiredLinkParam && !magicLink.isSuccess ? (
+        <ErrorText>{t('signIn.linkExpired')}</ErrorText>
+      ) : null}
+      {link === notRequestedLinkParam && !magicLink.isSuccess ? (
+        <ErrorText>{t('signIn.linkNotRequested')}</ErrorText>
+      ) : null}
+      {signIn.isError ? (
+        <ErrorText>{t(failureKey(signIn.error, 'signIn.invalid'))}</ErrorText>
+      ) : null}
       <Button
         label={t('signIn.submit')}
         loading={signIn.isPending}
@@ -69,7 +79,9 @@ export function SignInScreen() {
         }}
       />
       {magicLink.isSuccess ? <Body>{t('signIn.magicLinkSent')}</Body> : null}
-      {magicLink.isError ? <ErrorText>{t('errors.generic')}</ErrorText> : null}
+      {magicLink.isError ? (
+        <ErrorText>{t(failureKey(magicLink.error, 'errors.generic'))}</ErrorText>
+      ) : null}
       <Button
         variant="secondary"
         label={t('signIn.createAccount')}

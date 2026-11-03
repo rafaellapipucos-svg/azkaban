@@ -127,6 +127,40 @@ test('invite flow keeps personal contexts private', async ({ browser }) => {
   await expect(memberPage.getByText('Este convite não vale mais.', { exact: false })).toBeVisible();
 });
 
+// BL-15: the invite preview names a server down and a missing connection, and offers to try again.
+// The route answers before the database, so no try spends the invite limit.
+test('the invite preview says when the server is down or the connection failed', async ({
+  page,
+}) => {
+  await page.goto('/sign-up');
+  await fillSignUp(page, newUser('Anfitria'));
+  await expect(button(page, 'Novo contexto')).toBeVisible();
+  await openGroups(page);
+  await button(page, 'Criar grupo').click();
+  await page.getByLabel('Nome do grupo').fill('Casa B');
+  await button(page, 'Criar grupo').click();
+  await button(page, 'Convidar membro').click();
+  const code = await page.getByRole('heading', { name: /^[A-Z2-9]{10}$/ }).innerText();
+
+  const preview = '**/rest/v1/rpc/get_invite_preview';
+  await page.route(preview, (route) =>
+    route.fulfill({ status: 502, contentType: 'text/plain', body: 'Bad Gateway' }),
+  );
+  await page.goto(`/join/${code}`);
+  await expect(
+    page.getByText(/^Não deu para abrir o convite agora: o serviço está fora do ar/),
+  ).toBeVisible();
+
+  await page.unroute(preview);
+  await page.route(preview, (route) => route.abort('internetdisconnected'));
+  await button(page, 'Tentar de novo').click();
+  await expect(page.getByText(/^Sem conexão para abrir o convite/)).toBeVisible();
+
+  await page.unroute(preview);
+  await button(page, 'Tentar de novo').click();
+  await expect(page.getByText('Você foi convidado para Casa B como Membro.')).toBeVisible();
+});
+
 test('magic link signs the user in', async ({ page, request }) => {
   const user = newUser('Link');
   await page.goto('/sign-in');

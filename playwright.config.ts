@@ -13,14 +13,21 @@ const baseURL = 'http://localhost:8091';
 // `E2E_BUILD=1`: the production build (`pnpm build:web`) served static by `e2e/serve-build.mjs`, where the goals
 // 2 to 4 of ADR-0012, section 10, count. `build:web` would read `.env.local`, which may point at the hosted
 // project: `EXPO_NO_DOTENV` turns Expo's `.env` loading off, and the build gets only the `EXPO_PUBLIC_*`
-// values of the shell, or else of `.env.development.local`. A Supabase URL that is not the local stack,
-// or none (a worktree has no `.env.development.local`), stops the run before it builds.
+// values of the shell, or else of `.env.development.local`, or else of `.env.example` (only the
+// non-Supabase ones: app name, scheme, VAPID), since `.env.development.local` holds just the two
+// Supabase values. A Supabase URL that is not the local stack, or none (a worktree has no
+// `.env.development.local`), stops the run before it builds.
 const build = process.env.E2E_BUILD === '1';
 const localEnv = 'apps/app/.env.development.local';
 const buildEnv: Record<string, string> = {};
 if (build) {
+  const example = Object.fromEntries(
+    Object.entries(parseEnv(readFileSync('apps/app/.env.example', 'utf8'))).filter(
+      ([key]) => !key.startsWith('EXPO_PUBLIC_SUPABASE_'),
+    ),
+  );
   const file = existsSync(localEnv) ? parseEnv(readFileSync(localEnv, 'utf8')) : {};
-  for (const [key, value] of Object.entries({ ...file, ...process.env })) {
+  for (const [key, value] of Object.entries({ ...example, ...file, ...process.env })) {
     if (key.startsWith('EXPO_PUBLIC_') && value !== undefined) buildEnv[key] = value;
   }
   const url = buildEnv.EXPO_PUBLIC_SUPABASE_URL;
@@ -31,6 +38,12 @@ if (build) {
         `(see apps/app/.env.example); got ${url ?? 'none'}`,
     );
   }
+  if (!buildEnv.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
+    throw new Error(
+      `E2E_BUILD=1 needs EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY of the local stack (\`supabase status\`), ` +
+        `in the shell or in ${localEnv}`,
+    );
+  }
   buildEnv.EXPO_NO_DOTENV = '1';
 }
 
@@ -38,11 +51,12 @@ export default defineConfig({
   testDir: './e2e',
   globalSetup: './e2e/global-setup.ts',
   // `notifications-jobs` calls the reminder and red jobs, which act on every row of the database, as
-  // a cron tick does: it runs after the rest, so it touches no other spec's task. A failure in `app`
-  // skips it (`--no-deps` runs it alone).
+  // a cron tick does: it runs after the rest, so it touches no other spec's task. As the teardown of
+  // `app`, and not a dependent, it still runs when `app` fails (BL-22). A teardown runs in full, so a
+  // run filtered by file runs it too: `--no-deps` leaves it out, and `--project=jobs` runs it alone.
   projects: [
-    { name: 'app', testIgnore: /notifications-jobs\.spec\.ts/ },
-    { name: 'jobs', testMatch: /notifications-jobs\.spec\.ts/, dependencies: ['app'] },
+    { name: 'app', testIgnore: /notifications-jobs\.spec\.ts/, teardown: 'jobs' },
+    { name: 'jobs', testMatch: /notifications-jobs\.spec\.ts/ },
   ],
   timeout: 90_000,
   // The local runtime kills a worker past 2 s of CPU, with a 546. At the default of half the cores
@@ -54,6 +68,14 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   use: {
     baseURL,
+    // Without these a stuck click waits out the whole test, 900 s in the a11y walk (BL-22). The action
+    // limit also bounds `waitForResponse` and `waitForEvent`: 30 s matches the longest wait the specs
+    // give a server answer (`proof-validate`, `answered` in the proof specs), with room over the 15 s of
+    // `expect`. Navigation waits for the `load` event, and in `pnpm dev` the first page of each worker
+    // waits for Metro to build the bundle, unmeasured but under the 90 s test limit that held so far: 60 s.
+    // A spec that needs more passes `timeout` on that call; do not raise these.
+    actionTimeout: 30_000,
+    navigationTimeout: 60_000,
     trace: 'retain-on-failure',
     // Every context starts as a device that already saw the push step after signing in (ADR-0012,
     // section 13, item 2), so it does not stand in front of Hoje; `push-setup.spec.ts` clears it.

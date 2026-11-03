@@ -48,8 +48,9 @@ export async function validSignature(
     false,
     ['verify'],
   );
-  // readLimited's bytes sit on a plain ArrayBuffer; the lib types only allow for a shared one.
-  return crypto.subtle.verify('HMAC', key, mac, raw as Uint8Array<ArrayBuffer>);
+  // readLimited's bytes sit on a plain ArrayBuffer. `BufferSource`, not `Uint8Array<ArrayBuffer>`: the
+  // TypeScript of the Edge Runtime's Deno (5.6) has no generic Uint8Array, the newer libs need the cast.
+  return crypto.subtle.verify('HMAC', key, mac, raw as BufferSource);
 }
 
 /**

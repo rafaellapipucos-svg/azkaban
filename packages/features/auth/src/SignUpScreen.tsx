@@ -9,6 +9,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useForm } from 'react-hook-form';
 import { View } from 'react-native';
+import { failureKey } from './failureKey';
 
 export function SignUpScreen() {
   const { t } = useTranslation('auth');
@@ -58,7 +59,9 @@ export function SignUpScreen() {
         autoComplete="new-password"
         secureTextEntry
       />
-      {signUp.isError ? <ErrorText>{t('errors.generic')}</ErrorText> : null}
+      {signUp.isError ? (
+        <ErrorText>{t(failureKey(signUp.error, 'errors.generic'))}</ErrorText>
+      ) : null}
       {signUp.data === false ? <Body>{t('signUp.confirmEmail')}</Body> : null}
       <Button
         label={t('signUp.submit')}

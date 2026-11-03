@@ -32,6 +32,14 @@ import {
   type VapidKeys,
 } from './web-push.ts';
 import { browser, decrypt, vapidPair, type Browser } from './test-kit.ts';
+import {
+  classifyTicket,
+  EXPO_PUSH_URL,
+  fakeExpoFetch,
+  NativePushChannel,
+  nativePushTransport,
+} from './native-push.ts';
+import type { NativePushMessage } from '../../../packages/contracts/src/notifications.ts';
 
 // Mirrors packages/config notificationDefaults and notificationRules, which Node cannot import
 // (extensionless imports). The function passes the real ones.
@@ -479,6 +487,197 @@ describe('WhatsApp channel', () => {
   });
 });
 
+describe('native push (ADR-0012, section 11)', () => {
+  const token = (id: string) => `ExponentPushToken[${id}]`;
+  const device = (id: string) => ({ id, kind: 'expo' as const, expoToken: token(id) });
+  // The function renders with nativePushMessageSchema, which Node cannot import; the shape is enough.
+  const render = (m: OutboundMessage, to: string) =>
+    ({
+      to,
+      title: m.taskTitle,
+      data: { notificationId: m.notificationId },
+    }) as unknown as NativePushMessage;
+  const tickets = (...data: unknown[]) => new Response(JSON.stringify({ data }), { status: 200 });
+
+  function nativeWith(answer: () => Promise<Response>, accessToken?: string) {
+    const requests: { url: string; init: RequestInit }[] = [];
+    const native = new NativePushChannel({
+      render,
+      accessToken,
+      timeoutMs: 1000,
+      fetch: (async (url: string, init: RequestInit) => {
+        requests.push({ url, init });
+        return answer();
+      }) as typeof fetch,
+    });
+    return { native, requests };
+  }
+
+  test('each ticket maps to a delivery; DeviceNotRegistered is gone', () => {
+    const error = (e?: string) => ({
+      status: 'error' as const,
+      details: e ? { error: e } : undefined,
+    });
+    assert.deepEqual(classifyTicket({ status: 'ok', id: 'x' }), { kind: 'sent' });
+    assert.deepEqual(classifyTicket(error('DeviceNotRegistered')), { kind: 'gone' });
+    assert.deepEqual(classifyTicket(error('MessageRateExceeded')), {
+      kind: 'retry',
+      code: 'expo_rate_limited',
+    });
+    assert.deepEqual(classifyTicket(error('MessageTooBig')), {
+      kind: 'failed',
+      code: 'expo_too_large',
+    });
+    assert.deepEqual(classifyTicket(error('InvalidCredentials')), {
+      kind: 'failed',
+      code: 'expo_credentials',
+    });
+    assert.deepEqual(classifyTicket(error()), { kind: 'failed', code: 'expo_error' });
+  });
+
+  test('one request for all the devices, to Expo, no redirect, the token only when configured', async () => {
+    const { native, requests } = nativeWith(async () =>
+      tickets({ status: 'ok', id: '1' }, { status: 'ok', id: '2' }),
+    );
+    const deliveries = await native.deliver(message([]), [device('a'), device('b')]);
+    assert.deepEqual(deliveries, [{ kind: 'sent' }, { kind: 'sent' }]);
+    assert.equal(requests.length, 1);
+    const [request] = requests;
+    assert.equal(request!.url, EXPO_PUSH_URL);
+    assert.equal(request!.init.method, 'POST');
+    assert.equal(request!.init.redirect, 'manual');
+    assert.equal((request!.init.headers as Record<string, string>).authorization, undefined);
+    assert.deepEqual(
+      JSON.parse(String(request!.init.body)).map((m: NativePushMessage) => m.to),
+      [token('a'), token('b')],
+    );
+    const secret = 'x'.repeat(40);
+    const withToken = nativeWith(async () => tickets({ status: 'ok', id: '1' }), secret);
+    await withToken.native.deliver(message([]), [device('a')]);
+    assert.equal(
+      (withToken.requests[0]!.init.headers as Record<string, string>).authorization,
+      `Bearer ${secret}`,
+    );
+  });
+
+  test('HTTP answers: 429 and 5xx retry, the rest fail, and a bad or short answer never retries', async () => {
+    const run = async (answer: () => Promise<Response>) =>
+      (await nativeWith(answer).native.deliver(message([]), [device('a')]))[0];
+    assert.deepEqual(
+      await run(async () => new Response(null, { status: 429, headers: { 'retry-after': '30' } })),
+      { kind: 'retry', code: 'expo_rate_limited', retryAfterSeconds: 30 },
+    );
+    assert.deepEqual(await run(async () => new Response(null, { status: 503 })), {
+      kind: 'retry',
+      code: 'expo_server_error',
+    });
+    assert.deepEqual(await run(async () => new Response(null, { status: 400 })), {
+      kind: 'failed',
+      code: 'expo_http_400',
+    });
+    assert.deepEqual(await run(async () => new Response(null, { status: 302 })), {
+      kind: 'failed',
+      code: 'expo_redirect',
+    });
+    assert.deepEqual(
+      await run(async () => {
+        throw new TypeError('fetch failed');
+      }),
+      { kind: 'retry', code: 'expo_network' },
+    );
+    for (const body of ['not json', '{"errors":[{"code":"X"}]}', '{"data":[]}']) {
+      assert.deepEqual(await run(async () => new Response(body, { status: 200 })), {
+        kind: 'failed',
+        code: 'expo_bad_response',
+      });
+    }
+  });
+
+  test('one browser and one device of the same user: neither failure stops the other', async () => {
+    const ua = await browser();
+    const gone = { status: 'error', details: { error: 'DeviceNotRegistered' } };
+    const ok = { status: 'ok', id: '1' };
+    const cases: [number, unknown, SendResult][] = [
+      [201, ok, { kind: 'sent', delivered: ['web', 'app'], gone: [] }],
+      [201, gone, { kind: 'sent', delivered: ['web'], gone: ['app'] }],
+      [410, ok, { kind: 'sent', delivered: ['app'], gone: ['web'] }],
+      [
+        500,
+        gone,
+        { kind: 'retry', code: 'push_server_error', retryAfterSeconds: undefined, gone: ['app'] },
+      ],
+    ];
+    for (const [status, ticket, expected] of cases) {
+      const { native } = nativeWith(async () => tickets(ticket));
+      const { channel, requests } = await channelWith(
+        async () => new Response(null, { status }),
+        native,
+      );
+      const result = await channel.send(message([subscription(ua, 'web'), device('app')]));
+      assert.deepEqual(result, expected, `${status} ${JSON.stringify(ticket)}`);
+      assert.equal(requests.length, 1, 'the browser got its own request');
+    }
+  });
+
+  test('without a native transport the devices retry, and the browsers still get theirs', async () => {
+    const ua = await browser();
+    const { channel } = await channelWith(async () => new Response(null, { status: 201 }), null);
+    assert.deepEqual(await channel.send(message([device('app')])), {
+      kind: 'retry',
+      code: 'native_push_not_configured',
+      retryAfterSeconds: undefined,
+      gone: [],
+    });
+    assert.deepEqual(await channel.send(message([subscription(ua, 'web'), device('app')])), {
+      kind: 'sent',
+      delivered: ['web'],
+      gone: [],
+    });
+  });
+
+  test('the transport: fake only when written, the real API only with expo and a token', () => {
+    const real = (async () => new Response(null)) as typeof fetch;
+    const logs: string[] = [];
+    const log = (line: string) => logs.push(line);
+    // BL23-1: absent or empty is not configured, never a silent fake.
+    assert.equal(nativePushTransport({}, real, log), null);
+    assert.equal(nativePushTransport({ NATIVE_PUSH_PROVIDER: '' }, real, log), null);
+    const fake = nativePushTransport({ NATIVE_PUSH_PROVIDER: 'fake' }, real, log)!;
+    assert.notEqual(fake.fetch, real);
+    assert.equal(fake.accessToken, undefined);
+    assert.equal(nativePushTransport({ NATIVE_PUSH_PROVIDER: 'expo' }, real, log), null);
+    assert.equal(
+      nativePushTransport({ NATIVE_PUSH_PROVIDER: 'expo', EXPO_ACCESS_TOKEN: 'short' }, real, log),
+      null,
+    );
+    assert.equal(nativePushTransport({ NATIVE_PUSH_PROVIDER: 'other' }, real, log), null);
+    assert.equal(nativePushTransport({ NATIVE_PUSH_PROVIDER: 'Fake' }, real, log), null);
+    assert.deepEqual(logs, Array(6).fill(JSON.stringify({ event: 'native_push_not_configured' })));
+    const secret = 'y'.repeat(40);
+    const chosen = nativePushTransport(
+      { NATIVE_PUSH_PROVIDER: 'expo', EXPO_ACCESS_TOKEN: secret },
+      real,
+      log,
+    )!;
+    assert.equal(chosen.fetch, real);
+    assert.equal(chosen.accessToken, secret);
+  });
+
+  test('the fake answers one ok per message and logs only how many', async () => {
+    const logs: string[] = [];
+    const native = new NativePushChannel({
+      render,
+      timeoutMs: 1000,
+      fetch: fakeExpoFetch((line) => logs.push(line)),
+    });
+    assert.deepEqual(await native.deliver(message([]), [device('a'), device('b')]), [
+      { kind: 'sent' },
+      { kind: 'sent' },
+    ]);
+    assert.deepEqual(logs, [JSON.stringify({ event: 'native_push_fake', messages: 2 })]);
+  });
+});
+
 describe('translate', () => {
   const messages = JSON.parse(
     readFileSync(
@@ -508,6 +707,7 @@ describe('translate', () => {
 function subscription(ua: Browser, id: string) {
   return {
     id,
+    kind: 'web' as const,
     endpoint: `https://fcm.googleapis.com/fcm/send/${id}`,
     p256dh: toBase64Url(ua.publicKey),
     auth: toBase64Url(ua.auth),
@@ -541,7 +741,10 @@ function message(
 }
 
 type Captured = { url: string; init: RequestInit; body: Uint8Array };
-async function channelWith(answer: (url: string) => Promise<Response>) {
+async function channelWith(
+  answer: (url: string) => Promise<Response>,
+  native?: NativePushChannel | null,
+) {
   const pair = await vapidPair();
   const vapid: VapidKeys = (await loadVapid(pair.d, pair.publicKey, 'mailto:ops@example.com'))!;
   const requests: Captured[] = [];
@@ -553,6 +756,7 @@ async function channelWith(answer: (url: string) => Promise<Response>) {
     ttl,
     timeoutMs: 1000,
     now: () => state.now,
+    native,
     fetch: (async (url: string, init: RequestInit) => {
       requests.push({ url, init, body: init.body as Uint8Array });
       return answer(url);

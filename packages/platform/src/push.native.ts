@@ -2,21 +2,57 @@ import { features } from '@azkaban/config';
 import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import type { PushPermission, PushSubscriptionData, PushSupport } from './push';
+import type {
+  AndroidPushChannel,
+  NativePushTokenData,
+  PushPermission,
+  PushSubscriptionData,
+  PushSupport,
+} from './push';
 
-export type { PushPermission, PushSubscriptionData, PushSupport } from './push';
+export type {
+  AndroidPushChannel,
+  NativePushTokenData,
+  PushPermission,
+  PushSubscriptionData,
+  PushSupport,
+} from './push';
 
 /**
- * Native push (ADR-0012, section 11), behind `features.nativePush`. There is no Web Push here, so the
- * Web Push functions answer "unsupported"; the device is reached by its Expo token instead, which
- * the server can only store once `push_subscriptions` has a kind (backend-funcoes, banco-de-dados).
+ * Native push (ADR-0012, section 11), behind `features.nativePush`. There is no Web Push here: the
+ * device is reached by its Expo token, from `nativePushToken`. The Web Push functions answer null.
  */
+const projectId = () =>
+  (Constants.expoConfig?.extra?.eas as { projectId?: string } | undefined)?.projectId;
+
+const fromStatus = (status: Notifications.PermissionStatus): PushPermission =>
+  status === Notifications.PermissionStatus.GRANTED
+    ? 'granted'
+    : status === Notifications.PermissionStatus.DENIED
+      ? 'denied'
+      : 'default';
+
+// ponytail: the system only, which `deviceLabel` in core reads; `expo-device` if the model matters.
+const deviceName = () => {
+  if (Platform.OS === 'android') return 'Android';
+  return Platform.OS === 'ios' && Platform.isPad ? 'iPad' : 'iPhone';
+};
+
+// `pushPermission` is synchronous and the OS answers async: the last answer, read once at start.
+let permission: PushPermission = 'default';
+if (features.nativePush && projectId()) {
+  void Notifications.getPermissionsAsync()
+    .then(({ status }) => (permission = fromStatus(status)))
+    .catch(() => undefined);
+}
+
+/** Without the flag or the EAS project id, nothing changes: the card says "unsupported". */
 export function pushSupport(): PushSupport {
-  return 'unsupported';
+  return features.nativePush && projectId() ? 'supported' : 'unsupported';
 }
 
 export function pushPermission(): PushPermission {
-  return 'denied';
+  return pushSupport() === 'supported' ? permission : 'denied';
 }
 
 export async function subscribePush(vapidPublicKey: string): Promise<PushSubscriptionData | null> {
@@ -31,26 +67,42 @@ export async function currentPushSubscription(
   return null;
 }
 
-export async function unsubscribePush(): Promise<void> {}
+/**
+ * Stops this device from receiving, as `unsubscribe` does in a browser: the token outlives a lost
+ * session, so without this a signed-out phone keeps getting the old account's push. A later
+ * `nativePushToken` registers again, maybe with a new token. Without the flag, nothing to stop.
+ */
+export async function unsubscribePush(): Promise<void> {
+  if (pushSupport() !== 'supported') return;
+  await Notifications.unregisterForNotificationsAsync();
+}
 
-const androidChannelId = 'default';
-
-export async function nativePushToken(androidChannelName: string): Promise<string | null> {
-  const eas = Constants.expoConfig?.extra?.eas as { projectId?: string } | undefined;
-  const projectId = eas?.projectId;
-  if (!features.nativePush || !projectId) return null;
+export async function nativePushToken(
+  channel: AndroidPushChannel,
+): Promise<NativePushTokenData | null> {
+  if (!features.nativePush) return null;
+  const id = projectId();
+  if (!id) {
+    // No EAS project yet (BL-29): no Expo token to ask for, so no permission prompt either.
+    console.warn(
+      'nativePush: extra.eas.projectId is missing in the app config; native push is off.',
+    );
+    return null;
+  }
   // Android 13 and later show the permission prompt only once a channel exists.
   if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync(androidChannelId, {
-      name: androidChannelName,
+    await Notifications.setNotificationChannelAsync(channel.id, {
+      name: channel.name,
       importance: Notifications.AndroidImportance.HIGH,
     });
   }
   const current = await Notifications.getPermissionsAsync();
-  const { granted } = current.granted ? current : await Notifications.requestPermissionsAsync();
-  if (!granted) return null;
+  const answer = current.granted ? current : await Notifications.requestPermissionsAsync();
+  permission = fromStatus(answer.status);
+  if (!answer.granted) return null;
   try {
-    return (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+    const { data } = await Notifications.getExpoPushTokenAsync({ projectId: id });
+    return { token: data, userAgent: deviceName() };
   } catch {
     // A simulator, or Android without the FCM credentials in EAS yet.
     return null;

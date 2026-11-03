@@ -251,7 +251,11 @@ test('stepper taps and a check made offline survive closing the tab and count on
   await page.close();
   await context.setOffline(false);
   const next = await context.newPage();
-  const stepped = next.waitForResponse('**/rest/v1/rpc/adjust_shopping_item_quantity');
+  // This wait spans the new tab's whole cold start (load, bundle, session, restore) before the queue
+  // sends, under a second here and over the 30 s action limit on a slow CI runner: the navigation's 60 s.
+  const stepped = next.waitForResponse('**/rest/v1/rpc/adjust_shopping_item_quantity', {
+    timeout: 60_000,
+  });
   await next.goto(`${listUrl}?mode=market`);
   expect((await stepped).status()).toBe(200);
   await expect.poll(() => savedQueue(context)).not.toContain('shopping-');
@@ -264,6 +268,33 @@ test('stepper taps and a check made offline survive closing the tab and count on
   );
   await mode(next, 'Montar');
   await expect(stepper(next, 'Arroz').getByText('4 pacotes', { exact: true })).toBeVisible();
+});
+
+// BL-18: completing gives XP and is never queued. A confirm armed before the connection drops
+// does not stay armed: offline it is the plain, disabled button, and back online it asks again.
+test('an armed "Finalizar compra" disarms and disables when the connection drops', async ({
+  context,
+  page,
+}) => {
+  const offlineNote = /^Sem conexão. Finalizar espera a internet voltar/;
+  await signUpWithContext(page, 'Feirante');
+  await page.goto('/shopping');
+  await page.getByLabel('Nome da nova lista').fill(uniqueTitle('Padaria'));
+  await button(page, 'Criar lista').click();
+  await expect(page).toHaveURL(/\/shopping\/[0-9a-f-]{36}\?mode=build$/);
+
+  await button(page, 'Finalizar compra').click();
+  await expect(button(page, 'Confirmar: finalizar')).toBeEnabled();
+
+  await context.setOffline(true);
+  await expect(button(page, 'Confirmar: finalizar')).toHaveCount(0);
+  await expect(button(page, 'Finalizar compra')).toBeDisabled();
+  await expect(page.getByText(offlineNote)).toBeVisible();
+
+  await context.setOffline(false);
+  await expect(button(page, 'Finalizar compra')).toBeEnabled();
+  await expect(button(page, 'Confirmar: finalizar')).toHaveCount(0);
+  await expect(page.getByText(offlineNote)).toHaveCount(0);
 });
 
 test('a list made from a task links both ways; a member who cannot read the task sees no link', async ({

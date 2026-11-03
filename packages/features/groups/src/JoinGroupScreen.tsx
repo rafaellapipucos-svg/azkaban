@@ -1,5 +1,5 @@
 import { rateLimitedErrorCode } from '@azkaban/contracts';
-import { groupsRepository } from '@azkaban/data';
+import { callFailure, groupsRepository, type CallFailure } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import { Body, Button, EmptyState, ErrorText, Mascot, Screen, Title } from '@azkaban/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -8,6 +8,18 @@ import { View } from 'react-native';
 
 // ADR-0012, section 7: an employee reads what the admin sees before accepting a work group's invite.
 const workGroupType = 'company';
+
+// ponytail: no test here (the package has no test runner); `callFailure` is tested in data, and the
+// `Record` makes the compiler ask for a text for every code.
+const failureText: Record<CallFailure, string> = {
+  rate_limited: 'join.rateLimited',
+  network: 'join.network',
+  unavailable: 'join.unavailable',
+};
+const inviteFailureKey = (error: unknown, fallback: string) => {
+  const code = callFailure(error);
+  return code ? failureText[code] : fallback;
+};
 
 export function JoinGroupScreen({ code, signedIn }: { code: string; signedIn: boolean }) {
   const { t } = useTranslation('groups');
@@ -45,12 +57,25 @@ export function JoinGroupScreen({ code, signedIn }: { code: string; signedIn: bo
     );
   }
 
-  const previewLimited = preview.error?.message === rateLimitedErrorCode;
-  if (preview.data === null || previewLimited) {
+  // Only while there is no preview to show. Offline the read waits (paused) instead of failing.
+  const previewError =
+    preview.data !== undefined ? null : preview.isPaused ? new Error('network') : preview.error;
+  if (preview.data === null || previewError) {
+    const canRetry = previewError !== null && callFailure(previewError) !== rateLimitedErrorCode;
     return (
       <Screen title={t('join.title')}>
         <Title>{t('join.title')}</Title>
-        <EmptyState mood="worried" text={t(previewLimited ? 'join.rateLimited' : 'join.invalid')}>
+        <EmptyState
+          mood="worried"
+          text={t(previewError ? inviteFailureKey(previewError, 'errors.generic') : 'join.invalid')}
+        >
+          {canRetry ? (
+            <Button
+              label={t('join.retry')}
+              loading={preview.isFetching && !preview.isPaused}
+              onPress={() => void preview.refetch()}
+            />
+          ) : null}
           <Button
             variant="secondary"
             label={t('actions.back')}
@@ -85,9 +110,7 @@ export function JoinGroupScreen({ code, signedIn }: { code: string; signedIn: bo
         />
       ) : null}
       {accept.isError ? (
-        <ErrorText>
-          {t(accept.error.message === rateLimitedErrorCode ? 'join.rateLimited' : 'join.invalid')}
-        </ErrorText>
+        <ErrorText>{t(inviteFailureKey(accept.error, 'join.invalid'))}</ErrorText>
       ) : null}
       <Button
         label={t('join.accept')}

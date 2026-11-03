@@ -345,7 +345,8 @@ export async function upload(
     await fetch(functionUrl('proof-validate'), {
       method: 'POST',
       headers: uploadHeaders(who, nonce, bytes, o),
-      body: bytes,
+      // Type only: TS 6 `BodyInit` takes a view over an `ArrayBuffer`, never a `SharedArrayBuffer`.
+      body: bytes as Uint8Array<ArrayBuffer>,
     }),
   );
 }
@@ -431,9 +432,9 @@ export function rawUpload(who: Person, nonce: string, hashOf: Uint8Array, o: Upl
       // Backpressure, but never past the end of the connection: nothing drains once it is gone.
       return ok
         ? Promise.resolve()
-        : new Promise((resolve) => {
+        : new Promise<void>((resolve) => {
             child.stdin.once('drain', resolve);
-            void reply.then(resolve);
+            void reply.then(() => resolve());
           });
     },
     end() {

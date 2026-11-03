@@ -113,6 +113,7 @@ export {
   type TeamTone,
 } from './tasks/team';
 export {
+  actorLabel,
   buildPushPayload,
   missedLateUntil,
   notificationText,

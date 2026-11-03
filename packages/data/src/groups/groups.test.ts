@@ -2,8 +2,17 @@ import { describe, expect, it, vi } from 'vitest';
 import { groupsRepository } from './index';
 
 // What the invite RPCs answer; nothing reaches the network.
-const answer = vi.hoisted(() => ({ rpc: { data: null as unknown, error: null as unknown } }));
-vi.mock('../client', () => ({ db: () => ({ rpc: () => Promise.resolve(answer.rpc) }) }));
+type Answer = { data?: unknown; error: unknown; status?: number };
+const answer = vi.hoisted(() => ({
+  rpc: { data: null, error: null } as Answer,
+  insert: { error: null } as Answer,
+}));
+vi.mock('../client', () => ({
+  db: () => ({
+    rpc: () => Promise.resolve(answer.rpc),
+    from: () => ({ insert: () => Promise.resolve(answer.insert) }),
+  }),
+}));
 
 describe('acceptInvite', () => {
   it('returns the group joined', async () => {
@@ -50,5 +59,26 @@ describe('previewInvite', () => {
       .catch((error: unknown) => error);
     expect(thrown).toBeInstanceOf(Error);
     expect(thrown).toMatchObject({ message: 'rate_limited', cause: limited });
+  });
+
+  it('throws network when the fetch never reached the server, unavailable on 5xx', async () => {
+    const offline = { code: '', message: 'TypeError: Failed to fetch' };
+    answer.rpc = { data: null, error: offline, status: 0 };
+    await expect(groupsRepository.previewInvite('VALID22222')).rejects.toMatchObject({
+      message: 'network',
+      cause: offline,
+    });
+    answer.rpc = { data: null, error: { code: '', message: 'Bad Gateway' }, status: 502 };
+    await expect(groupsRepository.previewInvite('VALID22222')).rejects.toThrow('unavailable');
+  });
+});
+
+describe('createInvite', () => {
+  it('throws rate_limited over invite_create (the trigger raises PT429)', async () => {
+    const limited = { code: 'PT429', message: 'rate_limited', hint: '3600' };
+    answer.insert = { error: limited, status: 429 };
+    await expect(
+      groupsRepository.createInvite('10000000-0000-0000-0000-00000000000a', 'member', new Date()),
+    ).rejects.toMatchObject({ message: 'rate_limited', cause: limited });
   });
 });

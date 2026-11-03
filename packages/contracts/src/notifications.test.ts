@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  expoPushTokenSchema,
   internalPathSchema,
+  nativePushMessageSchema,
+  nativePushSubscriptionInputSchema,
   notificationItemSchema,
   pushPayloadMaxBytes,
   pushPayloadSchema,
@@ -117,6 +120,69 @@ describe('pushPayloadSchema', () => {
     // UTF-8 length without the DOM lib: each %XX of encodeURIComponent is one byte.
     const bytes = encodeURIComponent(JSON.stringify(largest)).replace(/%[0-9A-F]{2}/g, '.').length;
     expect(bytes).toBeGreaterThan(840);
+    expect(bytes).toBeLessThanOrEqual(pushPayloadMaxBytes);
+  });
+});
+
+describe('expoPushTokenSchema', () => {
+  it.each(['ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]', 'ExpoPushToken[aB3_-9]'])(
+    'takes %s',
+    (token) => {
+      expect(
+        nativePushSubscriptionInputSchema.safeParse({ token, userAgent: 'Pixel 7' }).success,
+      ).toBe(true);
+    },
+  );
+
+  it.each([
+    'ExponentPushToken[]',
+    'ExponentPushToken[abc',
+    'ExponentPushToken[a b]',
+    'ExponentPushToken[abc]x',
+    'xExponentPushToken[abc]',
+    'https://exp.host/--/api/v2/push/send',
+    // The legacy bare UUID is not taken: getExpoPushTokenAsync never gives it.
+    id,
+    `ExponentPushToken[${'a'.repeat(201)}]`,
+  ])('refuses %s', (token) => {
+    expect(expoPushTokenSchema.safeParse(token).success).toBe(false);
+  });
+});
+
+describe('nativePushMessageSchema', () => {
+  const message = {
+    to: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]',
+    title: 'Academia',
+    body: 'Começa em 30 minutos',
+    data: { v: 1, notificationId: id, type: 'task_reminder', url: `/tasks/${id}/proof` },
+    channelId: 'default',
+    ttl: 86_400,
+  };
+
+  it('opens only paths of the app, as the Web Push', () => {
+    expect(nativePushMessageSchema.safeParse(message).success).toBe(true);
+    for (const url of ['//evil.example', 'https://evil.example', '/\t/evil.com']) {
+      const data = { ...message.data, url };
+      expect(nativePushMessageSchema.safeParse({ ...message, data }).success).toBe(false);
+    }
+  });
+
+  it('names the channel the app creates', () => {
+    expect(nativePushMessageSchema.safeParse({ ...message, channelId: 'other' }).success).toBe(
+      false,
+    );
+  });
+
+  it('fits the 4096 bytes of the Expo push API at its largest', () => {
+    const largest = {
+      ...message,
+      to: `ExponentPushToken[${'a'.repeat(200)}]`,
+      title: '😀'.repeat(60),
+      body: '😀'.repeat(150),
+      data: { ...message.data, type: 'occurrence_resolved', url: `/${'a'.repeat(199)}` },
+    };
+    expect(nativePushMessageSchema.safeParse(largest).success).toBe(true);
+    const bytes = encodeURIComponent(JSON.stringify(largest)).replace(/%[0-9A-F]{2}/g, '.').length;
     expect(bytes).toBeLessThanOrEqual(pushPayloadMaxBytes);
   });
 });

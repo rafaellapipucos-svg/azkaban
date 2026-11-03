@@ -2,7 +2,14 @@
 // WebCrypto, which Deno and Node both have. Only relative imports, so Node runs the tests, including the
 // vector of RFC 8291, appendix A. Nothing here logs: an endpoint is a capability, and the payload has a title.
 import { retryAfterSeconds } from '../_shared/retry-after.ts';
-import type { NotificationChannel, OutboundMessage, SendResult } from './dispatch.ts';
+import type {
+  ExpoSubscription,
+  NotificationChannel,
+  OutboundMessage,
+  SendResult,
+  WebSubscription,
+} from './dispatch.ts';
+import type { NativePushChannel } from './native-push.ts';
 
 export { retryAfterSeconds };
 
@@ -189,7 +196,7 @@ export function endpointAllowed(endpoint: string, hosts: readonly string[]): boo
 }
 
 /** One subscription's answer, before the answers of all of them become one result. */
-type Delivery =
+export type Delivery =
   | { kind: 'sent' }
   | { kind: 'gone' }
   | { kind: 'retry'; code: string; retryAfterSeconds?: number }
@@ -261,6 +268,8 @@ export type WebPushOptions = {
   timeoutMs: number;
   now?: () => number;
   newEphemeral?: () => Promise<Ephemeral>;
+  /** The devices of the app (ADR-0012, section 11). Null when not configured: they retry. */
+  native?: NativePushChannel | null;
 };
 
 export class WebPushChannel implements NotificationChannel {
@@ -276,17 +285,32 @@ export class WebPushChannel implements NotificationChannel {
   async send(message: OutboundMessage): Promise<SendResult> {
     const subscriptions = message.subscriptions;
     if (subscriptions.length === 0) return { kind: 'failed', code: 'no_subscription' };
-    const body = encoder.encode(this.#options.render(message));
-    const deliveries = await Promise.all(subscriptions.map((s) => this.#deliver(message, s, body)));
+    const web = subscriptions.filter((s): s is WebSubscription => s.kind === 'web');
+    const expo = subscriptions.filter((s): s is ExpoSubscription => s.kind === 'expo');
+    const native = this.#options.native;
+    // Each kind on its own: a failure of one never stops the other, and `combine` judges them all.
+    const [webDeliveries, expoDeliveries] = await Promise.all([
+      web.length === 0 ? [] : this.#deliverWeb(message, web),
+      expo.length === 0
+        ? []
+        : native
+          ? native.deliver(message, expo)
+          : expo.map((): Delivery => ({ kind: 'retry', code: 'native_push_not_configured' })),
+    ]);
     return combine(
-      subscriptions.map((s) => s.id),
-      deliveries,
+      [...web, ...expo].map((s) => s.id),
+      [...webDeliveries, ...expoDeliveries],
     );
+  }
+
+  #deliverWeb(message: OutboundMessage, subscriptions: WebSubscription[]): Promise<Delivery[]> {
+    const body = encoder.encode(this.#options.render(message));
+    return Promise.all(subscriptions.map((s) => this.#deliver(message, s, body)));
   }
 
   async #deliver(
     message: OutboundMessage,
-    subscription: OutboundMessage['subscriptions'][number],
+    subscription: WebSubscription,
     body: Uint8Array,
   ): Promise<Delivery> {
     const options = this.#options;

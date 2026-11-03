@@ -2,7 +2,7 @@ import { notificationsRepository } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
 import { Body, Button, Card, EmptyState, ErrorText, Muted, Screen, Title } from '@azkaban/ui';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { bellKey, useItemText, useOpenItem, useWhenText } from './hooks';
+import { bellKey, useActorText, useItemText, useOpenItem, useWhenText } from './hooks';
 
 /** `/notifications`: the bell's list, newest first. A tap marks the line read and opens its target. */
 export function NotificationsScreen() {
@@ -16,6 +16,7 @@ export function NotificationsScreen() {
   const text = useItemText();
   const open = useOpenItem();
   const when = useWhenText();
+  const actor = useActorText(list.data);
   const unread = list.data?.some((item) => !item.readAt) ?? false;
 
   return (
@@ -43,10 +44,12 @@ export function NotificationsScreen() {
       {list.data?.length === 0 ? <EmptyState text={t('inbox.empty')} mood="sleeping" /> : null}
       {list.data?.map((item) => {
         const { title, body } = text(item);
+        const name = actor(item);
         return (
           <Card key={item.id} onPress={() => open(item)}>
             <Body className={item.readAt ? '' : 'font-heavy'}>{title}</Body>
             {body ? <Body>{body}</Body> : null}
+            {name ? <Muted>{t('actor.by', { name })}</Muted> : null}
             <Muted>
               {when(item.createdAt)}
               {item.readAt ? '' : ` · ${t('inbox.unread')}`}

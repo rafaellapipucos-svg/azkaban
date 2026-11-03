@@ -19,6 +19,12 @@ export type PushSubscriptionData = {
   userAgent: string | null;
 };
 
+/** `id` is the one every message names; `name` is what Android settings show, already translated. */
+export type AndroidPushChannel = { id: string; name: string };
+
+/** Same shape as `NativePushSubscriptionInput`: the Expo token, unchecked here, and a label. */
+export type NativePushTokenData = { token: string; userAgent: string | null };
+
 export function pushSupport(): PushSupport {
   return 'unsupported';
 }
@@ -45,11 +51,13 @@ export async function unsubscribePush(): Promise<void> {}
 
 /**
  * Native only, behind `features.nativePush`: the Expo push token of this device, asking for the
- * permission, so call it only from a tap. Null without the flag, the EAS project id or the permission.
- * `androidChannelName` is what Android settings show for the channel, already translated.
+ * permission, so call it only from a tap. Null without the flag, the EAS project id or the permission,
+ * and on web, where it asks nothing. With the flag on, `pushSupport` says whether it can work.
  */
-export async function nativePushToken(androidChannelName: string): Promise<string | null> {
-  void androidChannelName;
+export async function nativePushToken(
+  channel: AndroidPushChannel,
+): Promise<NativePushTokenData | null> {
+  void channel;
   return null;
 }
 

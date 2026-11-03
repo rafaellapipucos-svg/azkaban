@@ -6,8 +6,8 @@ import type {
   GroupRole,
   InvitePreview,
 } from '@azkaban/contracts';
-import { rateLimitedErrorCode } from '@azkaban/contracts';
 import { currentUserId, db } from '../client';
+import { withCallFailure } from '../failure';
 
 const inviteColumns = 'id, code, role, expires_at, max_uses, use_count';
 
@@ -120,11 +120,12 @@ export const groupsRepository = {
     return data.map(toInvite);
   },
 
+  /** Over `invite_create` (a trigger, ADR-0012 section 4) it throws `rate_limited`. */
   async createInvite(groupId: string, role: GroupRole, expiresAt: Date) {
-    const { error } = await db()
+    const { error, status } = await db()
       .from('group_invites')
       .insert({ group_id: groupId, role, expires_at: expiresAt.toISOString() });
-    if (error) throw error;
+    if (error) throw withCallFailure(error, status);
   },
 
   async revokeInvite(id: string) {
@@ -135,23 +136,22 @@ export const groupsRepository = {
     if (error) throw error;
   },
 
+  /** Spends the same limit as accept_invite (SEG8-2). Throws `callFailure` codes. */
   async previewInvite(code: string): Promise<InvitePreview | null> {
-    const { data, error } = await db().rpc('get_invite_preview', { invite_code: code });
-    // Spends the same limit as accept_invite (SEG8-2).
-    if (error?.code === 'PT429') throw new Error(rateLimitedErrorCode, { cause: error });
-    if (error) throw error;
+    const { data, error, status } = await db().rpc('get_invite_preview', { invite_code: code });
+    if (error) throw withCallFailure(error, status);
     const row = data[0];
     return row ? { groupName: row.group_name, groupType: row.group_type, role: row.role } : null;
   },
 
   /**
    * The group joined. A code that does not serve comes back as null, so the rate limit counter
-   * stays (SEG8-2): it throws `invite_invalid`. Over the limit (PT429) it throws `rate_limited`.
+   * stays (SEG8-2): it throws `invite_invalid`. Over the limit (PT429) it throws `rate_limited`,
+   * offline `network` and with the server down `unavailable`.
    */
   async acceptInvite(code: string): Promise<string> {
-    const { data, error } = await db().rpc('accept_invite', { invite_code: code });
-    if (error?.code === 'PT429') throw new Error(rateLimitedErrorCode, { cause: error });
-    if (error) throw error;
+    const { data, error, status } = await db().rpc('accept_invite', { invite_code: code });
+    if (error) throw withCallFailure(error, status);
     // The generated type says string: Postgres does not mark a nullable return.
     if (data === null) throw new Error('invite_invalid');
     return data;

@@ -157,6 +157,22 @@ export function buildPushPayload(
 }
 
 /**
+ * Who acted on a bell line, for the types that say it. Null when the job did it, the type has no
+ * actor, or the names are not known yet. An id the names lack left the group or deleted the
+ * account (ADR-0012, section 3); the client cannot tell which, so the bell says "ex-member", as the
+ * shopping list does, instead of showing nothing.
+ */
+export function actorLabel(
+  source: Pick<PushSource, 'type' | 'data'>,
+  names: ReadonlyMap<string, string> | undefined,
+  t: Translate,
+): string | null {
+  const byUserId = 'byUserId' in source.data ? source.data.byUserId : null;
+  if (!byUserId || !names) return null;
+  return names.get(byUserId)?.trim() || t('actor.formerMember');
+}
+
+/**
  * Until when an automatic red can still be done (ADR-0008, section 10): the end of the late window,
  * from the occurrence as it is now, so a reschedule moves it. Null for a red by a person, once it was
  * resolved or the window closed, and without the occurrence's fields.

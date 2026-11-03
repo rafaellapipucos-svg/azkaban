@@ -1488,3 +1488,24 @@
   - `backend-funcoes` e `notificacoes-whatsapp`: seguir os handoffs.
   - `notificacoes-whatsapp`: tirar o cast de `setPreference`.
   - `qa-testes`: desligar também `enqueue-daily-summaries` em `e2e/global-setup.ts` quando a E2E do WhatsApp criar perfis prontos.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 01:47 (BRT)
+
+- **Branch:** feat/whatsapp-screens, criada a partir de feat/whatsapp-db (eabbf0e)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** Itens 4 e 5 do handoff `20261103-0030-arquiteto-para-notificacoes-whatsapp-whatsapp` (repositório e telas do WhatsApp em `/settings/notifications`) e QA4-5 (o aviso ao vivo não repete a lista em `/notifications`). E2E do fluxo escrita, não rodada. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/data/src/notifications/index.ts`: `getWhatsApp` (estado e preferências do resumo numa leitura de `profiles`, horário cortado para `HH:mm`), `setDailySummary` (as cinco `daily_summary_*`), `requestPhoneCode` (`phone-verification`; 429 e 502 voltam como o corpo do contrato, o resto lança), `confirmPhoneCode`, `whatsappOptIn`, `whatsappOptOut` e `removePhone`. Saiu o cast de `setPreference`.
+  - `packages/features/notifications/src/whatsappFlow.ts` (novo, com testes): o passo da tela (`phone`, `code`, `consent`, `on`; número verificado vence um código na tela, e um aceite de versão antiga pede o aviso de novo), `secondsUntil`, `waitParts` (segundos, minutos ou horas, para cima) e `whatsappErrorKey` (código do contrato, como texto ou mensagem de erro do RPC; o resto é genérico).
+  - `WhatsAppSection.tsx` (novo), no fim de `NotificationPreferencesScreen`, aparece também sem chave VAPID: número (código do país 55 por padrão, `normalizePhone`), código (`codeLength` dígitos, `one-time-code`, reenvio com contagem até `resendAt` ou `retryAfterSeconds`, trocar o número), aviso `whatsapp.consent.v<consentVersion>.*` e ativação, e, ativo, o resumo (ligado, horário, atrasadas, dias de prazo de 0 a `maxDeadlineDays`, pular dia vazio, um botão Salvar), desligar e remover o número (com confirmação).
+  - `NotificationPreferencesScreen.tsx`: as chaves por canal ficam só no push. O único tipo do WhatsApp é o resumo, ligado e desligado por `daily_summary_enabled` na seção nova, para a mesma escolha não morar em dois lugares.
+  - `NotificationToaster.tsx` (QA4-5): em `/notifications` o aviso não aparece, e o que estava aberto some ao entrar ou sair dela. A região `role="status"` continua montada.
+  - `packages/i18n/src/pt-BR/notifications.json`: `whatsapp.intro`, `phone.countryInvalid`, `code.invalid`/`change`, `retryIn`, `wait.*`, `errors.generic`, `status.removeConfirm`, `dailySummary.days`/`save`/`saved`; saiu `code.resendIn_*`.
+  - `e2e/whatsapp.spec.ts` (novo, não rodado): número inválido recusado, código lido em `whatsapp_console_messages`, código errado, confirmação, aviso e opt-in, horário do resumo pela tela, `enqueue_daily_summaries` e o despacho, o resumo na mesma tabela com o título da tarefa, a linha do sino nascida lida, desligar e remover.
+- **Arquivos/módulos principais:** `packages/data/src/notifications/index.ts`, `packages/features/notifications/src/{WhatsAppSection.tsx,whatsappFlow.ts,NotificationPreferencesScreen.tsx,NotificationToaster.tsx}`, `packages/i18n/src/pt-BR/notifications.json`, `e2e/whatsapp.spec.ts`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** nenhuma nova. A preferência `(daily_summary, whatsapp)` de `notification_preferences` não tem mais chave na tela; vale o padrão (ligada) e o liga/desliga é `daily_summary_enabled`.
+- **Como testar:** `pnpm --filter @azkaban/feature-notifications exec vitest run`; `pnpm check`; com a pilha e `phone-verification` servida, `pnpm exec playwright test e2e/whatsapp.spec.ts`.
+- **Verificado:** `pnpm install --frozen-lockfile`; `pnpm check` passou (17 de 17 e 9 de 9; feature-notifications 10 testes, 8 novos); `pnpm build:web` exportou.
+- **Não verificado:** nada rodou contra a pilha (com o `backend-funcoes`) nem contra `phone-verification`, que ainda não existe. As telas não foram vistas no navegador (a seção precisa de sessão e de banco), nem em 375 px, nem no escuro. A E2E nova não rodou.
+- **Pendências / próximos passos:** `qa-testes`: rodar e ajustar `e2e/whatsapp.spec.ts` depois do `backend-funcoes`, e desligar `enqueue-daily-summaries` em `e2e/global-setup.ts`. Texto do aviso de consentimento para o humano revisar.

@@ -158,8 +158,9 @@ export function buildPushPayload(
 
 /**
  * Who acted on a bell line, for the types that say it. Null when the job did it, the type has no
- * actor, or the names are not known yet. An id the names lack is a person whose profile is gone
- * (ADR-0012, section 3): the bell says so instead of showing nothing.
+ * actor, or the names are not known yet. An id the names lack left the group or deleted the
+ * account (ADR-0012, section 3); the client cannot tell which, so the bell says "ex-member", as the
+ * shopping list does, instead of showing nothing.
  */
 export function actorLabel(
   source: Pick<PushSource, 'type' | 'data'>,
@@ -168,7 +169,7 @@ export function actorLabel(
 ): string | null {
   const byUserId = 'byUserId' in source.data ? source.data.byUserId : null;
   if (!byUserId || !names) return null;
-  return names.get(byUserId)?.trim() || t('actor.deletedAccount');
+  return names.get(byUserId)?.trim() || t('actor.formerMember');
 }
 
 /**

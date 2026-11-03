@@ -3225,3 +3225,20 @@
 - **Verificado:** `pnpm check` passou; os 3 testes de `actorLabel` passaram.
 - **Não verificado:** sem pilha e sem E2E (é o BL-22); a tela não foi aberta no navegador; a consulta com `group_id` no embed não rodou contra o banco.
 - **Pendências / próximos passos:** se "ex-membro" e "conta excluída" precisarem ser distintos, uma RPC do `banco-de-dados` que diga se o perfil existe.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 10:06 (BRT)
+
+- **Branch:** fix/bell-deleted-account
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** correção da entrada anterior (BL-8), a pedido do orquestrador. O sino não afirma mais "Conta excluída": o cliente não distingue quem saiu do grupo de quem excluiu a conta, então o rótulo passa a ser "ex-membro", o mesmo texto da lista de compras. Sem RPC nova. Hora derivada de UTC menos 3.
+- **Alterações:**
+  - `packages/i18n/src/pt-BR/notifications.json`: `actor.deletedAccount` ("Conta excluída") vira `actor.formerMember` ("ex-membro").
+  - `packages/core/src/notifications/pushPayload.ts`: `actorLabel` usa a nova chave; comentário explica o porquê.
+  - `packages/core/src/notifications/pushPayload.test.ts`: teste ajustado.
+- **Arquivos/módulos principais:** `packages/core/src/notifications`, `packages/i18n/src/pt-BR/notifications.json`
+- **Migrations:** nenhuma.
+- **Decisões/ADRs:** o ADR-0012 §3 diz "conta excluída" para o sino; o texto mostrado é "ex-membro", que vale para os dois casos. O ADR não foi editado (é do arquiteto).
+- **Como testar:** `pnpm check`.
+- **Verificado:** `pnpm check` passou.
+- **Não verificado:** o mesmo da entrada anterior (sem pilha, sem E2E, sem navegador).
+- **Pendências / próximos passos:** o arquiteto pode alinhar a linha do sino na tabela do ADR-0012 §3 a "ex-membro".

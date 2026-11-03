@@ -60,7 +60,7 @@
   "lateUntil": "Ainda dá para concluir até {{when}}.",
   "actor": {
     "by": "Quem marcou: {{name}}",
-    "deletedAccount": "Conta excluída"
+    "formerMember": "ex-membro"
   },
   "toast": {
     "dismiss": "Fechar aviso"

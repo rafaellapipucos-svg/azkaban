@@ -270,9 +270,9 @@ describe('actorLabel', () => {
     expect(actorLabel(resolved(userId), names, t)).toBe('Ana');
   });
 
-  it('says the account was deleted when the id has no name', () => {
-    expect(actorLabel(resolved(id), names, t)).toBe('actor.deletedAccount');
-    expect(actorLabel(resolved(userId), new Map([[userId, '  ']]), t)).toBe('actor.deletedAccount');
+  it('says ex-member when the id has no name, since leaving and deleting look the same', () => {
+    expect(actorLabel(resolved(id), names, t)).toBe('actor.formerMember');
+    expect(actorLabel(resolved(userId), new Map([[userId, '  ']]), t)).toBe('actor.formerMember');
   });
 
   it('says nothing for the job, a type without actor, or names still loading', () => {

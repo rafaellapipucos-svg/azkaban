@@ -21,15 +21,16 @@ import {
   type TaskRuleChange,
   type TeamOverviewRow,
 } from '@azkaban/contracts';
+import { onlineManager } from '@tanstack/react-query';
 import type { Json } from '../database.types';
 import { db } from '../client';
-import { defineOfflineAction } from '../offline';
+import { defineOfflineAction, isTransientFailure } from '../offline';
 
 /**
  * A code the UI has a text for. `rate_limited` comes from `consume_rate_limit` (ADR-0012, section 4)
- * and stays out of the contract enum, as the ADR decided.
+ * and stays out of the contract enum, as the ADR decided; `offline` is a failure without a connection.
  */
-export type TaskFailureCode = TaskErrorCode | typeof rateLimitedErrorCode;
+export type TaskFailureCode = TaskErrorCode | typeof rateLimitedErrorCode | 'offline';
 
 /** `code` is null for anything the correct app cannot cause: the UI shows its generic text. */
 export class TaskError extends Error {
@@ -45,6 +46,9 @@ export class TaskError extends Error {
 /** The RPCs raise their code as the message (ADR-0005), so a code outside the schema is a defect. */
 export function taskErrorCode(error: unknown): TaskFailureCode | null {
   if (error instanceof TaskError) return error.code;
+  // A change outside the queue fails at once without a connection (`offlineMutationDefaults`). The
+  // repositories wrap the failure when it happens, so the code is the connection of that moment.
+  if (!onlineManager.isOnline() && isTransientFailure(error)) return 'offline';
   const field = (name: string) =>
     typeof error === 'object' && error !== null && name in error
       ? (error as Record<string, unknown>)[name]

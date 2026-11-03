@@ -49,6 +49,17 @@ test('a status marked offline survives closing the tab and reaches the database 
   ).toBeVisible();
   await expect.poll(() => savedQueue(context)).toContain('occurrence-status');
 
+  // A change outside the queue fails at once, with the no-connection message, and is not saved.
+  await button(page, 'Nova tarefa').click();
+  await page.getByLabel('O que precisa ser feito?').fill('Lavar a louça');
+  await button(page, 'Criar').click();
+  await expect(
+    page.getByText(
+      'Sem conexão. Esta mudança precisa de internet; tente de novo quando ela voltar.',
+    ),
+  ).toBeVisible();
+  expect(await savedQueue(context)).not.toContain('Lavar a louça');
+
   // The tab closes before the connection returns; a new one sends what waited.
   await page.close();
   await context.setOffline(false);
@@ -62,6 +73,7 @@ test('a status marked offline survives closing the tab and reaches the database 
   await next.reload();
   await expect(check(next, 'Regar as plantas', 'Feito')).toBeVisible();
   await expect(check(next, 'Varrer a sala', 'Pendente')).toBeVisible();
+  await expect(next.getByText('Lavar a louça', { exact: true })).toHaveCount(0);
   await next.getByText('Regar as plantas', { exact: true }).locator('visible=true').click();
   await expect(next.getByText('Pendente → Feito')).toHaveCount(1);
 });

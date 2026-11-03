@@ -2543,25 +2543,6 @@
 - **Não verificado:** som e vibração em aparelho, leitor de tela real, Safari e iPhone, projeto hospedado, CI do PR.
 - **Pendências / próximos passos:** PR para `feat/phase-5-whatsapp`; a Fase 8 já está em `feat/phase-8-polish` (Fases 6 e 7 integradas com as migrations da 7 renumeradas); investigar na Fase 8 se o cliente deve tentar de novo num 503 de função fria; F7-5 sobre a base integrada.
 
-### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:17 (BRT)
-
-- **Branch:** feat/account-functions, criada a partir de feat/phase-8-polish (ed828f3)
-- **Agente(s):** backend-funcoes
-- **Resumo:** F8-3b do ADR-0012, seções 2 e 3: as Edge Functions `account-export` e `account-delete`, sobre as funções SQL do `banco-de-dados` (handoff `20261103-0600`). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
-- **Alterações:**
-  - `_shared/account.ts` (novo): `handleExport` e `handleDelete`, com o cliente de serviço como argumento (as duas funções são uma linha cada). Exportação: usuário pelo Auth (`signedInUser`), `consume_rate_limit(user, 'data_export')` (`PT429` vira 429 `rate_limited` com `retryAfterSeconds` do `hint`), `export_user_data`, `createSignedUrls` em lotes de 1000 com `exportPhotoUrlTtlSeconds` gravadas em `photo_url` pela chave de `photoPaths` (objeto que sumiu no meio fica `null`), `accountExportSchema`, `Content-Disposition: attachment` (`azkaban-dados-AAAA-MM-DD.json`, data de São Paulo) e `Cache-Control: no-store`. Exclusão: corpo de até 1 KiB por `readLimited` e `accountDeleteRequestSchema`; login recente pelo maior `timestamp` de `amr` (sem ele, `reauth_required`; a prévia também pede); `dryRun` responde `account_deletion_preview`; senão `begin_account_deletion`, `remove` em lotes somando o que o Storage disse, `finish_account_deletion`, `auth.admin.deleteUser` (404 é corrida, segue) e `complete_account_deletion`; `owns_groups` de `begin` ou de `finish` vira 409 com a prévia do `details`; falha no meio, 500 `delete_failed`. Log só com evento, etapa, código e contagens.
-  - `account-export/` e `account-delete/` (novos): `index.ts` e `deno.json`. `verify_jwt = true` das duas em `supabase/config.toml`; deploy e `verify_jwt` em `docs/implantacao.md`; as duas em `wait-for-functions.mjs`.
-  - `proof-kit.ts`: `mint(sub, claims)` exportado e `refreshToken` na pessoa que entrou de verdade.
-  - Testes: `_shared/account.test.ts` (Node, sem pilha, 15), `account-export/export.integration.test.ts` e `account-delete/delete.integration.test.ts`, os três no `functions:test`.
-  - Handoff `20261103-0617-backend-funcoes-para-auth-grupos-exportar-e-excluir-conta`.
-- **Arquivos/módulos principais:** `supabase/functions/_shared/{account,account.test,proof-kit,wait-for-functions}.*`, `supabase/functions/account-{export,delete}/`, `supabase/config.toml`, `docs/implantacao.md`, `package.json` (`functions:test`)
-- **Migrations:** nenhuma
-- **Decisões/ADRs:** sem `amr` com `timestamp`, recusa (`reauth_required`) em vez do recuo a `auth.sessions.created_at` do ADR: `auth` não está na API e o recuo pediria uma RPC nova; custa só um login. A prévia também pede login recente, para a tela mandar entrar antes da confirmação. Falha de `complete_account_deletion` depois de `deleteUser` vai para o log e a resposta continua `{ deleted: true }`: a conta já saiu, e repetir só daria 401 (a linha de auditoria fica aberta).
-- **Como testar:** `pnpm check`; `node --test supabase/functions/_shared/account.test.ts`; com a pilha, `pnpm functions:test`.
-- **Verificado:** `pnpm check` passou (17 de 17 e 11 de 11; `functions:imports` 10 de 10, com as duas funções novas); `account.test.ts` 15 de 15. Mutações nos handlers, por script, 11 de 11 mortas: `signedInUser` aceitando `getUser` com erro, exportação sem a checagem do usuário nulo, `amr` sempre recente, segundos lidos como ms, `<` no lugar de `<=`, primeiro `timestamp` no lugar do maior, prévia sem a checagem, ação `task_create` no lugar de `data_export`, `PT429` tratado como falha, erro do limite ignorado, `hint` ignorado.
-- **Não verificado:** os dois testes de integração não rodaram (sem pilha, por decisão do orquestrador): que o GoTrue local traz `timestamp` em `amr` e o mantém no refresh (o teste confere), o formato real de `auth.audit_log_entries` depois de `deleteUser`, as URLs assinadas servindo a foto, o 429 real e a conta apagada de fato; o boot das funções no Edge Runtime (só o `import-maps`); o projeto hospedado.
-- **Pendências / próximos passos:** rodar `pnpm functions:test` com a pilha; `auth-grupos` faz as telas (handoff acima).
-
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:19 (BRT)
 
 - **Branch:** feat/offline-queue-wiring, criada a partir de feat/phase-8-polish (83b7a42)
@@ -2599,6 +2580,25 @@
 - **Verificado:** `pnpm check` passou (17 de 17 e 11 de 11; `@azkaban/data` 6 arquivos, 30 testes, dos quais 6 de `privacy/transport`; `@azkaban/platform` 10 arquivos, 54 testes, com o de `saveTextFile`; core 717); `pnpm build:web` exportou.
 - **Não verificado:** a E2E nova não rodou (sem pilha; as funções eram do `backend-funcoes`, em andamento); nenhuma tela foi vista no navegador (375 px, desktop, claro e escuro, axe ficam com `qa-testes`); `reauth_required` e `rate_limited` reais; o download pelo `<a download>` depois de uma espera de rede no Safari do iPhone; o nativo.
 - **Pendências / próximos passos:** `prova-foto` troca `consent.deletion` e sobe `consentVersion` para 3 (handoff); `qa-testes` roda a E2E e cobre reautenticação, limite e sair com pendências (handoff). Do handoff `20261103-0456` ficam para outra tarefa: o 429 do GoTrue nas telas de entrar, `rate_limited` nos convites e o `PushSetupCard` depois do primeiro login.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:17 (BRT)
+
+- **Branch:** feat/account-functions, criada a partir de feat/phase-8-polish (ed828f3)
+- **Agente(s):** backend-funcoes
+- **Resumo:** F8-3b do ADR-0012, seções 2 e 3: as Edge Functions `account-export` e `account-delete`, sobre as funções SQL do `banco-de-dados` (handoff `20261103-0600`). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `_shared/account.ts` (novo): `handleExport` e `handleDelete`, com o cliente de serviço como argumento (as duas funções são uma linha cada). Exportação: usuário pelo Auth (`signedInUser`), `consume_rate_limit(user, 'data_export')` (`PT429` vira 429 `rate_limited` com `retryAfterSeconds` do `hint`), `export_user_data`, `createSignedUrls` em lotes de 1000 com `exportPhotoUrlTtlSeconds` gravadas em `photo_url` pela chave de `photoPaths` (objeto que sumiu no meio fica `null`), `accountExportSchema`, `Content-Disposition: attachment` (`azkaban-dados-AAAA-MM-DD.json`, data de São Paulo) e `Cache-Control: no-store`. Exclusão: corpo de até 1 KiB por `readLimited` e `accountDeleteRequestSchema`; login recente pelo maior `timestamp` de `amr` (sem ele, `reauth_required`; a prévia também pede); `dryRun` responde `account_deletion_preview`; senão `begin_account_deletion`, `remove` em lotes somando o que o Storage disse, `finish_account_deletion`, `auth.admin.deleteUser` (404 é corrida, segue) e `complete_account_deletion`; `owns_groups` de `begin` ou de `finish` vira 409 com a prévia do `details`; falha no meio, 500 `delete_failed`. Log só com evento, etapa, código e contagens.
+  - `account-export/` e `account-delete/` (novos): `index.ts` e `deno.json`. `verify_jwt = true` das duas em `supabase/config.toml`; deploy e `verify_jwt` em `docs/implantacao.md`; as duas em `wait-for-functions.mjs`.
+  - `proof-kit.ts`: `mint(sub, claims)` exportado e `refreshToken` na pessoa que entrou de verdade.
+  - Testes: `_shared/account.test.ts` (Node, sem pilha, 15), `account-export/export.integration.test.ts` e `account-delete/delete.integration.test.ts`, os três no `functions:test`.
+  - Handoff `20261103-0617-backend-funcoes-para-auth-grupos-exportar-e-excluir-conta`.
+- **Arquivos/módulos principais:** `supabase/functions/_shared/{account,account.test,proof-kit,wait-for-functions}.*`, `supabase/functions/account-{export,delete}/`, `supabase/config.toml`, `docs/implantacao.md`, `package.json` (`functions:test`)
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** sem `amr` com `timestamp`, recusa (`reauth_required`) em vez do recuo a `auth.sessions.created_at` do ADR: `auth` não está na API e o recuo pediria uma RPC nova; custa só um login. A prévia também pede login recente, para a tela mandar entrar antes da confirmação. Falha de `complete_account_deletion` depois de `deleteUser` vai para o log e a resposta continua `{ deleted: true }`: a conta já saiu, e repetir só daria 401 (a linha de auditoria fica aberta).
+- **Como testar:** `pnpm check`; `node --test supabase/functions/_shared/account.test.ts`; com a pilha, `pnpm functions:test`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 11 de 11; `functions:imports` 10 de 10, com as duas funções novas); `account.test.ts` 15 de 15. Mutações nos handlers, por script, 11 de 11 mortas: `signedInUser` aceitando `getUser` com erro, exportação sem a checagem do usuário nulo, `amr` sempre recente, segundos lidos como ms, `<` no lugar de `<=`, primeiro `timestamp` no lugar do maior, prévia sem a checagem, ação `task_create` no lugar de `data_export`, `PT429` tratado como falha, erro do limite ignorado, `hint` ignorado.
+- **Não verificado:** os dois testes de integração não rodaram (sem pilha, por decisão do orquestrador): que o GoTrue local traz `timestamp` em `amr` e o mantém no refresh (o teste confere), o formato real de `auth.audit_log_entries` depois de `deleteUser`, as URLs assinadas servindo a foto, o 429 real e a conta apagada de fato; o boot das funções no Edge Runtime (só o `import-maps`); o projeto hospedado.
+- **Pendências / próximos passos:** rodar `pnpm functions:test` com a pilha; `auth-grupos` faz as telas (handoff acima).
 
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:27 (BRT)
 
@@ -2721,3 +2721,63 @@
 - **Decisões/ADRs:** nenhuma; `phone_verifications` com `user_id` nulo por 48 h é decisão do ADR-0012 e não foi apontado.
 - **Como testar:** os PoCs estão descritos nos handoffs (pilha local, `curl` e `psql`).
 - **Pendências / próximos passos:** a CSP Report-Only não está no diff (`_headers` não mudou), então não foi revisada. Corrida de SEG8-3 sem PoC. Os privilégios em `auth` no hospedado não foram verificados. Pilha A parada às 06:43.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:49 (BRT)
+
+- **Branch:** feat/native-and-csp, criada a partir de feat/phase-8-polish (439f363), com `feat/ui-polish` (2bceb8d) integrada para os ícones
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** F8-7 sem conta paga (config nativa, EAS, ícones e splash do Broto, push nativo atrás de flag), a CSP completa como Report-Only gerada no build e o passo de push depois do primeiro login (ADR-0012, seções 11 e 13, itens 1 e 2). Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `apps/app/app.config.ts`: `ios.bundleIdentifier` e `android.package` de `APP_IOS_BUNDLE_ID` e `APP_ANDROID_PACKAGE`, com o padrão provisório `com.azkaban.app` (a confirmar pelo humano); `extra.eas.projectId` de `EAS_PROJECT_ID`, só quando existe; ícone adaptativo com fundo de cor, `expo-splash-screen` claro e escuro e `expo-notifications` com o ícone de notificação, como no handoff `20261103-0633` do `design-system`. As cores repetem os tokens (o carregador do Expo não lê o TypeScript de `packages/ui`) e `public.test.ts` compara.
+  - PNGs de `packages/ui/assets/brand` copiados para `apps/app/assets` e `apps/app/public`; `android-icon-background.png` saiu; o manifesto aponta o `maskable` para `icon-maskable-512.png`.
+  - `apps/app/eas.json`: perfis `development` (APK de debug e simulador do iOS), `preview` (APK interno e simulador) e `production`, sem credenciais. Sem `expo-dev-client`, que seria mais uma dependência.
+  - Dependências novas, gratuitas e sem conta para compilar: `expo-notifications ~58.1.7` (em `packages/platform` e `apps/app`, pelo plugin e pela autolinkagem) e `expo-splash-screen ~58.0.12` (em `apps/app`, pelo plugin). As versões são as de `bundledNativeModules.json` do SDK 58.
+  - `packages/config`: `features.nativePush = false`.
+  - `packages/platform`: `push.native.ts` com `nativePushToken(androidChannelName)` e `onPushOpened(listener)`; os dois também em `push.ts` e `push.web.ts`, sem efeito. As funções de Web Push continuam "não suportado" no nativo.
+  - `packages/features/notifications`: `shouldOfferPushSetup` (puro, com teste), `usePushSetupOffer`, `PushSetupStep` (o `PushSetupCard` com "Agora não" ou "Continuar"; ver o passo já conta como oferecido) e `useOpenPushedPaths` (o toque numa notificação nativa abre o caminho, por `safeInternalPath`). `notificationsConfig.pushOfferedKey`. i18n `setup.notNow` e `setup.continue`.
+  - Rotas: `/(app)/push-setup`; Hoje leva até ela uma vez por aparelho; o layout `(app)` liga `useOpenPushedPaths`.
+  - CSP: `apps/app/scripts/headers.ts`, rodado por `build:web` depois de `expo export`, acrescenta `Content-Security-Policy-Report-Only` ao bloco `/*` de `dist/_headers`, com a origem exata de `EXPO_PUBLIC_SUPABASE_URL` em `img-src` e `connect-src` (e `wss:`/`ws:` para o Realtime), sem curinga. Lê os `.env` na mesma ordem do Expo. Sem a variável, avisa e deixa só a CSP mínima. `public/_headers` não muda.
+  - E2E escrita, sem rodar: `e2e/push-setup.spec.ts`; `playwright.config.ts` semeia `notifications.pushOffered` em todo contexto, para o passo não ficar na frente de Hoje nas outras specs.
+  - Handoffs `20261103-0650-notificacoes-whatsapp-para-{auth-grupos-deep-link-de-sessao,backend-funcoes-e-banco-de-dados-push-nativo,qa-testes-passo-de-push-e-csp}`.
+- **Arquivos/módulos principais:** `apps/app/{app.config.ts,eas.json,package.json,public.test.ts,scripts/headers.ts,assets/,public/}`, `apps/app/app/(app)/{_layout,push-setup,(tabs)/index}.tsx`, `packages/platform/src/{push,push.web,push.native,index}.ts`, `packages/features/notifications/src/{PushSetupStep.tsx,pushOffer.ts,pushOffer.test.ts,config.ts,index.ts}`, `packages/config/src/features.ts`, `packages/i18n/src/pt-BR/notifications.json`, `playwright.config.ts`, `e2e/push-setup.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** o passo é uma tela (`/push-setup`) aberta por Hoje, uma vez por aparelho, e não por conta: é o que o ADR pede ("uma chave no aparelho"), e as preferências continuam com o cartão. Fica fora o iOS anterior a 16.4 e o navegador sem push, onde não há o que oferecer. A CSP sem a URL do Supabase não derruba o build: Report-Only não protege nada, e a CSP mínima valendo continua. O deep link de sessão do link mágico mexe em `packages/data/src/auth` e ficou para `auth-grupos` (handoff).
+- **Como testar:** `pnpm check`; `EXPO_PUBLIC_SUPABASE_URL=https://<ref>.supabase.co pnpm build:web` e abrir `apps/app/dist/_headers`; em `apps/app`, `npx expo config --type public` e `npx expo prebuild --platform android --no-install` (apagar `android/` depois); com a pilha e uma chave VAPID, `pnpm exec playwright test e2e/push-setup.spec.ts --project=app`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 11 de 11; app 12, notifications 19, platform 54, config 22, core 719, contracts 146, ui 38); `pnpm build:web` exportou e `dist/_headers` saiu com a linha Report-Only do host passado e o resto igual; `expo config --type public` mostra identificadores, ícones, splash e plugins; `expo prebuild --platform android --no-install` terminou, com `applicationId 'com.azkaban.app'`, o esquema `azkaban` e o ícone e a cor de notificação no manifesto (pasta apagada depois).
+- **Não verificado:** nenhuma E2E rodou (a spec nova e a semente no `playwright.config.ts`); se o Chromium sem interface diz `denied` para notificações, o que esconde o passo na spec; nenhuma tela vista no navegador; build nativo, aparelho, token Expo, toque em notificação nativa; `expo-doctor`; a CSP no navegador (a rodada Report-Only é no ambiente hospedado, F8-8). Sem mutação.
+- **Pendências / próximos passos:** do handoff `20261103-0456` ficam `expo-haptics`, `@react-native-community/netinfo`, `expo-doctor` e `expo config` no CI, o deep link de sessão (com `auth-grupos`) e "conta excluída" no sino; contas e identificadores com o humano (ADR-0012, seção 17, item 12); a CSP valendo depois da rodada limpa.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:52 (BRT)
+
+- **Branch:** chore/phase-8-architect-close, criada a partir de feat/phase-8-polish (9c801db)
+- **Agente(s):** arquiteto
+- **Resumo:** teto do pacote web (F8-6) no CI, regra de lint contra `pointerEvents` em estilo, e os ADRs 0010, 0011 e 0012 alinhados com o que foi entregue. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `scripts/check-bundle-size.mjs` (novo) e `pnpm bundle:size`: comprime com `zlib` (nível padrão) cada `.js` de `apps/app/dist` e falha se o maior passa de 427 641 bytes (110% de 388 765, a partida medida pelo `design-system`, handoff `20261103-0633`). Passo novo no job `check` do `ci.yml`, logo depois do `pnpm build:web`; fora do `pnpm check`, que não constrói. Documentado no `CLAUDE.md`.
+  - `eslint.config.mjs`: `no-restricted-syntax` contra a chave `pointerEvents` em qualquer objeto (o react-native-web 0.21 descarta do estilo; foram três bugs: cartão de comemoração, `Fab`, `NotificationToaster`). O código atual já usa a prop em todos.
+  - ADR-0012: seção 5 com `dehydrate`/`hydrate` do `@tanstack/react-query`, sem as duas dependências (e por quê), descarte por idade pela hora do toque, repetição de rede e 5xx sem teto de tentativas (só os 24 h limitam), e o toque desatualizado para o mesmo destino contando como feito também online; seção 10 com o script e o CI; Consequências sem "duas dependências".
+  - ADR-0010, seção 8: o dia perfeito vem primeiro e ganha a tela (QA6-2); a conquista concedida no teto é comemorada (QA6C-2); `burstMs` e `joinMs` (3 s, QA6C-3).
+  - ADR-0011: F7-5 entregue no status; seção 9 com a janela móvel de 24 h no lugar do dia local (SEG8-1) e a decisão de não pôr `shoppingListId` em `xpEventSchema`. Comentários de `shoppingRules.xp` (`packages/config`) e de `xpEventReasonSchema` (`packages/contracts`) sem "reservado" nem "dia local".
+- **Arquivos/módulos principais:** `scripts/check-bundle-size.mjs`, `package.json`, `.github/workflows/ci.yml`, `CLAUDE.md`, `eslint.config.mjs`, `docs/adr/0010-*.md`, `docs/adr/0011-*.md`, `docs/adr/0012-*.md`, `packages/config/src/shopping.ts`, `packages/contracts/src/tasks.ts`.
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** teto no CI, não no `check`; `shoppingListId` fica fora do contrato até uma tela ler; sem teto de tentativas na fila.
+- **Como testar:** `pnpm check` (verde, 1081 testes de unidade e 10 de `functions:imports`). `pnpm build:web` e `pnpm bundle:size`: 399 448 bytes (`__common`), teto 427 641, passa. Mutação: um `.js` falso de 430 000 bytes aleatórios em `apps/app/dist` levou o script a 430 153 e à falha; apagado, volta a passar. Regra de lint: um `StyleSheet.create({ a: { pointerEvents: 'none' } })` temporário deu erro.
+- **Pendências / próximos passos:** o maior JS já está 2,7% acima da partida (399 448 contra 388 765), com folga de 28 193 bytes até o teto. O CI com o passo novo não rodou (sem push).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 06:56 (BRT)
+
+- **Branch:** fix/offline-queue-hardening, criada a partir de feat/phase-8-polish (9c801db)
+- **Agente(s):** tarefas-calendario
+- **Resumo:** SEG8-5 (handoff `20261103-0643`) e o `networkMode` das mutações fora da fila (ADR-0012, seção 5, "Fica fora"), por decisão do orquestrador. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Alterações:**
+  - `packages/data/src/offline`: a fila salva grava `savedAt`. Cada `startOfflineQueue`, de qualquer conta, lista as chaves do `storage` (`getAllKeys` do AsyncStorage, também na web) e apaga as `azkaban.offline-queue.*` de outras contas com `savedAt` mais velho que `offlineDefaults.maxAgeHours`, ou sem `savedAt` legível. A fila da própria conta segue pela restauração, que descarta as ações velhas com aviso.
+  - `offlineMutationDefaults` (`networkMode: 'always'`) no `QueryClient` de `apps/app/app/_layout.tsx`: criar, editar e excluir tarefa, finalizar lista, prova e o resto das mutações fora da fila falham na hora sem rede, em vez de pausar sem aviso. As ações da fila já declaram `networkMode: 'online'` e continuam esperando.
+  - `taskErrorCode` devolve `offline` para uma falha de rede sem conexão (o repositório embrulha o erro na hora da falha, então vale a conexão daquele momento); as telas de tarefa já mostram `errors.offline` ("Sem conexão. Esta mudança precisa de internet...") sem mudar.
+  - `e2e/offline-queue.spec.ts`: offline, criar uma tarefa mostra a mensagem de sem conexão, não vai para a fila e não aparece depois.
+- **Arquivos/módulos principais:** `packages/data/src/{index.ts,offline/index.ts,offline/offline.test.ts,tasks/index.ts,tasks/status.test.ts}`, `apps/app/app/_layout.tsx`, `e2e/offline-queue.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** padrão global com as ações da fila declarando o próprio `networkMode`, em vez de uma mutação de cada vez: cobre a lista inteira do "Fica fora" do ADR sem tocar as features de compras e prova. A materialização de repetições também deixa de pausar: sem rede, falha depois das duas tentativas e o `MaterializeStatus` oferece tentar de novo. Uma fila salva por uma versão sem `savedAt` é apagada no primeiro início de outra conta (só há dados de desenvolvimento).
+- **Como testar:** `pnpm check`; `pnpm --filter @azkaban/data exec vitest run src/offline src/tasks`; com a pilha, `pnpm exec playwright test e2e/offline-queue.spec.ts --project=app`.
+- **Verificado:** `pnpm check` passou (17 de 17 e 11 de 11; data 38, core 719, contracts 146, platform 54, app 8); `pnpm build:web` exportou (a primeira tentativa falhou com `react-native-css-interop/jsx-runtime` não resolvido, de uma instalação incompleta; passou depois de `pnpm install --frozen-lockfile`). Mutação na regra de idade, 6 de 6 mortas, controle passando: `< 0`, `>=` no lugar de `<=`, sem a negação (fila sem `savedAt` fica), sempre apagar, `savedAt: 0` gravado, o dobro da idade.
+- **Não verificado:** nenhuma E2E rodou (sem pilha); o `getAllKeys` no nativo; o efeito do `networkMode: 'always'` nas telas fora do meu escopo (grupos, perfil, notificações, compras), que mostram o próprio erro genérico; uma conta aberta em outra aba há mais de 24 h sem eventos tem a chave apagada (as ações dela já teriam passado da idade).
+- **Pendências / próximos passos:** nenhuma.

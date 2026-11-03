@@ -19,6 +19,8 @@ pnpm boundaries         # fronteiras entre módulos
 pnpm typecheck          # TypeScript strict
 pnpm test               # testes de unidade
 pnpm check              # todos os checks acima
+pnpm build:web          # build web em apps/app/dist
+pnpm bundle:size        # teto do maior JS com gzip (depois do build:web; o CI roda, o check não)
 pnpm db:start           # Supabase local (exige Docker)
 pnpm db:reset           # recria o banco local com migrations + seeds
 pnpm db:migration <nome> # nova migration

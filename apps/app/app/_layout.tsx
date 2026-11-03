@@ -2,6 +2,7 @@ import '../global.css';
 import { useSession, useSessionFromLink } from '@azkaban/feature-auth';
 import { stopPushWhenSignedOut } from '@azkaban/feature-notifications';
 import {
+  followDeviceConnection,
   initData,
   offlineMutationDefaults,
   useClearCacheOnUserChange,
@@ -16,6 +17,7 @@ import { env } from '../src/env';
 
 initI18n();
 initData(env.EXPO_PUBLIC_SUPABASE_URL, env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+followDeviceConnection();
 // Before any screen: a session gone by any path also stops this browser's push.
 stopPushWhenSignedOut();
 

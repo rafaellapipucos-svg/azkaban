@@ -2011,3 +2011,20 @@
 - **Verificado:** em `c1c109a` (antes da correção do teste do seed): install, `db:start`, `db reset`, `db:test` (1556), `db:check-permissions`, `turbo typecheck test --force`, lint, `boundaries`, `build:web`, `functions:test`, E2E duas vezes com 73 ok, 0 falhas e 1 pulado (o "sem chave VAPID"). O `db:test` depois da E2E falhou só no teste 4 de `rls_shopping` (exigia 44 itens exatos, e a E2E salva um item no catálogo); corrigido em `fix/shopping-seed-test`, que passou em banco limpo e com a sobra simulada. Varredura de segredos no diff `feat/phase-5-whatsapp..`: nada.
 - **Não verificado:** o `db:test` depois de uma E2E real com o teste novo (fica para a verificação da integração das Fases 6 e 7); Realtime de compras só pela E2E; Share nativo, Safari, iOS e Android; projeto hospedado; CI do PR.
 - **Pendências / próximos passos:** PR para `feat/phase-5-whatsapp`; F7-5 depois da Fase 6; perguntas ao humano da seção 15 do ADR-0011.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 05:07 (BRT)
+
+- **Branch:** fix/shopping-migration-prefixes (de `feat/phase-7-shopping`, `d02fc82`)
+- **Agente(s):** banco-de-dados
+- **Resumo:** as 13 migrations da Fase 7 ganharam prefixos depois do último da Fase 6 (`20261103180600`), para a base integrada das duas fases ter versões únicas (ADR-0012, seção 14). Só `git mv`: ordem e SQL iguais.
+- **Alterações:**
+  - `20261103170000` a `20261103170800` (vocabulary, rules, permissions, catalog_items, catalog_seed, lists, list_items, rpcs, realtime) viram `20261103190000` a `20261103190800`, com o mesmo final.
+  - `20261103180000` a `20261103180300` (open_lists_cap, plain_text_checks, guards_fk_actions_only, delta_finite) viram `20261103200000` a `20261103200300`.
+  - Nenhuma referência viva aos prefixos antigos: nem SQL, nem pgTAP, nem `scripts/check-permission-mirror.mjs`, nem docs fora dos handoffs. Os handoffs da Fase 7 e as entradas antigas deste LOG citam os nomes antigos e ficam como registro.
+- **Arquivos/módulos principais:** `supabase/migrations/20261103190000_*` a `20261103200300_*`
+- **Migrations:** as 13 acima, renomeadas; nenhuma nova
+- **Decisões/ADRs:** ADR-0012, seção 14.
+- **Como testar:** pilha B (`pilha-b.sh db`), `pnpm exec supabase db reset`, `pnpm db:test`, `pnpm db:check-permissions`.
+- **Verificado:** nesta branch, `db reset`, `db:test` (7 arquivos, 1556 testes, PASS) e `db:check-permissions` em sincronia. Num merge de teste descartável (`tmp/phase-6-7-trial`, não entregue) com `feat/phase-6-gamification`: `db reset` aplica as migrations das duas fases sem colisão; `db:test` dá 9 arquivos, 1698 testes, PASS; `db:check-permissions` em sincronia, com as regras de compras e de gamificação; o `database.types.ts` mesclado sozinho é igual ao gerado; `pnpm check` verde. Pilha B parada no fim. Hora derivada de UTC menos 3, porque o PowerShell foi barrado no worktree.
+- **Não verificado:** E2E, `functions:test` e `build:web` no merge de teste; projeto hospedado.
+- **Pendências / próximos passos:** a integração de verdade das Fases 6 e 7 (orquestrador), com 12 arquivos em conflito, todos de manter os dois lados; depois, F7-5.

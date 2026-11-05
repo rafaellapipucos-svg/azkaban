@@ -4033,3 +4033,19 @@
 - **Verificado:** `pnpm-workspace.yaml` sem diff. `npx expo install --check` (online, só nesta conferência): "Dependencies are up to date". `pnpm install --frozen-lockfile` passa as políticas de supply chain. `pnpm check` passou. `pnpm build:web` passou; `pnpm bundle:size` 404 459 B (antes 404 609 B; teto 427 641). `pnpm expo:doctor` 20/20 com o SDK novo instalado.
 - **Não verificado:** E2E (fica para o CI do PR), nativo, CI no GitHub. Hora pelo UTC−3 (PowerShell barrado).
 - **Pendências / próximos passos:** PR para a `main`; marcar BL-39 como feito no quadro.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-05 17:47 (BRT)
+
+- **Branch:** chore/android-application-id (a partir de `chore/expo-sdk-58-patches`, `87a6386`)
+- **Agente(s):** arquiteto
+- **Resumo:** BL-40. O identificador do app, escolhido pelo humano, é `com.tabolao.app`, no Android e no iOS, para não divergir.
+- **Alterações:**
+  - `apps/app/app.config.ts`: o padrão de `android.package` e de `ios.bundleIdentifier` passa de `com.azkaban.app` (provisório) para `com.tabolao.app`; `APP_ANDROID_PACKAGE` e `APP_IOS_BUNDLE_ID` ainda sobrepõem.
+  - ADR-0012, seção 11: parágrafo com a decisão, depois do da BL-29. Não existe `.well-known/assetlinks.json` nem identificador em `eas.json`; nada mais a mudar.
+- **Arquivos/módulos principais:** `apps/app/app.config.ts`, `docs/adr/0012-polimento-lgpd-limites-offline.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0012, seção 11 (decisão do humano, BL-40).
+- **Como testar:** em `apps/app`, `npx expo config --type public` mostra `package` e `bundleIdentifier` `com.tabolao.app`; `pnpm expo:doctor`; `pnpm check`.
+- **Verificado:** `npx expo config --type public` com os dois valores certos; `pnpm expo:doctor` 20/20; `pnpm check` passou.
+- **Não verificado:** EAS build e aparelho (sem conta Expo). Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** marcar BL-40 como feito no quadro; ao criar o projeto no EAS e o app no Firebase, usar `com.tabolao.app`; o `assetlinks.json` entra com os App Links.

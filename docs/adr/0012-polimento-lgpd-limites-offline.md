@@ -354,6 +354,8 @@ Os valores das taxas não foram conferidos nesta data; o humano confere nas pág
 
 **Decisão do humano (2026-11-03), BL-29: só Android por ora.** Contas Expo e Firebase, as duas grátis: build no EAS, APK de teste instalado à mão e push no Android pelo FCM, com `features.nativePush` ligando quando as contas existirem. Sem Apple Developer Program: nada de build para iPhone de verdade nem push no iPhone; no iPhone, só a PWA pela Tela de Início. A Play Store fica para depois. O identificador do app ainda não foi escolhido e segue no BL-29; com o domínio decidido (seção 12), o natural é `com.tabolao.<app>`, a confirmar.
 
+**Decisão do humano (2026-11-05), BL-40: o identificador é `com.tabolao.app`**, em `android.package` e também em `ios.bundleIdentifier`, para não divergir quando houver iPhone. É o padrão de `apps/app/app.config.ts`; `APP_ANDROID_PACKAGE` e `APP_IOS_BUNDLE_ID` ainda sobrepõem. O `.well-known/assetlinks.json` dos App Links, quando entrar, usa esse `package_name` com o SHA-256 da assinatura.
+
 ### 12. Hospedagem web (F8-8)
 
 Depende do humano. O ADR-0004 adotou a Netlify como padrão, e `apps/app/public` já tem `_headers` e `_redirects` no formato dela. Opções sem custo, sem decidir contratar nada:

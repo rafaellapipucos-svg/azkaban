@@ -4049,3 +4049,20 @@
 - **Verificado:** `npx expo config --type public` com os dois valores certos; `pnpm expo:doctor` 20/20; `pnpm check` passou.
 - **Não verificado:** EAS build e aparelho (sem conta Expo). Hora pelo UTC−3 (PowerShell barrado).
 - **Pendências / próximos passos:** marcar BL-40 como feito no quadro; ao criar o projeto no EAS e o app no Firebase, usar `com.tabolao.app`; o `assetlinks.json` entra com os App Links.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-05 17:49 (BRT)
+
+- **Branch:** chore/post-launch (a partir de `chore/android-application-id`, `3cf3311`)
+- **Agente(s):** orquestrador
+- **Resumo:** PR #11 mergeado na `main` (`f4d9136`) e primeira implantação do Supabase hospedado (BL-28), com autorização do humano. QUADRO com BL-28, BL-39 e BL-40 feitos.
+- **Alterações:**
+  - Hospedado (`sofxwwzejdjdhtrjmpoc`): `supabase link` e `db push` das 207 migrations (dry-run seguinte: `upToDate: true`); segredos `CRON_SECRET`, `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT` (`mailto:privacidade@tabolao.com`), `WHATSAPP_PROVIDER=console`, `WHATSAPP_APP_SECRET` e `WHATSAPP_VERIFY_TOKEN` (valores gerados localmente, nunca exibidos); `NATIVE_PUSH_PROVIDER` não definido (não configurado); `functions deploy` das 9 funções, todas `ACTIVE` e com o `verify_jwt` da seção 3 de `docs/implantacao.md`.
+  - GitHub, Variables do deploy: `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `EXPO_PUBLIC_VAPID_PUBLIC_KEY`, `EXPO_PUBLIC_APP_NAME`, `EXPO_PUBLIC_APP_SCHEME`, `FTP_SERVER_DIR`.
+  - Arquivos locais do humano, fora do repositório: `~/azkaban-vault.sql` (os 4 segredos do Vault, para o SQL Editor) e `~/vapid-azkaban-prod.env` (par VAPID, para o cofre de senhas).
+  - `docs/agentes/QUADRO.md`: BL-28, BL-39 e BL-40 feitos.
+- **Arquivos/módulos principais:** `docs/agentes/QUADRO.md`, `LOG_DE_ALTERACOES.md`.
+- **Migrations:** nenhuma nova; aplicadas no hospedado todas até `20261106100100`.
+- **Decisões/ADRs:** nenhuma nova.
+- **Como testar:** `pnpm exec supabase db push --dry-run` (deve dizer `upToDate`); `pnpm exec supabase functions list --project-ref sofxwwzejdjdhtrjmpoc`; depois do Vault, as consultas da seção 5 de `docs/implantacao.md`.
+- **Verificado:** as saídas acima. **Não verificado:** crons no hospedado (dependem do Vault), Auth no painel, SMTP, deploy web (faltam os Secrets do FTP).
+- **Pendências / próximos passos:** com o humano: Vault, guardar e apagar o arquivo VAPID, Hostinger e Secrets do FTP, Brevo, Auth no painel; depois, conferência dos crons e do primeiro deploy.

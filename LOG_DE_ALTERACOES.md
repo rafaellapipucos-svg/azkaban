@@ -4017,3 +4017,19 @@
 - **Verificado:** em `c6ff56a`, banco limpo: db:test 1990/1990 antes e depois da E2E, db:check-permissions, typecheck e unidade, lint, fronteiras, build:web, functions:test 228/228, E2E 99 passaram e 1 pulado nas duas rodadas, bundle 404 609 B, expo-doctor 20/20. Varredura de segredos sem achados.
 - **Não verificado:** deploy real na Hostinger (falta o humano criar os Secrets), Brevo, projeto hospedado, nativo.
 - **Pendências / próximos passos:** PR para a `main`; com o humano: `supabase login`, Hostinger e Brevo; BL-39 depois de 2026-11-04 14:10; BL-40.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-05 17:37 (BRT)
+
+- **Branch:** chore/expo-sdk-58-patches (a partir de `main`, `f4d9136`)
+- **Agente(s):** arquiteto
+- **Resumo:** BL-39. Patches do SDK 58 da Expo, publicados em 2026-11-03 e já fora da quarentena de 1 dia do pnpm. Sem nenhuma entrada nova em `minimumReleaseAgeExclude`; o pnpm não recusou nenhum pacote.
+- **Alterações:**
+  - `npx expo install --fix` em `apps/app`: `expo` ~58.0.23, `@expo/metro-runtime` ~58.0.17, `expo-constants` ~58.0.15, `expo-linking` ~58.0.16, `expo-notifications` ~58.1.8, `expo-router` ~58.0.30, `expo-splash-screen` ~58.0.13, `react-native-safe-area-context` ~5.11.1.
+  - As mesmas versões em `packages/platform`, `packages/ui` e `packages/features/*` que as declaram, mantendo o operador (`~` ou `^`) de cada um. O lockfile resolve uma versão só de cada módulo da Expo.
+- **Arquivos/módulos principais:** `apps/app/package.json`, `packages/platform/package.json`, `packages/ui/package.json`, `packages/features/*/package.json`, `pnpm-lock.yaml`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova; segue a regra da entrada de 2026-11-03 18:05.
+- **Como testar:** `pnpm install --frozen-lockfile && pnpm check && pnpm build:web && pnpm bundle:size && pnpm expo:doctor`.
+- **Verificado:** `pnpm-workspace.yaml` sem diff. `npx expo install --check` (online, só nesta conferência): "Dependencies are up to date". `pnpm install --frozen-lockfile` passa as políticas de supply chain. `pnpm check` passou. `pnpm build:web` passou; `pnpm bundle:size` 404 459 B (antes 404 609 B; teto 427 641). `pnpm expo:doctor` 20/20 com o SDK novo instalado.
+- **Não verificado:** E2E (fica para o CI do PR), nativo, CI no GitHub. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** PR para a `main`; marcar BL-39 como feito no quadro.

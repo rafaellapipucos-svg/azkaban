@@ -19,11 +19,11 @@
     "@azkaban/ui": "workspace:*",
     "@hookform/resolvers": "^7.0.0",
     "@tanstack/react-query": "^5.105.0",
-    "expo-router": "^58.0.29",
+    "expo-router": "^58.0.30",
     "react": "catalog:",
     "react-hook-form": "^7.91.0",
     "react-native": "catalog:",
-    "react-native-safe-area-context": "~5.10.1",
+    "react-native-safe-area-context": "~5.11.1",
     "zod": "catalog:"
   },
   "devDependencies": {

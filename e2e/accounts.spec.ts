@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 
 // Needs `pnpm db:start`. Accounts are unique per run and exist only in the local database.
 const newUser = (name: string) => ({
@@ -161,24 +161,74 @@ test('the invite preview says when the server is down or the connection failed',
   await expect(page.getByText('Você foi convidado para Casa B como Membro.')).toBeVisible();
 });
 
-test('magic link signs the user in', async ({ page, request }) => {
-  const user = newUser('Link');
+const mail = 'http://127.0.0.1:54424/api/v1';
+
+async function mailCount(request: APIRequestContext, email: string): Promise<number> {
+  const search = await request.get(`${mail}/search?query=to:${email}`);
+  return (await search.json()).messages_count;
+}
+
+/** Asks for a sign-in link on the sign-in screen of `page` and reads it from the local mailbox. */
+async function requestLink(page: Page, request: APIRequestContext, email: string): Promise<string> {
+  const before = await mailCount(request, email);
   await page.goto('/sign-in');
-  await page.getByLabel('E-mail', { exact: true }).fill(user.email);
+  await page.getByLabel('E-mail', { exact: true }).fill(email);
   await button(page, 'Receber link por e-mail').click();
   await expect(page.getByText('Enviamos um link para o seu e-mail.')).toBeVisible();
-
-  const mail = 'http://127.0.0.1:54424/api/v1';
-  await expect
-    .poll(async () => {
-      const search = await request.get(`${mail}/search?query=to:${user.email}`);
-      return (await search.json()).messages_count;
-    })
-    .toBeGreaterThan(0);
-  const search = await (await request.get(`${mail}/search?query=to:${user.email}`)).json();
+  await expect.poll(() => mailCount(request, email)).toBeGreaterThan(before);
+  // Newest first.
+  const search = await (await request.get(`${mail}/search?query=to:${email}`)).json();
   const message = await (await request.get(`${mail}/message/${search.messages[0].ID}`)).json();
-  const link = message.Text.match(/https?:\/\/\S+/)[0];
+  return message.Text.match(/https?:\/\/\S+/)[0];
+}
 
-  await page.goto(link);
+async function signUp(page: Page, user: User) {
+  await page.goto('/sign-up');
+  await fillSignUp(page, user);
   await expect(button(page, 'Novo contexto')).toBeVisible();
+}
+
+const otherAccountNotice = /^O link de entrada não foi usado porque já há uma conta conectada/;
+
+test('magic link signs the user in', async ({ page, request }) => {
+  await page.goto(await requestLink(page, request, newUser('Link').email));
+  await expect(button(page, 'Novo contexto')).toBeVisible();
+});
+
+// BL-38, option A' (ADR-0004): on the web a link never replaces the session of another account.
+// The link is asked for in another browser, as someone else's would be, and opened in A's tab.
+test('a link of another account keeps the signed-in account', async ({
+  page,
+  browser,
+  request,
+}) => {
+  const owner = newUser('Alma');
+  await signUp(page, owner);
+
+  const elsewhere = await (await browser.newContext()).newPage();
+  await page.goto(await requestLink(elsewhere, request, newUser('Bia').email));
+
+  await expect(page).toHaveURL(/\/profile\?link=other-account$/);
+  await expect(page.getByText(otherAccountNotice)).toBeVisible();
+  await expect(page.getByLabel('Seu nome')).toHaveValue(owner.name);
+  expect(page.url()).not.toContain('access_token');
+});
+
+test('a link of the same account keeps the session without the notice', async ({
+  page,
+  browser,
+  request,
+}) => {
+  const owner = newUser('Alma');
+  await signUp(page, owner);
+
+  const elsewhere = await (await browser.newContext()).newPage();
+  await page.goto(await requestLink(elsewhere, request, owner.email));
+
+  await expect(button(page, 'Novo contexto')).toBeVisible();
+  expect(page.url()).not.toContain('access_token');
+  expect(page.url()).not.toContain('other-account');
+  await openTab(page, 'Perfil');
+  await expect(page.getByLabel('Seu nome')).toHaveValue(owner.name);
+  await expect(page.getByText(otherAccountNotice)).toHaveCount(0);
 });

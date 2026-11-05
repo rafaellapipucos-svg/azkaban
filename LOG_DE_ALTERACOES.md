@@ -3810,3 +3810,210 @@
 - **Verificado:** `pnpm check` passou.
 - **Não verificado:** o passo no CI (sem push, sem PR de rascunho). Fixar as actions por SHA fica para uma mudança do workflow inteiro. Hora pelo UTC−3 (PowerShell barrado).
 - **Pendências / próximos passos:** o PR de rascunho do "Como testar".
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 17:19 (BRT)
+
+- **Branch:** docs/human-decisions (a partir de `feat/launch-decisions` = `main`, `33132dc`)
+- **Agente(s):** arquiteto
+- **Resumo:** registra nos ADRs as respostas do humano de 2026-11-03 às decisões pendentes BL-24 a BL-38. Só documentação; nada apagado, cada resposta entra como "Decisão do humano (2026-11-03)".
+- **Alterações:**
+  - ADR-0004: a revisão BL23-2 passa de proposta a decidida, opção A' no web (o link mágico não troca sessão ativa; sem marcador, sem PKCE), com o teste obrigatório e o risco residual aceito; nota de que a hospedagem saiu da Netlify e de que a Meta fica no backlog.
+  - ADR-0007 §20: base legal é consentimento; a pendência deixa de ser bloqueante; controlador e `privacidade@tabolao.com`.
+  - ADR-0008: §16 confirmado; BL-32, opção de esconder o conteúdo do push na tela bloqueada, desligada por padrão, com donos; §13, nota do `.htaccess`.
+  - ADR-0009 §16: confirmado; BL-30, WhatsApp real no backlog, provedor `console` segue.
+  - ADR-0010: §13 confirmado, exceto o item 14; §14, SEG6-6 corrigido com chave substituta em `user_achievements` (faixa `20261105140000`+, contrato sem mudança) e SEG6-8 como risco aceito (BL-34).
+  - ADR-0011 §15: confirmado; BL-35, a lista de listas ao vivo não é necessária.
+  - ADR-0012: §11, só Android (Expo e Firebase grátis, sem Apple); §12, Hostinger Premium em `https://app.tabolao.com`, deploy por GitHub Actions via FTP e `.htaccess` no lugar de `_headers`/`_redirects`, com o que conferir no primeiro deploy; §17 confirmado, com controlador, consentimento, Brevo grátis no domínio `tabolao.com`, "0 pacotes", CAPTCHA desligado, testes em Android e computador, e a autorização para o hospedado com confirmação a cada comando (BL-28/BL-37).
+- **Arquivos/módulos principais:** `docs/adr/0004`, `0007`, `0008`, `0009`, `0010`, `0011`, `0012`
+- **Migrations:** nenhuma (a do BL-33 fica com `banco-de-dados`)
+- **Decisões/ADRs:** as acima.
+- **Como testar:** leitura; `pnpm check`.
+- **Verificado:** `pnpm check` passou.
+- **Não verificado:** o comportamento da Hostinger com `.htaccess` e a cópia de arquivos com ponto pelo `expo export` (ficou como conferência do primeiro deploy). `docs/implantacao.md` e `docs/agentes/QUADRO.md` não foram tocados, por pedido. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** implementações que as decisões abrem: A' no web (`auth-grupos`, BL-38); preferência de esconder o push (`notificacoes-whatsapp`, `banco-de-dados`, BL-32); chave substituta (`banco-de-dados`, `gamificacao`, BL-33); `.htaccess` em `dist/` (`notificacoes-whatsapp`) e workflow de deploy por FTP (`arquiteto`); "0 pacotes" no i18n de compras; Brevo, SPF e DKIM e o projeto hospedado com o humano; o identificador do app (BL-29).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 17:20 (BRT)
+
+- **Branch:** fix/zero-plural (a partir de `feat/launch-decisions`, `33132dc`)
+- **Agente(s):** compras
+- **Resumo:** decisão do humano (ADR-0012, seção 17 item 10 e seção 13 item 5): contagem zero no plural, "0 pacotes" e não "0 pacote". Vale para todas as chaves de contagem do i18n, não só compras.
+- **Alterações:**
+  - `packages/i18n/src/pt-BR/*.json`: 47 chaves `_zero` novas, cada uma com o mesmo texto da `_other` irmã, em auth, calendar, gamification, notifications, shopping, tasks e ui. Nenhum outro texto mudou. As 4 chaves que já tinham `_zero` ficaram como estavam (`notifications:bell.label_zero` "Avisos", `ui` `bellLabel_zero` com texto próprio, e `gamification:streak.days_zero`/`best_zero`). Por exceção autorizada pelo orquestrador, os JSON de outros módulos foram tocados só para acrescentar o caso zero.
+  - i18next 26 procura `_zero` sempre que `count === 0`, antes da forma do CLDR, sem opção extra; nada mudou em `initI18n`.
+  - `packages/i18n/src/plurals.test.ts` (novo) e `vitest` no `packages/i18n/package.json`: `count: 1` singular e `count: 0` plural para `shopping:units.pack`, `shopping:units.dozen`, `calendar:day.count`, `gamification:streak.freezes` e `tasks:repeat.count`; o texto próprio do zero do sino continua; e toda chave `_one` tem `_zero` ao lado, para chave nova não voltar a "0 pacote".
+  - `e2e/shopping.spec.ts`: as duas asserções do stepper passam de "0 pacote" para "0 pacotes".
+- **Arquivos/módulos principais:** `packages/i18n/src/pt-BR/*.json`, `packages/i18n/src/plurals.test.ts`, `packages/i18n/package.json`, `pnpm-lock.yaml`, `e2e/shopping.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** aplica a resposta do humano ao item 10 da seção 17 do ADR-0012; o texto do ADR ("até a resposta, fica como está") não foi atualizado aqui.
+- **Como testar:** `pnpm --filter @azkaban/i18n test`; `pnpm exec playwright test e2e/shopping.spec.ts` com a pilha.
+- **Verificado:** `pnpm check` passou (14 tarefas de teste, 7 testes novos no i18n).
+- **Não verificado:** E2E (sem pilha, por ordem do orquestrador), incluindo a spec de compras alterada. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** o `t` das Edge Functions (`supabase/functions/dispatch-notifications/translate.ts`) não procura `_zero`, então push e WhatsApp seguem no singular com 0: handoff `20261103-1722-compras-para-backend-funcoes-zero-no-plural-nas-funcoes.md`. Atualizar o item 5 da seção 13 e o item 10 da seção 17 do ADR-0012 como respondidos (arquiteto).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 17:24 (BRT)
+
+- **Branch:** feat/hostinger-deploy (a partir de `feat/launch-decisions`, `33132dc`)
+- **Agente(s):** arquiteto
+- **Resumo:** BL-24, app web na Hostinger Premium em `https://app.tabolao.com`: o build grava `dist/.htaccess`, um workflow sobe `apps/app/dist/` por FTPS a cada push na `main`, e `docs/implantacao.md` ganha o passo a passo do humano (Hostinger, GitHub, Brevo e Auth do Supabase).
+- **Alterações:**
+  - `apps/app/scripts/headers.ts`: depois do `_headers`, gera `dist/.htaccess` a partir do bloco `/*` dele (uma fonte só para os dois hosts): HTTPS por 301, fallback de rota para `index.html` fora de `/_expo/` e `/assets/` (um chunk que falta dá 404, não HTML), os cabeçalhos com `Header always set`, cache de um ano para nomes com hash (`[.-]<md5>.<ext>`), `no-cache` para `index.html`, `sw.js` e `manifest.webmanifest`, `AddType` do manifest e do JS, `Options -Indexes` e acesso negado ao `.ftp-deploy-sync-state.json` da action. Recusa um valor com aspas ou barra invertida.
+  - `apps/app/public/_headers`: `Permissions-Policy: camera=(self), geolocation=(self), microphone=()` (o valor do ADR-0012, seção 13, item 1; a câmera da prova pede `audio: false`) e `X-Frame-Options: DENY`, pedidos no BL-24. Valem também para a Netlify, se ela voltar.
+  - `.github/workflows/deploy-web.yml`: push na `main` e `workflow_dispatch`, `permissions: contents: read`, `concurrency` sem cancelar o deploy em curso. Sem os três secrets de FTP, termina verde com o aviso "Deploy skipped". Com eles, falha se faltar variável, se a URL do Supabase não for `https` ou for local, se a chave for `sb_secret_` ou JWT `service_role`, ou se `FTP_SERVER_DIR` não terminar com `/`. Upload por `SamKirkland/FTP-Deploy-Action` v4.4.0 fixada por commit (`110f918…`), `protocol: ftps`, `security: strict`; ela sobe arquivos ocultos (o `exclude` padrão só tira `.git*` e `node_modules`).
+  - `docs/implantacao.md`: seção 8, "Hostinger (app.tabolao.com)", com E-mail (Brevo) e Auth no painel; as menções ao Netlify viram as variáveis do GitHub; a seção 4 passa a pedir só `https://app.tabolao.com/**` e `azkaban://**`, sem curinga no host.
+- **Arquivos/módulos principais:** `apps/app/scripts/headers.ts`, `apps/app/public.test.ts`, `apps/app/public/_headers`, `.github/workflows/deploy-web.yml`, `docs/implantacao.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhum ADR editado (outro agente registra as decisões do lançamento). Para ele: `Permissions-Policy` sai do "depois" do ADR-0008 (SEG4-7) e do ADR-0012 §13 item 1 e passa a valer já; as URLs de redirecionamento do Auth passam a ter `/**` no caminho do domínio do app; HSTS continua fora.
+- **Como testar:** `pnpm build:web` com `EXPO_PUBLIC_SUPABASE_URL` e ver `apps/app/dist/.htaccess`; servir `dist` num Apache 2.4 com `AllowOverride All`, `mod_rewrite` e `mod_headers`, e conferir com `curl -sI`.
+- **Verificado:** `pnpm --filter @azkaban/app test` 16/16; `pnpm check` passou; `pnpm build:web` gerou o `.htaccess`; `pnpm bundle:size` 403 431 B (teto 427 641). Num `httpd:2.4` em Docker com o `dist` gerado: HTTP dá 301 para `https://` com o caminho; com a regra de HTTPS tirada (sem TLS no teste), `/` e `/tasks/1` dão 200 `text/html` com `no-cache` e todos os cabeçalhos, a Report-Only incluída; `sw.js` `text/javascript` e `manifest.webmanifest` `application/manifest+json`, ambos `no-cache`; o `entry-<hash>.js` e uma fonte `.ttf` com hash, `max-age=31536000, immutable`; um chunk inexistente em `/_expo/static/` dá 404; `/_expo/`, `/.htaccess` e `/.ftp-deploy-sync-state.json` dão 403. O passo de conferência das variáveis, extraído do workflow, contra 9 casos (https ok; http, `127.0.0.1`, `[::1]`, `localhost`, URL inválida, `sb_secret_` e JWT `service_role` recusados; JWT `anon` aceito).
+- **Não verificado:** o workflow no GitHub (sem push) e o deploy real, que só roda quando o humano criar os secrets; LiteSpeed (a Hostinger usa LiteSpeed, e o teste foi no Apache); o certificado do FTPS da Hostinger com `security: strict`; o Brevo e o painel do Supabase; os nomes exatos dos menus do hPanel e do Brevo no dia. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** o humano segue a seção 8 de `docs/implantacao.md`; depois do primeiro deploy, as conferências do passo 6 dela e a rodada da CSP Report-Only no console.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 17:24 (BRT)
+
+- **Branch:** feat/web-link-and-controller (a partir de `feat/launch-decisions`, `33132dc`)
+- **Agente(s):** auth-grupos
+- **Resumo:** duas decisões do humano. BL-38 com a opção A' no web: um link mágico não troca mais a sessão ativa de outra conta. BL-27: controlador, encarregado e base legal na tela Privacidade e na transparência.
+- **Alterações:**
+  - BL-38: `packages/data/src/client.ts` passa a `detectSessionInUrl: false` nas duas plataformas. `useSessionFromLink` roda também no web e lê a URL com `authRepository.setSessionFromLink`, que no web não exige o marcador de pedido (a A' não pede). Sessão de outra conta ativa: os tokens são ignorados, a rota é trocada por `/profile?link=other-account` (sai o fragmento da barra de endereço) e o Perfil mostra `profile.linkOtherAccount`. Sem sessão ou com a mesma conta, entra (a reautenticação antes de excluir a conta depende disso). Novo `linkOtherAccount` exportado por `@azkaban/data`; no nativo, o caso de outra conta também mostra a mensagem em vez de ir calado para o caminho. Link vencido no web agora cai em `/sign-in?link=expired`, como no nativo.
+  - BL-27: `privacyController` em `packages/config` (nome `Rafaell Bezerra Saraiva`, e-mail do encarregado `privacidade@tabolao.com`). A tela Privacidade troca o aviso `privacy.policyPending` por um cartão "Quem responde pelos seus dados" (controlador pessoa física, contato do encarregado, base legal consentimento para funcionários). A transparência ganha um cartão no fim com os mesmos dados, sem título próprio, para manter os nove itens da seção 7 do ADR-0012 (e a contagem de títulos da E2E).
+- **Arquivos/módulos principais:** `packages/data/src/client.ts`, `packages/data/src/auth/index.ts`, `packages/features/auth/src/useSessionFromLink.ts`, `packages/features/auth/src/ProfileScreen.tsx`, `packages/features/auth/src/PrivacyScreen.tsx`, `packages/features/groups/src/TransparencyScreen.tsx`, `packages/config/src/limits.ts`, `packages/i18n/src/pt-BR/auth.json`, `packages/i18n/src/pt-BR/groups.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** BL-38 opção A' e BL-27 decididos pelo humano. O ADR-0004 (fluxo implícito) e o ADR-0012, seção 17, itens 1 e 2, ainda descrevem as pendências como abertas: atualizar é do arquiteto.
+- **Como testar:** `pnpm --filter @azkaban/data exec vitest run src/auth` (web: sem sessão entra, mesma conta entra, outra conta não troca). No web, com a conta A logada, abrir um link de entrada da conta B: continua A, a URL fica `/profile?link=other-account` e o Perfil explica.
+- **Verificado:** testes de unidade acima e `pnpm check` passaram.
+- **Não verificado:** sem pilha e sem E2E, por decisão. Não rodei no navegador o login por link, a confirmação de cadastro e a reautenticação pelo novo caminho; em particular, que o `router.replace` do expo-router tira o fragmento da URL quando o caminho do link é a rota atual. Nativo não rodado. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** continua aberto, custo aceito da A': um navegador sem sessão que abre o link de outra pessoa entra na conta dela (login CSRF). Atualizar ADR-0004, ADR-0012 §17 e o QUADRO (BL-27, BL-38). Um E2E de link mágico no web, quando houver pilha.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 17:27 (BRT)
+
+- **Branch:** fix/deploy-after-ci (a partir de `feat/launch-decisions`, `3bbf6e1`)
+- **Agente(s):** arquiteto
+- **Resumo:** o deploy web deixa de rodar no push da `main` e passa a rodar depois do workflow `CI`, só quando ele passou. Uma `main` com CI vermelho não sobe.
+- **Alterações:**
+  - `.github/workflows/deploy-web.yml`: o gatilho virou `workflow_run` de `CI` (`types: [completed]`, `branches: [main]`), e o `workflow_dispatch` continua. O job só roda se `conclusion == 'success'`, `event == 'push'`, `head_branch == 'main'` e `head_repository.full_name == github.repository`. O `event` e o repositório estão lá porque o CI também roda em `pull_request`, e um PR de fork com um branch chamado `main` teria `head_branch == 'main'`. O disparo manual só vale a partir da `main`. O checkout usa `github.event.workflow_run.head_sha` (o commit que o CI testou), ou `github.sha` no disparo manual. Um `# shellcheck disable=SC2016` no passo de conferência: o script é JavaScript entre aspas simples de propósito.
+  - `docs/implantacao.md`, seção 8: o texto do gatilho acompanha a mudança.
+- **Arquivos/módulos principais:** `.github/workflows/deploy-web.yml`, `docs/implantacao.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma (pedido do coordenador)
+- **Como testar:** com os secrets criados, um push na `main`: o CI roda, e o "Deploy web" só começa depois dele, com o mesmo SHA. Com o CI vermelho, o deploy aparece como pulado.
+- **Verificado:** `actionlint` (imagem `rhysd/actionlint` no Docker) sem aviso em `deploy-web.yml` e `ci.yml`; o YAML lido de volta mostra o gatilho, o `if` e o `ref`; `pnpm check` passou.
+- **Não verificado:** o evento `workflow_run` no GitHub (sem push). Ele só dispara pelo arquivo que estiver no branch padrão, então só funciona depois do merge na `main`. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 17:30 (BRT)
+
+- **Branch:** feat/decisions-db (a partir de `feat/launch-decisions` = `main`, `33132dc`)
+- **Agente(s):** banco-de-dados
+- **Resumo:** as duas decisões do humano para o banco. BL-33: SEG6-6 corrigido, com chave substituta em `user_achievements`, e o `DELETE` do Realtime passa a levar só um id opaco. BL-32: preferência `profiles.push_hide_content` (desligada por padrão), entregue ao despacho pelo claim.
+- **Alterações:**
+  - BL-33: `user_achievements` ganha `id uuid` como chave primária, `unique (user_id, achievement_key)` e `replica identity default` explícita. RLS, grants (só `select` para `authenticated`), a concessão única de `grant_achievements`, a cascata e a publicação no Realtime continuam iguais. O cliente de gamificação não muda: ele escuta o `INSERT` e lê `achievement_key`, e o `select('*')` de `listGranted` ignora o `id`. Por isso não há handoff para `gamificacao`. A exportação passa a trazer o `id` em `achievements` (`to_jsonb`).
+  - BL-32: coluna `push_hide_content boolean not null default false` com `grant update` do dono, pelo mesmo caminho do horário de silêncio. `claim_notification_batch` ganha `hideContent` em cada item (verdadeiro só no canal `web_push` com a flag ligada), e nesse caso `taskTitle` já sai nulo, então um despacho que ainda não conhece a flag cai no "tarefa" genérico do `buildPushPayload`. No WhatsApp o item não muda.
+  - Testes antigos ajustados à chave nova do item e à coluna gravável (`rls_notifications` e `rls_whatsapp`).
+- **Arquivos/módulos principais:** `supabase/migrations/20261105140000_user_achievements_surrogate_key.sql`, `supabase/migrations/20261106100000_profile_push_hide_content.sql`, `supabase/migrations/20261106100100_claim_push_hide_content.sql`, `supabase/tests/rls_achievements_key.test.sql`, `supabase/tests/rls_push_hide_content.test.sql`, `supabase/tests/rls_notifications.test.sql`, `supabase/tests/rls_whatsapp.test.sql`, `packages/data/src/database.types.ts`, dois handoffs.
+- **Migrations:** `20261105140000`, `20261106100000`, `20261106100100`
+- **Decisões/ADRs:** decisões do humano no BL-32 (sim, desligado por padrão) e no BL-33 (corrigir). ADR-0010 §14 (SEG6-6) e ADR-0008 §16 item 8 / §17 precisam de nota do `arquiteto`.
+- **Como testar:** `sh docs/agentes/ferramentas/pilha-b.sh db`, depois `sh docs/agentes/ferramentas/pilha-b.sh run pnpm exec supabase db reset`, `... run pnpm db:test` e `... run pnpm db:check-permissions`.
+- **Verificado:** na pilha B, depois de `db reset`: `db:test` 1990/1990 em 15 arquivos (14 novos em `rls_achievements_key`, 19 em `rls_push_hide_content`); `db:check-permissions` em dia; `db:types` regenerado. Mutação aplicada à mão no banco da B: `replica identity full` e a volta da chave `(user_id, achievement_key)` derrubam 3 de 14 cada; inverter a condição do `taskTitle` no claim derruba 2 de 19; `default true` com `grant update` para `anon` derruba 6; abrir `profiles_select_own` e `profiles_update_own` derruba 3. Banco recriado depois. `pnpm check` passou.
+- **Não verificado:** `pnpm functions:test` (pedia a pilha B de funções; o `itemSchema` do despacho não é `strict` e descarta a chave nova); o payload real do Realtime, verificado pelo catálogo (colunas da identidade de réplica) e não por decodificação lógica; E2E; hospedado. A troca da chave primária reescreve `user_achievements` com lock exclusivo (a tabela é pequena). Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** handoffs para `backend-funcoes` (render neutro) e `notificacoes-whatsapp` (interruptor); notas nos ADRs pelo `arquiteto`; QUADRO pelo orquestrador.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 17:33 (BRT)
+
+- **Branch:** feat/push-hide-content-toggle (a partir de `feat/launch-decisions`, `b13d956`)
+- **Agente(s):** notificacoes-whatsapp
+- **Resumo:** BL-32, lado do app. Interruptor "Esconder o conteúdo na tela bloqueada" na tela de preferências de notificação, desligado por padrão, lendo e gravando `profiles.push_hide_content`.
+- **Alterações:**
+  - `notificationsRepository.getPushHideContent()` e `setPushHideContent(hide)`, pelo mesmo caminho do horário de silêncio (`select`/`update` em `profiles` com `id = currentUserId()`).
+  - `HideContentSwitch` no bloco do push (aparece só com a chave VAPID, como os outros interruptores do push), com linha de ajuda em i18n; usa o `SwitchRow` (alvo ≥ 44px, `role="switch"` e `aria-checked`). O WhatsApp não muda.
+  - Comentário de `apps/app/app/_layout.tsx` sobre `useSessionFromLink` corrigido: roda no web e no nativo.
+  - Nenhum campo de contrato: o valor é um booleano lido direto da coluna `not null`.
+- **Arquivos/módulos principais:** `packages/data/src/notifications/index.ts`, `packages/data/src/notifications/notifications.test.ts`, `packages/features/notifications/src/NotificationPreferencesScreen.tsx`, `packages/i18n/src/pt-BR/notifications.json`, `apps/app/app/_layout.tsx`.
+- **Migrations:** nenhuma (a coluna veio em `20261106100000`).
+- **Decisões/ADRs:** decisão do humano no BL-32 (opção existe, desligada por padrão).
+- **Como testar:** `pnpm --filter @azkaban/data exec vitest run src/notifications`; em `/settings/notifications`, ligar, recarregar e ver o interruptor ligado.
+- **Verificado:** 3 testes novos do repositório com cliente falso (leitura, gravação só da coluna na linha do próprio usuário, erro repassado); `pnpm check` passou.
+- **Não verificado:** E2E e pilha local (fora do pedido); o interruptor não foi visto rodando na tela. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** render neutro do push pelo `backend-funcoes` (handoff já existe); E2E "ligar, recarregar, continua ligado" na próxima rodada de E2E.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 17:38 (BRT)
+
+- **Branch:** feat/push-hide-content-functions (a partir de `feat/launch-decisions`, `b13d956`)
+- **Agente(s):** backend-funcoes
+- **Resumo:** dois handoffs. BL-32: com `push_hide_content` ligado, o push sai com título e corpo neutros no web e no nativo. Zero no plural também nos textos das Edge Functions.
+- **Alterações:**
+  - BL-32: `itemSchema` (`items.ts`) e `OutboundMessage` (`dispatch.ts`) ganham `hideContent: boolean`, obrigatório (a migration `20261106100100` precisa ir antes da função no deploy, como sempre). Novo `hidden.ts` com `withHiddenContent`: com `true`, troca `title` e `body` por `push.hidden.title` e `.body` no idioma do perfil e mantém `v`, `notificationId`, `type`, `url` e `tag`. O `payload()` do `index.ts` aplica depois do `buildPushPayload`, e o `render` (Web Push) e o `renderNative` (Expo) saem dele, então valem os dois. `packages/core` não mudou.
+  - Chaves `push.hidden.title` ("Novo aviso") e `push.hidden.body` ("Abra o app para ver.") em `packages/i18n/src/pt-BR/notifications.json`, pedido do orquestrador (o arquivo é do `notificacoes-whatsapp`). Não há pasta `en`.
+  - Zero no plural: `makeTranslate` procura `${key}_zero` antes das formas de `Intl.PluralRules` quando `count === 0`, como o i18next.
+- **Arquivos/módulos principais:** `supabase/functions/dispatch-notifications/hidden.ts`, `index.ts`, `items.ts`, `dispatch.ts`, `translate.ts`, `push.test.ts`, `packages/i18n/src/pt-BR/notifications.json`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** decisões do humano no BL-32 e no zero no plural (ADR-0012, seção 17, item 10). Nenhum ADR editado.
+- **Como testar:** `node --test supabase/functions/dispatch-notifications/push.test.ts`; ou, com a pilha, `pnpm functions:test`.
+- **Verificado:** `push.test.ts` 31/31 no Node (3 novos: zero no plural; `hideContent` ligado e desligado, cada um mandando a um navegador e a um aparelho, com o corpo do Web Push decifrado e a mensagem do Expo capturada). Na pilha A, depois de `supabase db reset` (com as migrations `20261106100000`/`100100`) e `NATIVE_PUSH_PROVIDER=fake`: `pnpm functions:test` 228/228. `pnpm check` passou (turbo 14/14, `functions:imports` 20/20).
+- **Não verificado:** o `index.ts` real com `hideContent` ligado (localmente sem VAPID o push espera, e o Node não importa `buildPushPayload` nem `nativePushMessageSchema`; o teste repete o mapeamento do `renderNative`); Expo e navegador de verdade; hospedado. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** handoffs de origem atendidos (`20261103-1726-banco-de-dados-para-backend-funcoes-push-generico.md`, `20261103-1722-compras-para-backend-funcoes-zero-no-plural-nas-funcoes.md`). Interruptor na tela é do `notificacoes-whatsapp`. Nota no ADR-0008 §16 item 8 pelo `arquiteto`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 18:05 (BRT)
+
+- **Branch:** fix/expo-sdk-patches (a partir de `feat/launch-decisions`, `451c471`)
+- **Agente(s):** arquiteto
+- **Resumo:** `pnpm expo:doctor` (BL-21) quebrava sem mudança no repo: a checagem de versões comparava com a tabela que a Expo publica online, e os patches do SDK 58 de hoje (`expo` 58.0.23, `react-native-safe-area-context` 5.11.1 e mais 6) a mudaram. Agora ela compara com a tabela do SDK instalado. As versões não subiram nesta entrada.
+- **Alterações:**
+  - `scripts/check-expo-doctor.mjs` roda o doctor com `EXPO_OFFLINE=1`. O doctor chama `expo install --check` com o nosso ambiente, e offline o CLI lê `node_modules/expo/bundledNativeModules.json`, fixado pelo lockfile. O mesmo commit dá o mesmo resultado amanhã. Duplicados e versões fora do SDK instalado continuam falhando. Patch novo da Expo vira atualização deliberada.
+  - Bump não feito: `expo` 58.0.23 saiu às 17:06 UTC de hoje. O pnpm 12 só o instalou porque adicionou 24 pacotes da Expo, com horas de vida, ao `minimumReleaseAgeExclude` do `pnpm-workspace.yaml`, contornando a quarentena padrão de 1 dia contra release comprometida. Revertido. Com a checagem determinística, o doctor passa nas versões atuais (`expo` 58.0.22 e as correspondentes). O bump fica para depois de 2026-11-04 14:10 (BRT), sem exceções: `npx expo install --fix` em `apps/app` e as mesmas versões em `packages/platform`, `packages/ui` e `packages/features/*` (`expo-router`, `expo-constants`, `expo-linking`, `expo-notifications`, `react-native-safe-area-context`).
+- **Arquivos/módulos principais:** `scripts/check-expo-doctor.mjs`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** checagem de versões do doctor contra o SDK instalado, não contra a tabela online. Bump de patch da Expo só depois da quarentena do pnpm, sem `minimumReleaseAgeExclude`. Registrado aqui e no comentário do script, sem ADR.
+- **Como testar:** `pnpm expo:doctor`.
+- **Verificado:** `pnpm expo:doctor` 20/20. Teste negativo: com `react-native-safe-area-context` trocado para `~5.11.1` no `bundledNativeModules.json` local, a checagem falhou (`expected ~5.11.1, found 5.10.1`), o que prova que ela lê a tabela local; arquivo restaurado. `pnpm check` passou. `pnpm install --frozen-lockfile` sem mudança; lockfile intacto.
+- **Não verificado:** `pnpm build:web` e `pnpm bundle:size` (sem mudança de dependência nem de código do app); o CI no GitHub. A checagem de nomes de módulos nativos do doctor ainda busca a lista na Expo, mas só nomes, não versões. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** bump do patch do SDK 58 depois da quarentena, numa branch própria, com `pnpm install --frozen-lockfile`, `pnpm check`, `pnpm build:web`, `pnpm bundle:size` e `pnpm expo:doctor`.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 18:07 (BRT)
+
+- **Branch:** fix/web-magic-link-session (a partir de `feat/launch-decisions`, `451c471`)
+- **Agente(s):** auth-grupos
+- **Resumo:** regressão do BL-38 (`d9c9384`): no web o link por e-mail não entrava. `createAppLink('/')` no web devolve a origem sem a barra final (`http://localhost:8091`, o `createURL.web.js` do `expo-linking` corta a barra) e o `parseSessionLink` recusava toda raiz sem barra, então todo link do web virava `null` e nenhuma sessão começava.
+- **Alterações:**
+  - `parseSessionLink` completa a raiz com `/` em vez de recusá-la. A barra continua separando o host: `http://localhost:8091.evil.com/#…` e `http://localhost:80910/#…` seguem `null`. A regra A' (`setSessionFromLink`) não mudou.
+  - Teste de unidade do caso: raiz do web sem barra, com caminho, e os dois hosts parecidos recusados.
+- **Evidência:** no trace da falha, `/auth/v1/verify?...&redirect_to=http://localhost:8091` respondeu `Location: http://localhost:8091#access_token=…` (o navegador normaliza para `/#access_token=…`); o app foi para `/sign-in` sem sessão. Revertendo só o `link.ts`, o E2E "magic link signs the user in" falhou de novo; com a correção, passou.
+- **Arquivos/módulos principais:** `packages/data/src/auth/link.ts`, `packages/data/src/auth/link.test.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova; mantém ADR-0012 seção 11 e a opção A' do BL-38.
+- **Como testar:** `pnpm --filter @azkaban/data exec vitest run src/auth/link.test.ts`; com a pilha, `pnpm exec playwright test e2e/accounts.spec.ts --project=app --no-deps`.
+- **Verificado:** pilha A (`db:reset`): `e2e/accounts.spec.ts` + `e2e/privacy.spec.ts` com `--repeat-each=3`, 30/30. Nenhuma outra spec entra por link. `pnpm check` passou.
+- **Não verificado:** link de outra conta com sessão ativa no web (vai para `/profile?link=other-account`) e link da mesma conta não têm E2E; até esta correção esses ramos nunca rodavam no web. Nativo e hospedado não testados (a raiz nativa `azkaban:///` já tinha barra). Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** E2E de "outra conta não troca a sessão" no web, se o orquestrador quiser.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 18:15 (BRT)
+
+- **Branch:** test/web-link-other-account (a partir de `feat/launch-decisions`, `658272b`)
+- **Agente(s):** qa-testes
+- **Resumo:** E2E da opção A' do BL-38 (ADR-0004) no web: link de outra conta não troca a sessão ativa; link da mesma conta entra sem aviso.
+- **Alterações:**
+  - `e2e/accounts.spec.ts`: o código que pedia o link e o lia no Mailpit virou o ajudante `requestLink` (espera uma mensagem a mais que antes, então serve para uma conta que já recebeu e-mail); o teste "magic link signs the user in" passa a usá-lo.
+  - Teste novo "a link of another account keeps the signed-in account": A cadastrada; o link de B é pedido em outro contexto do navegador e aberto na aba de A. Confere `/profile?link=other-account`, a mensagem `profile.linkOtherAccount`, o nome de A no perfil e a URL sem `access_token`.
+  - Teste novo "a link of the same account keeps the session without the notice": A abre um link de A; fica na Hoje, URL sem `access_token` nem `other-account`, perfil com o nome de A e sem a mensagem.
+- **Arquivos/módulos principais:** `e2e/accounts.spec.ts`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova; cobre ADR-0004 e a decisão A' do BL-38.
+- **Como testar:** com a pilha A, `pnpm exec playwright test e2e/accounts.spec.ts --project=app --no-deps`.
+- **Verificado:** pilha A depois de `pnpm db:reset`. Os três testes de link com `--repeat-each=3`: 9/9. `e2e/accounts.spec.ts` inteiro: 7/7. Mutação: com o guarda de outra conta de `setSessionFromLink` desligado (`packages/data/src/auth/index.ts`), o teste de outra conta caiu (URL `http://localhost:8091/`, a sessão virou a de B) e o da mesma conta passou; arquivo restaurado pelo git. `pnpm check` passou.
+- **Não verificado:** build de produção (`E2E_BUILD=1`), nativo e hospedado; link de outra conta aberto por uma aba já carregada (evento `url`), só a abertura por navegação. Nenhum bug de produto achado. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-03 18:34 (BRT)
+
+- **Branch:** feat/launch-decisions (a partir de `main`, `33132dc`)
+- **Agente(s):** orquestrador
+- **Resumo:** aplica as respostas do humano aos BL-24 a BL-38. Antes disso, a cadeia de PRs #1 a #10 foi mergeada na `main` com autorização do humano (o #8 entrou pelo #9, que já trazia as Fases 6 e 7 reconciliadas).
+- **Alterações:**
+  - `docs/agentes/QUADRO.md`: status de BL-24 a BL-38 conforme as respostas; novos BL-39 (patches do SDK 58 depois da quarentena do pnpm) e BL-40 (identificador Android).
+  - Integrados: decisões nos ADRs; Hostinger em `app.tabolao.com` (`.htaccess` testado em Apache, deploy por FTPS só depois de CI verde na `main`, guia na seção 8 de `docs/implantacao.md`); login web A' com E2E e mutação; controlador e `privacidade@tabolao.com` nas telas; "0 pacotes" no app e nas funções; SEG6-6 com chave substituta; esconder o conteúdo do push (banco, funções e interruptor); `expo-doctor` determinístico (`EXPO_OFFLINE=1`).
+- **Arquivos/módulos principais:** `docs/agentes/QUADRO.md`, `LOG_DE_ALTERACOES.md`.
+- **Migrations:** nenhuma neste bloco (as das decisões são `20261105140000`, `20261106100000` e `20261106100100`).
+- **Decisões/ADRs:** ADR-0004, 0007, 0008, 0009, 0010, 0011 e 0012 registram as respostas.
+- **Como testar:** `docs/agentes/ferramentas/verificar-fase.sh` com `EXPO_PUBLIC_VAPID_PUBLIC_KEY` em memória e `NATIVE_PUSH_PROVIDER=fake` no `.env` local das funções; `pnpm bundle:size`; `pnpm expo:doctor`.
+- **Verificado:** em `c6ff56a`, banco limpo: db:test 1990/1990 antes e depois da E2E, db:check-permissions, typecheck e unidade, lint, fronteiras, build:web, functions:test 228/228, E2E 99 passaram e 1 pulado nas duas rodadas, bundle 404 609 B, expo-doctor 20/20. Varredura de segredos sem achados.
+- **Não verificado:** deploy real na Hostinger (falta o humano criar os Secrets), Brevo, projeto hospedado, nativo.
+- **Pendências / próximos passos:** PR para a `main`; com o humano: `supabase login`, Hostinger e Brevo; BL-39 depois de 2026-11-04 14:10; BL-40.

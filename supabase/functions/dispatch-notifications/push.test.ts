@@ -14,6 +14,7 @@ import {
   WhatsAppChannel,
 } from './dispatch.ts';
 import type { WhatsAppProvider } from '../_shared/whatsapp/provider.ts';
+import { withHiddenContent } from './hidden.ts';
 import { makeTranslate, type Messages } from './translate.ts';
 import {
   classify,
@@ -39,7 +40,10 @@ import {
   NativePushChannel,
   nativePushTransport,
 } from './native-push.ts';
-import type { NativePushMessage } from '../../../packages/contracts/src/notifications.ts';
+import type {
+  NativePushMessage,
+  PushPayload,
+} from '../../../packages/contracts/src/notifications.ts';
 
 // Mirrors packages/config notificationDefaults and notificationRules, which Node cannot import
 // (extensionless imports). The function passes the real ones.
@@ -54,6 +58,12 @@ const hosts = [
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
+const messages = JSON.parse(
+  readFileSync(
+    new URL('../../../packages/i18n/src/pt-BR/notifications.json', import.meta.url),
+    'utf8',
+  ),
+) as Messages;
 
 describe('RFC 8291', () => {
   test('appendix A: the same input gives the same bytes', async () => {
@@ -679,12 +689,6 @@ describe('native push (ADR-0012, section 11)', () => {
 });
 
 describe('translate', () => {
-  const messages = JSON.parse(
-    readFileSync(
-      new URL('../../../packages/i18n/src/pt-BR/notifications.json', import.meta.url),
-      'utf8',
-    ),
-  ) as Messages;
   const t = makeTranslate(messages, 'pt-BR');
 
   test('nested keys, interpolation without escaping, and the plural forms of i18next', () => {
@@ -696,9 +700,89 @@ describe('translate', () => {
     assert.equal(t('push.task_reminder.soon', { lead: '2 horas' }), 'Daqui a 2 horas.');
   });
 
+  test('zero takes `_zero` (the plural), not the `one` of pt-BR; one stays singular', () => {
+    assert.equal(t('push.lead.days', { count: 0 }), '0 dias');
+    assert.equal(t('push.lead.days', { count: 1 }), '1 dia');
+    // Without `_zero`, zero falls back to the forms of Intl.PluralRules as before.
+    const bare = makeTranslate({ n_one: '{{count}} item', n_other: '{{count}} itens' }, 'pt-BR');
+    assert.equal(bare('n', { count: 0 }), '0 item');
+  });
+
   test('a missing key is the key, and a missing value is left as it is', () => {
     assert.equal(t('push.nope'), 'push.nope');
     assert.equal(t('push.task_reminder.soon'), 'Daqui a {{lead}}.');
+  });
+});
+
+describe('hidden content (BL-32)', () => {
+  const t = makeTranslate(messages, 'pt-BR');
+  // What buildPushPayload gives for a reminder; Node cannot import it, the function passes the real one.
+  const built: PushPayload = {
+    v: 1,
+    notificationId: 'n-1',
+    type: 'task_reminder',
+    title: 'Academia',
+    body: 'Daqui a 2 horas.',
+    url: '/tasks/occurrence-1',
+    tag: 'n-1',
+  };
+  const payload = (m: OutboundMessage) => withHiddenContent(built, m.hideContent, t);
+  // The same mapping as renderNative in index.ts, without nativePushMessageSchema (Node cannot import it).
+  const renderNative = (m: OutboundMessage, to: string) => {
+    const { v, notificationId, type, url, title, body } = payload(m);
+    return { to, title, body, data: { v, notificationId, type, url } } as NativePushMessage;
+  };
+
+  async function sendBoth(hideContent: boolean) {
+    const ua = await browser();
+    const expo: NativePushMessage[] = [];
+    const native = new NativePushChannel({
+      render: renderNative,
+      timeoutMs: 1000,
+      fetch: (async (_url: string, init: RequestInit) => {
+        expo.push(...(JSON.parse(String(init.body)) as NativePushMessage[]));
+        return new Response(JSON.stringify({ data: [{ status: 'ok', id: '1' }] }), {
+          status: 200,
+        });
+      }) as typeof fetch,
+    });
+    const { channel, requests } = await channelWith(
+      async () => new Response(null, { status: 201 }),
+      native,
+      (m) => JSON.stringify(payload(m)),
+    );
+    const device = { id: 'd', kind: 'expo' as const, expoToken: 'ExponentPushToken[d]' };
+    const sent = await channel.send({
+      ...message([subscription(ua, 'w'), device]),
+      hideContent,
+    });
+    assert.deepEqual(sent, { kind: 'sent', delivered: ['w', 'd'], gone: [] });
+    const web = JSON.parse((await decrypt(requests[0]!.body, ua)).text) as PushPayload;
+    return { web, device: expo[0]! };
+  }
+
+  test('on: the browser and the device get the neutral text, with the same url and tag', async () => {
+    const { web, device } = await sendBoth(true);
+    assert.deepEqual(web, { ...built, title: 'Novo aviso', body: 'Abra o app para ver.' });
+    assert.equal(device.title, 'Novo aviso');
+    assert.equal(device.body, 'Abra o app para ver.');
+    assert.deepEqual(device.data, {
+      v: 1,
+      notificationId: 'n-1',
+      type: 'task_reminder',
+      url: built.url,
+    });
+    for (const text of [JSON.stringify(web), JSON.stringify(device)]) {
+      assert.ok(!text.includes('Academia') && !text.includes('2 horas'), text);
+    }
+  });
+
+  test('off: nothing changes', async () => {
+    const { web, device } = await sendBoth(false);
+    assert.deepEqual(web, built);
+    assert.equal(device.title, 'Academia');
+    assert.equal(device.body, 'Daqui a 2 horas.');
+    assert.equal(device.data.url, built.url);
   });
 });
 
@@ -728,6 +812,7 @@ function message(
     occurrenceId: null,
     locale: 'pt-BR',
     taskTitle: 'Academia',
+    hideContent: false,
     requiresPhotoProof: false,
     attempts: 1,
     scheduledFor: '2026-11-02T12:00:00Z',
@@ -744,6 +829,7 @@ type Captured = { url: string; init: RequestInit; body: Uint8Array };
 async function channelWith(
   answer: (url: string) => Promise<Response>,
   native?: NativePushChannel | null,
+  render: (m: OutboundMessage) => string = (m) => JSON.stringify({ hello: m.taskTitle }),
 ) {
   const pair = await vapidPair();
   const vapid: VapidKeys = (await loadVapid(pair.d, pair.publicKey, 'mailto:ops@example.com'))!;
@@ -752,7 +838,7 @@ async function channelWith(
   const channel = new WebPushChannel({
     vapid,
     hosts,
-    render: (m) => JSON.stringify({ hello: m.taskTitle }),
+    render,
     ttl,
     timeoutMs: 1000,
     now: () => state.now,

@@ -172,6 +172,8 @@ Padrões reversíveis:
 11. **50 listas abertas por grupo e por pessoa** (seção 16, SEG7-2).
 12. **A recusa de caracteres de controle vale só para os textos de compras**, não para os outros nomes do app (seção 16, SEG7-3).
 
+**Decisão do humano (2026-11-03): confirmado pelo humano em 2026-11-03.** Os doze padrões valem como estão, inclusive o teto de 50 listas abertas. Sobre a seção 7 (BL-35): a tela das listas atualizando ao vivo, com a lista nova aparecendo sem reabrir, não é necessária. A tela de uma lista segue ao vivo. A da lista de listas relê ao abrir, como já está implementado, e a frase da seção 7 sobre ela assinar `shopping_lists` sem filtro não vale.
+
 ### 16. Revisão de segurança da Fase 7
 
 Decisões sobre os achados da revisão de segurança da lista de compras (handoffs `20261103-0321-revisor-seguranca-*`), em 2026-11-03. Valem sobre as seções anteriores onde há diferença, e os trechos afetados remetem para cá. Nenhum achado alto ou médio.

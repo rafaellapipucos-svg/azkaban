@@ -10,9 +10,11 @@ export type { Session };
 
 /** `setSessionFromLink` for a link this device did not ask for (BL23-2). */
 export const linkNotRequested = 'link_not_requested';
+/** `setSessionFromLink` for a link of another account than the one signed in (BL23-2, BL-38). */
+export const linkOtherAccount = 'link_other_account';
 
 // BL23-2: when this device last asked GoTrue for an e-mail link, so a link nobody here asked for
-// (someone else's tokens) never becomes the session. Native only: the web reads the URL itself.
+// (someone else's tokens) never becomes the session. Native only: the web takes no marker (BL-38, A').
 const linkRequestKey = 'azkaban.session-link-requested-at';
 
 async function markLinkRequested() {
@@ -71,23 +73,26 @@ export const authRepository = {
   },
 
   /**
-   * Native only: the client does not read the URL there (`detectSessionInUrl`). Starts the session
-   * a sign-in link carries and resolves to the path inside the app it points at, or `null` when the
+   * Both platforms: the client never reads the URL (`detectSessionInUrl`). Starts the session a
+   * sign-in link carries and resolves to the path inside the app it points at, or `null` when the
    * URL is not one; an expired or used link throws with GoTrue's description.
    *
-   * BL23-2 (login CSRF): the link's session is taken only when this device asked for a link within
-   * `sessionLinkRequestMaxAgeMs`, and never over another account's session. Someone signed in just
-   * goes to the path; someone signed out, with no request here, gets `linkNotRequested`.
+   * Never over another account's session (`linkOtherAccount`, BL23-2 and BL-38). On native, only
+   * when this device asked for a link within `sessionLinkRequestMaxAgeMs` too: someone signed out,
+   * with no request here, gets `linkNotRequested`. The web asks for no request (BL-38, option A'),
+   * so a browser signed out still takes whatever link it opens.
    */
-  async setSessionFromLink(url: string): Promise<string | typeof linkNotRequested | null> {
+  async setSessionFromLink(
+    url: string,
+  ): Promise<string | typeof linkNotRequested | typeof linkOtherAccount | null> {
     const link = parseSessionLink(url, createAppLink('/'));
     if (!link) return null;
     if (link.kind === 'error') throw new Error(link.description);
     const { data } = await db().auth.getSession();
     const current = data.session;
     // The same account may refresh its session: the reauthentication link before deleting it.
-    if (current && tokenUserId(link.accessToken) !== current.user.id) return link.path;
-    if (!(await takeLinkRequest())) return current ? link.path : linkNotRequested;
+    if (current && tokenUserId(link.accessToken) !== current.user.id) return linkOtherAccount;
+    if (!isWeb && !(await takeLinkRequest())) return current ? link.path : linkNotRequested;
     const { error } = await db().auth.setSession({
       access_token: link.accessToken,
       refresh_token: link.refreshToken,

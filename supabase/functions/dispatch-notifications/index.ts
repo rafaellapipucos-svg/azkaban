@@ -32,6 +32,7 @@ import {
   type OutboundMessage,
   type Report,
 } from './dispatch.ts';
+import { withHiddenContent } from './hidden.ts';
 import { parseItem } from './items.ts';
 import { NativePushChannel, nativePushTransport } from './native-push.ts';
 import { makeTranslate, type Messages, type Translate } from './translate.ts';
@@ -79,11 +80,13 @@ function payload(message: OutboundMessage): PushPayload {
     overdueAt: message.overdueAt,
     occurrenceStatus: message.occurrenceStatus,
   } as PushSource;
-  return buildPushPayload(source, message.requiresPhotoProof, translatorFor(message.locale), {
+  const t = translatorFor(message.locale);
+  const built = buildPushPayload(source, message.requiresPhotoProof, t, {
     locale: knownLocale(message.locale),
     lateCompletionWindowHours: taskRules.lateCompletionWindowHours,
     now: new Date(),
   });
+  return withHiddenContent(built, message.hideContent, t);
 }
 
 const render = (message: OutboundMessage) => JSON.stringify(payload(message));

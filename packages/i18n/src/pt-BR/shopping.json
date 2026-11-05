@@ -14,18 +14,25 @@
   "units": {
     "unit_one": "{{value}} un.",
     "unit_other": "{{value}} un.",
+    "unit_zero": "{{value}} un.",
     "kg_one": "{{value}} kg",
     "kg_other": "{{value}} kg",
+    "kg_zero": "{{value}} kg",
     "g_one": "{{value}} g",
     "g_other": "{{value}} g",
+    "g_zero": "{{value}} g",
     "l_one": "{{value}} L",
     "l_other": "{{value}} L",
+    "l_zero": "{{value}} L",
     "pack_one": "{{value}} pacote",
     "pack_other": "{{value}} pacotes",
+    "pack_zero": "{{value}} pacotes",
     "box_one": "{{value}} caixa",
     "box_other": "{{value}} caixas",
+    "box_zero": "{{value}} caixas",
     "dozen_one": "{{value}} dúzia",
-    "dozen_other": "{{value}} dúzias"
+    "dozen_other": "{{value}} dúzias",
+    "dozen_zero": "{{value}} dúzias"
   },
   "unitNames": {
     "unit": "un.",
@@ -114,6 +121,7 @@
     "empty": "A lista está vazia.",
     "left_one": "Falta {{count}} item",
     "left_other": "Faltam {{count}} itens",
+    "left_zero": "Faltam {{count}} itens",
     "allDone": "Tudo no carrinho!",
     "share": "Compartilhar",
     "copied": "Lista copiada. Cole no WhatsApp ou onde quiser.",
@@ -143,6 +151,7 @@
     "none": "Sem conexão.",
     "pending_one": "Sem conexão: {{count}} alteração será enviada quando a internet voltar.",
     "pending_other": "Sem conexão: {{count}} alterações serão enviadas quando a internet voltar.",
+    "pending_zero": "Sem conexão: {{count}} alterações serão enviadas quando a internet voltar.",
     "discarded": "Uma mudança na lista não foi enviada: {{reason}}",
     "dismiss": "Fechar aviso"
   }

@@ -6,12 +6,16 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --fsModuleCachePath node_modules/.vitest-cache"
   },
   "dependencies": {
     "@azkaban/config": "workspace:*",
     "i18next": "catalog:",
     "react-i18next": "catalog:",
     "react": "catalog:"
+  },
+  "devDependencies": {
+    "vitest": "catalog:"
   }
 }

@@ -29,6 +29,8 @@ export type OutboundMessage = {
   occurrenceId: string | null;
   locale: string;
   taskTitle: string | null;
+  /** Neutral title and body on the lock screen (BL-32). Only `web_push`, both kinds. */
+  hideContent: boolean;
   requiresPhotoProof: boolean;
   /** Already counts this attempt. */
   attempts: number;

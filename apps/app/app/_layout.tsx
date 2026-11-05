@@ -32,7 +32,7 @@ export default function RootLayout() {
   // Another account, or none, never sees the last one's cached data: the tree mounts again.
   const cacheGeneration = useClearCacheOnUserChange(queryClient, session?.user.id ?? null);
   const [fontsLoaded] = useFonts({ Nunito_600SemiBold, Nunito_800ExtraBold });
-  // Native only: the magic link's session, then its path, once the navigator below renders.
+  // Web and native: the magic link's session, then its path, once the navigator below renders.
   useSessionFromLink(fontsLoaded && !loading);
   if (!fontsLoaded || loading) return null;
   return (

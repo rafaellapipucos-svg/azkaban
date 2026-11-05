@@ -363,14 +363,14 @@ isOneToOne: false
                   ]
                 },"profiles": {
                   Row: {
-                    "created_at": string,"daily_summary_deadline_days": number,"daily_summary_enabled": boolean,"daily_summary_include_overdue": boolean,"daily_summary_last_date": string | null,"daily_summary_skip_empty": boolean,"daily_summary_time": string,"display_name": string,"id": string,"locale": string,"phone_e164": string | null,"phone_verified_at": string | null,"proof_consent_at": string | null,"proof_consent_version": number | null,"quiet_hours_end": string | null,"quiet_hours_start": string | null,"timezone": string,"updated_at": string,"whatsapp_opt_in_at": string | null,"whatsapp_opt_in_version": number | null,"whatsapp_opt_out_at": string | null,"whatsapp_opt_out_source": string | null,"is_whatsapp_ready": boolean | null
+                    "created_at": string,"daily_summary_deadline_days": number,"daily_summary_enabled": boolean,"daily_summary_include_overdue": boolean,"daily_summary_last_date": string | null,"daily_summary_skip_empty": boolean,"daily_summary_time": string,"display_name": string,"id": string,"locale": string,"phone_e164": string | null,"phone_verified_at": string | null,"proof_consent_at": string | null,"proof_consent_version": number | null,"push_hide_content": boolean,"quiet_hours_end": string | null,"quiet_hours_start": string | null,"timezone": string,"updated_at": string,"whatsapp_opt_in_at": string | null,"whatsapp_opt_in_version": number | null,"whatsapp_opt_out_at": string | null,"whatsapp_opt_out_source": string | null,"is_whatsapp_ready": boolean | null
                   }
                   ComputedFields: "is_whatsapp_ready"
                   Insert: {
-                    "created_at"?: string,"daily_summary_deadline_days"?: number,"daily_summary_enabled"?: boolean,"daily_summary_include_overdue"?: boolean,"daily_summary_last_date"?: string | null,"daily_summary_skip_empty"?: boolean,"daily_summary_time"?: string,"display_name": string,"id": string,"locale"?: string,"phone_e164"?: string | null,"phone_verified_at"?: string | null,"proof_consent_at"?: string | null,"proof_consent_version"?: number | null,"quiet_hours_end"?: string | null,"quiet_hours_start"?: string | null,"timezone"?: string,"updated_at"?: string,"whatsapp_opt_in_at"?: string | null,"whatsapp_opt_in_version"?: number | null,"whatsapp_opt_out_at"?: string | null,"whatsapp_opt_out_source"?: string | null
+                    "created_at"?: string,"daily_summary_deadline_days"?: number,"daily_summary_enabled"?: boolean,"daily_summary_include_overdue"?: boolean,"daily_summary_last_date"?: string | null,"daily_summary_skip_empty"?: boolean,"daily_summary_time"?: string,"display_name": string,"id": string,"locale"?: string,"phone_e164"?: string | null,"phone_verified_at"?: string | null,"proof_consent_at"?: string | null,"proof_consent_version"?: number | null,"push_hide_content"?: boolean,"quiet_hours_end"?: string | null,"quiet_hours_start"?: string | null,"timezone"?: string,"updated_at"?: string,"whatsapp_opt_in_at"?: string | null,"whatsapp_opt_in_version"?: number | null,"whatsapp_opt_out_at"?: string | null,"whatsapp_opt_out_source"?: string | null
                   }
                   Update: {
-                    "created_at"?: string,"daily_summary_deadline_days"?: number,"daily_summary_enabled"?: boolean,"daily_summary_include_overdue"?: boolean,"daily_summary_last_date"?: string | null,"daily_summary_skip_empty"?: boolean,"daily_summary_time"?: string,"display_name"?: string,"id"?: string,"locale"?: string,"phone_e164"?: string | null,"phone_verified_at"?: string | null,"proof_consent_at"?: string | null,"proof_consent_version"?: number | null,"quiet_hours_end"?: string | null,"quiet_hours_start"?: string | null,"timezone"?: string,"updated_at"?: string,"whatsapp_opt_in_at"?: string | null,"whatsapp_opt_in_version"?: number | null,"whatsapp_opt_out_at"?: string | null,"whatsapp_opt_out_source"?: string | null
+                    "created_at"?: string,"daily_summary_deadline_days"?: number,"daily_summary_enabled"?: boolean,"daily_summary_include_overdue"?: boolean,"daily_summary_last_date"?: string | null,"daily_summary_skip_empty"?: boolean,"daily_summary_time"?: string,"display_name"?: string,"id"?: string,"locale"?: string,"phone_e164"?: string | null,"phone_verified_at"?: string | null,"proof_consent_at"?: string | null,"proof_consent_version"?: number | null,"push_hide_content"?: boolean,"quiet_hours_end"?: string | null,"quiet_hours_start"?: string | null,"timezone"?: string,"updated_at"?: string,"whatsapp_opt_in_at"?: string | null,"whatsapp_opt_in_version"?: number | null,"whatsapp_opt_out_at"?: string | null,"whatsapp_opt_out_source"?: string | null
                   }
                   Relationships: [
                     
@@ -771,14 +771,14 @@ isOneToOne: false
                   ]
                 },"user_achievements": {
                   Row: {
-                    "achievement_key": string,"granted_at": string,"user_id": string
+                    "achievement_key": string,"granted_at": string,"id": string,"user_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "achievement_key": string,"granted_at"?: string,"user_id": string
+                    "achievement_key": string,"granted_at"?: string,"id"?: string,"user_id": string
                   }
                   Update: {
-                    "achievement_key"?: string,"granted_at"?: string,"user_id"?: string
+                    "achievement_key"?: string,"granted_at"?: string,"id"?: string,"user_id"?: string
                   }
                   Relationships: [
                     {

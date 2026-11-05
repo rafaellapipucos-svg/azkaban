@@ -10,9 +10,11 @@ import { deviceTimezone } from '@azkaban/platform';
 import { Body, Button, ErrorText, FormTextField, Mascot, Screen, Title } from '@azkaban/ui';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useLocalSearchParams } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { useForm } from 'react-hook-form';
 import { View } from 'react-native';
+import { otherAccountLinkParam } from './useSessionFromLink';
 
 // ponytail: fixed cap; a slow network costs at most this much, then sign-out goes on regardless.
 const beforeSignOutTimeoutMs = 5000;
@@ -34,6 +36,7 @@ export function ProfileScreen({
   onBeforeSignOut?: () => Promise<void>;
 }) {
   const { t } = useTranslation('auth');
+  const { link } = useLocalSearchParams<{ link?: string }>();
   const queryClient = useQueryClient();
   const profile = useQuery({ queryKey: ['profile'], queryFn: profilesRepository.getMine });
   const { control, handleSubmit, setValue } = useForm<ProfileUpdateInput>({
@@ -70,6 +73,9 @@ export function ProfileScreen({
         <Mascot mood="happy" />
       </View>
       <Title>{t('profile.title')}</Title>
+      {link === otherAccountLinkParam ? (
+        <Body role="status">{t('profile.linkOtherAccount')}</Body>
+      ) : null}
       {top}
       <FormTextField
         control={control}

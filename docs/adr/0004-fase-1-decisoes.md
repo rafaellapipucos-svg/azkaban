@@ -10,6 +10,8 @@ O modelo de dados do prompt mestre é um ponto de partida. A Fase 1 o refinou, e
 
 **Padrões da seção 15:** WhatsApp pela API oficial da Meta, com mock em desenvolvimento; hospedagem web na Netlify; e-mail e link mágico agora, telefone na Fase 5; ranking opcional em família e desativado em empresa; amarelo sempre com justificativa; vermelho automático no fim do dia ou na data limite; tela "Hoje" antes das abas. O nome do app segue provisório.
 
+**Decisão do humano (2026-11-03):** a hospedagem web passa da Netlify para a Hostinger, em `https://app.tabolao.com` ([ADR-0012](0012-polimento-lgpd-limites-offline.md), seção 12). O WhatsApp real pela Meta fica no backlog, e o provedor de console continua ([ADR-0009](0009-whatsapp-verificacao-opt-in-resumo-diario.md), seção 16).
+
 **Modelo de dados:**
 
 - `profiles` tem só o que a Fase 1 usa. Telefone, resumo diário e opt-in do WhatsApp chegam na Fase 5, e avatar quando houver upload.
@@ -40,7 +42,7 @@ O modelo de dados do prompt mestre é um ponto de partida. A Fase 1 o refinou, e
 
 ## Revisão de 2026-11-03: login CSRF pelo link de sessão (BL23-2)
 
-**Status desta seção:** proposta, à espera do humano. A decisão do fluxo implícito, acima, segue valendo até lá.
+**Status desta seção:** decidida pelo humano em 2026-11-03: opção A' no web, sem PKCE (fim da seção). Antes era proposta, à espera do humano.
 
 **Risco.** No fluxo implícito, o link traz `access_token` e `refresh_token` no fragmento, e nada liga o link ao aparelho que o pediu. Um atacante faz login numa conta descartável, monta `azkaban:///<caminho>#access_token=…&refresh_token=…` (ou a URL web equivalente) com os próprios tokens e manda à vítima. Ao tocar, o aparelho passa para a conta do atacante, por cima da sessão dela, e o que a vítima registrar dali em diante (tarefas, fotos de prova com local, telefone verificado, aparelho de push) fica legível pelo atacante em outro aparelho. É dado pessoal entregue a terceiro (LGPD). `safeInternalPath` e a lista de redirecionamentos protegem o destino, não a origem dos tokens. Origem: revisão de segurança do backlog, LOG de 2026-11-03 11:04.
 
@@ -59,3 +61,12 @@ No nativo isso custa pouco: o deep link abre o próprio app, que tem o marcador,
 - **B. PKCE (`flowType: 'pkce'`).** O link traz `?code=`, e só o navegador ou app que guardou o `code_verifier` troca o código pela sessão (`exchangeCodeForSession`). Fecha o caso na raiz, no web e no nativo, e dispensa o marcador. Custo: o link precisa abrir no mesmo navegador (ou app) que pediu, inclusive a confirmação de cadastro e a reautenticação da exclusão de conta. No Android, Custom Tabs costuma dividir o armazenamento com o Chrome; o navegador interno de apps de e-mail no iOS, em geral, não. Quem abrir em outro lugar vê erro e precisa pedir de novo nesse navegador.
 
 **Recomendação do arquiteto.** B, porque A com marcador tem o mesmo custo de B e protege menos, e A' deixa o caso do navegador sem sessão aberto. Se o humano priorizar o navegador interno do e-mail, A' no web é o mínimo, com o risco residual registrado aqui. Qualquer escolha exige uma tela de erro clara ("abra o link no mesmo navegador em que você pediu" ou "peça outro link") e teste: um link com tokens válidos, sem pedido e com sessão ativa, não troca a sessão.
+
+**Decisão do humano (2026-11-03): A' no web, sem PKCE.**
+
+- O fluxo continua implícito no web e no nativo, pelo motivo do início deste ADR: o link precisa funcionar no navegador interno do aplicativo de e-mail.
+- **Web:** vale só o item 1 da mitigação. O link mágico não troca uma sessão ativa: no máximo leva ao caminho, sem trocar a conta. O marcador do pedido (item 2) não entra no web, porque falharia no navegador interno.
+- **Nativo:** segue com os itens 1 e 2, como já está.
+- **Teste obrigatório:** um link com tokens válidos, aberto com sessão ativa, não troca a sessão, no web e no nativo.
+- **Risco residual aceito:** um navegador sem sessão ainda aceita a conta do atacante, se a vítima tocar num link montado por ele. Se houver abuso, o caminho é a opção B (PKCE).
+- **Dono da mudança no web:** `auth-grupos`, em `packages/data` (BL-38).

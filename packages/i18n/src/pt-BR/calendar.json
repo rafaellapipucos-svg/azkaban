@@ -55,19 +55,25 @@
       "none": "{{date}}, sem tarefas",
       "some_one": "{{date}}, {{count}} tarefa: {{parts}}",
       "some_other": "{{date}}, {{count}} tarefas: {{parts}}",
+      "some_zero": "{{date}}, {{count}} tarefas: {{parts}}",
       "perfect": "dia perfeito"
     },
     "count": {
       "pending_one": "{{count}} pendente",
       "pending_other": "{{count}} pendentes",
+      "pending_zero": "{{count}} pendentes",
       "done_one": "{{count}} feita",
       "done_other": "{{count}} feitas",
+      "done_zero": "{{count}} feitas",
       "partial_one": "{{count}} tentada",
       "partial_other": "{{count}} tentadas",
+      "partial_zero": "{{count}} tentadas",
       "missed_one": "{{count}} não feita",
       "missed_other": "{{count}} não feitas",
+      "missed_zero": "{{count}} não feitas",
       "reviewing_one": "{{count}} em análise",
-      "reviewing_other": "{{count}} em análise"
+      "reviewing_other": "{{count}} em análise",
+      "reviewing_zero": "{{count}} em análise"
     },
     "perfect": "Dia perfeito! Tudo feito neste dia.",
     "empty": "Nada marcado para este dia.",
@@ -80,7 +86,8 @@
     "allDay": "Dia todo",
     "newAt": "Nova tarefa às {{time}}",
     "count_one": "{{count}} tarefa",
-    "count_other": "{{count}} tarefas"
+    "count_other": "{{count}} tarefas",
+    "count_zero": "{{count}} tarefas"
   },
   "item": {
     "label": "{{title}}, {{when}}, {{status}}",

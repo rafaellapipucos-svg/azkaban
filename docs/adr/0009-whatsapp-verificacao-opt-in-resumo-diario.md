@@ -326,6 +326,8 @@ Padrões reversíveis, escolhidos para não travar a fase:
 13. **Só números do Brasil** (`allowedCountryCodes: ["55"]`) e **no máximo 200 códigos por dia no total** (`maxSendsPerDay`), seção 18, SEG5-5.
 14. **URL em título vai como está** no resumo, clicável no WhatsApp (seção 18, SEG5-6).
 
+**Decisão do humano (2026-11-03): confirmado pelo humano em 2026-11-03.** Os catorze padrões valem como estão. Sobre o item 1 (BL-30): o WhatsApp real pela Meta fica no backlog. O humano tem conta na Meta e número, mas não liga agora; o provedor `console` continua em todo ambiente, e a seção 10 segue valendo para quando ligar.
+
 ### 17. Diferenças da implementação
 
 O que a implementação fez diferente deste texto, aceito pelo orquestrador em 2026-11-03. Vale sobre as seções anteriores onde há diferença, e os trechos afetados remetem para cá.

@@ -1,4 +1,4 @@
-import { gamificationRules, proofRules } from '@azkaban/config';
+import { gamificationRules, privacyController, proofRules } from '@azkaban/config';
 import { rankingEnabled } from '@azkaban/core';
 import { gamificationRepository, groupsRepository } from '@azkaban/data';
 import { useTranslation } from '@azkaban/i18n';
@@ -82,6 +82,16 @@ export function TransparencyScreen({
           ))}
         </Card>
       ))}
+      {/* Who answers for the data (BL-27): outside the nine items, so no heading of its own. */}
+      <Card>
+        <Body>
+          {t('transparency.controller.text', {
+            name: privacyController.name,
+            email: privacyController.contactEmail,
+          })}
+        </Body>
+        <Body>{t('transparency.controller.legalBasis')}</Body>
+      </Card>
     </Screen>
   );
 }

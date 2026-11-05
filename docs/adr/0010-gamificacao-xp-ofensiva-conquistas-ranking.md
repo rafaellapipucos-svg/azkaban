@@ -246,6 +246,8 @@ Todos são valores em config, seed ou uma linha de matriz, e voltam atrás sem p
 14. **Risco aceito** do `DELETE` de `user_achievements` pelo Realtime (SEG6-6).
 15. **Retenção** dos dados de gamificação enquanto a conta existir, sem poda de `user_day_stats` (seção 14, LGPD).
 
+**Decisão do humano (2026-11-03): confirmado pelo humano em 2026-11-03.** Os itens 1 a 13 e 15 valem como estão. O item 14 muda: o SEG6-6 deixa de ser risco aceito e é corrigido com a chave substituta (seção 14, BL-33).
+
 ### 14. Revisão de segurança da Fase 6
 
 Decisões de 2026-11-03 sobre a primeira passada do `revisor-seguranca` (handoffs `20261103-0350-revisor-seguranca-para-arquiteto-gamificacao` e `20261103-0350-revisor-seguranca-para-banco-de-dados-gamificacao`). Onde divergir das seções anteriores, vale esta; as seções 2, 6, 7 e 11 já apontam para cá.
@@ -283,6 +285,15 @@ Decisões de 2026-11-03 sobre a primeira passada do `revisor-seguranca` (handoff
 **SEG6-5 (baixa): direção confirmada.** `close_gamification_days` passa a `for no key update of p skip locked`, com um bloco `begin ... exception when others then raise warning` por perfil, que não avança o `last_closed_date` de quem falhou. É implementação do `banco-de-dados`; nenhuma regra muda.
 
 **SEG6-6 (informativo): risco aceito, como o SEG4-4 (ADR-0008).** Na exclusão de uma conta, o `DELETE` em cascata de `user_achievements` vai pelo Realtime a todo assinante, sem RLS, com a chave `(user_id, achievement_key)`. Quem recebe fica sabendo um id e quais conquistas ele tinha; nada de nome, tarefa ou grupo. Aceito por ora. Caminho, se o humano não aceitar ou a carga pesar: (1) chave substituta `id` em `user_achievements`, com `unique (user_id, achievement_key)`, que reduz o vazamento ao id opaco, como em `xp_events`; (2) a comemoração por Broadcast num canal privado por usuário, que também tira a checagem de RLS de cada `insert` para cada assinante nas rajadas do fechamento e do recálculo. Até lá, a carga do Realtime fica em observação.
+
+**Decisão do humano (2026-11-03), SEG6-6 (BL-33): corrigir com a chave substituta.** É o caminho (1) acima; o Broadcast (2) continua só para quando a carga pesar.
+
+- `user_achievements` ganha `id uuid primary key default gen_random_uuid()`, e `(user_id, achievement_key)` passa a `unique`, para a concessão continuar uma só por conquista. A `replica identity` fica a padrão, então o `DELETE` do Realtime leva só o `id` opaco, como em `xp_events`.
+- A concessão (`insert ... where not exists`, em `20261103170500_gamification_days.sql`) não muda. A exportação passa a trazer o `id` em cada linha de `achievements`, o que o formato aceita (linhas livres em `accountExportSchema`).
+- **Contrato:** não muda. `userAchievementSchema` não expõe o `id`, e a comemoração segue pela `achievement_key` do `INSERT`, que já passa pela RLS.
+- Uma migration, na faixa reservada `20261105140000`+. Donos: `banco-de-dados` (migration e pgTAP: o `DELETE` em cascata não leva `user_id` nem `achievement_key`), `gamificacao` (conferir que o repositório não depende da chave antiga).
+
+**SEG6-8 (informativo, BL-34): risco aceito, decisão do humano (2026-11-03).** Quem tem `group.update` pode desligar e religar o ranking para mover `ranking_enabled_at` e, por diferença entre consultas, ler o XP de cada membro entre dois instantes. Fica aceito: é quem administra, e já vê os status de cada membro na Equipe (seção 7).
 
 **LGPD, para F8-3.**
 

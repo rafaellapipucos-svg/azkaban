@@ -4066,3 +4066,20 @@
 - **Como testar:** `pnpm exec supabase db push --dry-run` (deve dizer `upToDate`); `pnpm exec supabase functions list --project-ref sofxwwzejdjdhtrjmpoc`; depois do Vault, as consultas da seção 5 de `docs/implantacao.md`.
 - **Verificado:** as saídas acima. **Não verificado:** crons no hospedado (dependem do Vault), Auth no painel, SMTP, deploy web (faltam os Secrets do FTP).
 - **Pendências / próximos passos:** com o humano: Vault, guardar e apagar o arquivo VAPID, Hostinger e Secrets do FTP, Brevo, Auth no painel; depois, conferência dos crons e do primeiro deploy.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-05 18:34 (BRT)
+
+- **Branch:** fix/offline-queue-stall (a partir de `chore/post-launch`, `4cd32ab`)
+- **Agente(s):** qa-testes
+- **Resumo:** a falha de `e2e/shopping.spec.ts:219` no CI do PR #12 (run 42107062041) era da spec, não da fila nem dos patches do SDK 58: o `page.close()` derruba a sessão do DevTools e com ela a emulação offline, e a aba que morria voltou à rede e mandou o ajuste sem o Playwright ver. As duas specs de "fechar a aba" agora saem do app ainda offline antes de fechar.
+- **Alterações:**
+  - Trace do CI: o banco já tinha `quantity` 4 na resposta do primeiro pedido da aba nova (`set_shopping_item_checked`, 5 ms depois do `load`); a aba nova nunca mandou `adjust_shopping_item_quantity`, e a fila salva antes do `close` tinha os dois (`shopping-adjust` delta 3 e `shopping-check`, pausados, escopo `offline-queue`). Nenhum erro no console. Ou seja: o ajuste chegou ao servidor uma vez, por fora da aba que o teste observava.
+  - Mecanismo confirmado localmente: uma sessão CDP que emula offline, ao se desconectar, devolve `navigator.onLine` true, dispara `online` e libera o `fetch` na mesma página.
+  - `e2e/shopping.spec.ts` e `e2e/offline-queue.spec.ts`: `page.goto('about:blank')` antes do `page.close()`, com o porquê no comentário. A prova continua a mesma (a fila sobrevive no disco e a aba nova manda tudo, uma vez).
+- **Arquivos/módulos principais:** `e2e/shopping.spec.ts`, `e2e/offline-queue.spec.ts`.
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. Produto correto: contou uma vez e na ordem; sem handoff.
+- **Como testar:** `pnpm e2e e2e/shopping.spec.ts e2e/offline-queue.spec.ts -g "closing the tab" --repeat-each=10 --no-deps`.
+- **Verificado:** sonda do fluxo original 34/34 sem reproduzir a corrida (10 com 1 worker, 24 com 6); depois da correção, as duas specs 20/20 (`--repeat-each=10`, 4 workers); `pnpm check` passou.
+- **Não verificado:** a corrida em si não reproduziu nesta máquina; a causa vem do trace mais o mecanismo. Não comparei com a `main` (`f4d9136`) localmente: a corrida depende do runner, não do Expo. Hora pelo UTC−3.
+- **Pendências / próximos passos:** rodar o CI do PR com esta branch.

@@ -60,7 +60,9 @@ test('a status marked offline survives closing the tab and reaches the database 
   ).toBeVisible();
   expect(await savedQueue(context)).not.toContain('Lavar a louça');
 
-  // The tab closes before the connection returns; a new one sends what waited.
+  // The tab closes before the connection returns; a new one sends what waited. Leaving the app first,
+  // still offline: `close` lifts the offline emulation before the tab dies (see shopping.spec.ts).
+  await page.goto('about:blank');
   await page.close();
   await context.setOffline(false);
   const next = await context.newPage();

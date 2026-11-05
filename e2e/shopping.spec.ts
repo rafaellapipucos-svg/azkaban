@@ -247,7 +247,11 @@ test('stepper taps and a check made offline survive closing the tab and count on
   await expect(button(page, 'Finalizar compra')).toBeDisabled();
   await expect(page.getByText(/^Sem conexão. Finalizar espera a internet voltar/)).toBeVisible();
 
-  // The tab closes before the connection returns; a new one sends what waited, in order
+  // The tab closes before the connection returns; a new one sends what waited, in order.
+  // `close` drops the DevTools session first, and with it the offline emulation: a slow runner's
+  // dying tab came back online and sent the adjust unseen (CI run 42107062041). Leaving the app
+  // still offline closes it for good, with the whole queue on the disk.
+  await page.goto('about:blank');
   await page.close();
   await context.setOffline(false);
   const next = await context.newPage();

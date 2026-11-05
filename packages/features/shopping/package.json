@@ -18,7 +18,7 @@
     "@azkaban/platform": "workspace:*",
     "@azkaban/ui": "workspace:*",
     "@tanstack/react-query": "^5.105.0",
-    "expo-router": "^58.0.29",
+    "expo-router": "^58.0.30",
     "react": "catalog:",
     "react-native": "catalog:"
   },

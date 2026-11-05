@@ -4017,3 +4017,69 @@
 - **Verificado:** em `c6ff56a`, banco limpo: db:test 1990/1990 antes e depois da E2E, db:check-permissions, typecheck e unidade, lint, fronteiras, build:web, functions:test 228/228, E2E 99 passaram e 1 pulado nas duas rodadas, bundle 404 609 B, expo-doctor 20/20. Varredura de segredos sem achados.
 - **Não verificado:** deploy real na Hostinger (falta o humano criar os Secrets), Brevo, projeto hospedado, nativo.
 - **Pendências / próximos passos:** PR para a `main`; com o humano: `supabase login`, Hostinger e Brevo; BL-39 depois de 2026-11-04 14:10; BL-40.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-05 17:37 (BRT)
+
+- **Branch:** chore/expo-sdk-58-patches (a partir de `main`, `f4d9136`)
+- **Agente(s):** arquiteto
+- **Resumo:** BL-39. Patches do SDK 58 da Expo, publicados em 2026-11-03 e já fora da quarentena de 1 dia do pnpm. Sem nenhuma entrada nova em `minimumReleaseAgeExclude`; o pnpm não recusou nenhum pacote.
+- **Alterações:**
+  - `npx expo install --fix` em `apps/app`: `expo` ~58.0.23, `@expo/metro-runtime` ~58.0.17, `expo-constants` ~58.0.15, `expo-linking` ~58.0.16, `expo-notifications` ~58.1.8, `expo-router` ~58.0.30, `expo-splash-screen` ~58.0.13, `react-native-safe-area-context` ~5.11.1.
+  - As mesmas versões em `packages/platform`, `packages/ui` e `packages/features/*` que as declaram, mantendo o operador (`~` ou `^`) de cada um. O lockfile resolve uma versão só de cada módulo da Expo.
+- **Arquivos/módulos principais:** `apps/app/package.json`, `packages/platform/package.json`, `packages/ui/package.json`, `packages/features/*/package.json`, `pnpm-lock.yaml`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova; segue a regra da entrada de 2026-11-03 18:05.
+- **Como testar:** `pnpm install --frozen-lockfile && pnpm check && pnpm build:web && pnpm bundle:size && pnpm expo:doctor`.
+- **Verificado:** `pnpm-workspace.yaml` sem diff. `npx expo install --check` (online, só nesta conferência): "Dependencies are up to date". `pnpm install --frozen-lockfile` passa as políticas de supply chain. `pnpm check` passou. `pnpm build:web` passou; `pnpm bundle:size` 404 459 B (antes 404 609 B; teto 427 641). `pnpm expo:doctor` 20/20 com o SDK novo instalado.
+- **Não verificado:** E2E (fica para o CI do PR), nativo, CI no GitHub. Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** PR para a `main`; marcar BL-39 como feito no quadro.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-05 17:47 (BRT)
+
+- **Branch:** chore/android-application-id (a partir de `chore/expo-sdk-58-patches`, `87a6386`)
+- **Agente(s):** arquiteto
+- **Resumo:** BL-40. O identificador do app, escolhido pelo humano, é `com.tabolao.app`, no Android e no iOS, para não divergir.
+- **Alterações:**
+  - `apps/app/app.config.ts`: o padrão de `android.package` e de `ios.bundleIdentifier` passa de `com.azkaban.app` (provisório) para `com.tabolao.app`; `APP_ANDROID_PACKAGE` e `APP_IOS_BUNDLE_ID` ainda sobrepõem.
+  - ADR-0012, seção 11: parágrafo com a decisão, depois do da BL-29. Não existe `.well-known/assetlinks.json` nem identificador em `eas.json`; nada mais a mudar.
+- **Arquivos/módulos principais:** `apps/app/app.config.ts`, `docs/adr/0012-polimento-lgpd-limites-offline.md`
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** ADR-0012, seção 11 (decisão do humano, BL-40).
+- **Como testar:** em `apps/app`, `npx expo config --type public` mostra `package` e `bundleIdentifier` `com.tabolao.app`; `pnpm expo:doctor`; `pnpm check`.
+- **Verificado:** `npx expo config --type public` com os dois valores certos; `pnpm expo:doctor` 20/20; `pnpm check` passou.
+- **Não verificado:** EAS build e aparelho (sem conta Expo). Hora pelo UTC−3 (PowerShell barrado).
+- **Pendências / próximos passos:** marcar BL-40 como feito no quadro; ao criar o projeto no EAS e o app no Firebase, usar `com.tabolao.app`; o `assetlinks.json` entra com os App Links.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-05 17:49 (BRT)
+
+- **Branch:** chore/post-launch (a partir de `chore/android-application-id`, `3cf3311`)
+- **Agente(s):** orquestrador
+- **Resumo:** PR #11 mergeado na `main` (`f4d9136`) e primeira implantação do Supabase hospedado (BL-28), com autorização do humano. QUADRO com BL-28, BL-39 e BL-40 feitos.
+- **Alterações:**
+  - Hospedado (`sofxwwzejdjdhtrjmpoc`): `supabase link` e `db push` das 207 migrations (dry-run seguinte: `upToDate: true`); segredos `CRON_SECRET`, `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY`, `VAPID_SUBJECT` (`mailto:privacidade@tabolao.com`), `WHATSAPP_PROVIDER=console`, `WHATSAPP_APP_SECRET` e `WHATSAPP_VERIFY_TOKEN` (valores gerados localmente, nunca exibidos); `NATIVE_PUSH_PROVIDER` não definido (não configurado); `functions deploy` das 9 funções, todas `ACTIVE` e com o `verify_jwt` da seção 3 de `docs/implantacao.md`.
+  - GitHub, Variables do deploy: `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `EXPO_PUBLIC_VAPID_PUBLIC_KEY`, `EXPO_PUBLIC_APP_NAME`, `EXPO_PUBLIC_APP_SCHEME`, `FTP_SERVER_DIR`.
+  - Arquivos locais do humano, fora do repositório: `~/azkaban-vault.sql` (os 4 segredos do Vault, para o SQL Editor) e `~/vapid-azkaban-prod.env` (par VAPID, para o cofre de senhas).
+  - `docs/agentes/QUADRO.md`: BL-28, BL-39 e BL-40 feitos.
+- **Arquivos/módulos principais:** `docs/agentes/QUADRO.md`, `LOG_DE_ALTERACOES.md`.
+- **Migrations:** nenhuma nova; aplicadas no hospedado todas até `20261106100100`.
+- **Decisões/ADRs:** nenhuma nova.
+- **Como testar:** `pnpm exec supabase db push --dry-run` (deve dizer `upToDate`); `pnpm exec supabase functions list --project-ref sofxwwzejdjdhtrjmpoc`; depois do Vault, as consultas da seção 5 de `docs/implantacao.md`.
+- **Verificado:** as saídas acima. **Não verificado:** crons no hospedado (dependem do Vault), Auth no painel, SMTP, deploy web (faltam os Secrets do FTP).
+- **Pendências / próximos passos:** com o humano: Vault, guardar e apagar o arquivo VAPID, Hostinger e Secrets do FTP, Brevo, Auth no painel; depois, conferência dos crons e do primeiro deploy.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-05 18:34 (BRT)
+
+- **Branch:** fix/offline-queue-stall (a partir de `chore/post-launch`, `4cd32ab`)
+- **Agente(s):** qa-testes
+- **Resumo:** a falha de `e2e/shopping.spec.ts:219` no CI do PR #12 (run 42107062041) era da spec, não da fila nem dos patches do SDK 58: o `page.close()` derruba a sessão do DevTools e com ela a emulação offline, e a aba que morria voltou à rede e mandou o ajuste sem o Playwright ver. As duas specs de "fechar a aba" agora saem do app ainda offline antes de fechar.
+- **Alterações:**
+  - Trace do CI: o banco já tinha `quantity` 4 na resposta do primeiro pedido da aba nova (`set_shopping_item_checked`, 5 ms depois do `load`); a aba nova nunca mandou `adjust_shopping_item_quantity`, e a fila salva antes do `close` tinha os dois (`shopping-adjust` delta 3 e `shopping-check`, pausados, escopo `offline-queue`). Nenhum erro no console. Ou seja: o ajuste chegou ao servidor uma vez, por fora da aba que o teste observava.
+  - Mecanismo confirmado localmente: uma sessão CDP que emula offline, ao se desconectar, devolve `navigator.onLine` true, dispara `online` e libera o `fetch` na mesma página.
+  - `e2e/shopping.spec.ts` e `e2e/offline-queue.spec.ts`: `page.goto('about:blank')` antes do `page.close()`, com o porquê no comentário. A prova continua a mesma (a fila sobrevive no disco e a aba nova manda tudo, uma vez).
+- **Arquivos/módulos principais:** `e2e/shopping.spec.ts`, `e2e/offline-queue.spec.ts`.
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. Produto correto: contou uma vez e na ordem; sem handoff.
+- **Como testar:** `pnpm e2e e2e/shopping.spec.ts e2e/offline-queue.spec.ts -g "closing the tab" --repeat-each=10 --no-deps`.
+- **Verificado:** sonda do fluxo original 34/34 sem reproduzir a corrida (10 com 1 worker, 24 com 6); depois da correção, as duas specs 20/20 (`--repeat-each=10`, 4 workers); `pnpm check` passou.
+- **Não verificado:** a corrida em si não reproduziu nesta máquina; a causa vem do trace mais o mecanismo. Não comparei com a `main` (`f4d9136`) localmente: a corrida depende do runner, não do Expo. Hora pelo UTC−3.
+- **Pendências / próximos passos:** rodar o CI do PR com esta branch.

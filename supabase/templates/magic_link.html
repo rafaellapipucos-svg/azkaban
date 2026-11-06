@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+  <body
+    style="
+      margin: 0;
+      padding: 24px;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #1f2937;
+      background: #ffffff;
+    "
+  >
+    <p style="font-size: 18px; font-weight: bold; margin: 0 0 16px">Azkaban</p>
+    <h1 style="font-size: 20px; margin: 0 0 12px">Seu link de entrada</h1>
+    <p style="margin: 0 0 20px; line-height: 1.5">
+      Toque no botão para entrar no Azkaban. O link só pode ser usado uma vez.
+    </p>
+    <p style="margin: 0 0 20px">
+      <a
+        href="{{ .ConfirmationURL }}"
+        style="
+          display: inline-block;
+          padding: 12px 20px;
+          background: #6b2fe0;
+          color: #ffffff;
+          text-decoration: none;
+          border-radius: 8px;
+          font-weight: bold;
+        "
+        >Entrar</a
+      >
+    </p>
+    <p style="margin: 0 0 8px; font-size: 13px; color: #6b7280">
+      Se o botão não abrir, copie este endereço no navegador:
+    </p>
+    <p style="margin: 0 0 20px; font-size: 13px; word-break: break-all">
+      <a href="{{ .ConfirmationURL }}" style="color: #6b2fe0">{{ .ConfirmationURL }}</a>
+    </p>
+    <p style="margin: 0; font-size: 13px; color: #6b7280">
+      Não pediu este link? Ignore este e-mail; sua conta continua como está.
+    </p>
+  </body>
+</html>

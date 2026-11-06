@@ -4259,3 +4259,20 @@
 - **Verificado:** tudo da linha acima no Chrome, antes e depois do deploy das correções (deploy 42181764625), com o console sem erros; depois do deploy: aviso de nome vazio nas compras, `?area=home` em "Gerenciar contextos", avisos ao salvar contexto vazio e "Conquista: {{title}}!" no JavaScript publicado.
 - **Não verificado:** prova por foto (aceite e câmera são do humano), push, WhatsApp, exclusão de conta; a comemoração nova na tela (só no JavaScript publicado e nos testes de unidade, para não gerar mais XP na conta do humano); `supabase db push` da migration `20261106110000` (o `supabase link` foi barrado).
 - **Pendências / próximos passos:** as do handoff 0440.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-06 05:00 (BRT)
+
+- **Branch:** feat/auth-email-templates-ptbr (a partir de `main`, `a966789`)
+- **Agente(s):** orquestrador, com os modelos escritos pela sessão "E-mails do Auth em português no Supabase" (worktree `hopeful-noether-29777b`), que ficou parada esperando uma resposta do humano
+- **Resumo:** e-mails do Auth em português. Os 5 modelos (link de entrada, confirmação, troca de e-mail, senha e convite) ficam em `supabase/templates/`, a pilha local aponta para eles e o hospedado recebe os mesmos pelo painel.
+- **Alterações:**
+  - `supabase/templates/*.html`: HTML simples, sem imagens externas, com botão e o endereço em texto (a E2E `accounts.spec.ts` lê a primeira URL do texto).
+  - `supabase/config.toml`: `[auth.email.template.*]` com assunto em pt-BR e `content_path` para cada modelo (só pilha local; nunca `config push`).
+  - `docs/implantacao.md`, seção 4: colar os modelos no painel a partir de `supabase/templates/`.
+- **Arquivos/módulos principais:** `supabase/templates/`, `supabase/config.toml`, `docs/implantacao.md`.
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm e2e e2e/accounts.spec.ts -g "magic link"` na pilha A; no hospedado, pedir um link e conferir o assunto "Seu link de entrada no Azkaban".
+- **Verificado:** `pnpm lint`; no painel do hospedado, os 5 modelos já estavam salvos em pt-BR pela outra sessão (assunto e corpo conferidos depois de recarregar); um link pedido para o e-mail do humano (`/auth/v1/otp`, `create_user: false`) chegou na caixa de entrada do Gmail com o assunto "Seu link de entrada no Azkaban" e o corpo em português.
+- **Não verificado:** a E2E com os modelos novos roda no CI do PR. A sessão dos e-mails continua aberta esperando uma resposta do humano; pode ser encerrada.
+- **Pendências / próximos passos:** nenhuma.

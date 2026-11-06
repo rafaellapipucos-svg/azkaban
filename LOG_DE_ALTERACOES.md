@@ -4098,6 +4098,80 @@
 - **Verificado:** CI e `Deploy web` da `main` em `1f9cb2b` verdes (deploy pulado, sem Secrets de FTP). **Não verificado:** crons, Auth, SMTP e deploy real, que dependem do humano.
 - **Pendências / próximos passos:** as do handoff.
 
+### Claude de Rafaell Bezerra Saraiva — 2026-11-06 02:35 (BRT)
+
+- **Branch:** chore/web-launch (a partir de `main`, `e3ec1d2`)
+- **Agente(s):** orquestrador
+- **Resumo:** o app web está no ar em `https://app.tabolao.com` (BL-24). Fiz junto com o humano no hPanel; credenciais só com ele.
+- **Alterações:**
+  - Humano: rodou o `azkaban-vault.sql` no SQL Editor do hospedado. Decidiu não guardar o par VAPID (a chave fica só nos segredos do Supabase; se perder, gera-se um par novo). Às 02:35 os dois arquivos ainda estavam em `~`, a apagar.
+  - Hostinger: o `tabolao.com` não tinha site na conta, então o site foi criado direto como `app.tabolao.com` (PHP/HTML em branco, sem custo no plano Unlimited); SSL grátis ativo; conta FTP `u664139085.deploy` presa a `domains/app.tabolao.com/public_html`.
+  - GitHub: o humano cadastrou `FTP_SERVER` (`srv887.hstgr.io`, porque o certificado do FTP só cobre `*.hstgr.io`), `FTP_USERNAME` e `FTP_PASSWORD`. O classificador barrou o `gh secret set` pelo Claude.
+  - Primeiro deploy: `Deploy web` na `main` (run 42168768409), verde com upload.
+  - `docs/implantacao.md`, seção 8: passo 1 com o caminho real do hPanel e passo 3 com o host `srvNNN.hstgr.io`.
+  - `docs/agentes/QUADRO.md`: BL-24 feito; BL-25 a fazer.
+- **Arquivos/módulos principais:** `docs/implantacao.md`, `docs/agentes/QUADRO.md`, `LOG_DE_ALTERACOES.md`.
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova.
+- **Como testar:** os `curl -sI` do passo 6 da seção 8 de `docs/implantacao.md`.
+- **Verificado:** `http://` dá 301 para `https://`; `/tasks` 200 `text/html`, `no-cache`, CSP, CSP Report-Only com o host do Supabase, `nosniff`, `Referrer-Policy`, `Permissions-Policy` e `X-Frame-Options`; `sw.js` e `manifest.webmanifest` com o tipo certo e `no-cache`; `.ftp-deploy-sync-state.json` 403; JS com hash `public, max-age=31536000, immutable`; a tela de boas-vindas abre no Chrome.
+- **Não verificado:** crons (precisam de uma hora cheia depois do Vault), login e e-mail (falta Brevo e Auth no painel), avisos da CSP no console com o app inteiro (BL-25).
+- **Pendências / próximos passos:** humano: Brevo e Auth no painel (passos 5 e 6 do handoff 0001). Claude: consultas dos crons da seção 5, SHA-256 da VAPID, teste do link mágico, resto da seção 5, depois BL-26 e BL-25.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-06 03:02 (BRT)
+
+- **Branch:** chore/web-launch
+- **Agente(s):** orquestrador
+- **Resumo:** e-mail próprio pelo Brevo e Auth de produção no painel do Supabase (BL-26 e seções 4, 5 e 8 de `docs/implantacao.md`), com o humano no Chrome. Falta só o teste do link mágico.
+- **Alterações:**
+  - Brevo (conta grátis criada pelo humano): domínio `tabolao.com` autenticado pelo método manual; remetente "Azkaban" `nao-responda@tabolao.com`; SMTP key `supabase` gerada pelo humano e colada por ele no painel.
+  - DNS de `tabolao.com` no hPanel: TXT `brevo-code:...`, CNAME `brevo1._domainkey` e `brevo2._domainkey` (DKIM), TXT SPF `v=spf1 include:spf.brevo.com ~all` (não havia outro), TXT `_dmarc` `v=DMARC1; p=none; rua=mailto:rua@dmarc.brevo.com` (relatórios no Brevo, sem e-mail pessoal no DNS).
+  - Supabase hospedado, com confirmação do humano: SMTP próprio ligado (`smtp-relay.brevo.com`, 587, login do Brevo); Site URL de `http://localhost:3000` para `https://app.tabolao.com`; Redirect URLs `https://app.tabolao.com/**` e `azkaban://**` (não havia nenhuma, então o `azkaban://**` do BL-28 não estava no painel); senha mínima de 6 para 8.
+  - Já estavam certos e não mudaram: confirmação de e-mail ligada, anônimos desligados, Rate Limits (30 e-mails/h, 60 s, 30 entradas e 30 OTP a cada 5 min, 150 renovações), schemas expostos só `public` e `graphql_public`, `pg_graphql` desligado.
+- **Arquivos/módulos principais:** `LOG_DE_ALTERACOES.md`.
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova.
+- **Como testar:** as consultas da seção 5; `Accept-Profile: net|cron|vault` na REST dá `PGRST106`.
+- **Verificado:** "Verify records" do Brevo com os 4 registros batendo e `dig` nos nameservers da Hostinger; painel recarregado mostrando os valores salvos; REST com a chave publicável: `anon` sem acesso a `profiles` (de propósito, `revoke all` na migration) e `net`, `cron`, `vault` recusados; `/graphql/v1` responde que a extensão está desligada; VAPID: resumo SHA-256 do segredo igual ao da Variable do GitHub (`f265dd09…`); crons nos últimos 50 min todos `succeeded` (7 jobs) e 71 respostas HTTP 200, sem erro. As falhas `*_not_configured` param às 01:58, antes do Vault.
+- **Não verificado:** entrega do link mágico fora da equipe e spam; prova de 2 MiB, `WORKER_LIMIT` e `x-proof-meta` nos logs (precisam de conta e uso real).
+- **Pendências / próximos passos:** humano pede um link mágico para um e-mail fora da equipe; com ele chegando, BL-26 vira feito. Depois, BL-25 (Lighthouse e avisos da CSP).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-06 03:15 (BRT)
+
+- **Branch:** chore/web-launch
+- **Agente(s):** orquestrador
+- **Resumo:** teste de ponta a ponta em `https://app.tabolao.com` com o e-mail do humano, a pedido dele. O link mágico chega pelo Brevo e entra no app. BL-26 feito.
+- **Alterações:**
+  - `docs/agentes/QUADRO.md`: BL-26 feito.
+  - Entrada anterior com a hora corrigida (03:02).
+- **Arquivos/módulos principais:** `docs/agentes/QUADRO.md`, `LOG_DE_ALTERACOES.md`.
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** em `/sign-in`, "Receber link por e-mail" e conferir a caixa de entrada.
+- **Verificado:** o e-mail chegou em cerca de 1 minuto na **caixa de entrada** do Gmail (não no spam), remetente "Azkaban" `nao-responda@tabolao.com`; o link entrou no app e levou a `/push-setup`; Hoje, Calendário, Compras e Perfil abriram, com as chamadas REST em 200 e o console sem erros.
+- **Não verificado:** e-mail fora da equipe do projeto (o humano autorizou usar o dele, que é dono do projeto; com SMTP próprio a entrega passa pelo Brevo do mesmo jeito); push (o humano decide a permissão do navegador); criação de tarefa, Realtime, câmera e prova; avisos da CSP Report-Only (vão no BL-25).
+- **Pendências / próximos passos:**
+  - Os e-mails do Auth saem com o modelo padrão do Supabase, em inglês ("Your sign-in link"). A interface é pt-BR; faltam modelos em português no painel (Authentication → Emails → Templates).
+  - O Brevo reescreve o link do e-mail para o rastreador de cliques (`*.sendibt3.com`), então o token de entrada passa por ele. O painel não tem opção para desligar no transacional; pedir ao suporte do Brevo ou trocar o link por código (OTP) no modelo.
+  - BL-25: Lighthouse nas boas-vindas e a rodada de avisos da CSP.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-06 03:22 (BRT)
+
+- **Branch:** chore/web-launch
+- **Agente(s):** banco-de-dados
+- **Resumo:** bug em produção: `public.areas` vazia no hospedado, porque as linhas `work` e `home` só vinham de `supabase/seed/areas.sql`, que roda no `db reset` local e não no `db push`. Sem áreas, "Novo contexto" não tinha opção em "Área" e ninguém criava contexto nem tarefa. As linhas agora vêm por migration, como o catálogo de compras (ADR 0011).
+- **Alterações:**
+  - Migration nova `20261106110000_seed_reference_areas.sql`: as mesmas 2 linhas do seed, com `on conflict (key) do nothing` (o orquestrador já inseriu as duas à mão no hospedado, então lá ela não muda nada).
+  - `supabase/seed/areas.sql` removido; nada mais dependia dele. O `sql_paths = ["./seed/*.sql"]` do `config.toml` ficou: o glob vazio só avisa `no files matched pattern` e o reset segue.
+  - Conferi os outros dados de referência que o app lê (`group_types`, `achievements`, `permissions`, `role_permissions`, `app_settings`, `shopping_catalog_seed`): todos já vêm de migration. Os `insert into public.role_permissions` dos testes são concessões extras de cada teste, não dados do app.
+- **Arquivos/módulos principais:** `supabase/migrations/20261106110000_seed_reference_areas.sql`, `supabase/seed/areas.sql` (removido), `LOG_DE_ALTERACOES.md`.
+- **Migrations:** `20261106110000_seed_reference_areas.sql`
+- **Decisões/ADRs:** nenhuma nova; segue o motivo do ADR 0011 (seed do Supabase só roda no reset local).
+- **Como testar:** `pnpm db:reset` e `select key from public.areas` dá `work` e `home`; `pnpm db:test`.
+- **Verificado:** na pilha B "db" (a A estava sendo subida por outra sessão): `db reset` sem seed, com as 2 áreas; a migration rodada de novo não duplica (2 linhas); `pnpm db:test` 1990/1990 em 15 arquivos; `pnpm check` verde.
+- **Não verificado:** `db push` no hospedado (fica para o próximo deploy; lá as linhas já existem).
+- **Pendências / próximos passos:** `docs/PROMPT_MESTRE.md` ainda lista "áreas" em `supabase/seed/` na árvore de pastas (fora do escopo do banco).
+
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-06 03:44 (BRT)
 
 - **Branch:** fix/contexts-area-feedback (a partir de `main`, `e3ec1d2`)

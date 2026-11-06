@@ -4207,3 +4207,20 @@
 - **Verificado:** `pnpm check` passou (23 testes de compras, 2 novos). Nenhuma spec E2E confere o botão desligado; E2E não rodada.
 - **Não verificado:** a tela no navegador e no leitor de tela. Os outros formulários de compras (itens, catálogo) seguem com o botão desligado sem aviso.
 - **Pendências / próximos passos:** decidir se o mesmo padrão vale para os formulários de item e de catálogo.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-06 03:49 (BRT)
+
+- **Branch:** fix/gamification-celebration-text (a partir de `main`, `e3ec1d2`)
+- **Agente(s):** gamificação
+- **Resumo:** a tela "Dia perfeito!" emendava frases sem pontuação ("Conquista: Primeira tarefa Tarefa concluída!"). A linha da conquista era a única comemoração sem pontuação final; agora termina em "!".
+- **Alterações:**
+  - `packages/i18n/src/pt-BR/gamification.json`: `celebration.achievement` passa a `Conquista: {{title}}!`, como `level_up`, `streak_milestone` e `occurrence_done`. O cartão (linhas separadas) e a tela de dia perfeito (um parágrafo) leem bem.
+  - `packages/features/gamification/src/celebrationText.ts`: o texto de cada comemoração e o parágrafo do dia perfeito saem do `CelebrationHost` para funções puras, testáveis com o i18n real.
+  - `celebrationText.test.ts`: toda comemoração termina em pontuação; junções sem nada a mais, com conquista e conclusão, e com nível e várias conquistas.
+- **Arquivos/módulos principais:** `packages/features/gamification/src/`, `packages/i18n/src/pt-BR/gamification.json`.
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** `pnpm --filter @azkaban/feature-gamification test`; no app, concluir a primeira tarefa do dia sendo a única: "Você fez tudo o que planejou para hoje. Conquista: Primeira tarefa! Tarefa concluída!".
+- **Verificado:** `pnpm check` passou (gamificação 26 testes). As specs E2E que procuram "Conquista: Primeira tarefa" usam `getByText` com string, que casa por substring; não precisaram mudar e não rodei E2E.
+- **Não verificado:** a tela no navegador. Hora pelo UTC−3.
+- **Pendências / próximos passos:** nenhuma.

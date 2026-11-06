@@ -8,6 +8,7 @@ import { CelebrationCard, PerfectDayScreen, tokens } from '@azkaban/ui';
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
+import { celebrationText, perfectDayDetail } from './celebrationText';
 import { gamificationUi } from './config';
 import { gamificationKey, statsQuery, useCelebrationPrefs } from './hooks';
 import { celebrationFeedback, readCelebratedLevel, rememberCelebratedLevel } from './preferences';
@@ -124,20 +125,7 @@ export function CelebrationHost() {
   }, [shown, top]);
 
   if (!shown || !top) return null;
-  const text = (c: Celebration) => {
-    switch (c.kind) {
-      case 'streak_milestone':
-        return t('celebration.streak_milestone', { count: c.days });
-      case 'level_up':
-        return t('celebration.level_up', { level: c.level });
-      case 'achievement':
-        return t('celebration.achievement', {
-          title: t(`achievements.${c.key}.title`, { defaultValue: c.key }),
-        });
-      default:
-        return t(`celebration.${c.kind}`);
-    }
-  };
+  const text = (c: Celebration) => celebrationText(t, c);
   const others = shown.list.slice(1).map(text);
   const close = () => setShown(null);
 
@@ -146,7 +134,7 @@ export function CelebrationHost() {
       <PerfectDayScreen
         visible
         title={text(top)}
-        detail={[t('celebration.perfectDayDetail'), ...others].join(' ')}
+        detail={perfectDayDetail(t, others)}
         closeLabel={t('celebration.close')}
         onClose={close}
       />

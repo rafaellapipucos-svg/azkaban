@@ -78,7 +78,7 @@
     "perfect_day": "Dia perfeito!",
     "perfectDayDetail": "Você fez tudo o que planejou para hoje.",
     "level_up": "Nível {{level}}!",
-    "achievement": "Conquista: {{title}}"
+    "achievement": "Conquista: {{title}}!"
   },
   "settings": {
     "title": "Comemorações",

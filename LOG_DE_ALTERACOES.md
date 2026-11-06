@@ -4224,6 +4224,7 @@
 - **Verificado:** `pnpm check` passou (gamificação 26 testes). As specs E2E que procuram "Conquista: Primeira tarefa" usam `getByText` com string, que casa por substring; não precisaram mudar e não rodei E2E.
 - **Não verificado:** a tela no navegador. Hora pelo UTC−3.
 - **Pendências / próximos passos:** nenhuma.
+
 ### Claude de Rafaell Bezerra Saraiva — 2026-11-06 03:52 (BRT)
 
 - **Branch:** fix/proof-review-double-fetch (a partir de `main`, `e3ec1d2`)

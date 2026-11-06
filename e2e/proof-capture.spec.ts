@@ -555,7 +555,10 @@ test('an approval waits in review, and the admin approves, contests and undoes i
   await expect(ownerPage.getByText(/^Enviada pelo navegador, versão \S+$/)).toBeVisible();
   await expect(ownerPage.getByText(/na web não dá para garantir/)).toBeVisible();
   await expect(ownerPage.getByText(/O carimbo na foto é só um desenho/)).toBeVisible();
-  await expect.poll(() => photos).toBe(1);
+  // react-native-web's Image preloads the URL and, while it loads, already renders its own <img> with
+  // it; Chromium sometimes serves that second request from its HTTP cache (no bytes), sometimes merges
+  // it. What matters: one URL asked for, and every read of it is the JPEG.
+  await expect.poll(() => photos).toBeGreaterThanOrEqual(1);
   expect(urlRequests).toBe(1);
 
   // Opening it again asks for a URL again: the one before it lasts only a minute

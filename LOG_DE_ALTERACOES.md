@@ -4224,3 +4224,19 @@
 - **Verificado:** `pnpm check` passou (gamificação 26 testes). As specs E2E que procuram "Conquista: Primeira tarefa" usam `getByText` com string, que casa por substring; não precisaram mudar e não rodei E2E.
 - **Não verificado:** a tela no navegador. Hora pelo UTC−3.
 - **Pendências / próximos passos:** nenhuma.
+### Claude de Rafaell Bezerra Saraiva — 2026-11-06 03:52 (BRT)
+
+- **Branch:** fix/proof-review-double-fetch (a partir de `main`, `e3ec1d2`)
+- **Agente(s):** prova
+- **Resumo:** a falha intermitente de `e2e/proof-capture.spec.ts:502` (linha 558, `photos` 2 em vez de 1; runs 42169380876 e 42172013481) vinha da spec, não de desperdício no app: o `Image` do react-native-web pede a mesma URL assinada duas vezes por design, e o Chromium às vezes junta os pedidos, às vezes serve o segundo do cache HTTP. A spec agora confere o que importa.
+- **Alterações:**
+  - Trace dos dois runs: um só `POST /functions/v1/proof-url` e duas `GET` da mesma URL assinada (mesmo token), 5 ms uma da outra; a segunda com `_transferSize: 0` e só os cabeçalhos provisórios, ou seja, lida do cache HTTP (a resposta traz `expires` de 60 s), sem baixar os bytes de novo.
+  - Origem: `react-native-web` 0.21.4, `exports/Image`. O efeito chama `ImageLoader.load` (`new window.Image()`) e põe o estado em LOADING; sem `defaultSource`, LOADING já mostra a fonte, então o mesmo render monta o `<img>` oculto de acessibilidade e o fundo CSS com a URL enquanto o pré-carregamento ainda está em voo. Corrigir no app pediria patch no RNW ou outro componente de imagem para economizar uma leitura de cache: não vale.
+  - `e2e/proof-capture.spec.ts`: `photos` passa de `toBe(1)` para `toBeGreaterThanOrEqual(1)`, com o porquê no comentário; ficam iguais o 200 e `image/jpeg` de cada resposta, `urlRequests` 1 na abertura e 2 ao reabrir (URL nova a cada abertura).
+- **Arquivos/módulos principais:** `e2e/proof-capture.spec.ts`.
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma; sem handoff.
+- **Como testar:** `pnpm e2e e2e/proof-capture.spec.ts -g "an approval waits in review" --repeat-each=5 --no-deps --workers=1`.
+- **Verificado:** `pnpm check` passou; a spec com `--repeat-each=5 --workers=1` 5/5. Com 4 workers, 1/5: as outras 4 caíram antes, na linha 518, com o runtime local das funções estourando CPU no `proof-validate` (o 546 que o `playwright.config.ts` já descreve), sem relação com esta mudança.
+- **Não verificado:** a contagem 2 não foi reproduzida nesta máquina; a causa vem dos traces do CI mais a leitura do código do RNW. Hora pelo UTC−3.
+- **Pendências / próximos passos:** CI do PR.

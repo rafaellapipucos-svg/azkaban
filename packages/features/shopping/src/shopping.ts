@@ -119,3 +119,18 @@ export function listForTask(
  */
 export const shoppingTextErrorKey = (parsed: { error?: { issues: { code: string }[] } }) =>
   parsed.error?.issues.some(({ code }) => code === 'custom') ? 'form.invalidText' : null;
+
+/**
+ * The new list's name: the button stays on, so a press with an empty or too long name has to say
+ * why instead of doing nothing. Before the first press, only the control character message shows.
+ */
+export const shoppingNameErrorKey = (
+  parsed: { error?: { issues: { code: string }[] } },
+  pressed: boolean,
+) => {
+  const text = shoppingTextErrorKey(parsed);
+  if (text || !pressed || !parsed.error) return text;
+  return parsed.error.issues.some(({ code }) => code === 'too_big')
+    ? 'lists.nameTooLong'
+    : 'lists.nameRequired';
+};

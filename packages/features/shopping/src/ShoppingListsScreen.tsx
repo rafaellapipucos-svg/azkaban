@@ -19,7 +19,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { shoppingKeys } from './hooks';
-import { canShop, shoppingErrorKey, shoppingPaths, shoppingTextErrorKey } from './shopping';
+import { canShop, shoppingErrorKey, shoppingNameErrorKey, shoppingPaths } from './shopping';
 
 /** `/shopping`: the open lists of one scope, personal or a group, and a new list. */
 export function ShoppingListsScreen() {
@@ -29,21 +29,28 @@ export function ShoppingListsScreen() {
   const { user, groups } = useCurrentUser();
   const [groupId, setGroupId] = useState<string | null>(null);
   const [name, setName] = useState('');
+  const [pressed, setPressed] = useState(false);
   const lists = useQuery({
     queryKey: shoppingKeys.lists(groupId, 'open'),
     queryFn: () => shoppingRepository.lists(groupId, 'open'),
   });
   const parsed = shoppingNameSchema.safeParse(name);
-  const invalid = shoppingTextErrorKey(parsed);
+  const invalid = shoppingNameErrorKey(parsed, pressed);
   const create = useMutation({
     mutationFn: () =>
       shoppingRepository.createList({ groupId, name: shoppingNameSchema.parse(name) }),
     onSuccess: async (id) => {
       setName('');
+      setPressed(false);
       await queryClient.invalidateQueries({ queryKey: shoppingKeys.all });
       router.push(shoppingPaths.list(id, 'build'));
     },
   });
+
+  const submit = () => {
+    setPressed(true);
+    if (parsed.success) create.mutate();
+  };
 
   return (
     <Screen title={t('lists.title')}>
@@ -73,15 +80,11 @@ export function ShoppingListsScreen() {
             placeholder={t('lists.newPlaceholder')}
             value={name}
             onChangeText={setName}
-            onSubmitEditing={() => (parsed.success ? create.mutate() : undefined)}
+            invalid={invalid !== null}
+            onSubmitEditing={submit}
             returnKeyType="done"
           />
-          <Button
-            label={t('lists.create')}
-            disabled={!parsed.success}
-            loading={create.isPending}
-            onPress={() => create.mutate()}
-          />
+          <Button label={t('lists.create')} loading={create.isPending} onPress={submit} />
           {invalid ? <ErrorText>{t(invalid)}</ErrorText> : null}
           {create.isError ? <ErrorText>{t(shoppingErrorKey(create.error))}</ErrorText> : null}
         </>

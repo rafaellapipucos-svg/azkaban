@@ -4117,3 +4117,21 @@
 - **Verificado:** `http://` dá 301 para `https://`; `/tasks` 200 `text/html`, `no-cache`, CSP, CSP Report-Only com o host do Supabase, `nosniff`, `Referrer-Policy`, `Permissions-Policy` e `X-Frame-Options`; `sw.js` e `manifest.webmanifest` com o tipo certo e `no-cache`; `.ftp-deploy-sync-state.json` 403; JS com hash `public, max-age=31536000, immutable`; a tela de boas-vindas abre no Chrome.
 - **Não verificado:** crons (precisam de uma hora cheia depois do Vault), login e e-mail (falta Brevo e Auth no painel), avisos da CSP no console com o app inteiro (BL-25).
 - **Pendências / próximos passos:** humano: Brevo e Auth no painel (passos 5 e 6 do handoff 0001). Claude: consultas dos crons da seção 5, SHA-256 da VAPID, teste do link mágico, resto da seção 5, depois BL-26 e BL-25.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-06 03:10 (BRT)
+
+- **Branch:** chore/web-launch
+- **Agente(s):** orquestrador
+- **Resumo:** e-mail próprio pelo Brevo e Auth de produção no painel do Supabase (BL-26 e seções 4, 5 e 8 de `docs/implantacao.md`), com o humano no Chrome. Falta só o teste do link mágico.
+- **Alterações:**
+  - Brevo (conta grátis criada pelo humano): domínio `tabolao.com` autenticado pelo método manual; remetente "Azkaban" `nao-responda@tabolao.com`; SMTP key `supabase` gerada pelo humano e colada por ele no painel.
+  - DNS de `tabolao.com` no hPanel: TXT `brevo-code:...`, CNAME `brevo1._domainkey` e `brevo2._domainkey` (DKIM), TXT SPF `v=spf1 include:spf.brevo.com ~all` (não havia outro), TXT `_dmarc` `v=DMARC1; p=none; rua=mailto:rua@dmarc.brevo.com` (relatórios no Brevo, sem e-mail pessoal no DNS).
+  - Supabase hospedado, com confirmação do humano: SMTP próprio ligado (`smtp-relay.brevo.com`, 587, login do Brevo); Site URL de `http://localhost:3000` para `https://app.tabolao.com`; Redirect URLs `https://app.tabolao.com/**` e `azkaban://**` (não havia nenhuma, então o `azkaban://**` do BL-28 não estava no painel); senha mínima de 6 para 8.
+  - Já estavam certos e não mudaram: confirmação de e-mail ligada, anônimos desligados, Rate Limits (30 e-mails/h, 60 s, 30 entradas e 30 OTP a cada 5 min, 150 renovações), schemas expostos só `public` e `graphql_public`, `pg_graphql` desligado.
+- **Arquivos/módulos principais:** `LOG_DE_ALTERACOES.md`.
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova.
+- **Como testar:** as consultas da seção 5; `Accept-Profile: net|cron|vault` na REST dá `PGRST106`.
+- **Verificado:** "Verify records" do Brevo com os 4 registros batendo e `dig` nos nameservers da Hostinger; painel recarregado mostrando os valores salvos; REST com a chave publicável: `anon` sem acesso a `profiles` (de propósito, `revoke all` na migration) e `net`, `cron`, `vault` recusados; `/graphql/v1` responde que a extensão está desligada; VAPID: resumo SHA-256 do segredo igual ao da Variable do GitHub (`f265dd09…`); crons nos últimos 50 min todos `succeeded` (7 jobs) e 71 respostas HTTP 200, sem erro. As falhas `*_not_configured` param às 01:58, antes do Vault.
+- **Não verificado:** entrega do link mágico fora da equipe e spam; prova de 2 MiB, `WORKER_LIMIT` e `x-proof-meta` nos logs (precisam de conta e uso real).
+- **Pendências / próximos passos:** humano pede um link mágico para um e-mail fora da equipe; com ele chegando, BL-26 vira feito. Depois, BL-25 (Lighthouse e avisos da CSP).

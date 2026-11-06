@@ -4273,6 +4273,6 @@
 - **Migrations:** nenhuma
 - **Decisões/ADRs:** nenhuma.
 - **Como testar:** `pnpm e2e e2e/accounts.spec.ts -g "magic link"` na pilha A; no hospedado, pedir um link e conferir o assunto "Seu link de entrada no Azkaban".
-- **Verificado:** `pnpm lint`; o CI do PR roda a E2E com os modelos novos.
-- **Não verificado:** ver a próxima entrada (painel do hospedado).
-- **Pendências / próximos passos:** colar no painel do hospedado.
+- **Verificado:** `pnpm lint`; no painel do hospedado, os 5 modelos já estavam salvos em pt-BR pela outra sessão (assunto e corpo conferidos depois de recarregar); um link pedido para o e-mail do humano (`/auth/v1/otp`, `create_user: false`) chegou na caixa de entrada do Gmail com o assunto "Seu link de entrada no Azkaban" e o corpo em português.
+- **Não verificado:** a E2E com os modelos novos roda no CI do PR. A sessão dos e-mails continua aberta esperando uma resposta do humano; pode ser encerrada.
+- **Pendências / próximos passos:** nenhuma.

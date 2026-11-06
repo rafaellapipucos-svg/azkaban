@@ -42,7 +42,7 @@ O app está no ar em `https://app.tabolao.com`, com login por e-mail funcionando
 
 - **`supabase db push` no hospedado**, para registrar a migration `20261106110000`. As linhas já existem, e ela é `on conflict do nothing`.
   - O `supabase link` desta madrugada foi barrado pelo classificador. Rode com o humano presente.
-- **E-mails do Auth em português:** a sessão "E-mails do Auth em português no Supabase" (worktree `hopeful-noether-29777b`) estava trabalhando nisso. Confira o PR dela e se os modelos foram colados no painel.
+- **E-mails do Auth em português:** feitos (PR #20). Os 5 modelos estão no painel e em `supabase/templates/`, e o link chega em português. A sessão "E-mails do Auth em português no Supabase" ficou esperando uma resposta do humano; pode ser encerrada sem responder.
 - **Brevo:** o link do e-mail passa pelo rastreador de cliques (`*.sendibt3.com`). Não há opção no painel. As saídas são pedir ao suporte do Brevo ou usar código (OTP) no modelo.
 - **BL-25:** destravado. Lighthouse nas boas-vindas e a rodada de avisos da CSP Report-Only com o app inteiro.
 - **E2E local:** o `.env.development.local` da checkout principal não tem `EXPO_PUBLIC_APP_NAME` nem `EXPO_PUBLIC_APP_SCHEME`, e o app quebra na pilha A sem eles. Quem copiar o arquivo para um worktree precisa acrescentar os dois.

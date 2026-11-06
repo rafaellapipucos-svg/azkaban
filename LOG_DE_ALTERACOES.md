@@ -4241,3 +4241,21 @@
 - **Verificado:** `pnpm check` passou; a spec com `--repeat-each=5 --workers=1` 5/5. Com 4 workers, 1/5: as outras 4 caíram antes, na linha 518, com o runtime local das funções estourando CPU no `proof-validate` (o 546 que o `playwright.config.ts` já descreve), sem relação com esta mudança.
 - **Não verificado:** a contagem 2 não foi reproduzida nesta máquina; a causa vem dos traces do CI mais a leitura do código do RNW. Hora pelo UTC−3.
 - **Pendências / próximos passos:** CI do PR.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-06 04:40 (BRT)
+
+- **Branch:** docs/overnight-handoff (a partir de `main`, `c3e4596`)
+- **Agente(s):** orquestrador; prova-foto, gamificacao, tarefas-calendario, compras e banco-de-dados como subagentes
+- **Resumo:** madrugada com autonomia dada pelo humano às 03:20 ("totalmente autônomo ... deixar o site limpinho funcionando até as 8h"). Teste de todas as telas e botões em `https://app.tabolao.com` no Chrome, correção do que quebrou e integração na `main`.
+- **Alterações:**
+  - Hospedado: as 2 linhas de `public.areas` inseridas pelo SQL Editor (antes, ninguém criava contexto nem tarefa); migration do mesmo insert no PR #14.
+  - PRs #14 a #18 mergeados na `main`, com CI verde em cada PR. Os #15 a #18 foram integrados por merge local com o LOG unido, porque todos anexam ao fim dele; `pnpm check` na integração antes do push. O merge do #18 deixou o LOG fora do Prettier por um commit (`f578461`); corrigido em `c3e4596`.
+  - Git: config local do repositório com `credential.https://github.com.helper` = `!gh auth git-credential` e `username` = `rafaellapipucos-svg`, para não abrir o seletor de conta.
+  - `docs/agentes/handoffs/20261106-0440-orquestrador-para-humano-manha.md`: o que ficou para o humano e para a próxima sessão.
+- **Arquivos/módulos principais:** `docs/agentes/handoffs/`, `LOG_DE_ALTERACOES.md`.
+- **Migrations:** nenhuma nova nesta entrada (a `20261106110000` é do PR #14).
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** abrir `https://app.tabolao.com` logado e repetir: Hoje, contexto, tarefa (criar, concluir, Tentei, Não fiz, editar com repetição, reagendar, duplicar, excluir série), Calendário (mês, semana, dia, filtros), Compras (lista, catálogo, No mercado, finalizar, histórico), Grupo (criar, equipe, convite, excluir), Notificações, Privacidade (exportar), sino.
+- **Verificado:** tudo da linha acima no Chrome, antes e depois do deploy das correções (deploy 42181764625), com o console sem erros; depois do deploy: aviso de nome vazio nas compras, `?area=home` em "Gerenciar contextos", avisos ao salvar contexto vazio e "Conquista: {{title}}!" no JavaScript publicado.
+- **Não verificado:** prova por foto (aceite e câmera são do humano), push, WhatsApp, exclusão de conta; a comemoração nova na tela (só no JavaScript publicado e nos testes de unidade, para não gerar mais XP na conta do humano); `supabase db push` da migration `20261106110000` (o `supabase link` foi barrado).
+- **Pendências / próximos passos:** as do handoff 0440.

@@ -6,7 +6,8 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --fsModuleCachePath node_modules/.vitest-cache"
   },
   "dependencies": {
     "@azkaban/config": "workspace:*",
@@ -22,5 +23,8 @@
     "react": "catalog:",
     "react-hook-form": "^7.91.0",
     "react-native": "catalog:"
+  },
+  "devDependencies": {
+    "vitest": "catalog:"
   }
 }

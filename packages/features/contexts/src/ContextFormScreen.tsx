@@ -20,6 +20,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { useController, useForm } from 'react-hook-form';
+import { formErrorKey, pickArea } from './form';
 import { draftToLocation, PlaceField, placeToDraft, type PlaceDraft } from './PlaceField';
 
 export function ContextFormScreen({ contextId, areaId }: { contextId?: string; areaId?: string }) {
@@ -42,7 +43,7 @@ export function ContextFormScreen({ contextId, areaId }: { contextId?: string; a
   const { control, handleSubmit } = useForm<ContextInput>({
     resolver: zodResolver(contextInputSchema),
     values: existing ?? {
-      areaId: areaId ?? areas.data?.[0]?.id ?? '',
+      areaId: pickArea(areas.data, { id: areaId })?.id ?? '',
       groupId: null,
       name: '',
       colorToken: defaults.contextColorToken,
@@ -54,6 +55,9 @@ export function ContextFormScreen({ contextId, areaId }: { contextId?: string; a
   // `undefined`: not touched, so the saved place shows; `null`: removed.
   const [place, setPlace] = useState<PlaceDraft | null | undefined>(undefined);
   const [missing, setMissing] = useState<'address' | 'point' | null>(null);
+  const [invalid, setInvalid] = useState<string | null>(null);
+  // An empty list (the hosted database once lost its areas) can never give the form an area.
+  const noAreas = areas.isError || (areas.isSuccess && areas.data.length === 0);
   const shownPlace = place === undefined ? placeToDraft(existing?.location ?? null) : place;
   const { field: area } = useController({ control, name: 'areaId' });
   const { field: group } = useController({ control, name: 'groupId' });
@@ -93,16 +97,31 @@ export function ContextFormScreen({ contextId, areaId }: { contextId?: string; a
         editable={!readOnly}
       />
       <Muted>{t('form.area')}</Muted>
-      <ChipRow label={t('form.area')}>
-        {areas.data?.map((item) => (
-          <Chip
-            key={item.id}
-            label={`${item.icon} ${t(item.i18nKey)}`}
-            selected={area.value === item.id}
-            onPress={() => !readOnly && area.onChange(item.id)}
+      {noAreas ? (
+        <>
+          <ErrorText>{t('form.areasUnavailable')}</ErrorText>
+          <Button
+            variant="secondary"
+            label={t('form.retry')}
+            onPress={() => void areas.refetch()}
           />
-        ))}
-      </ChipRow>
+        </>
+      ) : (
+        <ChipRow label={t('form.area')}>
+          {areas.data?.map((item) => (
+            <Chip
+              key={item.id}
+              label={`${item.icon} ${t(item.i18nKey)}`}
+              selected={area.value === item.id}
+              onPress={() => {
+                if (readOnly) return;
+                area.onChange(item.id);
+                setInvalid(null);
+              }}
+            />
+          ))}
+        </ChipRow>
+      )}
       {contextId ? null : (
         <>
           <Muted>{t('form.owner')}</Muted>
@@ -149,18 +168,23 @@ export function ContextFormScreen({ contextId, areaId }: { contextId?: string; a
           }}
         />
       )}
+      {invalid ? <ErrorText>{t(invalid)}</ErrorText> : null}
       {save.isError || archive.isError ? <ErrorText>{t('errors.generic')}</ErrorText> : null}
       {readOnly ? null : (
         <Button
           label={t('actions.save')}
           loading={save.isPending}
-          // Before the areas arrive the form has no area, and saving would do nothing, silently.
+          // Before the areas arrive the form has no area yet; a failed or empty list says why above.
           disabled={!areas.isSuccess}
-          onPress={handleSubmit((values) => {
-            const result = draftToLocation(shownPlace);
-            if (!result.ok) setMissing(result.missing);
-            else save.mutate({ ...values, location: result.location });
-          })}
+          onPress={handleSubmit(
+            (values) => {
+              setInvalid(null);
+              const result = draftToLocation(shownPlace);
+              if (!result.ok) setMissing(result.missing);
+              else save.mutate({ ...values, location: result.location });
+            },
+            (errors) => setInvalid(formErrorKey(errors)),
+          )}
         />
       )}
       {contextId && !readOnly ? (

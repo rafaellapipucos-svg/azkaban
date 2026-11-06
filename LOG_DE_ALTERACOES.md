@@ -4171,3 +4171,21 @@
 - **Verificado:** na pilha B "db" (a A estava sendo subida por outra sessão): `db reset` sem seed, com as 2 áreas; a migration rodada de novo não duplica (2 linhas); `pnpm db:test` 1990/1990 em 15 arquivos; `pnpm check` verde.
 - **Não verificado:** `db push` no hospedado (fica para o próximo deploy; lá as linhas já existem).
 - **Pendências / próximos passos:** `docs/PROMPT_MESTRE.md` ainda lista "áreas" em `supabase/seed/` na árvore de pastas (fora do escopo do banco).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-06 03:44 (BRT)
+
+- **Branch:** fix/contexts-area-feedback (a partir de `main`, `e3ec1d2`)
+- **Agente(s):** tarefas-calendario
+- **Resumo:** duas falhas vistas em produção nas telas de contexto: "Salvar" de "Novo contexto" não dizia nada quando não havia área (lista de áreas vazia no hospedado), e "Gerenciar contextos" aberto do Doméstico abria em Trabalho.
+- **Alterações:**
+  - `packages/features/contexts/src/form.ts`: `pickArea` (a escolhida, senão a de origem pela chave, senão a primeira) e `formErrorKey` (o aviso do formulário inválido: área não escolhida tem texto próprio, o resto aponta os campos marcados).
+  - `ContextFormScreen`: aviso `role="alert"` quando a validação falha; lista de áreas vazia ou com erro vira um estado de erro com "Tentar de novo" no lugar do grupo vazio. O erro do servidor já aparecia (`errors.generic`).
+  - `AreasScreen` recebe `areaKey`; a rota `/contexts` lê `?area=` e o botão "Gerenciar contextos" da aba de área manda a chave dela. Sem origem, continua em Trabalho.
+  - `packages/i18n/src/pt-BR/contexts.json`: `form.areaMissing`, `form.areasUnavailable`, `form.retry`, `form.invalid`.
+  - `@azkaban/feature-contexts` ganhou script `test` (vitest), como `feature-tasks`.
+- **Arquivos/módulos principais:** `packages/features/contexts`, `packages/features/tasks/src/AreaScreen.tsx`, `apps/app/app/(app)/contexts/index.tsx`, `packages/i18n`.
+- **Migrations:** nenhuma (as áreas do hospedado já foram repostas por migration).
+- **Decisões/ADRs:** nenhuma. `/contexts?area=` usa a chave da área (`home`), como `/area/home`; `/contexts/new?area=` continua com o id.
+- **Como testar:** `pnpm --filter @azkaban/feature-contexts test`; na web, abrir `/area/home` e tocar em "Gerenciar contextos" (deve abrir em Doméstico); em "Novo contexto", salvar com o nome vazio mostra o aviso.
+- **Verificado:** testes de unidade e `pnpm check`. **Não verificado:** E2E (nenhuma spec cobre "Gerenciar contextos" nem o formulário sem áreas); o estado sem áreas não foi visto num navegador. Hora pelo UTC−3.
+- **Pendências / próximos passos:** nenhuma.

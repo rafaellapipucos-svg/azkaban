@@ -4154,3 +4154,20 @@
   - Os e-mails do Auth saem com o modelo padrão do Supabase, em inglês ("Your sign-in link"). A interface é pt-BR; faltam modelos em português no painel (Authentication → Emails → Templates).
   - O Brevo reescreve o link do e-mail para o rastreador de cliques (`*.sendibt3.com`), então o token de entrada passa por ele. O painel não tem opção para desligar no transacional; pedir ao suporte do Brevo ou trocar o link por código (OTP) no modelo.
   - BL-25: Lighthouse nas boas-vindas e a rodada de avisos da CSP.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-06 03:22 (BRT)
+
+- **Branch:** chore/web-launch
+- **Agente(s):** banco-de-dados
+- **Resumo:** bug em produção: `public.areas` vazia no hospedado, porque as linhas `work` e `home` só vinham de `supabase/seed/areas.sql`, que roda no `db reset` local e não no `db push`. Sem áreas, "Novo contexto" não tinha opção em "Área" e ninguém criava contexto nem tarefa. As linhas agora vêm por migration, como o catálogo de compras (ADR 0011).
+- **Alterações:**
+  - Migration nova `20261106110000_seed_reference_areas.sql`: as mesmas 2 linhas do seed, com `on conflict (key) do nothing` (o orquestrador já inseriu as duas à mão no hospedado, então lá ela não muda nada).
+  - `supabase/seed/areas.sql` removido; nada mais dependia dele. O `sql_paths = ["./seed/*.sql"]` do `config.toml` ficou: o glob vazio só avisa `no files matched pattern` e o reset segue.
+  - Conferi os outros dados de referência que o app lê (`group_types`, `achievements`, `permissions`, `role_permissions`, `app_settings`, `shopping_catalog_seed`): todos já vêm de migration. Os `insert into public.role_permissions` dos testes são concessões extras de cada teste, não dados do app.
+- **Arquivos/módulos principais:** `supabase/migrations/20261106110000_seed_reference_areas.sql`, `supabase/seed/areas.sql` (removido), `LOG_DE_ALTERACOES.md`.
+- **Migrations:** `20261106110000_seed_reference_areas.sql`
+- **Decisões/ADRs:** nenhuma nova; segue o motivo do ADR 0011 (seed do Supabase só roda no reset local).
+- **Como testar:** `pnpm db:reset` e `select key from public.areas` dá `work` e `home`; `pnpm db:test`.
+- **Verificado:** na pilha B "db" (a A estava sendo subida por outra sessão): `db reset` sem seed, com as 2 áreas; a migration rodada de novo não duplica (2 linhas); `pnpm db:test` 1990/1990 em 15 arquivos; `pnpm check` verde.
+- **Não verificado:** `db push` no hospedado (fica para o próximo deploy; lá as linhas já existem).
+- **Pendências / próximos passos:** `docs/PROMPT_MESTRE.md` ainda lista "áreas" em `supabase/seed/` na árvore de pastas (fora do escopo do banco).

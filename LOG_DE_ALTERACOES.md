@@ -4097,3 +4097,23 @@
 - **Como testar:** não se aplica (documentação).
 - **Verificado:** CI e `Deploy web` da `main` em `1f9cb2b` verdes (deploy pulado, sem Secrets de FTP). **Não verificado:** crons, Auth, SMTP e deploy real, que dependem do humano.
 - **Pendências / próximos passos:** as do handoff.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-06 02:35 (BRT)
+
+- **Branch:** chore/web-launch (a partir de `main`, `e3ec1d2`)
+- **Agente(s):** orquestrador
+- **Resumo:** o app web está no ar em `https://app.tabolao.com` (BL-24). Fiz junto com o humano no hPanel; credenciais só com ele.
+- **Alterações:**
+  - Humano: rodou o `azkaban-vault.sql` no SQL Editor do hospedado. Decidiu não guardar o par VAPID (a chave fica só nos segredos do Supabase; se perder, gera-se um par novo). Às 02:35 os dois arquivos ainda estavam em `~`, a apagar.
+  - Hostinger: o `tabolao.com` não tinha site na conta, então o site foi criado direto como `app.tabolao.com` (PHP/HTML em branco, sem custo no plano Unlimited); SSL grátis ativo; conta FTP `u664139085.deploy` presa a `domains/app.tabolao.com/public_html`.
+  - GitHub: o humano cadastrou `FTP_SERVER` (`srv887.hstgr.io`, porque o certificado do FTP só cobre `*.hstgr.io`), `FTP_USERNAME` e `FTP_PASSWORD`. O classificador barrou o `gh secret set` pelo Claude.
+  - Primeiro deploy: `Deploy web` na `main` (run 42168768409), verde com upload.
+  - `docs/implantacao.md`, seção 8: passo 1 com o caminho real do hPanel e passo 3 com o host `srvNNN.hstgr.io`.
+  - `docs/agentes/QUADRO.md`: BL-24 feito; BL-25 a fazer.
+- **Arquivos/módulos principais:** `docs/implantacao.md`, `docs/agentes/QUADRO.md`, `LOG_DE_ALTERACOES.md`.
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma nova.
+- **Como testar:** os `curl -sI` do passo 6 da seção 8 de `docs/implantacao.md`.
+- **Verificado:** `http://` dá 301 para `https://`; `/tasks` 200 `text/html`, `no-cache`, CSP, CSP Report-Only com o host do Supabase, `nosniff`, `Referrer-Policy`, `Permissions-Policy` e `X-Frame-Options`; `sw.js` e `manifest.webmanifest` com o tipo certo e `no-cache`; `.ftp-deploy-sync-state.json` 403; JS com hash `public, max-age=31536000, immutable`; a tela de boas-vindas abre no Chrome.
+- **Não verificado:** crons (precisam de uma hora cheia depois do Vault), login e e-mail (falta Brevo e Auth no painel), avisos da CSP no console com o app inteiro (BL-25).
+- **Pendências / próximos passos:** humano: Brevo e Auth no painel (passos 5 e 6 do handoff 0001). Claude: consultas dos crons da seção 5, SHA-256 da VAPID, teste do link mágico, resto da seção 5, depois BL-26 e BL-25.

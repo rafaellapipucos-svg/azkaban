@@ -4083,3 +4083,17 @@
 - **Verificado:** sonda do fluxo original 34/34 sem reproduzir a corrida (10 com 1 worker, 24 com 6); depois da correção, as duas specs 20/20 (`--repeat-each=10`, 4 workers); `pnpm check` passou.
 - **Não verificado:** a corrida em si não reproduziu nesta máquina; a causa vem do trace mais o mecanismo. Não comparei com a `main` (`f4d9136`) localmente: a corrida depende do runner, não do Expo. Hora pelo UTC−3.
 - **Pendências / próximos passos:** rodar o CI do PR com esta branch.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-06 00:01 (BRT)
+
+- **Branch:** docs/launch-handoff (a partir de `main`, `1f9cb2b`)
+- **Agente(s):** orquestrador
+- **Resumo:** PR #12 mergeado na `main` (`1f9cb2b`, CI verde) e handoff para a próxima sessão com o que falta para colocar o app no ar.
+- **Alterações:**
+  - `docs/agentes/handoffs/20261106-0001-orquestrador-para-nova-sessao.md`: estado do hospedado e do GitHub, passos do humano (Vault, VAPID, Hostinger, Secrets FTP, Brevo, Auth no painel), conferências do Claude depois deles e o backlog pós-lançamento.
+- **Arquivos/módulos principais:** `docs/agentes/handoffs/`, `LOG_DE_ALTERACOES.md`.
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** não se aplica (documentação).
+- **Verificado:** CI e `Deploy web` da `main` em `1f9cb2b` verdes (deploy pulado, sem Secrets de FTP). **Não verificado:** crons, Auth, SMTP e deploy real, que dependem do humano.
+- **Pendências / próximos passos:** as do handoff.

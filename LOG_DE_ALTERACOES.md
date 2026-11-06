@@ -4118,7 +4118,7 @@
 - **Não verificado:** crons (precisam de uma hora cheia depois do Vault), login e e-mail (falta Brevo e Auth no painel), avisos da CSP no console com o app inteiro (BL-25).
 - **Pendências / próximos passos:** humano: Brevo e Auth no painel (passos 5 e 6 do handoff 0001). Claude: consultas dos crons da seção 5, SHA-256 da VAPID, teste do link mágico, resto da seção 5, depois BL-26 e BL-25.
 
-### Claude de Rafaell Bezerra Saraiva — 2026-11-06 03:10 (BRT)
+### Claude de Rafaell Bezerra Saraiva — 2026-11-06 03:02 (BRT)
 
 - **Branch:** chore/web-launch
 - **Agente(s):** orquestrador
@@ -4135,3 +4135,22 @@
 - **Verificado:** "Verify records" do Brevo com os 4 registros batendo e `dig` nos nameservers da Hostinger; painel recarregado mostrando os valores salvos; REST com a chave publicável: `anon` sem acesso a `profiles` (de propósito, `revoke all` na migration) e `net`, `cron`, `vault` recusados; `/graphql/v1` responde que a extensão está desligada; VAPID: resumo SHA-256 do segredo igual ao da Variable do GitHub (`f265dd09…`); crons nos últimos 50 min todos `succeeded` (7 jobs) e 71 respostas HTTP 200, sem erro. As falhas `*_not_configured` param às 01:58, antes do Vault.
 - **Não verificado:** entrega do link mágico fora da equipe e spam; prova de 2 MiB, `WORKER_LIMIT` e `x-proof-meta` nos logs (precisam de conta e uso real).
 - **Pendências / próximos passos:** humano pede um link mágico para um e-mail fora da equipe; com ele chegando, BL-26 vira feito. Depois, BL-25 (Lighthouse e avisos da CSP).
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-06 03:15 (BRT)
+
+- **Branch:** chore/web-launch
+- **Agente(s):** orquestrador
+- **Resumo:** teste de ponta a ponta em `https://app.tabolao.com` com o e-mail do humano, a pedido dele. O link mágico chega pelo Brevo e entra no app. BL-26 feito.
+- **Alterações:**
+  - `docs/agentes/QUADRO.md`: BL-26 feito.
+  - Entrada anterior com a hora corrigida (03:02).
+- **Arquivos/módulos principais:** `docs/agentes/QUADRO.md`, `LOG_DE_ALTERACOES.md`.
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma.
+- **Como testar:** em `/sign-in`, "Receber link por e-mail" e conferir a caixa de entrada.
+- **Verificado:** o e-mail chegou em cerca de 1 minuto na **caixa de entrada** do Gmail (não no spam), remetente "Azkaban" `nao-responda@tabolao.com`; o link entrou no app e levou a `/push-setup`; Hoje, Calendário, Compras e Perfil abriram, com as chamadas REST em 200 e o console sem erros.
+- **Não verificado:** e-mail fora da equipe do projeto (o humano autorizou usar o dele, que é dono do projeto; com SMTP próprio a entrega passa pelo Brevo do mesmo jeito); push (o humano decide a permissão do navegador); criação de tarefa, Realtime, câmera e prova; avisos da CSP Report-Only (vão no BL-25).
+- **Pendências / próximos passos:**
+  - Os e-mails do Auth saem com o modelo padrão do Supabase, em inglês ("Your sign-in link"). A interface é pt-BR; faltam modelos em português no painel (Authentication → Emails → Templates).
+  - O Brevo reescreve o link do e-mail para o rastreador de cliques (`*.sendibt3.com`), então o token de entrada passa por ele. O painel não tem opção para desligar no transacional; pedir ao suporte do Brevo ou trocar o link por código (OTP) no modelo.
+  - BL-25: Lighthouse nas boas-vindas e a rodada de avisos da CSP.

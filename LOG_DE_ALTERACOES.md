@@ -4189,3 +4189,21 @@
 - **Como testar:** `pnpm --filter @azkaban/feature-contexts test`; na web, abrir `/area/home` e tocar em "Gerenciar contextos" (deve abrir em Doméstico); em "Novo contexto", salvar com o nome vazio mostra o aviso.
 - **Verificado:** testes de unidade e `pnpm check`. **Não verificado:** E2E (nenhuma spec cobre "Gerenciar contextos" nem o formulário sem áreas); o estado sem áreas não foi visto num navegador. Hora pelo UTC−3.
 - **Pendências / próximos passos:** nenhuma.
+
+### Claude de Rafaell Bezerra Saraiva — 2026-11-06 03:48 (BRT)
+
+- **Branch:** fix/shopping-empty-list-name (a partir de `main`, `e3ec1d2`)
+- **Agente(s):** compras
+- **Resumo:** em `/shopping`, "Criar lista" com o nome vazio (ou só espaços, ou acima de 80 caracteres) ficava desligado sem dizer por quê, e em produção parecia que o toque não fazia nada. O botão agora fica ligado e o toque diz o motivo.
+- **Alterações:**
+  - `ShoppingListsScreen.tsx`: sem `disabled` pelo nome; o toque (e o Enter do campo) marca a tentativa e só cria com nome válido. O aviso sai em `ErrorText` (`role="alert"`) e o campo ganha `aria-invalid`. Some ao criar a lista.
+  - `shopping.ts`: `shoppingNameErrorKey(parsed, pressed)`; antes do primeiro toque, só o aviso de caractere de controle, como antes.
+  - `pt-BR/shopping.json`: `lists.nameRequired` ("Escreva o nome da lista.") e `lists.nameTooLong`.
+  - Erros do servidor ao criar já apareciam (`create.isError` com `shoppingErrorKey`, que cai em `errors.generic`); nada mudou ali.
+- **Arquivos/módulos principais:** `packages/features/shopping/src/`, `packages/i18n/src/pt-BR/shopping.json`.
+- **Migrations:** nenhuma
+- **Decisões/ADRs:** nenhuma. Segui o padrão das tarefas (`form.titleRequired`): botão ligado e aviso no envio, em vez de botão desligado sem explicação.
+- **Como testar:** `pnpm --filter @azkaban/feature-shopping test`; à mão, em `/shopping`, tocar "Criar lista" com o campo vazio.
+- **Verificado:** `pnpm check` passou (23 testes de compras, 2 novos). Nenhuma spec E2E confere o botão desligado; E2E não rodada.
+- **Não verificado:** a tela no navegador e no leitor de tela. Os outros formulários de compras (itens, catálogo) seguem com o botão desligado sem aviso.
+- **Pendências / próximos passos:** decidir se o mesmo padrão vale para os formulários de item e de catálogo.

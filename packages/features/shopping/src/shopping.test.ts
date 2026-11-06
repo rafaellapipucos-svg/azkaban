@@ -16,6 +16,7 @@ import {
   parseNote,
   readMode,
   shoppingErrorKey,
+  shoppingNameErrorKey,
   shoppingPaths,
   shoppingTextErrorKey,
 } from './shopping';
@@ -26,7 +27,7 @@ const messages = JSON.parse(
     'utf8',
   ),
 ) as Record<
-  'errors' | 'categories' | 'units' | 'unitNames' | 'form' | 'list' | 'task' | 'offline',
+  'errors' | 'categories' | 'units' | 'unitNames' | 'form' | 'list' | 'lists' | 'task' | 'offline',
   Record<string, string>
 >;
 
@@ -77,6 +78,25 @@ describe('access and address', () => {
     expect(readMode('nonsense')).toBe('build');
     expect(shoppingPaths.list('l1', 'market')).toBe('/shopping/l1?mode=market');
     expect(shoppingPaths.history('g1')).toBe('/shopping/history?group=g1');
+  });
+});
+
+describe('shoppingNameErrorKey', () => {
+  const key = (value: string, pressed: boolean) =>
+    shoppingNameErrorKey(shoppingNameSchema.safeParse(value), pressed);
+
+  it('says why "Criar lista" did nothing when the name is empty or only spaces', () => {
+    expect(key('', true)).toBe('lists.nameRequired');
+    expect(key('   ', true)).toBe('lists.nameRequired');
+    expect(key('a'.repeat(81), true)).toBe('lists.nameTooLong');
+    expect(messages.lists.nameRequired).toBeTruthy();
+    expect(messages.lists.nameTooLong).toBeTruthy();
+  });
+
+  it('waits for the first press, and never blames a valid name', () => {
+    expect(key('', false)).toBeNull();
+    expect(key('Mercado', true)).toBeNull();
+    expect(key('Arroz\nLeite', false)).toBe('form.invalidText');
   });
 });
 

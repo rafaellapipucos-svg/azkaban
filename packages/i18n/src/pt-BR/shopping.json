@@ -67,6 +67,8 @@
     "newName": "Nome da nova lista",
     "newPlaceholder": "Ex.: Mercado, Farmácia",
     "create": "Criar lista",
+    "nameRequired": "Escreva o nome da lista.",
+    "nameTooLong": "Use um nome mais curto, de até 80 caracteres.",
     "open": "Listas abertas",
     "empty": "Nenhuma lista aberta por aqui.",
     "loading": "Carregando listas…",

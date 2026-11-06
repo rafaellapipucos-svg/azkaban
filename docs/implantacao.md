@@ -192,11 +192,11 @@ O app web fica na Hostinger Premium, em `https://app.tabolao.com` (BL-24). Depoi
 
 A Hostinger ignora `_headers` e `_redirects`. O build grava `dist/.htaccess` (`apps/app/scripts/headers.ts`) com: redirecionamento para HTTPS, fallback de rota para `index.html`, os cabeçalhos de segurança do bloco `/*` de `public/_headers` (a CSP Report-Only com o host exato do Supabase incluída), cache de um ano para os arquivos com hash e `no-cache` para `index.html`, `sw.js` e `manifest.webmanifest`.
 
-**1. Subdomínio.** No hPanel: **Sites** → o site de `tabolao.com` → **Domínios** → **Subdomínios**. Crie `app`. Anote a pasta que o hPanel mostra (por exemplo, `public_html/app`). O DNS do subdomínio é criado junto, se o domínio usa os nameservers da Hostinger.
+**1. Subdomínio.** No hPanel: **Sites** → **Criar site** → **Site PHP/HTML** → **Configurar manualmente**, com o domínio `app.tabolao.com` (aparece como "Subdomínio grátis") e **Começar do zero**. O site fica com pasta própria, `/home/<usuário>/domains/app.tabolao.com/public_html`, e o DNS é criado junto, se o domínio usa os nameservers da Hostinger. Foi assim em 2026-11-06, porque o `tabolao.com` não tinha site na conta.
 
 **2. SSL.** **Segurança** → **SSL**: confirme que `app.tabolao.com` tem o certificado grátis ativo. Se não tiver, instale. Pode levar alguns minutos depois do subdomínio. O `.htaccess` já força HTTPS, então o "Forçar HTTPS" do painel é opcional.
 
-**3. Conta FTP restrita.** **Arquivos** → **Contas FTP** → criar conta, com o diretório na pasta do subdomínio do passo 1 (nunca a raiz `public_html`). Use uma senha longa e aleatória, só para o deploy. Anote o **nome do host FTP** (por exemplo, `ftp.tabolao.com`) e o usuário completo que o painel mostra.
+**3. Conta FTP restrita.** **Arquivos** → **Contas FTP** → criar conta, com o diretório na pasta do subdomínio do passo 1 (nunca a raiz `public_html`). Use uma senha longa e aleatória, só para o deploy. Anote o usuário completo que o painel mostra (por exemplo, `u664139085.deploy`). Para o host, não use o `ftp.app.tabolao.com` do painel: o certificado do FTP da Hostinger só vale para `*.hstgr.io`. Use o `srvNNN.hstgr.io` do servidor (o número vem de **Plano de hospedagem** → **Detalhes do plano** → **Nome do servidor**). Para conferir: `openssl s_client -starttls ftp -connect srvNNN.hstgr.io:21 -verify_hostname srvNNN.hstgr.io` deve dar `Verify return code: 0`.
 
 **4. GitHub.** No repositório: **Settings** → **Secrets and variables** → **Actions**.
 

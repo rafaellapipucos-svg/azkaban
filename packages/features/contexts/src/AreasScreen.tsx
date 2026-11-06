@@ -15,10 +15,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
+import { pickArea } from './form';
 
 const ALL = 'all';
 
-export function AreasScreen() {
+/** `areaKey`: the area the person came from (`/contexts?area=home`), the one it opens on. */
+export function AreasScreen({ areaKey }: { areaKey?: string }) {
   const { t } = useTranslation('contexts');
   const router = useRouter();
   const areas = useQuery({ queryKey: ['areas'], queryFn: contextsRepository.listAreas });
@@ -27,7 +29,7 @@ export function AreasScreen() {
   const [areaId, setAreaId] = useState<string>();
   const [contextId, setContextId] = useState(ALL);
 
-  const area = areas.data?.find(({ id }) => id === areaId) ?? areas.data?.[0];
+  const area = pickArea(areas.data, { id: areaId, key: areaKey });
   const areaContexts = contexts.data?.filter((context) => context.areaId === area?.id) ?? [];
   const visible = areaContexts.filter(({ id }) => contextId === ALL || id === contextId);
 

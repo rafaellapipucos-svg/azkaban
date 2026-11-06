@@ -179,7 +179,7 @@ export function AreaScreen({ areaKey, onProof }: { areaKey: string; onProof?: Pr
         <Button
           variant="secondary"
           label={t('area.manageContexts')}
-          onPress={() => router.push('/contexts')}
+          onPress={() => router.push({ pathname: '/contexts', params: { area: areaKey } })}
         />
         <View style={{ height: tokens.sizes.fab + tokens.spacing[4] }} />
       </Screen>
